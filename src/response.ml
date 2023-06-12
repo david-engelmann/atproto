@@ -1,5 +1,5 @@
 module Response = struct
-    type (string, string) response =
+    type response =
         {
           success : bool;
           status_code : int;
