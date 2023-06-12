@@ -21,3 +21,26 @@ let sample_response : Response.response = {
     content = sample_content;
     headers = [("User-Agent", "david-engelmann/bluesky (OCaml SDK)")];
   }
+
+let test_sample_response_success _ =
+  match sample_response with
+   | { success; _ } ->
+      OUnit2.assert_equal true success
+
+let test_sample_response_status_code _ =
+  match sample_response with
+   | { status_code; _ } ->
+      OUnit2.assert_equal 200 status_code
+
+let test_sample_response_content _ =
+  match sample_response with
+   | { content; _ } ->
+      OUnit2.assert_equal "July Jackson" Bytes.to_string content
+
+let test_sample_response_headers _ =
+  match sample_response with
+   | { headers; _ } ->
+     match headers with
+      | (param_name, _) :: _ ->
+        OUnit2.assert_equal "User-Agent" param_name
+
