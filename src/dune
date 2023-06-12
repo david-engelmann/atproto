@@ -2,5 +2,5 @@
  (name bluesky)
  (libraries async core h2)
  (preprocess (pps ppx_jane))
- (modules Session User)
+ (modules Session User Response)
 )
