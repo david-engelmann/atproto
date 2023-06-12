@@ -1,6 +1,6 @@
 (tests
- ; (names test_sample test_resample)
- (libraries async core ounit2 bluesky)
- ; (modules test_sample test_resample)
+ (names test_session)
+ (libraries async core h2 ounit2 bluesky)
+ (modules test_session)
 
 )
