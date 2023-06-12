@@ -9,3 +9,12 @@ let test_lookup_method_with_get _ =
 
 let test_lookup_method_with_post _ =
   OUnit2.assert_equal (Method.lookup_method "post") sample_post_method
+
+let suite =
+  "suite"
+  >::: [
+         "test_lookup_method_with_get" >:: test_lookup_method_with_get;
+         "test_lookup_method_with_post" >:: test_lookup_method_with_post;
+       ]
+
+let () = run_test_tt_main suite
