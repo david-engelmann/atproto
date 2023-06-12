@@ -1,4 +1,4 @@
-module HttpMethod = struct
+module Http_method = struct
   type http_method =
     | Get
     | Post
@@ -6,10 +6,11 @@ module HttpMethod = struct
     | Delete
     | Patch*)
 
-  let lookup_method meth : http_method =
+  let lookup_http_method meth : http_method =
     match meth with
      | "get" -> Get
      | "post" -> Post
+     | _ -> failwith "Not Recognized Method"
 end
 
 
