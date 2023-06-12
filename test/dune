@@ -1,15 +1,6 @@
 (tests
- ; multiple test files
  ; (names test_sample test_resample)
-
- ; single test file
- (names test_sample)
-
  (libraries async core ounit2 bluesky)
-
- ; multiple test files
  ; (modules test_sample test_resample)
 
- ; single test file
- (modules test_sample)
 )
