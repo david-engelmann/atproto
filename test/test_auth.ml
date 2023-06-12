@@ -83,6 +83,11 @@ let suite =
          "test_sample_auth_with_jti_scope" >:: test_sample_auth_with_jti_scope;
          "test_sample_auth_with_jti_did" >:: test_sample_auth_with_jti_did;
          "test_sample_auth_with_jti_jti" >:: test_sample_auth_with_jti_jti;
+         "test_sample_auth_without_jti_exp" >:: test_sample_auth_without_jti_exp;
+         "test_sample_auth_without_jti_iat" >:: test_sample_auth_without_jti_iat;
+         "test_sample_auth_without_jti_scope" >:: test_sample_auth_without_jti_scope;
+         "test_sample_auth_without_jti_did" >:: test_sample_auth_without_jti_did;
+         "test_sample_auth_without_jti_jti" >:: test_sample_auth_without_jti_jti;
        ]
 
 let () = run_test_tt_main suite
