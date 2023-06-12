@@ -1,6 +1,6 @@
 (library
  (name bluesky)
- (libraries async core)
+ (libraries async core h2)
  (preprocess (pps ppx_jane))
  ; single module
  ;(modules Sample)
