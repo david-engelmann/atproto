@@ -1,0 +1,21 @@
+opam-version: "2.0"
+maintainer: "david-engelmann"
+homepage: "https://github.com/david-engelmann/bluesky"
+
+bug-reports: "https://github.com/david-engelmann/bluesky/issues"
+dev-repo: "git+https://github.com/david-engelmann/bluesky.git"
+license: "MIT"
+build: [
+    ["dune" "build" "-p" name "-j" jobs]
+]
+depends: [
+    "ocaml" {>= "4.14.0"}
+    "core"
+    "async"
+    "dune" {>= "2.0.0"}
+]
+available: arch != "arm32" & arch != "x86_32"
+synopsis: "OCaml based tools for BSky"
+description: "
+OCaml based tools for BSky
+"
