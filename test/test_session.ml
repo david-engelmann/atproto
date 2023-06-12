@@ -1,7 +1,7 @@
 open OUnit2
 open Bluesky.Session
 
-let sample_session : Session = {
+let sample_session : Session.session = {
       username = "your.name";
       password = "password";
       atp_host = "https://bsky.social";
