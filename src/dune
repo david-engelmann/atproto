@@ -2,9 +2,5 @@
  (name bluesky)
  (libraries async core h2)
  (preprocess (pps ppx_jane))
- ; single module
- (modules Session)
-
- ; multiple modules
- ; (modules Sample Resample)
+ (modules Session User)
 )
