@@ -1,0 +1,109 @@
+# This is a basic workflow to help you get started with Actions
+
+name: TestSuite
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+  #  schedule:
+  #    - cron: '15 * * * *'
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-22.04
+
+        ocaml-compiler:
+          - 4.14.1
+
+    runs-on: ${{ matrix.os }}
+    env:
+        USERNAME: "vim"
+        USER_UID: 1000
+        USER_GID: 1000
+    container:
+        image: ocaml/opam:${{ matrix.os }}
+        options: --user root
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Use OCaml ${{ matrix.ocaml-compiler }}
+        uses: ocaml/setup-ocaml@v2
+        with:
+          dune-cache: true
+          ocaml-compiler: ${{ matrix.ocaml-compiler }}
+          opam-disable-sandboxing: true
+
+      - name: Install Common Libs
+        run: opam install async base core_kernel ounit qcheck dune ocamlformat
+#      - name: Install Repo
+#        run: opam install . --deps-only --with-doc --with-test
+      - name: Dune Build
+        run: opam exec -- dune build
+      - name: Dune Test
+        run: opam exec -- dune runtest
+
+  lint-doc:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-22.04
+
+        ocaml-compiler:
+          - 4.14.1
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Use OCaml ${{ matrix.ocaml-compiler }}
+        uses: ocaml/setup-ocaml@v2
+        with:
+          dune-cache: true
+          ocaml-compiler: ${{ matrix.ocaml-compiler }}
+          opam-disable-sandboxing: true
+
+      - name: Lint doc
+        uses: ocaml/setup-ocaml/lint-doc@v2
+
+  lint-fmt:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-22.04
+
+        ocaml-compiler:
+          - 4.14.1
+
+    runs-on: ${{ matrix.os }} 
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Use OCaml ${{ matrix.ocaml-compiler }}
+        uses: ocaml/setup-ocaml@v2
+        with:
+          dune-cache: true
+          ocaml-compiler: ${{ matrix.ocaml-compiler }}
+          opam-disable-sandboxing: true
+
+      - name: Lint fmt
+        uses: ocaml/setup-ocaml/lint-fmt@v2

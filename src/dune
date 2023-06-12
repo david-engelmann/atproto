@@ -1,0 +1,10 @@
+(library
+ (name bluesky)
+ (libraries async core)
+ (preprocess (pps ppx_jane))
+ ; single module
+ ;(modules Sample)
+
+ ; multiple modules
+ ; (modules Sample Resample)
+)
