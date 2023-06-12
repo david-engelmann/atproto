@@ -34,3 +34,15 @@ let test_sample_session_did _ =
     match sample_session with
      | { did; _ } ->
         OUnit2.assert_equal "did_public_key" did
+
+let suite =
+  "suite"
+  >::: [
+         "test_sample_session_username" >:: test_sample_session_username;
+         "test_sample_session_password" >:: test_sample_session_password;
+         "test_sample_session_atp_host" >:: test_sample_session_atp_host;
+         "test_sample_session_atp_auth_token" >:: test_sample_session_atp_auth_token;
+         "test_sample_session_did" >:: test_sample_session_did;
+       ]
+
+let () = run_test_tt_main suite
