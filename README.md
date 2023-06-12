@@ -1,2 +1,2 @@
 # bluesky
-OCaml based BSky tools
+OCaml-based BSky tools
