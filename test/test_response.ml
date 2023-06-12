@@ -44,3 +44,14 @@ let test_sample_response_headers _ =
       | (param_name, _) :: _ ->
         OUnit2.assert_equal "User-Agent" param_name
 
+let suite =
+  "suite"
+  >::: [
+         "test_sample_response_success" >:: test_sample_response_success;
+         "test_sample_response_status_code" >:: test_sample_response_status_code;
+         "test_sample_response_content" >:: test_sample_response_content;
+         "test_sample_response_headers" >:: test_sample_response_headers;
+
+       ]
+
+let () = run_test_tt_main suite
