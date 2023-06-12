@@ -1,5 +1,5 @@
 (tests
- (names test_session test_user test_response test_method)
+ (names test_session test_user test_response test_http_method)
  (libraries async core h2 ounit2 bluesky)
- (modules test_session test_user test_response test_method)
+ (modules test_session test_user test_response test_http_method)
 )

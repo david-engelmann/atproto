@@ -1,12 +1,12 @@
-module Method = struct
-  type method =
+module HttpMethod = struct
+  type http_method =
     | Get
     | Post
     (*| Put
     | Delete
     | Patch*)
 
-  let lookup_method meth =
+  let lookup_method meth : http_method =
     match meth with
      | "get" -> Get
      | "post" -> Post
