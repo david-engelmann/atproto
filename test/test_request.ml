@@ -69,3 +69,18 @@ let test_sample_request_without_body_body _ =
         OUnit2.assert_equal 1 1
       | Some b ->
         OUnit2.assert_equal 0 1
+
+let suite =
+  "suite"
+  >::: [
+         "test_sample_request_with_body_method_" >:: "test_sample_request_with_body_method_";
+         "test_sample_request_with_body_url" >:: "test_sample_request_with_body_url";
+         "test_sample_request_with_body_headers" >:: "test_sample_request_with_body_headers";
+         "test_sample_request_with_body_body" >:: "test_sample_request_with_body_body";
+         "test_sample_request_without_body_method_" >:: "test_sample_request_without_body_method_";
+         "test_sample_request_without_body_url" >:: "test_sample_request_without_body_url";
+         "test_sample_request_without_body_headers" >:: "test_sample_request_without_body_headers";
+         "test_sample_request_without_body_body" >:: "test_sample_request_without_body_body";
+       ]
+
+let () = run_test_tt_main suite
