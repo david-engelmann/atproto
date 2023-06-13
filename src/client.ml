@@ -25,6 +25,39 @@ module Http_client = struct
          | _ ->
             Format.eprintf "Unsuccessful response: %a\n%!" Response.pp_hum response;
             exit 1
+
+    let http_error_handler _error =
+        Format.eprintf "Unsuccessful request!\n%!";
+        exit 1
+
+    open Lwt.Infix
+
+    let start_client (host : string) =
+        Lwt_main.run
+          (
+            Lwt_unix.getaddrinfo host "443" [ Unix.(AI_FAMILY PF_INET) ]
+          >>= fun addresses ->
+              let socket = Lwt_unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
+              Lwt_unix.connect socket (List.hd addresses).Unix.ai_addr >>= fun () ->
+              let request =
+                  Request.create
+                   `GET
+                   "/"
+                   ~scheme:"https"
+                   ~headers:
+                       Headers.(add_list empty [ ":authority", host ])
+              in
+              let response_received, notify_response_received = Lwt.wait () in
+              let response_handler = response_handler notify_response_received in
+              Client.TLS.create_connection_with_default ~error_handler socket
+              >>= fun connection ->
+
+              let request_body =
+                Client.TLS.request connection request ~error_handler ~response_handler
+              in
+              Body.Writer.close request_body;
+              response_received )
+
 end
 
 
