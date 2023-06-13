@@ -1,6 +1,6 @@
 (library
  (name bluesky)
- (libraries async core h2)
+ (libraries async core h2 httpaf httpaf-lwt-unix h2-lwt-unix lwt)
  (preprocess (pps ppx_jane))
  (modules Auth Session User Uri Http_client Http_method Request Response)
 )
