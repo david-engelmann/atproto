@@ -42,10 +42,13 @@ module Http_client = struct
     let print_converted_list (converted_list : Unix.addr_info list) : unit =
       List.iter print_addr_info converted_list
 
+    let get_addr_info (host : string) (port : int) : Unix.addr_info list Lwt.t =
+        Lwt_unix.getaddrinfo host (string_of_int port) [ Unix.(AI_FAMILY PF_INET) ]
+
     let start_client (host : string) (port : int) =
         Lwt_main.run
           (
-            Lwt_unix.getaddrinfo host (string_of_int port) [ Unix.(AI_FAMILY PF_INET) ]
+            get_addr_info host port
           >>= fun addresses ->
               let socket = Lwt_unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
               Lwt_unix.connect socket (List.hd addresses).Unix.ai_addr >>= fun () ->
