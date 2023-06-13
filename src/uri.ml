@@ -4,6 +4,6 @@ module Uri = struct
           host : string;
           path_name : string;
           hash : string;
-          search_params : (string, string) list option;
+          search_params : (string * string) list option;
         }
 end
