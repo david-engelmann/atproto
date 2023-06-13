@@ -39,6 +39,11 @@ module Http_client = struct
       | _ ->
         Printf.printf "Unknown address format\n"
 
+    let unpack_addr_info addr =
+        match addr.Unix.ai_addr with
+         | Unix.ADDR_UNIX _ -> None
+         | ADDR_INET (addr, port) -> Some (addr, port)
+
     let print_converted_list (converted_list : Unix.addr_info list) : unit =
       List.iter print_addr_info converted_list
 
