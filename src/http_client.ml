@@ -35,7 +35,7 @@ module Http_client = struct
     let start_client (host : string) (port : int) =
         Lwt_main.run
           (
-            Lwt_unix.getaddrinfo host (string_of_int !port) [ Unix.(AI_FAMILY PF_INET) ]
+            Lwt_unix.getaddrinfo host (string_of_int port) [ Unix.(AI_FAMILY PF_INET) ]
           >>= fun addresses ->
               let socket = Lwt_unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
               Lwt_unix.connect socket (List.hd addresses).Unix.ai_addr >>= fun () ->
