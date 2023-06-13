@@ -2,7 +2,7 @@ open OUnit2
 open Bluesky.Http_client
 
 let test_http_client_with_quotes_to_scrape _ =
-    Http_client.start_client "https://quotes.toscrape.com"
+    Http_client.start_client "https://quotes.toscrape.com" 443;
     OUnit2.assert_equal 1 1
 
 let suite =
