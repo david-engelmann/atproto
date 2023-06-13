@@ -34,10 +34,11 @@ module Http_client = struct
 
 
     let convert_lwt_list (lwt_list : Unix.addr_info Lwt.t list) : Unix.addr_info list =
-      let converted_list =
-        lwt_list
-        |> Lwt_list.map_p Lwt_main.run
-       
+      let open Lwt.Infix in
+      lwt_list
+      |> Lwt_list.map_s (fun lwt_info -> lwt_info >>= Lwt.return)
+      |> Lwt_main.run
+
     let print_addr_info (addr_info : Unix.addr_info) : unit =
       match addr_info.Unix.ai_addr with
       | Unix.ADDR_INET (addr, port) ->
