@@ -10,6 +10,11 @@ let unpack_addr_info addr =
      | Unix.ADDR_UNIX _ -> None
      | ADDR_INET (addr, port) -> Some (addr, port)
 
+
+let print_option o =
+    match o with
+     | Some (addr, port) -> print_endline string_of_int port;
+     | None -> print_endline "didn't find shit";
 let test_http_client_with_getaddrinfo _ =
     (Lwt_main.run
     (List.filter_map (fun (addrs : Unix.addr_info Lwt.t list) ->
@@ -18,7 +23,7 @@ let test_http_client_with_getaddrinfo _ =
          (*| _ -> (List.map unpack_addr_info) (Lwt_main.run addrs))*)
          | _ -> (List.map unpack_addr_info) (Http_client.convert_lwt_list addrs))
     ( Lwt_unix.getaddrinfo "https://quotes.toscrape.com" "443" [
-        Unix.(AI_FAMILY PF_INET) ])));
+        Unix.(AI_FAMILY PF_INET) ]) |> print_option));
     OUnit2.assert_equal 1 1
 
 let suite =

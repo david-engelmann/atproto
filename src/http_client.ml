@@ -37,6 +37,16 @@ module Http_client = struct
       let converted_list =
         lwt_list
         |> Lwt_list.map_p Lwt_main.run
+       
+    let print_addr_info (addr_info : Unix.addr_info) : unit =
+      match addr_info.Unix.ai_addr with
+      | Unix.ADDR_INET (addr, port) ->
+        Printf.printf "Address: %s, Port: %d\n" (Unix.string_of_inet_addr addr) port
+      | _ ->
+        Printf.printf "Unknown address format\n"
+
+    let print_converted_list (converted_list : Unix.addr_info list) : unit =
+      List.iter print_addr_info converted_list
 
     let start_client (host : string) (port : int) =
         Lwt_main.run
