@@ -32,6 +32,12 @@ module Http_client = struct
 
     open Lwt.Infix
 
+
+    let convert_lwt_list (lwt_list : Unix.addr_info Lwt.t list) : Unix.addr_info list =
+      let converted_list =
+        lwt_list
+        |> Lwt_list.map_p Lwt_main.run
+
     let start_client (host : string) (port : int) =
         Lwt_main.run
           (
