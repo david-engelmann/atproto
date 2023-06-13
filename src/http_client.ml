@@ -26,7 +26,7 @@ module Http_client = struct
             Format.eprintf "Unsuccessful response: %a\n%!" Response.pp_hum response;
             exit 1
 
-    let http_error_handler _error =
+    let error_handler _error =
         Format.eprintf "Unsuccessful request!\n%!";
         exit 1
 
