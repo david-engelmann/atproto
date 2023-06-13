@@ -32,32 +32,6 @@ module Http_client = struct
 
     open Lwt.Infix
 
-    (*
-    let convert_lwt_list (lwt_list : Unix.addr_info Lwt.t list) : Unix.addr_info list =
-      let open Lwt.Infix in
-      lwt_list |> Lwt_list.bind Lwt.return
-    let convert_lwt_list (lwt_list : Unix.addr_info Lwt.t list) : Unix.addr_info list =
-      let open Lwt.Infix in
-      let convert_lwt_info lwt_info =
-        lwt_info >>= fun info ->
-        Lwt.return info
-      in
-      Lwt_main.run (Lwt_list.iter_s convert_lwt_info lwt_list)
-
-    let convert_lwt_list (lwt_list : Unix.addr_info Lwt.t list) : Unix.addr_info list =
-      lwt_list
-      |> Lwt_list.map_p (fun lwt_info -> lwt_info)
-      |> Lwt_main.run
-    *)
-
-    let convert_lwt_list (lwt_list : Unix.addr_info Lwt.t list) : Unix.addr_info list =
-      let open Lwt.Infix in
-      lwt_list
-      |> Lwt_list.iter_s (fun lwt_info ->
-        lwt_info >>= fun info ->
-        Lwt.return info
-      )
-
     let print_addr_info (addr_info : Unix.addr_info) : unit =
       match addr_info.Unix.ai_addr with
       | Unix.ADDR_INET (addr, port) ->
