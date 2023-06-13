@@ -41,7 +41,6 @@ let test_sample_uri_with_search_params_search_params _ =
           | _ -> OUnit2.assert_equal 0 1
        | None -> OUnit2.assert_equal 0 1
 
-
 let test_sample_uri_without_search_params_host _ =
     match sample_uri_without_search_params with
      | { host; _ } ->
@@ -64,4 +63,17 @@ let test_sample_uri_without_search_params_search_params _ =
        | None -> OUnit2.assert_equal 1 1
        | Some _ -> OUnit2.assert_equal 0 1
 
+let suite =
+  "suite"
+  >::: [
+         "test_sample_uri_with_search_params_host" >:: test_sample_uri_with_search_params_host;
+         "test_sample_uri_with_search_params_path_name" >:: test_sample_uri_with_search_params_path_name;
+         "test_sample_uri_with_search_params_hash" >:: test_sample_uri_with_search_params_hash;
+         "test_sample_uri_with_search_params_search_params" >:: test_sample_uri_with_search_params_search_params;
+         "test_sample_uri_without_search_params_host" >:: test_sample_uri_without_search_params_host;
+         "test_sample_uri_without_search_params_path_name" >:: test_sample_uri_without_search_params_path_name;
+         "test_sample_uri_without_search_params_hash" >:: test_sample_uri_without_search_params_hash;
+         "test_sample_uri_without_search_params_search_params" >:: test_sample_uri_without_search_params_search_params;
+       ]
 
+let () = run_test_tt_main suite
