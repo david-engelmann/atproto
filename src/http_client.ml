@@ -72,47 +72,36 @@ module Http_client = struct
         response_received >>= fun () ->
         Lwt.return_unit
 
-
     let perform_request connection (request : Request.t) : Body.Writer.t Lwt.t =
         let request_body =
-            Client.TCP.request
+            Client.TLS.request
                 connection
                 request
-                ~error_handler:handle_error
+                ~error_handler:error_handler
                 ~response_handler:response_handler
             in
             Body.Writer.close request_body;
             Lwt.return request_body
 
-    let start_client (host : string) (port : int) =
-        Lwt_main.run
-          (
-          get_addr_info host port
-          >>= fun addrs ->
-          let lwt_list =
-            List.map Lwt.return addrs
-          in
-          Lwt_list.fold_left_s (fun acc addr ->
-            addr >>= fun addr_info ->
-            let%bind socket = create_socket_for_addr_info addr_info in
-            let request =
-                Request.create
-                `GET
-                "/"
-                ~scheme:"https"
-                ~headers:Headers.(add_list empty [ ":authority", host ])
-            in
-            let response_received, notify_response_received = Lwt.wait () in
-            let response_handler = response_handler notify_response_received in
-            Client.TLS.create_connection_with_default ~error_handler socket
-            >>= fun connection ->
-            let request_body =
-              Client.TLS.request connection request ~error_handler ~response_handler
-            in
-            Body.Writer.close request_body;
-            response_received) [List.hd lwt_list] 
-          >>= fun _ -> Lwt.return_unit)
-
+    let get_host (host : string) (port : int) : Body.Writer.t Lwt.t =
+      let open Lwt.Infix in
+      get_addr_info host port
+      >>= fun addrs ->
+      let lwt_list =
+        List.map Lwt.return addrs
+      in
+      Lwt_list.fold_left_s (fun acc addr ->
+        addr >>= fun addr_info ->
+        let%bind socket = create_socket_for_addr_info addr_info in
+        let request = create_get_request host in
+        let response_received, notify_response_received = Lwt.wait () in
+        (*let response_handler = response_handler notify_response_received in*)
+        Client.TLS.create_connection_with_default ~error_handler:error_handler socket
+        >>= fun connection ->
+        perform_request connection request >>= fun request_body ->
+        handle_response notify_response_received >>= fun () -> Lwt.return
+        request_body
+      ) (Lwt.return (Body.Writer.create ())) lwt_list
     (*
     let start_client (host : string) (port : int) =
         Lwt_main.run

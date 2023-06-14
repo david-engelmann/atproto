@@ -2,7 +2,8 @@ open OUnit2
 open Bluesky.Http_client
 
 let test_http_client_with_quotes_to_scrape _ =
-    Http_client.start_client "www.quotes.toscrape.com" 80
+    request_body = Http_client.get_host "www.quotes.toscrape.com" 80
+
 
 let test_http_client_with_getaddrinfo _ =
   let open Lwt.Infix in
