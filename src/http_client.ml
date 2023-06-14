@@ -115,5 +115,3 @@ module Http_client = struct
       find_successful_connection addrs
 end
 
-
-
