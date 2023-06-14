@@ -18,6 +18,19 @@ module Http_client = struct
     let print_converted_list (converted_list : Unix.addr_info list) : unit =
       List.iter print_addr_info converted_list
 
+    let print_body (body_promise : H2.Body.Writer.t Lwt.t) : unit Lwt.t =
+      body_promise >>= fun _ ->
+      print_endline "The promise has resolved!";
+      Lwt.return_unit
+
+    let request_buffer = Buffer.create 4096
+    let response_buffer = Buffer.create 4096
+
+    let write_to_request_body body data =
+      Buffer.add_string request_buffer data;
+      H2.Body.Writer.write_string body data;
+      H2.Body.Writer.flush body (fun () -> ())
+
     let get_addr_info (host : string) (port : int) : Unix.addr_info list Lwt.t =
         Lwt_unix.getaddrinfo host (string_of_int port) [ Unix.(AI_FAMILY PF_INET) ]
 
@@ -28,7 +41,9 @@ module Http_client = struct
           ~on_read:(fun buffer ~off ~len ->
             let chunk = Bytes.create len in
             Bigstringaf.blit_to_bytes buffer ~src_off:off chunk ~dst_off:0 ~len;
-            print_string (Bytes.to_string chunk);
+            let chunk_string = Bytes.to_string chunk in
+            Buffer.add_string response_buffer chunk_string;
+            print_string chunk_string;
             read_response ()
           )
           ~on_eof:(fun () -> ())
