@@ -2,28 +2,16 @@ open OUnit2
 open Bluesky.Http_client
 open Lwt.Infix
 
-(**
-let test_http_client_with_quotes_to_scrape _ =
-    Http_client.get_host "www.quotes.toscrape.com" 80 >>= fun _ ->
-    Lwt.return_unit
-*)
-
 let test_http_client_with_quotes_to_scrape _ =
   Lwt_main.run begin
-    Http_client.get_host "www.quotes.toscrape.com" 80 >>= fun _ ->
-    let request_body_contents = Buffer.contents Http_client.request_buffer in
-    let response_body_contents = Buffer.contents Http_client.response_buffer in
-    print_endline "Request body:";
-    print_endline request_body_contents;
-    print_endline "Response body:";
-    print_endline response_body_contents;
+    Http_client.get_host "quotes.toscrape.com" 80 >>= fun _ ->
     Lwt.return_unit
   end
 
 let test_http_client_with_getaddrinfo _ =
   let open Lwt.Infix in
   let addr_test =
-    Http_client.get_addr_info "www.quotes.toscrape.com" 80
+    Http_client.get_addr_info "quotes.toscrape.com" 80
     >>= fun addrs ->
     let lwt_list =
       List.map Lwt.return addrs
