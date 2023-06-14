@@ -4,14 +4,14 @@ open Lwt.Infix
 
 let test_http_client_with_quotes_to_scrape _ =
   Lwt_main.run begin
-    Http_client.get_host "quotes.toscrape.com" 80 >>= fun _ ->
+    Http_client.get_host "quotes.toscrape.com" 443 >>= fun _ ->
     Lwt.return_unit
   end
 
 let test_http_client_with_getaddrinfo _ =
   let open Lwt.Infix in
   let addr_test =
-    Http_client.get_addr_info "quotes.toscrape.com" 80
+    Http_client.get_addr_info "quotes.toscrape.com" 443
     >>= fun addrs ->
     let lwt_list =
       List.map Lwt.return addrs
