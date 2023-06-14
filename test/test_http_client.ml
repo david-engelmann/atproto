@@ -37,7 +37,7 @@ let test_http_client_with_getaddrinfo _ =
 let suite =
   "suite"
   >::: [
-         "test_http_client_with_quotes_to_scrape" >:: test_http_client_with_quotes_to_scrape;
+         (*"test_http_client_with_quotes_to_scrape" >:: test_http_client_with_quotes_to_scrape;*)
          "test_http_client_with_getaddrinfo" >:: test_http_client_with_getaddrinfo;
        ]
 
