@@ -66,15 +66,14 @@ module Http_client = struct
         `GET
         "/"
         ~scheme:"https"
-        ~headers:
-          Headers.(add_list empty [ ":authority", host ])
+        ~headers:Headers.(add_list empty [ ":authority", host ])
 
     let handle_response (response_received : unit Lwt.t) : unit Lwt.t =
         response_received >>= fun () ->
         Lwt.return_unit
 
 
-    let perform_request (connection : Client.TCP.connection) (request : Request.t) : Body.Writer.t Lwt.t =
+    let perform_request connection (request : Request.t) : Body.Writer.t Lwt.t =
         let request_body =
             Client.TCP.request
                 connection
@@ -93,7 +92,7 @@ module Http_client = struct
           let lwt_list =
             List.map Lwt.return addrs
           in
-          Lwt_list.iter_p (fun addr ->
+          Lwt_list.fold_left_s (fun acc addr ->
             addr >>= fun addr_info ->
             let%bind socket = create_socket_for_addr_info addr_info in
             let request =
@@ -101,8 +100,7 @@ module Http_client = struct
                 `GET
                 "/"
                 ~scheme:"https"
-                ~headers:
-                    Headers.(add_list empty [ ":authority", host ])
+                ~headers:Headers.(add_list empty [ ":authority", host ])
             in
             let response_received, notify_response_received = Lwt.wait () in
             let response_handler = response_handler notify_response_received in
