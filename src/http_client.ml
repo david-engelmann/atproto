@@ -55,7 +55,7 @@ module Http_client = struct
 
     let error_handler _error =
         Format.eprintf "Unsuccessful request!\n%!";
-        exit 1
+        failwith "Unsuccessful request!"
 
     let create_socket =
       Lwt_unix.socket Unix.PF_INET Unix.SOCK_STREAM 0
@@ -91,24 +91,28 @@ module Http_client = struct
 
     let get_host (host : string) (port : int) : H2.Body.Writer.t Lwt.t =
       let open Lwt.Infix in
-      get_addr_info host port >>= fun addrs ->
-      let rec find_successful_connection = function
-        | [] -> Lwt.fail_with "No successful request"
-        | addr_info :: rest ->
-            let%bind socket = create_socket_for_addr_info addr_info in
-            let request = create_get_request host in
-            Lwt.catch
-              (fun () ->
-                Client.TLS.create_connection_with_default ~error_handler:error_handler socket
-                >>= fun connection ->
-                perform_request connection request >>= fun request_body ->
-                Lwt.return_some request_body)
-              (fun _ -> Lwt.return_none) (* If an error occurs, return None and continue with the next address *)
-            >>= function
-            | Some request_body -> Lwt.return request_body
-            | None -> find_successful_connection rest
-      in
-      find_successful_connection addrs
+      let timeout = 5.0 in
+      Lwt.pick [
+        (get_addr_info host port >>= fun addrs ->
+        let rec find_successful_connection = function
+          | [] -> Lwt.fail_with "No successful request"
+          | addr_info :: rest ->
+              let%bind socket = create_socket_for_addr_info addr_info in
+              let request = create_get_request host in
+              Lwt.catch
+                (fun () ->
+                  Client.TLS.create_connection_with_default ~error_handler:error_handler socket
+                  >>= fun connection ->
+                  perform_request connection request >>= fun request_body ->
+                  Lwt.return_some request_body)
+                (fun _ -> Lwt.return_none) (* If an error occurs, return None and continue with the next address *)
+              >>= function
+              | Some request_body -> Lwt.return request_body
+              | None -> find_successful_connection rest
+        in
+        find_successful_connection addrs);
+        (Lwt_unix.sleep timeout >>= fun () -> Lwt.fail_with "Timeout")  (* Raise an exception if the operation times out *)
+      ]
 
 end
 
