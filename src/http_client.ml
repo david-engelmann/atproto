@@ -110,6 +110,9 @@ module Http_client = struct
         exit 1
     *)
 
+    (*let create_empty () = H2.Body.Writer.create ()*)
+    let create_empty () = Lwt.fail_with "No Initial Value"
+
     let error_handler _error =
         Format.eprintf "Unsuccessful request!\n%!";
         exit 1
@@ -146,7 +149,8 @@ module Http_client = struct
             in
             Body.Writer.close request_body;
             Lwt.return request_body
-
+    (*
+    (* CLOSE *)
     let get_host (host : string) (port : int) : Body.Writer.t Lwt.t =
       let open Lwt.Infix in
       get_addr_info host port
@@ -163,10 +167,113 @@ module Http_client = struct
         Client.TLS.create_connection_with_default ~error_handler:error_handler socket
         >>= fun connection ->
         perform_request connection request >>= fun request_body ->
-        handle_response notify_response_received >>= fun () -> Lwt.return
-        request_body
+        Lwt.async (fun () ->
+        handle_response notify_response_received >>= fun () ->
+        Lwt.return_unit
+      );
+      Lwt.return request_body
       ) (Lwt.return (Body.Writer.create ())) lwt_list
-      
+    *)
+    (* writer die
+    let get_host (host : string) (port : int) : H2.Body.Writer.t Lwt.t =
+      let open Lwt.Infix in
+      get_addr_info host port >>= fun addrs ->
+      let lwt_list = List.map Lwt.return addrs in
+      Lwt_list.fold_left_s
+        (fun acc addr ->
+          addr >>= fun addr_info ->
+          let%bind socket = create_socket_for_addr_info addr_info in
+          let request = create_get_request host in
+          let response_received, notify_response_received = Lwt.wait () in
+          Client.TLS.create_connection_with_default ~error_handler:error_handler socket
+          >>= fun connection ->
+          perform_request connection request >>= fun request_body ->
+          let writer = Body.Writer.create request_body in
+          let handle_response' = handle_response response_received in
+          Lwt.async (fun () -> handle_response' >>= fun () -> Lwt.return_unit);
+          Lwt.return writer)
+        (Lwt.return (Body.Writer.create ()))
+        lwt_list
+      >>= fun request_body ->
+      Lwt.return request_body
+    *)
+
+    (* fuck writer 
+    let get_host (host : string) (port : int) : H2.Body.Writer.t Lwt.t =
+      let open Lwt.Infix in
+      get_addr_info host port
+      >>= fun addrs ->
+      let lwt_list = List.map Lwt.return addrs in
+      Lwt_list.fold_left_s
+        (fun acc addr ->
+          acc >>= fun _ ->
+          addr >>= fun addr_info ->
+          let%bind socket = create_socket_for_addr_info addr_info in
+          let request = create_get_request host in
+          let response_received, notify_response_received = Lwt.wait () in
+          Client.TLS.create_connection_with_default ~error_handler:error_handler socket
+          >>= fun connection ->
+          perform_request connection request
+          >>= fun request_body ->
+          let handle_response' = handle_response response_received in
+          Lwt.async (fun () -> handle_response' >>= fun () -> Lwt.return_unit);
+          Lwt.return request_body)
+        (create_empty ())
+        lwt_list
+      >>= fun request_body ->
+      Lwt.return request_body
+    *)
+    (*
+    let get_host (host : string) (port : int) : H2.Body.Writer.t Lwt.t =
+      let open Lwt.Infix in
+      get_addr_info host port
+      >>= fun addrs ->
+      let lwt_list = List.map Lwt.return addrs in
+      Lwt_list.iter_s
+        (fun addr ->
+          addr >>= fun addr_info ->
+          let%bind socket = create_socket_for_addr_info addr_info in
+          let request = create_get_request host in
+          let response_received, notify_response_received = Lwt.wait () in
+          Client.TLS.create_connection_with_default ~error_handler:error_handler socket
+          >>= fun connection ->
+          perform_request connection request
+          >>= fun request_body ->
+          let handle_response' = handle_response response_received in
+          Lwt.async (fun () -> handle_response' >>= fun () -> Lwt.return_unit);
+          Lwt.return request_body)
+        lwt_list
+    *)
+    
+
+    let get_host (host : string) (port : int) : H2.Body.Writer.t Lwt.t =
+      let open Lwt.Infix in
+      get_addr_info host port
+      >>= fun addrs ->
+      Lwt_list.fold_left_s
+        (fun acc addr_info ->
+          match acc with
+          | Some _ -> Lwt.return acc  (* If we already have a successful result, return it *)
+          | None ->
+            let%bind socket = create_socket_for_addr_info addr_info in
+            let request = create_get_request host in
+            let response_received, _ = Lwt.wait () in
+            Lwt.catch
+              (fun () ->
+                Client.TLS.create_connection_with_default ~error_handler:error_handler socket
+                >>= fun connection ->
+                let%bind request_body = perform_request connection request in
+                let handle_response' = handle_response response_received in
+                Lwt.async (fun () -> handle_response' >>= fun () -> Lwt.return_unit);
+                Lwt.return (Some request_body))
+              (fun _ -> Lwt.return None))  (* If an error occurs, return None and continue with the next address *)
+        None
+        addrs
+      >>= function
+      | Some request_body -> Lwt.return request_body
+      | None -> Lwt.fail_with "No successful request"
+    
+
     (*
     let start_client (host : string) (port : int) =
         Lwt_main.run
