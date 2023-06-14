@@ -1,37 +1,8 @@
-open H2
 
 module Http_client = struct
+    open H2
     module Client = H2_lwt_unix.Client
-    let response_handler notify_response_received response response_body =
-        match response.Response.status with
-         | `OK ->
-            let rec read_response () =
-                Body.Reader.schedule_read
-                  response_body
-                  ~on_read:(fun bigstring ~off  ~len ->
-                   let response_fragment = Bytes.create len in
-                   Bigstringaf.blit_to_bytes
-                    bigstring
-                    ~src_off:off
-                    response_fragment
-                    ~dst_off:0
-                    ~len;
-                   print_string (Bytes.to_string response_fragment);
-                   read_response ())
-                  ~on_eof:(fun () ->
-                    Lwt.wakeup_later notify_response_received ())
-            in
-            read_response ()
-         | _ ->
-            Format.eprintf "Unsuccessful response: %a\n%!" Response.pp_hum response;
-            exit 1
-
-    let error_handler _error =
-        Format.eprintf "Unsuccessful request!\n%!";
-        exit 1
-
     open Lwt.Infix
-
     let print_addr_info (addr_info : Unix.addr_info) : unit =
       match addr_info.Unix.ai_addr with
       | Unix.ADDR_INET (addr, port) ->
@@ -49,6 +20,99 @@ module Http_client = struct
 
     let get_addr_info (host : string) (port : int) : Unix.addr_info list Lwt.t =
         Lwt_unix.getaddrinfo host (string_of_int port) [ Unix.(AI_FAMILY PF_INET) ]
+
+    let response_handler : Client_connection.response_handler = fun _response response_body ->
+      let open H2.Body.Reader in
+      let rec read_response () =
+        schedule_read response_body
+          ~on_read:(fun buffer ~off ~len ->
+            let chunk = Bytes.create len in
+            Bigstringaf.blit_to_bytes buffer ~src_off:off chunk ~dst_off:0 ~len;
+            print_string (Bytes.to_string chunk);
+            read_response ()
+          )
+          ~on_eof:(fun () -> ())
+      in
+      read_response ()
+
+    (*
+    open H2.Response
+    open H2.Body
+    let response_handler notify_response_received response response_body =
+      match response.status with
+      | `OK ->
+        let rec read_response () =
+          Body.Reader.schedule_read response_body
+          (*
+          >>= function
+          | `Data chunk ->
+            print_string (Bytes.to_string chunk);
+            read_response ()
+          | `Eof ->
+            Lwt.wakeup_later notify_response_received ()
+          *)
+            ~on_read:(fun buffer ~off ~len ->
+              let chunk = Bytes.create len in
+              Bigstringaf.blit_to_bytes buffer ~src_off:off chunk ~dst_off:0 ~len;
+              print_string (Bytes.to_string chunk);
+              read_response ()
+            )
+            ~on_eof:(fun () ->
+              Lwt.wakeup_later notify_response_received ()
+            )
+        in
+        read_response ()
+    | _ ->
+      Format.eprintf "Unsuccessful response: %a\n%!" Response.pp_hum response;
+      exit 1
+    *)
+
+    (*
+    let response_handler notify_response_received (response : Response.t) (response_body : Body.Reader.t) : unit =
+      let rec read_response () =
+        Body.Reader.read response_body
+        >>= function
+        | Some (chunk, _) ->
+          print_string (Bytes.to_string chunk);
+        | None ->
+          Lwt.wakeup_later notify_response_received ()
+      in
+      match response.Response.status with
+      | `OK ->
+        read_response ()
+      | _ ->
+        Format.eprintf "Unsuccessful response: %a\n%!" Response.pp_hum response;
+        exit 1
+    *)
+
+    (*
+    match response.Response.status with
+      | `OK ->
+        let rec read_response () =
+            Body.Reader.schedule_read
+              response_body
+              ~on_read:(fun bigstring ~off  ~len ->
+                let response_fragment = Bytes.create len in
+                Bigstringaf.blit_to_bytes
+                bigstring
+                ~src_off:off
+                response_fragment
+                ~dst_off:0
+                ~len;
+                print_string (Bytes.to_string response_fragment);
+                read_response ())
+              ~on_eof:(fun () ->
+                Lwt.wakeup_later notify_response_received ())
+        in
+        read_response ()
+      | _ ->
+        Format.eprintf "Unsuccessful response: %a\n%!" Response.pp_hum response;
+        exit 1
+    *)
+
+    let error_handler _error =
+        Format.eprintf "Unsuccessful request!\n%!";
+        exit 1
 
     let create_socket =
       Lwt_unix.socket Unix.PF_INET Unix.SOCK_STREAM 0
@@ -102,6 +166,7 @@ module Http_client = struct
         handle_response notify_response_received >>= fun () -> Lwt.return
         request_body
       ) (Lwt.return (Body.Writer.create ())) lwt_list
+      
     (*
     let start_client (host : string) (port : int) =
         Lwt_main.run
