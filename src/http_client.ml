@@ -3,7 +3,6 @@ open H2
 module Http_client = struct
     module Client = H2_lwt_unix.Client
     let response_handler notify_response_received response response_body =
-
         match response.Response.status with
          | `OK ->
             let rec read_response () =
@@ -51,6 +50,41 @@ module Http_client = struct
     let get_addr_info (host : string) (port : int) : Unix.addr_info list Lwt.t =
         Lwt_unix.getaddrinfo host (string_of_int port) [ Unix.(AI_FAMILY PF_INET) ]
 
+    let create_socket =
+      Lwt_unix.socket Unix.PF_INET Unix.SOCK_STREAM 0
+
+    let connect_socket socket (addr_info : Unix.addr_info) =
+      Lwt_unix.connect socket addr_info.Unix.ai_addr
+
+    let create_socket_for_addr_info addr_info =
+        let socket = create_socket in
+        let%bind () = connect_socket socket addr_info in
+        Lwt.return socket
+
+    let create_get_request (host : string) : Request.t =
+      Request.create
+        `GET
+        "/"
+        ~scheme:"https"
+        ~headers:
+          Headers.(add_list empty [ ":authority", host ])
+
+    let handle_response (response_received : unit Lwt.t) : unit Lwt.t =
+        response_received >>= fun () ->
+        Lwt.return_unit
+
+
+    let perform_request (connection : Client.TCP.connection) (request : Request.t) : Body.Writer.t Lwt.t =
+        let request_body =
+            Client.TCP.request
+                connection
+                request
+                ~error_handler:handle_error
+                ~response_handler:response_handler
+            in
+            Body.Writer.close request_body;
+            Lwt.return request_body
+
     let start_client (host : string) (port : int) =
         Lwt_main.run
           (
@@ -61,8 +95,7 @@ module Http_client = struct
           in
           Lwt_list.iter_p (fun addr ->
             addr >>= fun addr_info ->
-            let socket = Lwt_unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
-            Lwt_unix.connect socket addr_info.Unix.ai_addr >>= fun () ->
+            let%bind socket = create_socket_for_addr_info addr_info in
             let request =
                 Request.create
                 `GET
@@ -75,12 +108,12 @@ module Http_client = struct
             let response_handler = response_handler notify_response_received in
             Client.TLS.create_connection_with_default ~error_handler socket
             >>= fun connection ->
-
             let request_body =
               Client.TLS.request connection request ~error_handler ~response_handler
             in
             Body.Writer.close request_body;
-            response_received) [List.hd lwt_list])
+            response_received) [List.hd lwt_list] 
+          >>= fun _ -> Lwt.return_unit)
 
     (*
     let start_client (host : string) (port : int) =
