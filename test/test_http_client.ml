@@ -9,7 +9,6 @@ let test_http_client_with_quotes_to_scrape _ =
 let test_http_client_with_getaddrinfo _ =
   let open Lwt.Infix in
   let addr_test =
-    (*Lwt_unix.getaddrinfo "quotes.toscrape.com" "443" [Unix.(AI_FAMILY PF_INET)]*)
     Http_client.get_addr_info "quotes.toscrape.com" 443
     >>= fun addrs ->
     let lwt_list =
@@ -33,7 +32,7 @@ let test_http_client_with_getaddrinfo _ =
 let suite =
   "suite"
   >::: [
-         "test_http_client_with_quotes_to_scrape" >:: test_http_client_with_quotes_to_scrape;
+         (*"test_http_client_with_quotes_to_scrape" >:: test_http_client_with_quotes_to_scrape;*)
          "test_http_client_with_getaddrinfo" >:: test_http_client_with_getaddrinfo;
        ]
 

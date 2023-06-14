@@ -1,5 +1,6 @@
+open H2
+
 module Http_client = struct
-    open H2
     module Client = H2_lwt_unix.Client
     let response_handler notify_response_received response response_body =
 
@@ -53,7 +54,40 @@ module Http_client = struct
     let start_client (host : string) (port : int) =
         Lwt_main.run
           (
-            get_addr_info host port
+          get_addr_info host port
+          >>= fun addrs ->
+          let lwt_list =
+            List.map Lwt.return addrs
+          in
+          Lwt_list.iter_p (fun addr ->
+            addr >>= fun addr_info ->
+            let socket = Lwt_unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
+            Lwt_unix.connect socket addr_info.Unix.ai_addr >>= fun () ->
+
+          let request =
+              Request.create
+               `GET
+               "/"
+               ~scheme:"https"
+               ~headers:
+                   Headers.(add_list empty [ ":authority", host ])
+          in
+          let response_received, notify_response_received = Lwt.wait () in
+          let response_handler = response_handler notify_response_received in
+          Client.TLS.create_connection_with_default ~error_handler socket
+          >>= fun connection ->
+
+          let request_body =
+            Client.TLS.request connection request ~error_handler ~response_handler
+          in
+          Body.Writer.close request_body;
+          response_received )
+
+    (*
+    let start_client (host : string) (port : int) =
+        Lwt_main.run
+          (
+          get_addr_info host port
           >>= fun addresses ->
               let socket = Lwt_unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
               Lwt_unix.connect socket (List.hd addresses).Unix.ai_addr >>= fun () ->
@@ -75,7 +109,7 @@ module Http_client = struct
               in
               Body.Writer.close request_body;
               response_received )
-
+     *)
 end
 
 
