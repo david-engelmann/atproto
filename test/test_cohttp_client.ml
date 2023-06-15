@@ -1,6 +1,5 @@
 open OUnit2
 open Bluesky.Cohttp_client
-open Lwt.Infix
 
 
 let test_http_client_with_quotes_to_scrape _ =

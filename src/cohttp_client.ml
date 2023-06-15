@@ -2,8 +2,8 @@ open Cohttp
 open Cohttp_lwt_unix
 
 module Cohttp_client = struct
-  let open Lwt.Infix in
   let get_body url =
+    let open Lwt.Infix in
     Client.get (Uri.of_string url) >>= fun (resp, body) ->
     let code = resp |> Response.status |> Code.code_of_status in
     Printf.printf "Response code: %d\n" code;
