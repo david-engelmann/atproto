@@ -1,6 +1,7 @@
 open OUnit2
 open Bluesky.Auth
 
+
 let sample_auth_without_jti : Auth.auth = {
     exp = 1686612561;
     iat = 1686611561;
@@ -75,6 +76,13 @@ let test_sample_auth_without_jti_jti _ =
        | _ ->
          OUnit2.assert_equal 1 1
 
+let test_make_auth_token_request_valid_info _ =
+  let body = Auth.make_auth_token_request "david.engelmann44@gmail.com" "qocp-gzb5-yv6o-lja4" "bsky.social" in
+  print_endline body;
+  OUnit2.assert_bool "Body is not empty" (body <> "")
+
+
+
 let suite =
   "suite"
   >::: [
@@ -88,6 +96,7 @@ let suite =
          "test_sample_auth_without_jti_scope" >:: test_sample_auth_without_jti_scope;
          "test_sample_auth_without_jti_did" >:: test_sample_auth_without_jti_did;
          "test_sample_auth_without_jti_jti" >:: test_sample_auth_without_jti_jti;
+         "test_make_auth_token_request_valid_info" >:: test_make_auth_token_request_valid_info;
        ]
 
 let () = run_test_tt_main suite
