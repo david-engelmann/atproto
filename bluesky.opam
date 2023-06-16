@@ -14,7 +14,15 @@ depends: [
     "async"
     "dune" {>= "2.0.0"}
     "h2" {>= "0.10.0"}
-]
+    "uri" {>= "4.2.0"}
+    "lwt" {>= "5.6.1"}
+    "h2-lwt-unix" {>= "0.10.0"}
+    "httpaf" {>= "0.7.1"}
+    "cohttp" {>= "5.1.0"}
+    "cohttp-lwt-unix"
+    "cohttp-async"
+    "httpaf-lwt-unix"
+    ]
 available: arch != "arm32" & arch != "x86_32"
 synopsis: "OCaml based tools for BSky"
 description: "

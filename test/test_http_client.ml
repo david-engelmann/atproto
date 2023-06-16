@@ -1,15 +1,19 @@
 open OUnit2
 open Bluesky.Http_client
+open Lwt.Infix
 
 let test_http_client_with_quotes_to_scrape _ =
-    Http_client.start_client "https://quotes.toscrape.com" 443;
-    OUnit2.assert_equal 1 1
-
+  try
+    Lwt_main.run begin
+      Http_client.get_host "quotes.toscrape.com" 443 >>= fun _ ->
+      Lwt.return_unit
+    end
+  with
+  | Failure msg -> failwith msg 
 
 let test_http_client_with_getaddrinfo _ =
   let open Lwt.Infix in
   let addr_test =
-    (*Lwt_unix.getaddrinfo "quotes.toscrape.com" "443" [Unix.(AI_FAMILY PF_INET)]*)
     Http_client.get_addr_info "quotes.toscrape.com" 443
     >>= fun addrs ->
     let lwt_list =
