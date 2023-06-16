@@ -28,7 +28,7 @@ module Auth = struct
         in
         { exp; iat; scope; did; jti }
       | Error _ -> failwith "Invalid JWT token"
-    
+
     let make_auth_token_request (username : string) (password : string) (personal_data_server : string) : string =
       let url = Printf.sprintf "https://%s/xrpc/com.atproto.server.createSession" personal_data_server in
       let data = Printf.sprintf "{\"identifier\": \"%s\", \"password\": \"%s\"}" username password in
