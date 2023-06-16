@@ -1,5 +1,5 @@
 (tests
  (names test_auth test_session test_user test_cohttp_client test_http_client test_http_method test_request test_response)
- (libraries async core uri cohttps cohttp-lwt-unix cohttp-async h2 httpaf httpaf-lwt-unix h2-lwt-unix lwt ounit2 bluesky)
+ (libraries async core uri cohttp cohttp-lwt-unix cohttp-async h2 httpaf httpaf-lwt-unix h2-lwt-unix lwt ounit2 bluesky)
  (modules test_auth test_session test_user test_cohttp_client test_http_client test_http_method test_request test_response)
 )
