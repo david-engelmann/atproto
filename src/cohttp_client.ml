@@ -17,6 +17,7 @@ module Cohttp_client = struct
     get_body url
 
   let post_data (url : string) data =
+    let open Lwt.Infix in
     let headers = Header.init ()
     |> fun h -> Header.add h "Content-Type" "application/json" in
     let body = Cohttp_lwt.Body.of_string data in
