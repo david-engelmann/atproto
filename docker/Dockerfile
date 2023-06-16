@@ -32,5 +32,5 @@ RUN if [ "$USER_GID" != "1000" ] || [ "$USER_UID" != "1000" ]; then \
 USER opam
 
 RUN opam update \
-    && opam pin add jwt https://github.com/david-engelmann/ocaml-jwt.git && opam install async base h2 httpaf httpaf-lwt-unix h2-lwt-unix lwt
-    core_kernel ssl lwt_ssl nocrypto ounit qcheck dune ocamlformat
+    && opam install async base h2 httpaf httpaf-lwt-unix h2-lwt-unix lwt
+    core_kernel ssl lwt_ssl ocaml-jose ounit qcheck dune ocamlformat
