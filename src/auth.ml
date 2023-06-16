@@ -1,7 +1,8 @@
 open Cohttp_client
-open Jwt
+
 
 module Auth = struct
+    open Jwt
     type auth =
         {
           exp : int;
