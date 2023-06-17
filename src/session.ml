@@ -1,3 +1,5 @@
+open Auth
+
 module Session = struct
     type session =
         {
@@ -9,16 +11,6 @@ module Session = struct
         }
 
     let login (username : string) (password: string) : unit =
-        let login_data : (string * string) list = [("identifier", username); ("password", password)] in
-        let atp_host : string = "https://bsky.social" in
-        (* resp = make_get_request(...)
-         * atp_auth_token = resp.get("accessJwt")
-         * did = resp.get("did")
-         *)
-        match login_data with
-         | (key, _) :: _ ->
-          print_endline key;
-         | _ ->
-          print_endline "NoKey";
-        print_endline atp_host;
+        let atp_host : string = "bsky.social" in
+        let auth = Auth.make_auth_token_request username password atp_host |> Auth.convert_body_to_json |> Auth.parse_auth in
 end

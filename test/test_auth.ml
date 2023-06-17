@@ -8,6 +8,7 @@ let sample_auth_without_jti : Auth.auth = {
     scope = "read write delete";
     did = "123";
     jti = None;
+    token = "eyJCI6MTY4NzAyNjg0MCwiZXhwIjoxNjg3MDM0MDQwfQ.ZQem8wFw4HdYbbAnHpSvcwB3ue9HHK37K4QJ4QOzhKE";
   }
 
 let sample_auth_with_jti : Auth.auth = {
@@ -16,6 +17,7 @@ let sample_auth_with_jti : Auth.auth = {
     scope = "read write delete";
     did = "321";
     jti = Some "jti";
+    token = "eyJCI6MTY4NzAyNjg0MCwiZXhwIjoxNjg3MDM0MDQwfQ.ZQem8wFw4HdYbbAnHpSvcwB3ue9HHK37K4QJ4QOzhKE";
   }
 
 let test_sample_auth_with_jti_exp _ =
@@ -47,6 +49,11 @@ let test_sample_auth_with_jti_jti _ =
        | _ ->
          OUnit2.assert_equal 0 1
 
+let test_sample_auth_with_jti_token _ =
+    match sample_auth_with_jti with
+     | { token; _ } ->
+        OUnit2.assert_equal "eyJCI6MTY4NzAyNjg0MCwiZXhwIjoxNjg3MDM0MDQwfQ.ZQem8wFw4HdYbbAnHpSvcwB3ue9HHK37K4QJ4QOzhKE" token
+
 let test_sample_auth_without_jti_exp _ =
     match sample_auth_without_jti with
      | { exp; _ } ->
@@ -75,6 +82,11 @@ let test_sample_auth_without_jti_jti _ =
          OUnit2.assert_equal 0 1
        | _ ->
          OUnit2.assert_equal 1 1
+
+let test_sample_auth_without_jti_token _ =
+    match sample_auth_without_jti without
+     | { token; _ } ->
+        OUnit2.assert_equal "eyJCI6MTY4NzAyNjg0MCwiZXhwIjoxNjg3MDM0MDQwfQ.ZQem8wFw4HdYbbAnHpSvcwB3ue9HHK37K4QJ4QOzhKE" token
 
 let test_make_auth_token_request_valid_info _ =
   let body = Auth.make_auth_token_request "david.engelmann44@gmail.com" "lsnv-tc3a-7wrl-upct" "bsky.social" in
