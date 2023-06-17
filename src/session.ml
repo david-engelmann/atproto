@@ -10,13 +10,11 @@ module Session = struct
           did : string;
         }
 
-    let create_session (username : string) (password: string) : unit =
-        let atp_host : string = "bsky.social" in
-        let session_auth = Auth.make_auth_token_request username password atp_host |> Auth.convert_body_to_json |> Auth.parse_auth in
-        print_endline username;
-        print_endline password;
-        print_endline atp_host;
-        print_endline session_auth.token;
-        print_endline session_auth.did;
-        (*{ username; password; atp_host; session_auth.token; session_auth.did }*)
+    let create_session (username : string) (password: string) : session =
+      let atp_host = "bsky.social" in
+      let body = Auth.make_auth_token_request username password atp_host in
+      let session_auth = body |> Auth.convert_body_to_json |> Auth.parse_auth in
+      let atp_auth_token = session_auth.token in
+      let did = session_auth.did in
+      { username; password; atp_host; atp_auth_token; did }
 end
