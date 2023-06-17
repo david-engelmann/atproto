@@ -15,7 +15,7 @@ module Auth = struct
     let parse_auth json : auth =
       let open Yojson.Basic.Util in
       let jwt = json |> member "accessJwt" |> to_string in
-      match Jwt.of_string jwt with
+      match Jwt.payload_of_string jwt with
       | Ok jwt ->
         let claims = Jwt.claims jwt in
         let exp = claims |> member "exp" |> to_int in
