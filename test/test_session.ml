@@ -44,7 +44,7 @@ let test_create_session _ =
 
 let test_bearer_token_from_session _ =
     let test_session = Session.create_session "david.engelmann44@gmail.com" "lsnv-tc3a-7wrl-upct" in
-    let bearer_token = Session.bear_token_from_session test_session in
+    let bearer_token = Session.bearer_token_from_session test_session in
     match bearer_token with
     | (setting_name, bearer) ->
         OUnit2.assert_equal "Authorization" setting_name;
