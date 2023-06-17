@@ -33,13 +33,13 @@ module Auth = struct
         { exp; iat; scope; did; jti }
       | Error _ -> failwith "Invalid JWT token"
 
-    let convert_body_to_json (body : string) =
-      let json = Yojson.basic.from_string body in
-      json;
+    let convert_body_to_json (body : string) : Yojson.Safe.t =
+      let json = Yojson.Safe.from_string body in
+      json
 
     let make_auth_token_request (username : string) (password : string) (personal_data_server : string) : string =
       let url = Printf.sprintf "https://%s/xrpc/com.atproto.server.createSession" personal_data_server in
       let data = Printf.sprintf "{\"identifier\": \"%s\", \"password\": \"%s\"}" username password in
       let body = Lwt_main.run (Cohttp_client.post_data url data) in
-      body;
+      body
 end

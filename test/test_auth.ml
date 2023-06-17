@@ -84,11 +84,11 @@ let test_make_auth_token_request_valid_info _ =
 let test_parse_auth _ =
   let body = Auth.make_auth_token_request "david.engelmann44@gmail.com" "lsnv-tc3a-7wrl-upct" "bsky.social" in
   let test_auth = Auth.parse_auth (Auth.convert_body_to_json body) in
-  assert_bool "exp is a positive integer" (auth.exp > 0);
-  assert_bool "iat is a positive integer" (auth.iat > 0);
-  assert_bool "scope is a non-empty string" (String.length auth.scope > 0);
-  assert_bool "did is a non-empty string" (String.length auth.did > 0);
-  match auth.jti with
+  assert_bool "exp is a positive integer" (test_auth.exp > 0);
+  assert_bool "iat is a positive integer" (test_auth.iat > 0);
+  assert_bool "scope is a non-empty string" (String.length test_auth.scope > 0);
+  assert_bool "did is a non-empty string" (String.length test_auth.did > 0);
+  match test_auth.jti with
    | Some s -> assert_bool "jti is a non-empty string" (String.length s > 0)
    | None -> assert_bool "jti is None" true
 
