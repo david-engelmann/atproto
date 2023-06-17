@@ -42,6 +42,14 @@ let test_create_session _ =
     OUnit2.assert_equal ~printer:string_of_bool true ((String.length test_session.atp_auth_token) > 0);
     OUnit2.assert_equal ~printer:string_of_bool true ((String.length test_session.did) > 0)
 
+let test_bearer_token_from_session _ =
+    let test_session = Session.create_session "david.engelmann44@gmail.com" "lsnv-tc3a-7wrl-upct" in
+    let bearer_token = Session.bear_token_from_session test_session in
+    match bearer_token with
+    | (setting_name, bearer) ->
+        OUnit2.assert_equal "Authorization" setting_name;
+        OUnit2.assert_equal ~printer:string_of_bool true ((String.length bearer) > 0)
+
 let suite =
   "suite"
   >::: [
@@ -51,6 +59,7 @@ let suite =
          "test_sample_session_atp_auth_token" >:: test_sample_session_atp_auth_token;
          "test_sample_session_did" >:: test_sample_session_did;
          "test_create_session" >:: test_create_session;
+         "test_bearer_token_from_session" >:: test_bearer_token_from_session;
        ]
 
 let () =
