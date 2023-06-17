@@ -17,4 +17,9 @@ module Session = struct
       let atp_auth_token = session_auth.token in
       let did = session_auth.did in
       { username; password; atp_host; atp_auth_token; did }
+
+    let bearer_token_from_session (s : session) : (string * string) =
+        let bearer_header = "Bearer " ^ s.atp_auth_token in
+        ("Authorization", bearer_header)
+
 end
