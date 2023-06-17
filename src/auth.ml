@@ -1,7 +1,6 @@
 open Cohttp_client
 
-open Jose
-(*open Jose.Jwt*)
+open Jose.Jwt
 
 module Auth = struct
     type auth =
@@ -23,8 +22,12 @@ module Auth = struct
         let iat = claims |> member "iat" |> to_int in
         let scope = claims |> member "scope" |> to_string in
         let did = claims |> member "sub" |> to_string in
-        let jti = 
-          try Some (json |> member "refreshJwt" |> to_string |> from_string |> member "jti" |> to_string)
+        let jti =
+          try
+            let refresh_jwt = json |> member "refreshJwt" |> to_string in
+            match unsafe_of_string refresh_jwt with
+            | Ok jwt -> Some ( jwt.payload |> member "jti" |> to_string)
+            | Error _ -> None
           with _ -> None
         in
         { exp; iat; scope; did; jti }
