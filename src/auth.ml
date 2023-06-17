@@ -2,7 +2,7 @@ open Cohttp_client
 
 
 module Auth = struct
-    open Jwt
+    open Jose
     type auth =
         {
           exp : int;
