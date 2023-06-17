@@ -15,8 +15,8 @@ module Auth = struct
 
     let parse_auth json : auth =
       let open Yojson.Safe.Util in
-      let access_jwt = json |> member "accessJwt" |> to_string in
-      match unsafe_of_string access_jwt with
+      let token = json |> member "accessJwt" |> to_string in
+      match unsafe_of_string token with
       | Ok jwt ->
         let claims = jwt.payload in
         let exp = claims |> member "exp" |> to_int in
@@ -31,7 +31,7 @@ module Auth = struct
             | Error _ -> None
           with _ -> None
         in
-        { exp; iat; scope; did; jti; access_jwt }
+        { exp; iat; scope; did; jti; token }
       | Error _ -> failwith "Invalid JWT token"
 
     let convert_body_to_json (body : string) : Yojson.Safe.t =
