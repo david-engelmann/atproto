@@ -1,8 +1,9 @@
 open Cohttp_client
 
+open Jose
+(*open Jose.Jwt*)
 
 module Auth = struct
-    open Jose.Jwt
     type auth =
         {
           exp : int;
@@ -13,10 +14,11 @@ module Auth = struct
         }
 
     let parse_auth json : auth =
-      let open Yojson.Basic.Util in
+      let open Yojson.Safe.Util in
       let jwt = json |> member "accessJwt" |> to_string in
-      match decode_compact jwt with
-      | Ok (header, claims) ->
+      match unsafe_of_string jwt with
+      | Ok jwt ->
+        let claims = jwt.payload in
         let exp = claims |> member "exp" |> to_int in
         let iat = claims |> member "iat" |> to_int in
         let scope = claims |> member "scope" |> to_string in
