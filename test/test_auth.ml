@@ -77,12 +77,12 @@ let test_sample_auth_without_jti_jti _ =
          OUnit2.assert_equal 1 1
 
 let test_make_auth_token_request_valid_info _ =
-  let body = Auth.make_auth_token_request "david.engelmann44@gmail.com" "qocp-gzb5-yv6o-lja4" "bsky.social" in
+  let body = Auth.make_auth_token_request "david.engelmann44@gmail.com" "lsnv-tc3a-7wrl-upct" "bsky.social" in
   print_endline body;
   OUnit2.assert_bool "Body is not empty" (body <> "")
 
 let test_parse_auth _ =
-  let body = Auth.make_auth_token_request "david.engelmann44@gmail.com" "qocp-gzb5-yv6o-lja4" "bsky.social" in
+  let body = Auth.make_auth_token_request "david.engelmann44@gmail.com" "lsnv-tc3a-7wrl-upct" "bsky.social" in
   let test_auth = Auth.parse_auth body in
   assert_bool "exp is a positive integer" (auth.exp > 0);
   assert_bool "iat is a positive integer" (auth.iat > 0);
