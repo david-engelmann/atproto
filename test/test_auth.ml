@@ -84,8 +84,8 @@ let test_sample_auth_without_jti_jti _ =
          OUnit2.assert_equal 1 1
 
 let test_sample_auth_without_jti_token _ =
-    match sample_auth_without_jti without
-     | { token; _ } ->
+    match sample_auth_without_jti with
+    | { token; _ } ->
         OUnit2.assert_equal "eyJCI6MTY4NzAyNjg0MCwiZXhwIjoxNjg3MDM0MDQwfQ.ZQem8wFw4HdYbbAnHpSvcwB3ue9HHK37K4QJ4QOzhKE" token
 
 let test_make_auth_token_request_valid_info _ =
