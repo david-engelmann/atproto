@@ -96,13 +96,13 @@ let test_make_auth_token_request_valid_info _ =
 let test_parse_auth _ =
   let body = Auth.make_auth_token_request "david.engelmann44@gmail.com" "lsnv-tc3a-7wrl-upct" "bsky.social" in
   let test_auth = Auth.parse_auth (Auth.convert_body_to_json body) in
-  assert_bool "exp is a positive integer" (test_auth.exp > 0);
-  assert_bool "iat is a positive integer" (test_auth.iat > 0);
-  assert_bool "scope is a non-empty string" (String.length test_auth.scope > 0);
-  assert_bool "did is a non-empty string" (String.length test_auth.did > 0);
+  OUnit2.assert_bool "exp is a positive integer" (test_auth.exp > 0);
+  OUnit2.assert_bool "iat is a positive integer" (test_auth.iat > 0);
+  OUnit2.assert_bool "scope is a non-empty string" (String.length test_auth.scope > 0);
+  OUnit2.assert_bool "did is a non-empty string" (String.length test_auth.did > 0);
   match test_auth.jti with
-   | Some s -> assert_bool "jti is a non-empty string" (String.length s > 0)
-   | None -> assert_bool "jti is None" true
+   | Some s -> OUnit2.assert_bool "jti is a non-empty string" (String.length s > 0)
+   | None -> OUnit2.assert_bool "jti is None" true
 
 
 
@@ -120,6 +120,7 @@ let suite =
          "test_sample_auth_without_jti_did" >:: test_sample_auth_without_jti_did;
          "test_sample_auth_without_jti_jti" >:: test_sample_auth_without_jti_jti;
          "test_make_auth_token_request_valid_info" >:: test_make_auth_token_request_valid_info;
+         "test_parse_auth" >:: test_parse_auth;
        ]
 
 let () = run_test_tt_main suite
