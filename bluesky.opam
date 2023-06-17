@@ -22,6 +22,9 @@ depends: [
     "cohttp-lwt-unix"
     "cohttp-async"
     "httpaf-lwt-unix"
+    "ssl"
+    "lwt_ssl"
+    "jose"
     ]
 available: arch != "arm32" & arch != "x86_32"
 synopsis: "OCaml based tools for BSky"
