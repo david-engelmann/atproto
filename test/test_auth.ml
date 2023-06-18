@@ -89,12 +89,14 @@ let test_sample_auth_without_jti_token _ =
         OUnit2.assert_equal "eyJCI6MTY4NzAyNjg0MCwiZXhwIjoxNjg3MDM0MDQwfQ.ZQem8wFw4HdYbbAnHpSvcwB3ue9HHK37K4QJ4QOzhKE" token
 
 let test_make_auth_token_request_valid_info _ =
-  let body = Auth.make_auth_token_request "david.engelmann44@gmail.com" "lsnv-tc3a-7wrl-upct" "bsky.social" in
+  let (username, password) = Auth.username_and_password_from_env in
+  let body = Auth.make_auth_token_request username password "bsky.social" in
   print_endline body;
   OUnit2.assert_bool "Body is not empty" (body <> "")
 
 let test_parse_auth _ =
-  let body = Auth.make_auth_token_request "david.engelmann44@gmail.com" "lsnv-tc3a-7wrl-upct" "bsky.social" in
+  let (username, password) = Auth.username_and_password_from_env in
+  let body = Auth.make_auth_token_request username password "bsky.social" in
   let test_auth = Auth.parse_auth (Auth.convert_body_to_json body) in
   OUnit2.assert_equal ~printer:string_of_bool true (test_auth.exp > 0);
   OUnit2.assert_equal ~printer:string_of_bool true (test_auth.iat > 0);

@@ -13,6 +13,18 @@ module Auth = struct
           token : string;
         }
 
+    let split_atp_auth_string_on_colon (atp_auth : string) : (string * string) =
+      match String.split_on_char ':' atp_auth with
+       | [username; password] -> (username, password)
+       | _ -> failwith "Invalid string format"
+
+    let convert_atp_auth_string_to_tuple (atp_auth : string) : (string * string) =
+      split_atp_auth_string_on_colon atp_auth
+
+    let username_and_password_from_env : (string * string) =
+      let atp_auth = Sys.getenv "ATP_AUTH" in
+      convert_atp_auth_string_to_tuple atp_auth
+
     let parse_auth json : auth =
       let open Yojson.Safe.Util in
       let token = json |> member "accessJwt" |> to_string in
