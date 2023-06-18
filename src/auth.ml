@@ -22,7 +22,7 @@ module Auth = struct
       split_atp_auth_string_on_colon atp_auth
 
     let username_and_password_from_env : (string * string) =
-      let atp_auth = Sys.getenv "ATP_AUTH" in
+      let atp_auth = try Sys.getenv "ATP_AUTH" with Not_found -> "julyjackson@gmail.com:acrazyapppassword" in
       convert_atp_auth_string_to_tuple atp_auth
 
     let parse_auth json : auth =
