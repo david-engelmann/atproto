@@ -56,11 +56,11 @@ jobs:
       - name: Dune Build
         run: opam exec -- dune build
         env:
-          apt_host: ${{env.ATP_HOST}}
+          apt_host: ${{ secrets.ATP_HOST }}
       - name: Dune Test
         run: opam exec -- dune runtest
         env:
-          apt_host: ${{env.ATP_HOST}}
+          apt_host: ${{ secrets.ATP_HOST }}
 
   lint-doc:
     strategy:
