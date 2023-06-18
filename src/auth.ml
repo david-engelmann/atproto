@@ -1,7 +1,6 @@
 open Cohttp_client
 
 open Jose.Jwt
-open Ptime
 
 module Auth = struct
     type auth =
@@ -62,6 +61,6 @@ module Auth = struct
       let expired_at = Ptime.of_float_s (float_of_int a.exp) |> Option.get in
       let expired_at = Ptime.add_span expired_at (Ptime.Span.of_int_s (-15 * 60)) |> Option.get in (* subtract 15 minutes *)
       let datetime_now = Unix.gettimeofday () |> Ptime.of_float_s |> Option.get in
-      Ptime.is_later datetime_now expired_at
+      Ptime.is_later ~than:expired_at datetime_now
 
 end
