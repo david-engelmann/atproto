@@ -55,8 +55,12 @@ jobs:
 #        run: opam install . --deps-only --with-doc --with-test
       - name: Dune Build
         run: opam exec -- dune build
+        env:
+          ATP_AUTH: ${{ secrets.ATP_AUTH }}
       - name: Dune Test
         run: opam exec -- dune runtest
+        env:
+          ATP_AUTH: ${{ secrets.ATP_AUTH }}
 
   lint-doc:
     strategy:
@@ -93,7 +97,7 @@ jobs:
         ocaml-compiler:
           - 4.14.1
 
-    runs-on: ${{ matrix.os }} 
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
