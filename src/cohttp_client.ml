@@ -41,8 +41,8 @@ module Cohttp_client = struct
 
   let create_body_from_pairs (data : (string * string) list) =
     match data with
-    | [] -> Cohttp_lwt.Body.of_string ""
-    | _ -> Cohttp_lwt.Body.of_string (pairs_to_query_string data)
+    | [] -> ""
+    | _ -> pairs_to_query_string data
 
   let application_json_setting_tuple : (string * string) = ("Content-Type", "application/json")
 
