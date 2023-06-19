@@ -1,5 +1,6 @@
 opam-version: "2.0"
-maintainer: "david-engelmann"
+maintainer: "david-engelmann david.engelmann44@gmail.com"
+authors: "david-engelmann david.engelmann44@gmail.com" 
 homepage: "https://github.com/david-engelmann/bluesky"
 
 bug-reports: "https://github.com/david-engelmann/bluesky/issues"
