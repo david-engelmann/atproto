@@ -57,10 +57,12 @@ jobs:
         run: opam exec -- dune build
         env:
           ATP_AUTH: ${{ secrets.ATP_AUTH }}
+          ATP_HOST: ${{ secrets.ATP_HOST }}
       - name: Dune Test
         run: opam exec -- dune runtest
         env:
           ATP_AUTH: ${{ secrets.ATP_AUTH }}
+          ATP_HOST: ${{ secrets.ATP_HOST }}
 
   lint-doc:
     strategy:
