@@ -8,6 +8,7 @@ module App = struct
 
   let get_profile (s : Session.session) (actor : string) =
     let base_endpoint = base_endpoint_from_env in
+    let base_endpoint = if String.get base_endpoint (String.length base_endpoint - 1) = '/' then base_endpoint else base_endpoint ^ "/" in
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
