@@ -16,6 +16,36 @@ module Cohttp_client = struct
     let url = Printf.sprintf "http://%s:%d" host port in
     get_body url
 
+  let add_pair_to_header h setting_pair =
+    match setting_pair with
+    | (setting, value) -> Header.add h setting value
+
+  let rec add_pairs_to_header h (header_settings : (string * string) list) =
+    match header_settings with
+    | [] -> h
+    | hd :: res ->
+      let h = add_pair_to_header h hd in
+      add_pairs_to_header h res
+
+  let pairs_to_query_string params =
+    let kv_to_string (k, v) = Uri.pct_encode k ^ "=" ^ Uri.pct_encode v in
+    String.concat "&" (List.map kv_to_string params)
+
+  let create_headers_from_pairs (header_settings : (string * string) list) =
+    match header_settings with
+    | [] -> Header.init ()
+    | hd :: res -> 
+      let headers = Header.init () in
+      let headers = add_pair_to_header headers hd in
+      add_pairs_to_header headers res
+
+  let create_body_from_pairs (data : (string * string) list) =
+    match data with
+    | [] -> Cohttp_lwt.Body.of_string ""
+    | _ -> Cohttp_lwt.Body.of_string (pairs_to_query_string data)
+
+  let application_json_setting_tuple : (string * string) = ("Content-Type", "application/json")
+
   let post_data (url : string) data =
     let open Lwt.Infix in
     let headers = Header.init ()
@@ -28,4 +58,16 @@ module Cohttp_client = struct
     body |> Cohttp_lwt.Body.to_string >|= fun body ->
     Printf.printf "Body of length: %d\n" (String.length body);
     body
+
+  let get_request_with_body_and_headers (url : string) body headers =
+    let open Lwt.Infix in
+    let url_with_body = url ^ "?" ^ body in
+    Client.get ~headers (Uri.of_string url_with_body) >>= fun (resp, body) ->
+    let code = resp |> Response.status |> Code.code_of_status in
+    Printf.printf "Response Code: %d\n" code;
+    Printf.printf "Headers: %s\n" (resp |> Response.headers |> Header.to_string);
+    body |> Cohttp_lwt.Body.to_string >|= fun body ->
+    Printf.printf "Body of length: %d\n" (String.length body);
+    body
+
 end
