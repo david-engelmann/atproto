@@ -9,8 +9,12 @@ module Session = struct
         auth : Auth.auth;
       }
 
+  let atp_host_from_env : string =
+      let atp_host = try Sys.getenv "ATP_HOST" with Not_found -> "bsky.social" in
+      atp_host
+
   let create_session (username : string) (password: string) : session =
-    let atp_host = "bsky.social" in
+    let atp_host = atp_host_from_env in
     let body = Auth.make_auth_token_request username password atp_host in
     let session_auth = body |> Auth.convert_body_to_json |> Auth.parse_auth in
     { username; password; atp_host; auth=session_auth }
