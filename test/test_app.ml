@@ -9,3 +9,12 @@ let test_get_profile _ =
   let profile = App.get_profile test_session "david-engelmann.bsky.social" in
   Printf.printf "Profile: %d\n" profile;
   OUnit2.assert_bool "Body is not empty" (body <> "")
+
+
+let suite =
+    "suite"
+    >::: [
+           "test_get_profile" >:: test_get_profile;
+         ]
+
+let () = run_test_tt_main suite
