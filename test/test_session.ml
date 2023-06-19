@@ -1,5 +1,6 @@
 open OUnit2
 open Bluesky.Session
+open Bluesky.Auth
 
 let sample_session : Session.session = {
       username = "your.name";
