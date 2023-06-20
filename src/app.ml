@@ -49,6 +49,4 @@ module App = struct
     let suggestions = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_suggestions_url body headers) in
     suggestions
 
-
-
 end
