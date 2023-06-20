@@ -19,7 +19,7 @@ module App = struct
     let base_endpoint = get_base_endpoint in
     "https://" ^ s.atp_host ^ "/" ^ base_endpoint
 
-  let get_profile (s : Session.session) (actor : string) =
+  let get_profile (s : Session.session) (actor : string) : string =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
@@ -28,4 +28,15 @@ module App = struct
     let body = Cohttp_client.create_body_from_pairs [("actor", actor)] in
     let results = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_profile_url body headers) in
     results
+
+  list get_profiles (s : Session.session) (actors : string list) : string =
+    let bearer_token = Session.bearer_token_from_session s in
+    let application_json = Cohttp_client.application_json_setting_tuple in
+    let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
+    let base_url = create_base_url s in
+    let get_profiles_url = create_endpoint_url base_url "app.bsky.actor.getProfiles" in
+    let body = Cohttp_client.create_body_from_pairs [("actors", actors)] in
+    let results = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_profile_url body headers) in
+    results
+
 end
