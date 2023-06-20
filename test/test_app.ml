@@ -17,7 +17,6 @@ let test_get_profiles _ =
   Printf.printf "Profiles: %s\n" profiles;
   OUnit2.assert_bool "Profiles is not empty" (profiles <> "")
 
-
 let test_get_suggestions _ =
   let (username, password) = Auth.username_and_password_from_env in
   let test_session = Session.create_session username password in
@@ -25,6 +24,12 @@ let test_get_suggestions _ =
   Printf.printf "Suggestions: %s\n" suggestions;
   OUnit2.assert_bool "Suggestions is not empty" (suggestions <> "")
 
+let test_search_actors _ =
+  let (username, password) = Auth.username_and_password_from_env in
+  let test_session = Session.create_session username password in
+  let profiles = App.search_actors test_session "david-engelmann" 1 in
+  Printf.printf "Search Profiles: %s\n" profiles;
+  OUnit2.assert_bool "Search Profiles is not empty" (profiles <> "")
 
 
 let suite =
@@ -33,6 +38,7 @@ let suite =
            "test_get_profile" >:: test_get_profile;
            "test_get_profiles" >:: test_get_profiles;
            "test_get_suggestions" >:: test_get_suggestions;
+           "test_search_actors" >:: test_search_actors;
          ]
 
 let () = run_test_tt_main suite
