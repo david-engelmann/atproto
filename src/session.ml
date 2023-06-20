@@ -24,9 +24,13 @@ module Session = struct
       ("Authorization", bearer_header)
 
   let refresh_session_auth (s : session) : session =
-    Auth.print_auth s.auth;
     if Auth.is_token_expired s.auth then
-      create_session s.username s.password
+      let username = s.username in
+      let password = s.password in
+      let atp_host = s.atp_host in
+      let body = Auth.refresh_auth_token_request s.auth.token (Option.get s.auth.refresh_token) username s.auth.did atp_host in
+      let session_auth = body |> Auth.convert_body_to_json |> Auth.parse_auth in
+      { username; password; atp_host; auth=session_auth }
     else
       s
 end
