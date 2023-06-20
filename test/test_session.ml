@@ -67,6 +67,14 @@ let test_bearer_token_from_session _ =
         OUnit2.assert_equal "Authorization" setting_name;
         OUnit2.assert_equal ~printer:string_of_bool true ((String.length bearer) > 0)
 
+let test_get_session_request _ =
+  let test_session = create_test_session () |> Session.refresh_session_auth in
+  let session_info = Session.get_session_request test_session in
+  print_endline session_info;
+  OUnit2.assert_equal ~printer:string_of_bool true ((String.length session_info) > 0)
+
+
+
 let suite =
   "suite"
   >::: [
@@ -78,6 +86,7 @@ let suite =
          "test_sample_session_auth_did" >:: test_sample_session_auth_did;
          "test_create_session" >:: test_create_session;
          "test_bearer_token_from_session" >:: test_bearer_token_from_session;
+         "test_get_session_request" >:: test_get_session_request;
        ]
 
 let () =

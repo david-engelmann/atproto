@@ -1,4 +1,5 @@
 open Auth
+open Cohttp_client
 
 module Session = struct
   type session =
@@ -33,4 +34,12 @@ module Session = struct
       { username; password; atp_host; auth=session_auth }
     else
       s
+
+  let get_session_request (s : session) : string =
+    let get_session_url = Printf.sprintf "https://%s/xrpc/com.atproto.server.getSession" s.atp_host in
+    let bearer_token = bearer_token_from_session s in
+    let application_json = Cohttp_client.application_json_setting_tuple in
+    let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
+    let session = Lwt_main.run (Cohttp_client.get_request_with_headers get_session_url headers) in
+    session
 end
