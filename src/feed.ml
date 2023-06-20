@@ -15,4 +15,15 @@ module Feed = struct
     let body = Cohttp_client.create_body_from_pairs [("actor", actor); ("limit", string_of_int limit)] in
     let author_feed = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_author_feed_url body headers) in
     author_feed
+
+  let get_likes (s : Session.session) (uri : string) (cid : string) (limit : int) : string =
+    let bearer_token = Session.bearer_token_from_session s in
+    let application_json = Cohttp_client.application_json_setting_tuple in
+    let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
+    let base_url = App.create_base_url s in
+    let get_likes_url = App.create_endpoint_url base_url (create_feed_endpoint "getLikes") in
+    let body = Cohttp_client.create_body_from_pairs [("uri", uri); ("cid", cid); ("limit", string_of_int limit)] in
+    let likes = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_likes_url body headers) in
+    likes
+
 end
