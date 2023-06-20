@@ -11,7 +11,17 @@ module Auth = struct
           did : string;
           jti : string option;
           token : string;
+          refresh_token : string option;
         }
+
+    let print_auth (a : auth) : unit =
+      Printf.printf "exp: %d\n" a.exp;
+      Printf.printf "iat: %d\n" a.iat;
+      Printf.printf "scope: %s\n" a.scope;
+      Printf.printf "did: %s\n" a.did;
+      Printf.printf "jti: %s\n" (Option.value ~default:"None" a.jti);
+      Printf.printf "token: %s\n" a.token;
+      Printf.printf "refresh_token: %s\n" (Option.value ~default:"None" a.refresh_token)
 
     let split_atp_auth_string_on_colon (atp_auth : string) : (string * string) =
       match String.split_on_char ':' atp_auth with
@@ -43,7 +53,8 @@ module Auth = struct
             | Error _ -> None
           with _ -> None
         in
-        { exp; iat; scope; did; jti; token }
+        let refresh_token = try Some (json |> member "refreshJwt" |> to_string) with _ -> None in
+        { exp; iat; scope; did; jti; token; refresh_token }
       | Error _ -> failwith "Invalid JWT token"
 
     let convert_body_to_json (body : string) : Yojson.Safe.t =
@@ -58,7 +69,7 @@ module Auth = struct
 
     let refresh_auth_token_request (access_jwt : string) (refresh_jwt : string) (handle : string) (did : string) (personal_data_server : string) : string =
       let url = Printf.sprintf "https://%s/xrpc/com.atproto.server.refreshSession" personal_data_server in
-      let data = Printf.sprintf "{\"accessJwt\": \"%s\", \"refreshJwt\": \"%s\", \"handle\": \"%s\", \"did\": \"%s\"}" access_jwt refresh_jwt handle did
+      let data = Printf.sprintf "{\"accessJwt\": \"%s\", \"refreshJwt\": \"%s\", \"handle\": \"%s\", \"did\": \"%s\"}" access_jwt refresh_jwt handle did in
       let body = Lwt_main.run (Cohttp_client.post_data url data) in
       body
 
