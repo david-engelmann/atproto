@@ -1,5 +1,5 @@
 open OUnit2
-open Bluesky.Auth
+open Atproto.Auth
 
 
 let sample_auth_without_jti : Auth.auth = {

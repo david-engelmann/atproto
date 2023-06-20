@@ -1,7 +1,7 @@
 open OUnit2
-open Bluesky.Session
-open Bluesky.Auth
-open Bluesky.App
+open Atproto.Session
+open Atproto.Auth
+open Atproto.App
 
 let test_get_profile _ =
   let (username, password) = Auth.username_and_password_from_env in

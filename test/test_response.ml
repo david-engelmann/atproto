@@ -1,5 +1,5 @@
 open OUnit2
-open Bluesky.Response
+open Atproto.Response
 
 let sample_content : bytes = Bytes.create 12;;
 Bytes.set sample_content 0 'J';
@@ -19,7 +19,7 @@ let sample_response : Response.response = {
     success = true;
     status_code = 200;
     content = sample_content;
-    headers = [("User-Agent", "david-engelmann/bluesky (OCaml SDK)")];
+    headers = [("User-Agent", "david-engelmann/atproto (OCaml SDK)")];
   }
 
 let test_sample_response_success _ =

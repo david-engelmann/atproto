@@ -31,6 +31,21 @@ module Cohttp_client = struct
     let kv_to_string (k, v) = Uri.pct_encode k ^ "=" ^ Uri.pct_encode v in
     String.concat "&" (List.map kv_to_string params)
 
+  (*
+  let pairs_with_array_value_to_query_string params =
+    let kv_to_string (k, vs) =
+      let json_vs = `List (List.map (fun v -> `String v) vs) in
+      Uri.pct_encode k ^ "=" ^ (Yojson.Safe.to_string json_vs)
+    in
+    String.concat "&" (List.map kv_to_string params)
+  *)
+
+  let create_body_from_pairs_with_array_value pairs =
+    `Assoc (List.map (fun (key, values) ->
+      (key, `List (List.map (fun value -> `String value) values))
+    ) pairs)
+    |> Yojson.to_string
+
   let create_headers_from_pairs (header_settings : (string * string) list) =
     match header_settings with
     | [] -> Header.init ()
@@ -43,6 +58,22 @@ module Cohttp_client = struct
     match data with
     | [] -> ""
     | _ -> pairs_to_query_string data
+
+  let add_query_params_to_url url key values =
+    List.fold_left (fun url value ->
+      Uri.add_query_param' url (key, value)
+    ) url values
+
+    let add_query_params key values =
+      List.map (fun value -> key ^ "=" ^ value) values
+      |> String.concat "&"
+  
+  (*
+  let create_body_from_pairs_with_array_value (data : (string * string list) list) =
+    match data with
+    | [] -> ""
+    | _ -> pairs_with_array_value_to_query_string data
+  *)
 
   let application_json_setting_tuple : (string * string) = ("Content-Type", "application/json")
 

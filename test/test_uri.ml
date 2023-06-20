@@ -1,5 +1,5 @@
 open OUnit2
-open Bluesky.Uri
+open Atproto.Uri
 
 let sample_uri_without_search_params : Uri.uri = {
       host = "david.host.com";

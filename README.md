@@ -1,5 +1,5 @@
-# bluesky
-OCaml-based BSky tools
+# atproto 
+OCaml-based AT Protocol tools
 
 # Testing
 testing can be ran from the root directory with the following command

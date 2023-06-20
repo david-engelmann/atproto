@@ -35,8 +35,8 @@ module App = struct
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
     let base_url = create_base_url s in
     let get_profiles_url = create_endpoint_url base_url "app.bsky.actor.getProfiles" in
-    let body = Cohttp_client.create_body_from_pairs [("actors", actors)] in
-    let results = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_profile_url body headers) in
+    let body = Cohttp_client.add_query_params "actors" actors in
+    let results = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_profiles_url body headers) in
     results
 
 end

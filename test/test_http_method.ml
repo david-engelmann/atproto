@@ -1,5 +1,5 @@
 open OUnit2
-open Bluesky.Http_method
+open Atproto.Http_method
 
 let sample_get_http_method : Http_method.http_method = Get
 let sample_post_http_method : Http_method.http_method = Post
