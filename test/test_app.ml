@@ -7,7 +7,7 @@ let test_create_base_url _ =
   let (username, password) = Auth.username_and_password_from_env in
   let test_session = Session.create_session username password in
   let test_base_url = App.create_base_url test_session in
-  OUnit2.assert_equal "https://bsky.social/xrpc" test_base_url
+  OUnit2.assert_equal "https://bsky.social/xrpc/" test_base_url
 
 let test_create_endpoint_url _ =
   let (username, password) = Auth.username_and_password_from_env in
