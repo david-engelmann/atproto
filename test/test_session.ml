@@ -16,6 +16,10 @@ let sample_session : Session.session = {
       };
     }
 
+let create_test_session _ =
+    let (username, password) = Auth.username_and_password_from_env in
+    Session.create_session username password
+
 let test_sample_session_username _ =
     match sample_session with
      | { username; _ } ->
@@ -41,12 +45,8 @@ let test_sample_session_auth_did _ =
      | { auth = { did; _ }; _ } ->
         OUnit2.assert_equal "did_public_key" did
 
-
-let (username, password) = Auth.username_and_password_from_env in
-let test_session = Session.create_session username password in
-
 let test_create_session _ =
-    let test_session = Session.refresh_session_auth test_session in
+    let test_session = create_test_session () |> Session.refresh_session_auth in
     OUnit2.assert_equal ~printer:string_of_bool true ((String.length test_session.username) > 0);
     OUnit2.assert_equal ~printer:string_of_bool true ((String.length test_session.password) > 0);
     OUnit2.assert_equal ~printer:string_of_bool true ((String.length test_session.atp_host) > 0);
@@ -54,7 +54,7 @@ let test_create_session _ =
     OUnit2.assert_equal ~printer:string_of_bool true ((String.length test_session.auth.did) > 0)
 
 let test_bearer_token_from_session _ =
-    let test_session = Session.refresh_session_auth test_session in
+    let test_session = create_test_session () |> Session.refresh_session_auth in
     let bearer_token = Session.bearer_token_from_session test_session in
     match bearer_token with
     | (setting_name, bearer) ->
