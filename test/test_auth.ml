@@ -9,6 +9,7 @@ let sample_auth_without_jti : Auth.auth = {
     did = "123";
     jti = None;
     token = "eyJCI6MTY4NzAyNjg0MCwiZXhwIjoxNjg3MDM0MDQwfQ.ZQem8wFw4HdYbbAnHpSvcwB3ue9HHK37K4QJ4QOzhKE";
+    refresh_token = None;
   }
 
 let sample_auth_with_jti : Auth.auth = {
@@ -18,6 +19,7 @@ let sample_auth_with_jti : Auth.auth = {
     did = "321";
     jti = Some "jti";
     token = "eyJCI6MTY4NzAyNjg0MCwiZXhwIjoxNjg3MDM0MDQwfQ.ZQem8wFw4HdYbbAnHpSvcwB3ue9HHK37K4QJ4QOzhKE";
+    refresh_token = Some "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzY29wZSI6ImNvbS5hdHByb3RvLnJlZnJlc2giLCJzdWIiOiJkaWQ6cGxjOnhvdjN1dnhmZDR0bzZldjNhazVnNXV4ayIsImp0aSI6InM0Z2JDcWRXRlVhQ1lJQk4xdk93V2xBS01LR3ZkSnlla1V3TjJKL1paUDQiLCJpYXQiOjE2ODcyODgzMjIsImV4cCI6MTY5NTA2NDMyMn0.2wdx89mPzrwVyFHhVOpHw6iIooFCE3k6a4qvvBNwcCE";
   }
 
 let test_sample_auth_with_jti_exp _ =
@@ -54,6 +56,13 @@ let test_sample_auth_with_jti_token _ =
      | { token; _ } ->
         OUnit2.assert_equal "eyJCI6MTY4NzAyNjg0MCwiZXhwIjoxNjg3MDM0MDQwfQ.ZQem8wFw4HdYbbAnHpSvcwB3ue9HHK37K4QJ4QOzhKE" token
 
+let test_sample_auth_with_jti_refresh_token _ =
+    match sample_auth_with_jti with
+     | { refresh_token; _ } ->
+      match refresh_token with
+      | Some refresh_token -> OUnit2.assert_equal "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzY29wZSI6ImNvbS5hdHByb3RvLnJlZnJlc2giLCJzdWIiOiJkaWQ6cGxjOnhvdjN1dnhmZDR0bzZldjNhazVnNXV4ayIsImp0aSI6InM0Z2JDcWRXRlVhQ1lJQk4xdk93V2xBS01LR3ZkSnlla1V3TjJKL1paUDQiLCJpYXQiOjE2ODcyODgzMjIsImV4cCI6MTY5NTA2NDMyMn0.2wdx89mPzrwVyFHhVOpHw6iIooFCE3k6a4qvvBNwcCE" refresh_token
+      | _ -> OUnit2.assert_equal 0 1
+
 let test_sample_auth_without_jti_exp _ =
     match sample_auth_without_jti with
      | { exp; _ } ->
@@ -88,6 +97,15 @@ let test_sample_auth_without_jti_token _ =
     | { token; _ } ->
         OUnit2.assert_equal "eyJCI6MTY4NzAyNjg0MCwiZXhwIjoxNjg3MDM0MDQwfQ.ZQem8wFw4HdYbbAnHpSvcwB3ue9HHK37K4QJ4QOzhKE" token
 
+let test_sample_auth_without_jti_refresh_token _ =
+    match sample_auth_without_jti with
+     | { refresh_token; _ } ->
+      match refresh_token with
+       | Some _ ->
+         OUnit2.assert_equal 0 1
+       | _ ->
+         OUnit2.assert_equal 1 1
+
 let test_make_auth_token_request_valid_info _ =
   let (username, password) = Auth.username_and_password_from_env in
   let body = Auth.make_auth_token_request username password "bsky.social" in
@@ -115,11 +133,13 @@ let suite =
          "test_sample_auth_with_jti_scope" >:: test_sample_auth_with_jti_scope;
          "test_sample_auth_with_jti_did" >:: test_sample_auth_with_jti_did;
          "test_sample_auth_with_jti_jti" >:: test_sample_auth_with_jti_jti;
+         "test_sample_auth_with_jti_refresh_token" >:: test_sample_auth_with_jti_refresh_token;
          "test_sample_auth_without_jti_exp" >:: test_sample_auth_without_jti_exp;
          "test_sample_auth_without_jti_iat" >:: test_sample_auth_without_jti_iat;
          "test_sample_auth_without_jti_scope" >:: test_sample_auth_without_jti_scope;
          "test_sample_auth_without_jti_did" >:: test_sample_auth_without_jti_did;
          "test_sample_auth_without_jti_jti" >:: test_sample_auth_without_jti_jti;
+         "test_sample_auth_without_jti_refresh_token" >:: test_sample_auth_without_jti_refresh_token;
          "test_make_auth_token_request_valid_info" >:: test_make_auth_token_request_valid_info;
          "test_parse_auth" >:: test_parse_auth;
        ]
