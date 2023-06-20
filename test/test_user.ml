@@ -1,5 +1,5 @@
 open OUnit2
-open Bluesky.User
+open Atproto.User
 
 let sample_user : User.user = {
       username = "your.name";

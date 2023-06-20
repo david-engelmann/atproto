@@ -1,10 +1,10 @@
 opam-version: "2.0"
 maintainer: "david-engelmann david.engelmann44@gmail.com"
-authors: "david-engelmann david.engelmann44@gmail.com" 
-homepage: "https://github.com/david-engelmann/bluesky"
+authors: "david-engelmann david.engelmann44@gmail.com"
+homepage: "https://github.com/david-engelmann/atproto"
 
-bug-reports: "https://github.com/david-engelmann/bluesky/issues"
-dev-repo: "git+https://github.com/david-engelmann/bluesky.git"
+bug-reports: "https://github.com/david-engelmann/atproto/issues"
+dev-repo: "git+https://github.com/david-engelmann/atproto.git"
 license: "MIT"
 build: [
     ["dune" "build" "-p" name "-j" jobs]
@@ -28,7 +28,7 @@ depends: [
     "jose"
     ]
 available: arch != "arm32" & arch != "x86_32"
-synopsis: "OCaml based tools for BSky"
+synopsis: "OCaml based tools for AT Protocol"
 description: "
-OCaml based tools for BSky
+OCaml based tools for AT Protocol
 "

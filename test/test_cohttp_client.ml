@@ -1,5 +1,5 @@
 open OUnit2
-open Bluesky.Cohttp_client
+open Atproto.Cohttp_client
 
 let test_cohttp_client_get_with_quotes_to_scrape _ =
   let body = Lwt_main.run (Cohttp_client.get_host "quotes.toscrape.com" 80) in

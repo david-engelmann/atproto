@@ -1,5 +1,5 @@
 open OUnit2
-open Bluesky.Http_client
+open Atproto.Http_client
 open Lwt.Infix
 
 let test_http_client_with_quotes_to_scrape _ =

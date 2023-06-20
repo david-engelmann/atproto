@@ -12,14 +12,14 @@ module Request = struct
     let sample_request_with_body : request = {
         method_ = Http_method.Get;
         url = "https://github.com/david-engelmann";
-        headers = [("User-Agent", "david-engelmann/bluesky (OCaml SDK)")];
+        headers = [("User-Agent", "david-engelmann/atproto (OCaml SDK)")];
         body = Some "{\"July\": \"Jackson\"}";
     }
 
     let sample_request_without_body : request = {
         method_ = Http_method.Get;
         url = "https://github.com/david-engelmann";
-        headers = [("User-Agent", "david-engelmann/bluesky (OCaml SDK)")];
+        headers = [("User-Agent", "david-engelmann/atproto (OCaml SDK)")];
         body = None
     }
 

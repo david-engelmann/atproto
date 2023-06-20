@@ -1,5 +1,5 @@
 open OUnit2
-open Bluesky.Request
+open Atproto.Request
 
 
 let test_sample_request_with_body_method_ _ =

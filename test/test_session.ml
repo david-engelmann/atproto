@@ -1,6 +1,6 @@
 open OUnit2
-open Bluesky.Session
-open Bluesky.Auth
+open Atproto.Session
+open Atproto.Auth
 
 let sample_session : Session.session = {
       username = "your.name";
