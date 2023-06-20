@@ -56,6 +56,13 @@ module Auth = struct
       let body = Lwt_main.run (Cohttp_client.post_data url data) in
       body
 
+    let refresh_auth_token_request (access_jwt : string) (refresh_jwt : string) (handle : string) (did : string) (personal_data_server : string) : string =
+      let url = Printf.sprintf "https://%s/xrpc/com.atproto.server.refreshSession" personal_data_server in
+      let data = Printf.sprintf "{\"accessJwt\": \"%s\", \"refreshJwt\": \"%s\", \"handle\": \"%s\", \"did\": \"%s\"}" access_jwt refresh_jwt handle did
+      let body = Lwt_main.run (Cohttp_client.post_data url data) in
+      body
+
+
     (*
     let is_token_expired (a : auth) : bool option =
       let expired_at = Ptime.of_float_s (float_of_int a.exp) |> Option.get in
