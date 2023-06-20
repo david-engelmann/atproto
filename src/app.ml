@@ -29,7 +29,7 @@ module App = struct
     let results = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_profile_url body headers) in
     results
 
-  list get_profiles (s : Session.session) (actors : string list) : string =
+  let get_profiles (s : Session.session) (actors : string list) : string =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
