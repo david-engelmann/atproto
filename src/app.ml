@@ -58,4 +58,15 @@ module App = struct
     let body = Cohttp_client.create_body_from_pairs [("term", term); ("limit", string_of_int limit)] in
     let profiles = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers search_actors_url body headers) in
     profiles
+
+  let search_actors_typeahead (s : Session.session) (term : string) (limit : int) : string =
+    let bearer_token = Session.bearer_token_from_session s in
+    let application_json = Cohttp_client.application_json_setting_tuple in
+    let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
+    let base_url = create_base_url s in
+    let search_actors_typeahead_url = create_endpoint_url base_url "app.bsky.actor.searchActorsTypeahead" in
+    let body = Cohttp_client.create_body_from_pairs [("term", term); ("limit", string_of_int limit)] in
+    let profiles = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers search_actors_typeahead_url body headers) in
+    profiles
+
 end

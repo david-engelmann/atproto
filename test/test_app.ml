@@ -31,6 +31,12 @@ let test_search_actors _ =
   Printf.printf "Search Profiles: %s\n" profiles;
   OUnit2.assert_bool "Search Profiles is not empty" (profiles <> "")
 
+let test_search_actors_typeahead _ =
+  let (username, password) = Auth.username_and_password_from_env in
+  let test_session = Session.create_session username password in
+  let profiles = App.search_actors_typeahead test_session "david-engelmann" 1 in
+  Printf.printf "Search Profiles Typeahead: %s\n" profiles;
+  OUnit2.assert_bool "Search Profiles Typeahead is not empty" (profiles <> "")
 
 let suite =
     "suite"
@@ -39,6 +45,7 @@ let suite =
            "test_get_profiles" >:: test_get_profiles;
            "test_get_suggestions" >:: test_get_suggestions;
            "test_search_actors" >:: test_search_actors;
+           "test_search_actors_typeahead" >:: test_search_actors_typeahead;
          ]
 
 let () = run_test_tt_main suite
