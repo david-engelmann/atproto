@@ -26,7 +26,6 @@ depends: [
     "ssl"
     "lwt_ssl"
     "jose"
-    "cmdliner" {>= "1.0.4"}
     ]
 available: arch != "arm32" & arch != "x86_32"
 synopsis: "OCaml based tools for AT Protocol"
