@@ -32,6 +32,7 @@ let suite =
     >::: [
            "test_get_author_feed" >:: test_get_author_feed;
            "test_get_likes" >:: test_get_likes;
+           "test_get_post_thread" >:: test_get_post_thread;
          ]
 
 let () = run_test_tt_main suite
