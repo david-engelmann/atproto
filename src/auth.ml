@@ -82,7 +82,7 @@ module Auth = struct
     let refresh_auth_token_request (access_jwt : string) (refresh_jwt : string) (handle : string) (did : string) (personal_data_server : string) : string =
       let base_endpoint = get_base_endpoint in
       let refresh_endpoint = create_server_endpoint "refreshSession" in
-      let url = Printf.sprintf "https://%s/%s/%s" personal_data_server base_endpoint refresh_endpoint in
+      let url = Printf.sprintf "https://%s/%s%s" personal_data_server base_endpoint refresh_endpoint in
       let data = Printf.sprintf "{\"accessJwt\": \"%s\", \"refreshJwt\": \"%s\", \"handle\": \"%s\", \"did\": \"%s\"}" access_jwt refresh_jwt handle did in
       let body = Lwt_main.run (Cohttp_client.post_data url data) in
       body

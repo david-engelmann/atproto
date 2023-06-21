@@ -67,7 +67,7 @@ module Cohttp_client = struct
     let add_query_params key values =
       List.map (fun value -> key ^ "=" ^ value) values
       |> String.concat "&"
-  
+
   (*
   let create_body_from_pairs_with_array_value (data : (string * string list) list) =
     match data with
@@ -83,32 +83,32 @@ module Cohttp_client = struct
     |> fun h -> Header.add h "Content-Type" "application/json" in
     let body = Cohttp_lwt.Body.of_string data in
     Client.post ~headers ~body (Uri.of_string url) >>= fun (resp, body) ->
-    let code = resp |> Response.status |> Code.code_of_status in
-    Printf.printf "Response Code: %d\n" code;
-    Printf.printf "Headers: %s\n" (resp |> Response.headers |> Header.to_string);
+    let _ = resp |> Response.status |> Code.code_of_status in
+    (*Printf.printf "Response Code: %d\n" code;*)
+    (*Printf.printf "Headers: %s\n" (resp |> Response.headers |> Header.to_string);*)
     body |> Cohttp_lwt.Body.to_string >|= fun body ->
-    Printf.printf "Body of length: %d\n" (String.length body);
+    (*Printf.printf "Body of length: %d\n" (String.length body);*)
     body
 
   let get_request_with_body_and_headers (url : string) body headers =
     let open Lwt.Infix in
     let url_with_body = url ^ "?" ^ body in
     Client.get ~headers (Uri.of_string url_with_body) >>= fun (resp, body) ->
-    let code = resp |> Response.status |> Code.code_of_status in
-    Printf.printf "Response Code: %d\n" code;
-    Printf.printf "Headers: %s\n" (resp |> Response.headers |> Header.to_string);
+    let _ = resp |> Response.status |> Code.code_of_status in
+    (*Printf.printf "Response Code: %d\n" code;*)
+    (*Printf.printf "Headers: %s\n" (resp |> Response.headers |> Header.to_string);*)
     body |> Cohttp_lwt.Body.to_string >|= fun body ->
-    Printf.printf "Body of length: %d\n" (String.length body);
+    (*Printf.printf "Body of length: %d\n" (String.length body);*)
     body
 
   let get_request_with_headers (url : string) headers =
     let open Lwt.Infix in
     Client.get ~headers (Uri.of_string url) >>= fun (resp, body) ->
-    let code = resp |> Response.status |> Code.code_of_status in
-    Printf.printf "Response Code: %d\n" code;
-    Printf.printf "Headers: %s\n" (resp |> Response.headers |> Header.to_string);
+    let _ = resp |> Response.status |> Code.code_of_status in
+    (*Printf.printf "Response Code: %d\n" code;*)
+    (*Printf.printf "Headers: %s\n" (resp |> Response.headers |> Header.to_string);*)
     body |> Cohttp_lwt.Body.to_string >|= fun body ->
-    Printf.printf "Body of length: %d\n" (String.length body);
+    (*Printf.printf "Body of length: %d\n" (String.length body);*)
     body
 
 end

@@ -46,4 +46,13 @@ module Feed = struct
     let posts = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_posts_url body headers) in
     posts
 
+  let get_reposted_by (s : Session.session) (uri : string) (cid : string) (limit : int) : string =
+    let bearer_token = Session.bearer_token_from_session s in
+    let application_json = Cohttp_client.application_json_setting_tuple in
+    let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
+    let base_url = App.create_base_url s in
+    let get_reposted_by_url = App.create_endpoint_url base_url (create_feed_endpoint "getRepostedBy") in
+    let body = Cohttp_client.create_body_from_pairs [("uri", uri); ("cid", cid); ("limit", string_of_int limit)] in
+    let reposted_by = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_reposted_by_url body headers) in
+    reposted_by
 end

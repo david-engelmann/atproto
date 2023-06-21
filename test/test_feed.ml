@@ -9,7 +9,7 @@ let create_test_session _ =
 
 let test_get_author_feed _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
-  let author_feed = Feed.get_author_feed test_session "david-engelmann.bsky.social" 10 in
+  let author_feed = Feed.get_author_feed test_session "david-engelmann.bsky.social" 3 in
   Printf.printf "Author Feed: %s\n" author_feed;
   OUnit2.assert_bool "Author Feed is not empty" (author_feed <> "")
 
@@ -31,7 +31,11 @@ let test_get_posts _ =
   Printf.printf "Posts Feed: %s\n" posts;
   OUnit2.assert_bool "Posts Feed is not empty" (posts <> "")
 
-
+let test_get_reposted_by _ =
+  let test_session = create_test_session () |> Session.refresh_session_auth in
+  let reposted_by = Feed.get_reposted_by test_session "at://did:plc:xov3uvxfd4to6ev3ak5g5uxk/app.bsky.feed.post/3jxyx4hdso62e" "bafyreihui4bipokenrcj6ttannh26svviq62x7hqx3oxrmejd7qhwxbasy" 1 in
+  Printf.printf "Reposted By Feed: %s\n" reposted_by;
+  OUnit2.assert_bool "Reposted By Feed is not empty" (reposted_by <> "")
 
 
 let suite =
@@ -41,6 +45,7 @@ let suite =
            "test_get_likes" >:: test_get_likes;
            "test_get_post_thread" >:: test_get_post_thread;
            "test_get_posts" >:: test_get_posts;
+           "test_get_reposted_by" >:: test_get_reposted_by;
          ]
 
 let () = run_test_tt_main suite
