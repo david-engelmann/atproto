@@ -33,7 +33,7 @@ let test_get_posts _ =
 
 let test_get_reposted_by _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
-  let reposted_by = Feed.get_reposted_by test_session "at://did:plc:xov3uvxfd4to6ev3ak5g5uxk/app.bsky.feed.post/3jyf6gx25eb27" "bafyreiarimgpoqvxxnf3sg4h52gvfzvmyeybxk2xgy6v3dra7zuldy73aq" 1 in
+  let reposted_by = Feed.get_reposted_by test_session "at://did:plc:xov3uvxfd4to6ev3ak5g5uxk/app.bsky.feed.post/3jxyx4hdso62e" "bafyreihui4bipokenrcj6ttannh26svviq62x7hqx3oxrmejd7qhwxbasy" 1 in
   Printf.printf "Reposted By Feed: %s\n" reposted_by;
   OUnit2.assert_bool "Reposted By Feed is not empty" (reposted_by <> "")
 
