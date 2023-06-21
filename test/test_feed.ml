@@ -43,6 +43,14 @@ let test_get_timeline _ =
   Printf.printf "Timeline Feed: %s\n" timeline;
   OUnit2.assert_bool "Timeline Feed is not empty" (timeline <> "")
 
+(*
+let test_get_feed_skeleton _ =
+  let test_session = create_test_session () |> Session.refresh_session_auth in
+  let feed_skeleton = Feed.get_feed_skeleton test_session feed 2 in
+  Printf.printf "Feed Skeleton Feed: %s\n" feed_skeleton;
+  OUnit2.assert_bool "Feed Skeleton Feed is not empty" (feed_skeleton <> "")
+*)
+
 let suite =
     "suite"
     >::: [

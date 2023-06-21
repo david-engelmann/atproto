@@ -65,4 +65,15 @@ module Feed = struct
     let body = Cohttp_client.create_body_from_pairs [("algorithm", algorithm); ("limit", string_of_int limit)] in
     let timeline = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_timeline_url body headers) in
     timeline
+
+  let get_feed_skeleton (s : Session.session) (feed : string) (limit : int) : string =
+    let bearer_token = Session.bearer_token_from_session s in
+    let application_json = Cohttp_client.application_json_setting_tuple in
+    let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
+    let base_url = App.create_base_url s in
+    let get_feed_skeleton_url = App.create_endpoint_url base_url (create_feed_endpoint "getFeedSkeleton") in
+    let body = Cohttp_client.create_body_from_pairs [("feed", feed); ("limit", string_of_int limit)] in
+    let feed_skeleton = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_feed_skeleton_url body headers) in
+    feed_skeleton
+
 end
