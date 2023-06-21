@@ -25,6 +25,13 @@ let test_get_post_thread _ =
   Printf.printf "Post Thread Feed: %s\n" post_thread;
   OUnit2.assert_bool "Post Thread Feed is not empty" (post_thread <> "")
 
+let test_get_posts _ =
+  let test_session = create_test_session () |> Session.refresh_session_auth in
+  let posts = Feed.get_posts test_session ["at://did:plc:xov3uvxfd4to6ev3ak5g5uxk/app.bsky.feed.post/3jyf6gx25eb27"; "at://did:plc:h3lbzrp2qum5nyzpeq6anmty/app.bsky.feed.post/3jyh24qvwwt2s"] in
+  Printf.printf "Posts Feed: %s\n" posts;
+  OUnit2.assert_bool "Posts Feed is not empty" (posts <> "")
+
+
 
 
 let suite =
