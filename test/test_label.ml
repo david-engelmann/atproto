@@ -9,7 +9,7 @@ let create_test_session _ =
 
 let test_query_labels _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
-  let labels = Label.query_labels test_session ["a"; "b"] in
+  let labels = Label.query_labels test_session ["*"] in
   Printf.printf "Query Labels: %s\n" labels;
   OUnit2.assert_bool "Query Labels is not empty" (labels <> "")
 
