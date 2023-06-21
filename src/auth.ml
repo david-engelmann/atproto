@@ -14,6 +14,15 @@ module Auth = struct
           refresh_token : string option;
         }
 
+    let base_endpoint_from_env : string =
+      let base_endpoint = try Sys.getenv "BASE_ENDPOINT" with Not_found -> "xrpc" in
+      base_endpoint
+
+    let get_base_endpoint : string =
+      let base_endpoint = base_endpoint_from_env in
+      let base_endpoint = if String.get base_endpoint (String.length base_endpoint - 1) = '/' then base_endpoint else base_endpoint ^ "/" in
+      base_endpoint
+
     let print_auth (a : auth) : unit =
       Printf.printf "exp: %d\n" a.exp;
       Printf.printf "iat: %d\n" a.iat;
@@ -34,6 +43,9 @@ module Auth = struct
     let username_and_password_from_env : (string * string) =
       let atp_auth = try Sys.getenv "ATP_AUTH" with Not_found -> "julyjackson@gmail.com:acrazyapppassword" in
       convert_atp_auth_string_to_tuple atp_auth
+
+    let create_server_endpoint (query_name : string) : string =
+      "com.atproto.server" ^ "." ^ query_name
 
     let parse_auth json : auth =
       let open Yojson.Safe.Util in
@@ -68,7 +80,9 @@ module Auth = struct
       body
 
     let refresh_auth_token_request (access_jwt : string) (refresh_jwt : string) (handle : string) (did : string) (personal_data_server : string) : string =
-      let url = Printf.sprintf "https://%s/xrpc/com.atproto.server.refreshSession" personal_data_server in
+      let base_endpoint = get_base_endpoint in
+      let refresh_endpoint = create_server_endpoint "refreshSession" in
+      let url = Printf.sprintf "https://%s/%s/%s" personal_data_server base_endpoint refresh_endpoint in
       let data = Printf.sprintf "{\"accessJwt\": \"%s\", \"refreshJwt\": \"%s\", \"handle\": \"%s\", \"did\": \"%s\"}" access_jwt refresh_jwt handle did in
       let body = Lwt_main.run (Cohttp_client.post_data url data) in
       body
