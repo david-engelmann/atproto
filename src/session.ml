@@ -9,7 +9,7 @@ module Session = struct
         atp_host : string;
         auth : Auth.auth;
       }
-  (*{"handle":"david-engelmann.bsky.social","did":"did:plc:xov3uvxfd4to6ev3ak5g5uxk","email":"david.engelmann44@gmail.com"}*)
+
   type session_request =
       {
         handle : string;
@@ -23,8 +23,6 @@ module Session = struct
     let did = json |> member "did" |> to_string in
     let email = json |> member "email" |> to_string in
     { handle; did; email }
-
-
 
   let atp_host_from_env : string =
       let atp_host = try Sys.getenv "ATP_HOST" with Not_found -> "bsky.social" in
@@ -41,7 +39,9 @@ module Session = struct
       ("Authorization", bearer_header)
 
   let get_session_request (s : session) : string =
-    let get_session_url = Printf.sprintf "https://%s/xrpc/com.atproto.server.getSession" s.atp_host in
+    let base_endpoint = Auth.get_base_endpoint in
+    let get_session_endpoint = Auth.create_server_endpoint "getSession" in
+    let get_session_url = Printf.sprintf "https://%s/%s/%s" s.atp_host base_endpoint get_session_endpoint in
     let bearer_token = bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
@@ -50,7 +50,6 @@ module Session = struct
 
   let refresh_session_auth (s : session) : session =
     if Auth.is_token_expired s.auth then
-      (* run get_session_request, need to convert to session_request type *)
       let current_session = Yojson.Safe.from_string (get_session_request s) |> parse_session_request in
       let username = s.username in
       let password = s.password in
