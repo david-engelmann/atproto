@@ -37,6 +37,11 @@ let test_get_reposted_by _ =
   Printf.printf "Reposted By Feed: %s\n" reposted_by;
   OUnit2.assert_bool "Reposted By Feed is not empty" (reposted_by <> "")
 
+let test_get_timeline _ =
+  let test_session = create_test_session () |> Session.refresh_session_auth in
+  let timeline = Feed.get_timeline test_session "reverse-chronological" 2 in
+  Printf.printf "Timeline Feed: %s\n" timeline;
+  OUnit2.assert_bool "Timeline Feed is not empty" (timeline <> "")
 
 let suite =
     "suite"
