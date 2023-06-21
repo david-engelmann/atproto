@@ -51,6 +51,7 @@ let suite =
            "test_get_post_thread" >:: test_get_post_thread;
            "test_get_posts" >:: test_get_posts;
            "test_get_reposted_by" >:: test_get_reposted_by;
+           "test_get_timeline" >:: test_get_timeline;
          ]
 
 let () = run_test_tt_main suite
