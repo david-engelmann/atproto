@@ -9,6 +9,22 @@ module Session = struct
         atp_host : string;
         auth : Auth.auth;
       }
+  (*{"handle":"david-engelmann.bsky.social","did":"did:plc:xov3uvxfd4to6ev3ak5g5uxk","email":"david.engelmann44@gmail.com"}*)
+  type session_request =
+      {
+        handle : string;
+        did : string;
+        email : string;
+      }
+
+  let parse_session_request json : session_request =
+    let open Yojson.Safe.Util in
+    let handle = json |> member "handle" |> to_string in
+    let did = json |> member "did" |> to_string in
+    let email = json |> member "email" |> to_string in
+    { handle; did; email }
+
+
 
   let atp_host_from_env : string =
       let atp_host = try Sys.getenv "ATP_HOST" with Not_found -> "bsky.social" in
@@ -24,17 +40,6 @@ module Session = struct
       let bearer_header = "Bearer " ^ s.auth.token in
       ("Authorization", bearer_header)
 
-  let refresh_session_auth (s : session) : session =
-    if Auth.is_token_expired s.auth then
-      let username = s.username in
-      let password = s.password in
-      let atp_host = s.atp_host in
-      let body = Auth.refresh_auth_token_request s.auth.token (Option.get s.auth.refresh_token) username s.auth.did atp_host in
-      let session_auth = body |> Auth.convert_body_to_json |> Auth.parse_auth in
-      { username; password; atp_host; auth=session_auth }
-    else
-      s
-
   let get_session_request (s : session) : string =
     let get_session_url = Printf.sprintf "https://%s/xrpc/com.atproto.server.getSession" s.atp_host in
     let bearer_token = bearer_token_from_session s in
@@ -42,4 +47,18 @@ module Session = struct
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
     let session = Lwt_main.run (Cohttp_client.get_request_with_headers get_session_url headers) in
     session
+
+  let refresh_session_auth (s : session) : session =
+    if Auth.is_token_expired s.auth then
+      (* run get_session_request, need to convert to session_request type *)
+      let current_session = Yojson.Safe.from_string (get_session_request s) |> parse_session_request in
+      let username = s.username in
+      let password = s.password in
+      let atp_host = s.atp_host in
+      let body = Auth.refresh_auth_token_request s.auth.token (Option.get s.auth.refresh_token) current_session.handle current_session.did atp_host in
+      let session_auth = body |> Auth.convert_body_to_json |> Auth.parse_auth in
+      { username; password; atp_host; auth=session_auth }
+    else
+      s
+
 end
