@@ -26,4 +26,15 @@ module Feed = struct
     let likes = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_likes_url body headers) in
     likes
 
+
+  let get_post_thread (s : Session.session) (uri : string) (depth : int) : string =
+    let bearer_token = Session.bearer_token_from_session s in
+    let application_json = Cohttp_client.application_json_setting_tuple in
+    let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
+    let base_url = App.create_base_url s in
+    let get_post_thread_url = App.create_endpoint_url base_url (create_feed_endpoint "getPostThread") in
+    let body = Cohttp_client.create_body_from_pairs [("uri", uri); ("depth", string_of_int depth)] in
+    let post_thread = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_post_thread_url body headers) in
+    post_thread
+
 end
