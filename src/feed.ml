@@ -43,7 +43,7 @@ module Feed = struct
     let base_url = App.create_base_url s in
     let get_posts_url = App.create_endpoint_url base_url (create_feed_endpoint "getPosts") in
     let body = Cohttp_client.add_query_params "uris" uris in
-    let posts = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_post_urls body headers) in
+    let posts = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_posts_url body headers) in
     posts
 
 end
