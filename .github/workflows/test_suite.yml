@@ -59,10 +59,15 @@ jobs:
           ATP_AUTH: ${{ secrets.ATP_AUTH }}
           ATP_HOST: ${{ secrets.ATP_HOST }}
       - name: Dune Test
-        run: opam exec -- dune runtest
+        run: opam exec -- dune runtest 2>&1 | tee dune_runtest.log
         env:
           ATP_AUTH: ${{ secrets.ATP_AUTH }}
           ATP_HOST: ${{ secrets.ATP_HOST }}
+      - name: Upload Log
+        uses: actions/upload-artifact@v2
+        with:
+          name: dune_runtest
+          path: dune_runtest.log
 
   lint-doc:
     strategy:
