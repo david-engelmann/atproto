@@ -50,7 +50,7 @@ jobs:
           opam-disable-sandboxing: true
 
       - name: Install Common Libs
-        run: opam install async base uri cohttp cohttp-lwt-unix cohttp-async h2 httpaf httpaf-lwt-unix h2-lwt-unix lwt core_kernel ssl lwt_ssl jose ounit qcheck dune ocamlformat
+        run: opam install async base uri cohttp cohttp-lwt-unix cohttp-async h2 httpaf httpaf-lwt-unix h2-lwt-unix lwt core_kernel ssl lwt_ssl jose fix ounit qcheck dune ocamlformat
 #      - name: Install Repo
 #        run: opam install . --deps-only --with-doc --with-test
       - name: Dune Build
