@@ -2,7 +2,7 @@
  (names test_app test_actor test_auth test_session test_user test_cohttp_client
  test_http_client test_http_method test_feed test_label test_request test_repo test_response test_sync)
  (libraries async core uri cohttp cohttp-lwt-unix cohttp-async h2 httpaf
- httpaf-lwt-unix h2-lwt-unix lwt ssl jose fix lwt_ssl ounit2 atproto)
+ httpaf-lwt-unix h2-lwt-unix lwt ssl jose fix menhir lwt_ssl ounit2 atproto)
  (modules test_app test_actor test_auth test_session test_user
  test_cohttp_client test_http_client test_http_method test_feed test_label
  test_request test_repo test_response test_sync)
