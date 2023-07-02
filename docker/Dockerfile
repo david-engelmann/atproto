@@ -33,4 +33,4 @@ USER opam
 
 RUN opam update \
     && opam install async base h2 httpaf httpaf-lwt-unix h2-lwt-unix lwt
-    core_kernel ssl lwt_ssl jose fix ounit qcheck dune ocamlformat
+    core_kernel ssl lwt_ssl jose fix menhir ounit qcheck dune ocamlformat
