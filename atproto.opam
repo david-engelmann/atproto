@@ -28,9 +28,9 @@ depends: [
     "jose"
     ]
 available: arch != "arm32" & arch != "x86_32"
-synopsis: "OCaml based tools for AT Protocol"
+synopsis: "OCaml-based tools for AT Protocol"
 description: "
-OCaml based tools for AT Protocol
+OCaml-based tools for AT Protocol
 
 You can create a .env file with the minimum two variables
 - ATP_AUTH : EmailAddress:AppPassword
