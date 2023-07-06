@@ -26,7 +26,7 @@ module Repo = struct
     let record = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_record_url body headers) in
     record
 
-  let list_records (s : Session.session) (repo : string) (collection : string) (limit : int) (reverse : boolean) : string =
+  let list_records (s : Session.session) (repo : string) (collection : string) (limit : int) (reverse : bool) : string =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
