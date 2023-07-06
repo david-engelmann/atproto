@@ -1,6 +1,5 @@
 open Cohttp_client
 open App
-open Jose.Jwt
 open Session
 
 module Server = struct
