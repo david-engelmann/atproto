@@ -9,7 +9,7 @@ let create_test_session _ =
 
 let test_get_blob _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
-  let blob = Sync.get_blob test_session "at://did:plc:xov3uvxfd4to6ev3ak5g5uxk/app.bsky.feed.post/3jyf6gx25eb27" "bafyreiarimgpoqvxxnf3sg4h52gvfzvmyeybxk2xgy6v3dra7zuldy73aq" in
+  let blob = Sync.get_blob test_session "did:plc:xov3uvxfd4to6ev3ak5g5uxk/app.bsky.feed.post/3jyf6gx25eb27" "bafyreiarimgpoqvxxnf3sg4h52gvfzvmyeybxk2xgy6v3dra7zuldy73aq" in
   Printf.printf "Blob: %s\n" blob;
   OUnit2.assert_bool "Blob is not empty" (blob <> "")
 
