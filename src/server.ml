@@ -1,6 +1,7 @@
 open Cohttp_client
 open App
 open Jose.Jwt
+open Session
 
 module Server = struct
   let create_server_endpoint (query_name : string) : string =
