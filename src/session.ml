@@ -31,6 +31,7 @@ module Session = struct
   let create_session (username : string) (password: string) : session =
     let atp_host = atp_host_from_env in
     let body = Auth.make_auth_token_request username password atp_host in
+    Printf.printf "Create Session Return Body: %s\n" body;
     let session_auth = body |> Auth.convert_body_to_json |> Auth.parse_auth in
     { username; password; atp_host; auth=session_auth }
 
