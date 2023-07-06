@@ -6,6 +6,9 @@ module Label = struct
   let create_label_endpoint (query_name : string) : string =
     "com.atproto.label" ^ "." ^ query_name
 
+  (* List of AT URI patterns to match (boolean 'OR'). Each may
+   * be a prefix (ending with '*'; will match inclusive of the string leading to
+   * '*'), or a full URI *)
   let query_labels (s : Session.session) (uri_patterns : string list) : string =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
