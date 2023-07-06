@@ -31,4 +31,12 @@ available: arch != "arm32" & arch != "x86_32"
 synopsis: "OCaml based tools for AT Protocol"
 description: "
 OCaml based tools for AT Protocol
+
+You can create a .env file with the minimum two variables
+- ATP_AUTH : EmailAddress:AppPassword
+    - Add your [App Password](https://bsky.app/settings/app-passwords)
+      credentials (using your normal email address as the username)
+
+- ATP_HOST : bsky.social
+    - Add your atp host url without schema
 "
