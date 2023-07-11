@@ -104,7 +104,7 @@ module Cohttp_client = struct
   let get_bytes_request_with_body_and_headers (url : string) body headers =
     let open Lwt.Infix in
     let url_with_body = url ^ "?" ^ body in
-    Client.get ~headers (Uri.of_string url_with_body) >>= fun (_, body) ->
+    Client.get ~headers (Uri.of_string url_with_body) >|= fun (_, body) ->
     Cohttp_lwt.Body.to_stream body
 
   let get_request_with_headers (url : string) headers =
