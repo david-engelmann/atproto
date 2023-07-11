@@ -28,7 +28,7 @@ module Sync = struct
     let content_type = Lwt_main.run (Cohttp_client.get_content_type_with_body_headers get_blob_url body headers) in
     let blob = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_blob_url body headers) in
     match content_type with
-    | "image/jpeg" ->
+    | ct when List.meem ct ["image/jpeg"; "image/png"; "image/gif"; "image/bmp"; "image/webp"; "image/svg+xml"; "image/tiff"] ->
       Lwt_io.with_file ~mode:Lwt_io.Output filename (fun oc -> Lwt_io.write oc blob)
     | _ -> Lwt.return ()
 
