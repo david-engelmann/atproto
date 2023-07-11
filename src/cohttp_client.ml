@@ -111,4 +111,12 @@ module Cohttp_client = struct
     (*Printf.printf "Body of length: %d\n" (String.length body);*)
     body
 
+  let get_content_type_with_body_headers (url : string) body headers =
+    let open Lwt.Infix in
+    let url_with_body = url ^ "?" ^ body in
+    Client.get ~headers (Uri.of_string url_with_body) >>= fun (resp, body) ->
+    match Header.get (Response.headers resp) "content-type" with
+    | Some ct -> Lwt.return ct
+    | None -> Lwt.return "No content-type found"
+
 end
