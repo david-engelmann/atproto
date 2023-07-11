@@ -13,7 +13,6 @@ module Sync = struct
     let base_url = App.create_base_url s in
     let get_blob_url = App.create_endpoint_url base_url (create_sync_endpoint "getBlob") in
     let body = Cohttp_client.create_body_from_pairs [("did", did); ("cid", cid)] in
-    let content_type = Lwt_main.run (Cohttp_client.get_content_type_with_body_headers get_blob_url body headers) in
     let blob = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_blob_url body headers) in
     blob
 
