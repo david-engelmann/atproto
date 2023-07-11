@@ -14,7 +14,6 @@ module Sync = struct
     let get_blob_url = App.create_endpoint_url base_url (create_sync_endpoint "getBlob") in
     let body = Cohttp_client.create_body_from_pairs [("did", did); ("cid", cid)] in
     let content_type = Lwt_main.run (Cohttp_client.get_content_type_with_body_headers get_blob_url body headers) in
-    Printf.printf "Content-Type: %s\n" content_type;
     let blob = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_blob_url body headers) in
     blob
 
@@ -27,6 +26,8 @@ module Sync = struct
     let body = Cohttp_client.create_body_from_pairs [("did", did); ("cid", cid)] in
     let content_type = Lwt_main.run (Cohttp_client.get_content_type_with_body_headers get_blob_url body headers) in
     let blob = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_blob_url body headers) in
+    Printf.printf "Content-Type: %s\n" content_type;
+    Printf.printf "Blob: %s\n" blob;
     match content_type with
     | ct when List.mem ct ["image/jpeg"; "image/png"; "image/gif"; "image/bmp"; "image/webp"; "image/svg+xml"; "image/tiff"] ->
       Lwt_main.run (Lwt_io.with_file ~mode:Lwt_io.Output filename (fun oc -> Lwt_io.write oc blob))
