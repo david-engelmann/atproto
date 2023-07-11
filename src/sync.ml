@@ -18,7 +18,7 @@ module Sync = struct
     let blob = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_blob_url body headers) in
     blob
 
-  let download_image (s : Session.session) (did : string) (cid : string) (filename : string) : unit =
+  let download_image (s : Session.session) (did : string) (cid : string) (filename : string) : unit Lwt.t =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
