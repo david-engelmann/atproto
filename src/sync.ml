@@ -39,11 +39,8 @@ module Sync = struct
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
     let base_url = App.create_base_url s in
     let get_blob_url = App.create_endpoint_url base_url (create_sync_endpoint "getBlob") in
-    Printf.printf "image blob url: %s\n" get_blob_url;
     let body = Cohttp_client.create_body_from_pairs [("did", did); ("cid", cid)] in
-    Printf.printf "image blob: %s\n" body;
     Cohttp_client.get_content_type_with_body_headers get_blob_url body headers >>= fun content_type ->
-    Printf.printf "content_type: %s\n" content_type;
     match content_type with
     | ct when List.mem ct ["image/jpeg"; "image/png"; "image/gif"; "image/bmp"; "image/webp"; "image/svg+xml"; "image/tiff"] ->
       Cohttp_client.get_bytes_request_with_body_and_headers get_blob_url body headers >>= fun blob ->
