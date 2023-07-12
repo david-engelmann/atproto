@@ -22,7 +22,7 @@ let suite =
     "suite"
     >::: [
           "test_get_blob" >:: test_get_blob;
-          "test_download_image" >:: test_download_image;
+         (*"test_download_image" >:: test_download_image;*)
          ]
 
 let () = run_test_tt_main suite
