@@ -27,8 +27,8 @@ module Sync = struct
     Printf.printf "Content-Type: %s\n" content_type;
     match content_type with
     | ct when List.mem ct ["image/jpeg"; "image/png"; "image/gif"; "image/bmp"; "image/webp"; "image/svg+xml"; "image/tiff"] ->
-      Lwt_main.run (Lwt_io.with_file ~mode:Lwt_io.Output filename (fun oc ->
-          Lwt_io.write oc (Cohttp_client.get_bytes_request_with_body_and_headers get_blob_url body headers)))
-    | _ -> Lwt_main.run (Lwt.return ())
+      let blob = Lwt_main.run (Cohttp_client.get_bytes_request_with_body_and_headers get_blob_url body headers) in
+      Lwt_main.run (Lwt_io.with_file ~mode:Lwt_io.Output filename (fun oc -> Lwt_io.write oc blob))
+    | _ -> ()
 
 end
