@@ -78,5 +78,15 @@ module Server = struct
     let body = Cohttp_client.create_body_from_pairs [("email", email)] in
     let password_reset = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers request_password_reset_url body headers) in
     password_reset
+
+  let delete_account (s : Session.session) (did : string) (password : string) (token : string) =
+    let bearer_token = Session.bearer_token_from_session s in
+    let application_json = Cohttp_client.application_json_setting_tuple in
+    let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
+    let base_url = App.create_base_url s in
+    let delete_account_url = App.create_endpoint_url base_url (create_server_endpoint "deleteAccount") in
+    let body = Cohttp_client.create_body_from_pairs [("did", did); ("password", password); ("token", token)] in
+    let delete_account = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers delete_account_url body headers) in
+    delete_account
 end
 
