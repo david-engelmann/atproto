@@ -60,5 +60,23 @@ module Server = struct
     let app_passwords = Lwt_main.run (Cohttp_client.get_request_with_headers list_app_passwords_url headers) in
     app_passwords
 
+  let request_account_delete (s : Session.session) : string =
+    let bearer_token = Session.bearer_token_from_session s in
+    let application_json = Cohttp_client.application_json_setting_tuple in
+    let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
+    let base_url = App.create_base_url s in
+    let request_account_delete_url = App.create_endpoint_url base_url (create_server_endpoint "requestAccountDelete") in
+    let account_delete = Lwt_main.run (Cohttp_client.get_request_with_headers request_account_delete_url headers) in
+    account_delete
+
+  let request_password_reset (s : Session.session) (email : string) : string =
+    let bearer_token = Session.bearer_token_from_session s in
+    let application_json = Cohttp_client.application_json_setting_tuple in
+    let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
+    let base_url = App.create_base_url s in
+    let request_password_reset_url = App.create_endpoint_url base_url (create_server_endpoint "requestPasswordReset") in
+    let body = Cohttp_client.create_body_from_pairs [("email", email)] in
+    let password_reset = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers request_password_reset_url body headers) in
+    password_reset
 end
 
