@@ -101,16 +101,6 @@ module Cohttp_client = struct
     (*Printf.printf "Body of length: %d\n" (String.length body);*)
     body
 
-  (*
-  let get_bytes_request_with_body_and_headers (url : string) body headers =
-    let open Lwt.Infix in
-    let url_with_body = url ^ "?" ^ body in
-    Client.get ~headers (Uri.of_string url_with_body) >|= fun (_, body) ->
-    let blob_stream = Cohttp_lwt.Body.to_stream body in
-    Lwt_stream.to_list blob_stream >>= fun blob_list ->
-    let blob = String.concat "" blob_list in
-    blob
-  *)
   let get_bytes_request_with_body_and_headers (url : string) body headers =
     let open Lwt.Infix in
     let url_with_body = url ^ "?" ^ body in
