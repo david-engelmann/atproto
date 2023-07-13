@@ -26,13 +26,13 @@ module Repo = struct
     let record = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_record_url body headers) in
     record
 
-  let list_records (s : Session.session) (repo : string) (collection : string) (limit : int) (reverse : boolean) : string =
+  let list_records (s : Session.session) (repo : string) (collection : string) (limit : int) (reverse : bool) : string =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
     let base_url = App.create_base_url s in
     let list_records_url = App.create_endpoint_url base_url (create_repo_endpoint "listRecords") in
-    let body = Cohttp_client.create_body_from_pairs [("repo", repo); ("collection", collection); ("limit", limit); ("reverse", reverse)] in
+    let body = Cohttp_client.create_body_from_pairs [("repo", repo); ("collection", collection); ("limit", string_of_int limit); ("reverse", string_of_bool reverse)] in
     let records = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers list_records_url body headers) in
     records
 
