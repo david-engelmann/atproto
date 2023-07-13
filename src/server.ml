@@ -15,7 +15,7 @@ module Server = struct
     let server_description = Lwt_main.run (Cohttp_client.get_request_with_headers describe_server_url headers) in
     server_description
 
-  let create_account (s : Session.session) (handle : string) (email : string) (password : string) ?(invite_code : string) ?(recovery_key : string) : string =
+  let create_account (s : Session.session) (handle : string) (email : string) ?invite_code ?recovery_key (password : string) : string =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
