@@ -61,7 +61,7 @@ module Session = struct
       s
 
   let delete_session : string =
-    let bearer_token = Session.bearer_token_from_session s in
+    let bearer_token = bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
     let base_url = App.create_base_url s in
