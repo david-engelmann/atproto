@@ -73,6 +73,11 @@ let test_get_session_request _ =
   print_endline session_info;
   OUnit2.assert_equal ~printer:string_of_bool true ((String.length session_info) > 0)
 
+let test_delete_session _ =
+  let test_session = create_test_session () in
+  let deleted_session = Session.delete_session test_session in
+  Printf.printf "Delete Session: %s\n" deleted_session;
+  OUnit2.assert_bool "Delete Session is not empty" (deleted_session = "")
 
 
 let suite =
@@ -87,6 +92,7 @@ let suite =
          "test_create_session" >:: test_create_session;
          "test_bearer_token_from_session" >:: test_bearer_token_from_session;
          "test_get_session_request" >:: test_get_session_request;
+         "test_delete_session" >:: test_delete_session;
        ]
 
 let () =
