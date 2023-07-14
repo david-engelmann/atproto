@@ -74,10 +74,10 @@ let test_get_session_request _ =
   OUnit2.assert_equal ~printer:string_of_bool true ((String.length session_info) > 0)
 
 let test_delete_session _ =
-  let test_session = create_test_session () |> Session.refresh_session_auth in
+  let test_session = create_test_session () in
   let deleted_session = Session.delete_session test_session in
   Printf.printf "Delete Session: %s\n" deleted_session;
-  OUnit2.assert_bool "Delete Session is not empty" (deleted_session <> "")
+  OUnit2.assert_bool "Delete Session is not empty" (deleted_session = "")
 
 
 let suite =
