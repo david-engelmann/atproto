@@ -51,6 +51,16 @@ module Server = struct
     let account_invite_codes = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_account_invite_codes_url body headers) in
     account_invite_codes
 
+  let create_invite_code (s : Session.session) (use_count : int) : string =j
+    let bearer_token = Session.bearer_token_from_session s in
+    let application_json = Cohttp_client.application_json_setting_tuple in
+    let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
+    let base_url = App.create_base_url s in
+    let create_invite_code_url = App.create_endpoint_url base_url (create_server_endpoint "createInviteCode") in
+    let body = Cohttp_client.create_body_from_pairs [("useCount", string_of_int use_count)] in
+    let account_invite_code = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers create_invite_code_url body headers) in
+    account_invite_code
+
   let create_invite_codes (s : Session.session) (code_count : int) (use_count : int) : string =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
