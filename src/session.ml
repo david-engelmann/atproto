@@ -70,6 +70,7 @@ module Session = struct
     let base_endpoint = Auth.get_base_endpoint in
     let delete_session_endpoint = Auth.create_server_endpoint "deleteSession" in
     let delete_session_url = Printf.sprintf "https://%s/%s%s" s.atp_host base_endpoint delete_session_endpoint in
+    print_endline delete_session_url;
     let deleted_session = Lwt_main.run (Cohttp_client.post_request_with_headers delete_session_url headers) in
     Printf.printf "Delete Session: %s\n" deleted_session;
     deleted_session
