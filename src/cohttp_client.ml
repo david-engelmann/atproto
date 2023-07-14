@@ -130,6 +130,16 @@ module Cohttp_client = struct
     (*Printf.printf "Body of length: %d\n" (String.length body);*)
     body
 
+  let post_request_with_headers (url : string) headers =
+    let open Lwt.Infix in
+    Client.post ~headers (Uri.of_string url) >>= fun (resp, body) ->
+    let _ = resp |> Response.status |> Code.code_of_status in
+    (*Printf.printf "Response Code: %d\n" code;*)
+    (*Printf.printf "Headers: %s\n" (resp |> Response.headers |> Header.to_string);*)
+    body |> Cohttp_lwt.Body.to_string >|= fun body ->
+    (*Printf.printf "Body of length: %d\n" (String.length body);*)
+    body
+
   let get_content_type_with_body_headers (url : string) body headers =
     let open Lwt.Infix in
     let url_with_body = url ^ "?" ^ body in

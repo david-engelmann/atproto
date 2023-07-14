@@ -80,7 +80,6 @@ let test_delete_session _ =
   OUnit2.assert_bool "Delete Session is not empty" (deleted_session <> "")
 
 
-
 let suite =
   "suite"
   >::: [

@@ -62,12 +62,11 @@ module Session = struct
 
   let delete_session (s : session) : string =
     let bearer_token = bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
+    let headers = Cohttp_client.create_headers_from_pairs [bearer_token] in
     let base_endpoint = Auth.get_base_endpoint in
     let delete_session_endpoint = Auth.create_server_endpoint "deleteSession" in
     let delete_session_url = Printf.sprintf "https://%s/%s%s" s.atp_host base_endpoint delete_session_endpoint in
-    let delete_session = Lwt_main.run (Cohttp_client.get_request_with_headers delete_session_url headers) in
+    let delete_session = Lwt_main.run (Cohttp_client.post_request_with_headers delete_session_url headers) in
     delete_session
 
 end
