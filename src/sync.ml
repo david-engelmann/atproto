@@ -31,4 +31,22 @@ module Sync = struct
       Lwt_io.with_file ~mode:Lwt_io.Output filename (fun oc -> Lwt_io.write oc blob)
     | _ -> Lwt.return ()
 
+  let get_blocks (s : Session.session) (did : string) (cids : string list) : string Lwt.t =
+    let bearer_token = Session.bearer_token_from_session s in
+    let application_json = Cohttp_client.application_json_setting_tuple in
+    let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
+    let base_url = App.create_base_url s in
+    let get_block_url = App.create_endpoint_url base_url (create_sync_endpoint "getBlocks") in
+    let body = Cohttp_client.create_body_from_pairs [("did", did); ("cids",
+                                                                    Yojson.Basic.to_string
+                                                                      (`List
+                                                                        (List.map
+                                                                        (fun s
+                                                                             ->
+                                                                        `String
+                                                                        s)
+                                                                        cids
+                                                                        )))] in
+    let block = Cohttp_client.get_request_with_body_and_headers get_block_url body headers in
+    block
 end
