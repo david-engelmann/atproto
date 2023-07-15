@@ -13,10 +13,20 @@ let test_get_checkout _ =
   Printf.printf "Checkout: %s\n" checkout;
   OUnit2.assert_bool "Checkout is not empty" (checkout <> "")
 
+let test_get_commit_path _ =
+  let test_session = create_test_session () |> Session.refresh_session_auth in
+  let commit_path = Sync.get_commit_path test_session "did:plc:xov3uvxfd4to6ev3ak5g5uxk" "bafyreicdc7gergmcivdaw76rhinnevfecaxxnzhquukq6xbz5vh7fp2izi" "bafyreiarimgpoqvxxnf3sg4h52gvfzvmyeybxk2xgy6v3dra7zuldy73aq" in
+  Printf.printf "Commit Path: %s\n" commit_path;
+  OUnit2.assert_bool "Commit Path is not empty" (commit_path <> "")
+
+  
+
 let suite =
     "suite"
     >::: [
           "test_get_checkout" >:: test_get_checkout;
+          "test_get_commit_path" >:: test_get_commit_path;
+
          ]
 
 let () = run_test_tt_main suite
