@@ -49,6 +49,15 @@ jobs:
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
           opam-disable-sandboxing: true
 
+      - name: Cache opam dependencies
+        uses: actions/cache@v2
+        id: opam-cache
+        with:
+          path: ~/.opam
+          key: ${{ runner.os }}-opam-${{ hashFiles('**/*.opam') }}
+          restore-keys: |
+            ${{ runner.os }}-opam-
+
       - name: Install Common Libs
         run: opam install async base uri cohttp cohttp-lwt-unix cohttp-async h2 httpaf httpaf-lwt-unix h2-lwt-unix lwt core_kernel ssl lwt_ssl jose ounit qcheck dune ocamlformat
 #      - name: Install Repo
