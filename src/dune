@@ -1,3 +1,4 @@
+(include_subdirs unqualified)
 (library
  (name atproto)
  (libraries async core uri cohttp cohttp-lwt-unix cohttp-async h2 httpaf
