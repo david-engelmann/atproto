@@ -40,8 +40,8 @@ let test_list_blobs _ =
 let test_list_repos _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let repos = Sync.list_repos test_session 10 in
-  Printf.printf "Sync Repos: %s\n" blobs;
-  OUnit2.assert_bool "Sync Repos is not empty" (blobs <> "")
+  Printf.printf "Sync Repos: %s\n" repos;
+  OUnit2.assert_bool "Sync Repos is not empty" (repos <> "")
 
 
 let suite =
