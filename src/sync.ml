@@ -59,4 +59,15 @@ module Sync = struct
     let body = Cohttp_client.create_body_from_pairs [("did", did); ("commit", commit)] in
     let checkout = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_checkout_url body headers) in
     checkout
+
+  let get_commit_path (s : Session.session) (did : string) (latest : string) (earliest : string) : string =
+    let bearer_token = Session.bearer_token_from_session s in
+    let application_json = Cohttp_client.application_json_setting_tuple in
+    let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
+    let base_url = App.create_base_url s in
+    let get_commit_path_url = App.create_endpoint_url base_url (create_sync_endpoint "getCommitPath") in
+    let body = Cohttp_client.create_body_from_pairs [("did", did); ("latest", latest); ("earliest", earliest)] in
+    let commit_path = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_commit_path_url body headers) in
+    commit_path
+
 end
