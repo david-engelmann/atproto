@@ -26,7 +26,6 @@ let test_list_app_passwords _ =
   OUnit2.assert_bool "App Passwords is not empty" (app_passwords <> "")
 
 
-
 let suite =
     "suite"
     >::: [
