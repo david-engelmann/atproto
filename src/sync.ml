@@ -49,4 +49,14 @@ module Sync = struct
                                                                         )))] in
     let blocks = Cohttp_client.get_request_with_body_and_headers get_blocks_url body headers in
     blocks
+
+  let get_checkout (s : Session.session) (did : string) (commit : string) : string =
+    let bearer_token = Session.bearer_token_from_session s in
+    let application_json = Cohttp_client.application_json_setting_tuple in
+    let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
+    let base_url = App.create_base_url s in
+    let get_checkout_url = App.create_endpoint_url base_url (create_sync_endpoint "getCheckout") in
+    let body = Cohttp_client.create_body_from_pairs [("did", did); ("commit", commit)] in
+    let checkout = Lwt_main.run (Cohttp_client.get_request_with_headers get_checkout_url headers) in
+    checkout
 end
