@@ -15,3 +15,4 @@ module Graph = struct
     let body = Cohttp_client.create_body_from_pairs [("limit", string_of_int limit)] in
     let blocks = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_blocks_url body headers) in
     blocks
+end
