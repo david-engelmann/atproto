@@ -25,12 +25,19 @@ let test_get_head _ =
   Printf.printf "Sync Head: %s\n" head;
   OUnit2.assert_bool "Sync Head is not empty" (head <> "")
 
+let test_get_repo _ =
+  let test_session = create_test_session () |> Session.refresh_session_auth in
+  let repo = Sync.get_repo test_session "did:plc:xov3uvxfd4to6ev3ak5g5uxk" "bafyreicdc7gergmcivdaw76rhinnevfecaxxnzhquukq6xbz5vh7fp2izi" "bafyreiarimgpoqvxxnf3sg4h52gvfzvmyeybxk2xgy6v3dra7zuldy73aq" in
+  Printf.printf "Sync Repo: %s\n" repo;
+  OUnit2.assert_bool "Sync Repo is not empty" (repo <> "")
+
 let suite =
     "suite"
     >::: [
           "test_get_checkout" >:: test_get_checkout;
           "test_get_commit_path" >:: test_get_commit_path;
           "test_get_head" >:: test_get_head;
+          "test_get_repo" >:: test_get_repo;
 
          ]
 
