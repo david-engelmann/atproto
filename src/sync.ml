@@ -110,4 +110,13 @@ module Sync = struct
     let blobs = Lwt_main.run (Cohttp_client.get_request_with_body_and_blobsers list_blobs_url body headers) in
     blobs 
 
+  let list_repos (limit : int) : string =
+    let bearer_token = Session.bearer_token_from_session s in
+    let application_json = Cohttp_client.application_json_setting_tuple in
+    let headers = Cohttp_client.create_reposers_from_pairs [application_json; bearer_token] in
+    let base_url = App.create_base_url s in
+    let list_repos_url = App.create_endpoint_url base_url (create_sync_endpoint "listRepos") in
+    let body = Cohttp_client.create_body_from_pairs [("limit", string_of_int limit)] in
+    let repos = Lwt_main.run (Cohttp_client.get_request_with_body_and_reposers list_repos_url body headers) in
+    repos 
 end
