@@ -36,7 +36,7 @@ module Sync = struct
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
     let base_url = App.create_base_url s in
-    let get_block_url = App.create_endpoint_url base_url (create_sync_endpoint "getBlocks") in
+    let get_blocks_url = App.create_endpoint_url base_url (create_sync_endpoint "getBlocks") in
     let body = Cohttp_client.create_body_from_pairs [("did", did); ("cids",
                                                                     Yojson.Basic.to_string
                                                                       (`List
@@ -47,6 +47,6 @@ module Sync = struct
                                                                         s)
                                                                         cids
                                                                         )))] in
-    let block = Cohttp_client.get_request_with_body_and_headers get_block_url body headers in
-    block
+    let blocks = Cohttp_client.get_request_with_body_and_headers get_blocks_url body headers in
+    blocks
 end
