@@ -19,12 +19,18 @@ let test_get_followers _ =
   Printf.printf "Graph Followers: %s\n" followers;
   OUnit2.assert_bool "Graph Followers is not empty" (followers <> "")
 
+let test_get_follows _ =
+  let test_session = create_test_session () |> Session.refresh_session_auth in
+  let follows = Graph.get_follows test_session "david-engelmann" 10 in
+  Printf.printf "Graph Follows: %s\n" follows;
+  OUnit2.assert_bool "Graph Follows is not empty" (follows <> "")
 
 let suite =
     "suite"
     >::: [
           "test_get_blocks" >:: test_get_blocks;
           "test_get_followers" >:: test_get_followers;
+          "test_get_follows" >:: test_get_follows;
 
          ]
 
