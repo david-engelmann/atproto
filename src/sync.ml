@@ -57,6 +57,6 @@ module Sync = struct
     let base_url = App.create_base_url s in
     let get_checkout_url = App.create_endpoint_url base_url (create_sync_endpoint "getCheckout") in
     let body = Cohttp_client.create_body_from_pairs [("did", did); ("commit", commit)] in
-    let checkout = Lwt_main.run (Cohttp_client.get_request_with_headers get_checkout_url headers) in
+    let checkout = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_checkout_url body headers) in
     checkout
 end
