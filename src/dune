@@ -3,5 +3,5 @@
  (libraries async core uri cohttp cohttp-lwt-unix cohttp-async h2 httpaf
  httpaf-lwt-unix h2-lwt-unix ssl jose lwt_ssl lwt)
  (preprocess (pps ppx_jane))
- (modules App Bsky.Actor Auth Cohttp_client Session Moderation Bsky.Graph User Http_client Http_method Bsky.Feed Label Request Response Repo Server Sync)
+ (modules App Bsky.Actor Auth Cohttp_client Session Moderation User Http_client Http_method Bsky.Feed Label Request Response Repo Server Sync)
 )
