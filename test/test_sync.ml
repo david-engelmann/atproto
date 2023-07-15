@@ -37,6 +37,13 @@ let test_list_blobs _ =
   Printf.printf "Sync Blobs: %s\n" blobs;
   OUnit2.assert_bool "Sync Blobs is not empty" (blobs <> "")
 
+let test_list_repos _ =
+  let test_session = create_test_session () |> Session.refresh_session_auth in
+  let repos = Sync.list_repos test_session 10 in
+  Printf.printf "Sync Repos: %s\n" blobs;
+  OUnit2.assert_bool "Sync Repos is not empty" (blobs <> "")
+
+
 let suite =
     "suite"
     >::: [
@@ -45,6 +52,7 @@ let suite =
           "test_get_head" >:: test_get_head;
           "test_get_repo" >:: test_get_repo;
           "test_list_blobs" >:: test_list_blobs;
+          "test_list_repos" >:: test_list_repos;
 
          ]
 
