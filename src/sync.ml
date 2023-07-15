@@ -127,7 +127,16 @@ module Sync = struct
     let base_url = App.create_base_url s in
     let notify_of_update_url = App.create_endpoint_url base_url (create_sync_endpoint "notifyOfUpdate") in
     let body = Cohttp_client.create_body_from_pairs [("hostname", hostname)] in
-    let notify = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers notify_of_update_url body headers) in
-    notify
+    let notify_response = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers notify_of_update_url body headers) in
+    notify_response
 
+  let request_crawl (s : Session.session) (hostname : string) : string =
+    let bearer_token = Session.bearer_token_from_session s in
+    let application_json = Cohttp_client.application_json_setting_tuple in
+    let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
+    let base_url = App.create_base_url s in
+    let request_crawl_url = App.create_endpoint_url base_url (create_sync_endpoint "requestCrawl") in
+    let body = Cohttp_client.create_body_from_pairs [("hostname", hostname)] in
+    let crawl_response = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers request_crawl_url body headers) in
+    crawl_response
 end
