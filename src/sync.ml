@@ -83,11 +83,11 @@ module Sync = struct
   let get_record (s : Session.session) (did : string) (collection : string) (rkey : string) (commit : string) : string =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers = Cohttp_client.create_recorders_from_pairs [application_json; bearer_token] in
+    let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
     let base_url = App.create_base_url s in
     let get_record_url = App.create_endpoint_url base_url (create_sync_endpoint "getRecord") in
     let body = Cohttp_client.create_body_from_pairs [("did", did); ("collection", collection); ("rkey", rkey); ("commit", commit)] in
-    let record = Lwt_main.run (Cohttp_client.get_request_with_body_and_recorders get_record_url body headers) in
+    let record = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_record_url body headers) in
     record 
 
   let get_repo (did : string) (earliest : string) (latest : string) : string =
