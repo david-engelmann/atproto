@@ -31,6 +31,18 @@ let test_get_mutes _ =
   Printf.printf "Graph Mutes: %s\n" mutes;
   OUnit2.assert_bool "Graph Mutes is not empty" (mutes <> "")
 
+let test_mute_actor _ =
+  let test_session = create_test_session () |> Session.refresh_session_auth in
+  let muted_actor = Graph.mute_actor test_session "karen" in
+  Printf.printf "Graph Mute Actor: %s\n" muted_actor;
+  OUnit2.assert_bool "Graph Mute Actor is not empty" (muted_actor <> "")
+
+let test_unmute_actor _ =
+  let test_session = create_test_session () |> Session.refresh_session_auth in
+  let unmuted_actor = Graph.unmute_actor test_session "karen" in
+  Printf.printf "Graph Unmute Actor: %s\n" unmuted_actor;
+  OUnit2.assert_bool "Graph Unmute Actor is not empty" (unmuted_actor <> "")
+
 let suite =
     "suite"
     >::: [
@@ -38,6 +50,9 @@ let suite =
           "test_get_followers" >:: test_get_followers;
           "test_get_follows" >:: test_get_follows;
           "test_get_mutes" >:: test_get_mutes;
+          "test_mute_actor" >:: test_mute_actor;
+          "test_unmute_actor" >:: test_unmute_actor;
+
 
          ]
 
