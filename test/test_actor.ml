@@ -10,32 +10,39 @@ let create_test_session _ =
 let test_get_profile _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let profile = Actor.get_profile test_session "david-engelmann.bsky.social" in
-  Printf.printf "Profile: %s\n" profile;
-  OUnit2.assert_bool "Profile is not empty" (profile <> "")
+  match profile with
+  | { handle; _ } ->
+    OUnit2.assert_equal "david-engelmann.bsky.social" handle
 
 let test_get_profiles _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let profiles = Actor.get_profiles test_session ["david-engelmann.bsky.social"; "jay.bsky.team"] in
-  Printf.printf "Profiles: %s\n" profiles;
-  OUnit2.assert_bool "Profiles is not empty" (profiles <> "")
+  OUnit2.assert_equal ~printer:string_of_int (List.length profiles) 2
 
 let test_get_suggestions _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let suggestions = Actor.get_suggestions test_session 5 in
-  Printf.printf "Suggestions: %s\n" suggestions;
-  OUnit2.assert_bool "Suggestions is not empty" (suggestions <> "")
+  OUnit2.assert_equal ~printer:string_of_int (List.length suggestions) 5
 
 let test_search_actors _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let profiles = Actor.search_actors test_session "david-engelmann" 1 in
-  Printf.printf "Search Profiles: %s\n" profiles;
-  OUnit2.assert_bool "Search Profiles is not empty" (profiles <> "")
+  match profiles with
+  | [] -> OUnit2.assert_equal "blah" ""
+  | hd :: _ ->
+    match hd with
+    | { handle; _ } ->
+      OUnit2.assert_equal "david-engelmann.bsky.social" handle
 
 let test_search_actors_typeahead _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let profiles = Actor.search_actors_typeahead test_session "david-engelmann" 1 in
-  Printf.printf "Search Profiles Typeahead: %s\n" profiles;
-  OUnit2.assert_bool "Search Profiles Typeahead is not empty" (profiles <> "")
+  match profiles with
+  | [] -> OUnit2.assert_equal "blah" ""
+  | hd :: _ ->
+    match hd with
+    | { handle; _ } ->
+      OUnit2.assert_equal "david-engelmann.bsky.social" handle
 
 let suite =
     "suite"
