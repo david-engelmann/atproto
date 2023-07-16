@@ -22,8 +22,7 @@ let test_get_profiles _ =
 let test_get_suggestions _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let suggestions = Actor.get_suggestions test_session 5 in
-  Printf.printf "Suggestions: %s\n" suggestions;
-  OUnit2.assert_bool "Suggestions is not empty" (suggestions <> "")
+  OUnit2.assert_equal ~printer:string_of_int (List.length suggestions) 5
 
 let test_search_actors _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
