@@ -18,7 +18,7 @@ module Moderation = struct
       ("$type", `String "com.atproto.repo.strongRef");
       ("uri", `String ref.uri);
       ("cid", `String ref.cid);
-    ]
+    ] in
     let subject = Yojson.Basic.to_string json_subject in
     subject
 

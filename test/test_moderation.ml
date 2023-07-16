@@ -14,7 +14,7 @@ let create_test_session _ =
 
 let test_create_report_no_reason _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
-  let created_report = Moderation.create_report test_session "com.atproto.moderation.defs#reasonOther" sample_strong_ref in
+  let created_report = Moderation.create_report_with_strong_ref test_session "com.atproto.moderation.defs#reasonOther" sample_strong_ref in
   Printf.printf "Moderation Report: %s\n" created_report;
   OUnit2.assert_bool "Moderation Report is not empty" (created_report <> "")
 
