@@ -9,13 +9,13 @@ let create_test_session _ =
 
 let test_get_unread_count _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
-  let unread_count = Notification.get_unread_count test_session "2023-07-15T12:34:56.789012Z" in
+  let unread_count = Notification.get_unread_count test_session in
   Printf.printf "Unread Count: %s\n" unread_count;
   OUnit2.assert_bool "Unread Count is not empty" (unread_count <> "")
 
 let test_list_notifications _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
-  let notification = Notification.list_notifications test_session 10 "2023-07-15T12:34:56.789012Z" in
+  let notification = Notification.list_notifications test_session 10 in
   Printf.printf "List Notifications: %s\n" notification;
   OUnit2.assert_bool "List Notifications is not empty" (notification <> "")
 
