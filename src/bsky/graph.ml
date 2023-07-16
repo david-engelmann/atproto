@@ -53,7 +53,7 @@ module Graph = struct
     let base_url = App.create_base_url s in
     let get_muted_actor_url = App.create_endpoint_url base_url (create_graph_endpoint "muteActor") in
     let data = Printf.sprintf "{\"actor\": \"%s\"}" actor in
-    let muted_actor = Lwt_main.run (Cohttp_client.post_data_with_headers data get_muted_actor_url headers) in
+    let muted_actor = Lwt_main.run (Cohttp_client.post_data_with_headers get_muted_actor_url data headers) in
     muted_actor
 
   let unmute_actor (s : Session.session) (actor : string) : string =
@@ -63,6 +63,6 @@ module Graph = struct
     let base_url = App.create_base_url s in
     let get_unmuted_actor_url = App.create_endpoint_url base_url (create_graph_endpoint "unmuteActor") in
     let data = Printf.sprintf "{\"actor\": \"%s\"}" actor in
-    let unmuted_actor = Lwt_main.run (Cohttp_client.post_data_with_headers data get_unmuted_actor_url headers) in
+    let unmuted_actor = Lwt_main.run (Cohttp_client.post_data_with_headers get_unmuted_actor_url data headers) in
     unmuted_actor
 end

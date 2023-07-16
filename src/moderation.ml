@@ -17,6 +17,6 @@ module Moderation = struct
       | Some r -> Printf.sprintf "{\"reasonType\": \"%s\", \"reason\": \"%s\", \"subject\": \"%s\"}" reason_type r subject
       | None -> Printf.sprintf "{\"reasonType\": \"%s\", \"subject\": \"%s\"}" reason_type subject
     in
-    let created_report = Lwt_main.run (Cohttp_client.post_data_with_headers data create_report_url headers) in
+    let created_report = Lwt_main.run (Cohttp_client.post_data_with_headers create_report_url data headers) in
     created_report
 end
