@@ -88,7 +88,7 @@ module Sync = struct
     let get_record_url = App.create_endpoint_url base_url (create_sync_endpoint "getRecord") in
     let body = Cohttp_client.create_body_from_pairs [("did", did); ("collection", collection); ("rkey", rkey); ("commit", commit)] in
     let record = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_record_url body headers) in
-    record 
+    record
 
   let get_repo (s : Session.session) (did : string) (earliest : string) (latest : string) : string =
     let bearer_token = Session.bearer_token_from_session s in
@@ -98,7 +98,7 @@ module Sync = struct
     let get_repo_url = App.create_endpoint_url base_url (create_sync_endpoint "getRepo") in
     let body = Cohttp_client.create_body_from_pairs [("did", did); ("earliest", earliest); ("latest", latest)] in
     let repo = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_repo_url body headers) in
-    repo 
+    repo
 
   let list_blobs (s : Session.session) (did : string) (earliest : string) (latest : string) : string =
     let bearer_token = Session.bearer_token_from_session s in
@@ -108,7 +108,7 @@ module Sync = struct
     let list_blobs_url = App.create_endpoint_url base_url (create_sync_endpoint "listBlobs") in
     let body = Cohttp_client.create_body_from_pairs [("did", did); ("earliest", earliest); ("latest", latest)] in
     let blobs = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers list_blobs_url body headers) in
-    blobs 
+    blobs
 
   let list_repos (s : Session.session) (limit : int) : string =
     let bearer_token = Session.bearer_token_from_session s in
@@ -118,7 +118,7 @@ module Sync = struct
     let list_repos_url = App.create_endpoint_url base_url (create_sync_endpoint "listRepos") in
     let body = Cohttp_client.create_body_from_pairs [("limit", string_of_int limit)] in
     let repos = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers list_repos_url body headers) in
-    repos 
+    repos
 
   let notify_of_update (s : Session.session) (hostname : string) : string =
     let bearer_token = Session.bearer_token_from_session s in

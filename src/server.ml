@@ -28,7 +28,7 @@ module Server = struct
       | None, Some actual_recovery_key -> Printf.sprintf "{\"email\": \"%s\", \"handle\": \"%s\", \"password\": \"%s\", \"recoveryKey\": \"%s\"}" email handle password actual_recovery_key
       | None, None -> Printf.sprintf "{\"email\": \"%s\", \"handle\": \"%s\", \"password\": \"%s\"}" email handle password
     in
-    let created_account = Lwt_main.run (Cohttp_client.post_data_with_headers data create_account_url headers) in
+    let created_account = Lwt_main.run (Cohttp_client.post_data_with_headers create_account_url data headers) in
     created_account
 
   let create_app_password (s : Session.session) (name : string) : string =
@@ -38,7 +38,7 @@ module Server = struct
     let base_url = App.create_base_url s in
     let create_app_password_url = App.create_endpoint_url base_url (create_server_endpoint "createAppPassword") in
     let data = Printf.sprintf "{\"name\": \"%s\"}" name in
-    let created_app_password = Lwt_main.run (Cohttp_client.post_data_with_headers data create_app_password_url headers) in
+    let created_app_password = Lwt_main.run (Cohttp_client.post_data_with_headers create_app_password_url data headers) in
     created_app_password
 
   let get_account_invite_codes (s : Session.session) (include_used : bool) (create_available : bool) : string =
