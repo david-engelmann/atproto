@@ -11,6 +11,7 @@ module Notification = struct
     }
   type record =
     {
+      record_type : string;
       subject : strong_ref;
       created_at : string;
     }
@@ -21,12 +22,38 @@ module Notification = struct
       author : Actor.profile;
       reason : string;
       reason_subject : string;
-      record_type : string;
       record : record;
       is_read : bool;
       indexed_at : string;
       labels : string list;
     }
+
+  let parse_strong_ref json : strong_ref =
+    let open Yojson.Safe.Util in
+    let uri = json |> member "uri" |> to_string in
+    let cid = json |> member "cid" |> to_string in
+    { uri; cid }
+
+  let parse_record json : record =
+    let open Yojson.Safe.Util in
+    let record_type = json |> member "$type" |> to_string in
+    let subject = json |> member "subject" |> parse_strong_ref in
+    let created_at = json |> member "createdAt" |> to_string in
+    { record_type; subject; created_at }
+
+  let parse_notification json : notification =
+    let open Yojson.Safe.Util in
+    let uri = json |> member "uri" |> to_string in
+    let cid = json |> member "cid" |> to_string in
+    let author = json |> member "author" |> Actor.parse_profile in
+    let reason = json |> member "reason" |> to_string in
+    let reason_subject = json |> member "reasonSubject" |> to_string in
+    let record = json |> member "record" |> parse_record in
+    let is_read = json |> member "isRead" |> to_bool in
+    let indexed_at = json |> member "indexedAt" |> to_string in
+    let labels = json |> member "labels" |> to_list |> List.map to_string in
+    { uri; cid; author; reason; reason_subject; record; is_read;
+      indexed_at; labels }
 
   let create_notification_endpoint (query_name : string) : string =
     "app.bsky.notification" ^ "." ^ query_name
