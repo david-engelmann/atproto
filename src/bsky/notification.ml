@@ -25,7 +25,7 @@ module Notification = struct
       record : record;
       is_read : bool;
       indexed_at : string;
-      labels : string list;
+      labels : (string list) option;
     }
 
   let parse_strong_ref json : strong_ref =
@@ -52,6 +52,11 @@ module Notification = struct
     let is_read = json |> member "isRead" |> to_bool in
     let indexed_at = json |> member "indexedAt" |> to_string in
     let labels = json |> member "labels" |> to_list |> List.map to_string in
+    let labels = 
+      match json |> member "labels" with
+      | `Null -> None
+      | labels_json -> Some (labels_json |> to_list |> List.map to_string)
+    in
     { uri; cid; author; reason; reason_subject; record; is_read;
       indexed_at; labels }
 

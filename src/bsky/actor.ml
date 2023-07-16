@@ -22,7 +22,7 @@ module Actor = struct
       posts_count : int;
       indexed_at : string;
       viewer : viewer_status;
-      labels : string list;
+      labels : (string list) option;
     }
 
   let parse_viewer_status json : viewer_status =
@@ -44,7 +44,11 @@ module Actor = struct
     let posts_count = json |> member "postsCount" |> to_int in
     let indexed_at = json |> member "indexedAt" |> to_string in
     let viewer = json |> member "viewer" |> parse_viewer_status in
-    let labels = json |> member "labels" |> to_list |> List.map to_string in
+    let labels = 
+      match json |> member "labels" with
+      | `Null -> None
+      | labels_json -> Some (labels_json |> to_list |> List.map to_string)
+    in
     { did; handle; display_name; description; avatar; banner; follows_count;
       followers_count; posts_count; indexed_at; viewer; labels }
 
