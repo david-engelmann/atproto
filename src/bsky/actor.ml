@@ -53,7 +53,9 @@ module Actor = struct
       followers_count; posts_count; indexed_at; viewer; labels }
 
   let parse_profiles json : profile list =
-    Printf.printf "Profiles to parse: %s\n" to_string json;
+    let open Yojson.Safe.Util in
+    let profile_dump = json |> to_string in
+    Printf.printf "Profiles to parse: %s\n" profile_dump;
     let open Yojson.Safe.Util in
     let profiles = json |> member "profiles" |> to_list in
     List.map parse_profile profiles
