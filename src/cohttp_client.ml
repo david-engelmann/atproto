@@ -49,7 +49,7 @@ module Cohttp_client = struct
   let create_headers_from_pairs (header_settings : (string * string) list) =
     match header_settings with
     | [] -> Header.init ()
-    | hd :: res -> 
+    | hd :: res ->
       let headers = Header.init () in
       let headers = add_pair_to_header headers hd in
       add_pairs_to_header headers res

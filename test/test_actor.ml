@@ -28,14 +28,22 @@ let test_get_suggestions _ =
 let test_search_actors _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let profiles = Actor.search_actors test_session "david-engelmann" 1 in
-  Printf.printf "Search Profiles: %s\n" profiles;
-  OUnit2.assert_bool "Search Profiles is not empty" (profiles <> "")
+  match profiles with
+  | [] -> OUnit2.assert_equal "blah" ""
+  | hd :: _ ->
+    match hd with
+    | { handle; _ } ->
+      OUnit2.assert_equal "david-engelmann.bsky.social" handle
 
 let test_search_actors_typeahead _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let profiles = Actor.search_actors_typeahead test_session "david-engelmann" 1 in
-  Printf.printf "Search Profiles Typeahead: %s\n" profiles;
-  OUnit2.assert_bool "Search Profiles Typeahead is not empty" (profiles <> "")
+  match profiles with
+  | [] -> OUnit2.assert_equal "blah" ""
+  | hd :: _ ->
+    match hd with
+    | { handle; _ } ->
+      OUnit2.assert_equal "david-engelmann.bsky.social" handle
 
 let suite =
     "suite"
