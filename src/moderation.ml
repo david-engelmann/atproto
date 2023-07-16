@@ -14,7 +14,7 @@ module Moderation = struct
 
   let create_subject_from_strong_ref (ref : strong_ref) : string =
     let json_subject = `Assoc [
-      (*("type", `String "com.atproto.repo.strongRef");*)
+      ("$type", `String "com.atproto.repo.strongRef");
       ("uri", `String ref.uri);
       ("cid", `String ref.cid);
     ] in
