@@ -1,7 +1,6 @@
 open Cohttp_client
 open App
 open Session
-open Yojson
 
 module Moderation = struct
   type strong_ref =
