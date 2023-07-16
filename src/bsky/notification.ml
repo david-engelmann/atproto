@@ -1,8 +1,33 @@
 open Session
 open Cohttp_client
 open App
+open Actor
 
 module Notification = struct
+  type strong_ref =
+    {
+      uri : string;
+      cid : string;
+    }
+  type record =
+    {
+      subject : strong_ref;
+      created_at : string;
+    }
+  type notification =
+    {
+      uri : string;
+      cid : string;
+      author : Actor.profile;
+      reason : string;
+      reason_subject : string;
+      record_type : string;
+      record : record;
+      is_read : bool;
+      indexed_at : string;
+      labels : string list;
+    }
+
   let create_notification_endpoint (query_name : string) : string =
     "app.bsky.notification" ^ "." ^ query_name
 
