@@ -51,8 +51,7 @@ module Notification = struct
     let record = json |> member "record" |> parse_record in
     let is_read = json |> member "isRead" |> to_bool in
     let indexed_at = json |> member "indexedAt" |> to_string in
-    let labels = json |> member "labels" |> to_list |> List.map to_string in
-    let labels = 
+    let labels =
       match json |> member "labels" with
       | `Null -> None
       | labels_json -> Some (labels_json |> to_list |> List.map to_string)
