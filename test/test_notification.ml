@@ -19,12 +19,19 @@ let test_list_notifications _ =
   Printf.printf "List Notifications: %s\n" notification;
   OUnit2.assert_bool "List Notifications is not empty" (notification <> "")
 
+let test_update_seen _ =
+  let test_session = create_test_session () |> Session.refresh_session_auth in
+  let updated_seen = Notification.update_seen test_session "2023-07-15T12:34:56.789012Z" in
+  Printf.printf "Updated Seen: %s\n" updated_seen;
+  OUnit2.assert_bool "Updated Seen is not empty" (updated_seen <> "")
+
 let suite =
     "suite"
     >::: [
 
           "test_get_unread_count" >:: test_get_unread_count;
           "test_list_notifications" >:: test_list_notifications;
+          "test_update_seen" >:: test_update_seen;
 
          ]
 
