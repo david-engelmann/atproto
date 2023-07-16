@@ -52,17 +52,17 @@ module Graph = struct
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
     let base_url = App.create_base_url s in
     let get_muted_actor_url = App.create_endpoint_url base_url (create_graph_endpoint "muteActor") in
-    let body = Cohttp_client.create_body_from_pairs [("actor", actor)] in
-    let muted_actor = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_muted_actor_url body headers) in
+    let data = Printf.sprintf "{\"actor\": \"%s\"}" actor in
+    let muted_actor = Lwt_main.run (Cohttp_client.post_data_with_headers data get_muted_actor_url headers) in
     muted_actor
-    
+
   let unmute_actor (s : Session.session) (actor : string) : string =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
     let base_url = App.create_base_url s in
     let get_unmuted_actor_url = App.create_endpoint_url base_url (create_graph_endpoint "unmuteActor") in
-    let body = Cohttp_client.create_body_from_pairs [("actor", actor)] in
-    let unmuted_actor = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_unmuted_actor_url body headers) in
+    let data = Printf.sprintf "{\"actor\": \"%s\"}" actor in
+    let unmuted_actor = Lwt_main.run (Cohttp_client.post_data_with_headers data get_unmuted_actor_url headers) in
     unmuted_actor
 end
