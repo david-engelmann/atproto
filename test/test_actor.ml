@@ -17,8 +17,7 @@ let test_get_profile _ =
 let test_get_profiles _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let profiles = Actor.get_profiles test_session ["david-engelmann.bsky.social"; "jay.bsky.team"] in
-  Printf.printf "Profiles: %s\n" profiles;
-  OUnit2.assert_bool "Profiles is not empty" (profiles <> "")
+  OUnit2.assert_equal ~printer:string_of_int (List.length profiles) 2
 
 let test_get_suggestions _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in

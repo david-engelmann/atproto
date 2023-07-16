@@ -48,6 +48,11 @@ module Actor = struct
     { did; handle; display_name; description; avatar; banner; follows_count;
       followers_count; posts_count; indexed_at; viewer; labels }
 
+  let parse_profiles json : profile list =
+    let open Yojson.Safe.Util in
+    let profiles = json |> member "profiles" |> to_list in
+    List.map parse_profile profiles
+
   let convert_body_to_json (body : string) : Yojson.Safe.t =
     let json = Yojson.Safe.from_string body in
     json
@@ -65,7 +70,7 @@ module Actor = struct
     let profile = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_profile_url body headers) in
     profile |> convert_body_to_json |> parse_profile
 
-  let get_profiles (s : Session.session) (actors : string list) : string =
+  let get_profiles (s : Session.session) (actors : string list) : profile list =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
@@ -73,7 +78,7 @@ module Actor = struct
     let get_profiles_url = App.create_endpoint_url base_url (create_actor_endpoint "getProfiles") in
     let body = Cohttp_client.add_query_params "actors" actors in
     let profiles = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_profiles_url body headers) in
-    profiles
+    profiles |> convert_body_to_json |> parse_profiles
 
   let get_suggestions (s : Session.session) (limit : int) : string =
     let bearer_token = Session.bearer_token_from_session s in
