@@ -3,10 +3,59 @@ open Cohttp_client
 open App
 
 module Actor = struct
+  type viewer_status =
+    {
+      muted : bool;
+      blocked_by : bool;
+    }
+
+  type profile =
+    {
+      did : string;
+      handle : string;
+      display_name : string;
+      description : string;
+      avatar : string;
+      banner : string;
+      follows_count : int;
+      followers_count : int;
+      posts_count : int;
+      indexed_at : string;
+      viewer : viewer_status;
+      labels : string list;
+    }
+
+  let parse_viewer_status json : viewer_status =
+    let open Yojson.Safe.Util in
+    let muted = json |> member "muted" |> to_bool in
+    let blocked_by = json |> member "blockedBy" |> to_bool in
+    { muted; blocked_by }
+
+  let parse_profile json : profile =
+    let open Yojson.Safe.Util in
+    let did = json |> member "did" |> to_string in
+    let handle = json |> member "handle" |> to_string in
+    let display_name = json |> member "displayName" |> to_string in
+    let description = json |> member "description" |> to_string in
+    let avatar = json |> member "avatar" |> to_string in
+    let banner = json |> member "banner" |> to_string in
+    let follows_count = json |> member "followsCount" |> to_int in
+    let followers_count = json |> member "followersCount" |> to_int in
+    let posts_count = json |> member "postsCount" |> to_int in
+    let indexed_at = json |> member "indexedAt" |> to_string in
+    let viewer = json |> member "viewer" |> parse_viewer_status in
+    let labels = json |> member "labels" |> to_list |> List.map to_string in
+    { did; handle; display_name; description; avatar; banner; follows_count;
+      followers_count; posts_count; indexed_at; viewer; labels }
+
+  let convert_body_to_json (body : string) : Yojson.Safe.t =
+    let json = Yojson.Safe.from_string body in
+    json
+
   let create_actor_endpoint (query_name : string) : string =
     "app.bsky.actor" ^ "." ^ query_name
 
-  let get_profile (s : Session.session) (actor : string) : string =
+  let get_profile (s : Session.session) (actor : string) : profile =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
@@ -14,7 +63,7 @@ module Actor = struct
     let get_profile_url = App.create_endpoint_url base_url (create_actor_endpoint "getProfile") in
     let body = Cohttp_client.create_body_from_pairs [("actor", actor)] in
     let profile = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_profile_url body headers) in
-    profile
+    profile |> convert_body_to_json |> parse_profile
 
   let get_profiles (s : Session.session) (actors : string list) : string =
     let bearer_token = Session.bearer_token_from_session s in

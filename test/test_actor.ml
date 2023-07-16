@@ -10,8 +10,9 @@ let create_test_session _ =
 let test_get_profile _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let profile = Actor.get_profile test_session "david-engelmann.bsky.social" in
-  Printf.printf "Profile: %s\n" profile;
-  OUnit2.assert_bool "Profile is not empty" (profile <> "")
+  match profile with
+  | { handle; _ } ->
+    OUnit2.assert_equal "david-engelmann" handle
 
 let test_get_profiles _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
