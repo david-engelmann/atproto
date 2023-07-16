@@ -12,7 +12,7 @@ let test_get_profile _ =
   let profile = Actor.get_profile test_session "david-engelmann.bsky.social" in
   match profile with
   | { handle; _ } ->
-    OUnit2.assert_equal "david-engelmann" handle
+    OUnit2.assert_equal "david-engelmann.bsky.social" handle
 
 let test_get_profiles _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
