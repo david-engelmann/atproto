@@ -44,7 +44,7 @@ module Actor = struct
     let posts_count = json |> member "postsCount" |> to_int in
     let indexed_at = json |> member "indexedAt" |> to_string in
     let viewer = json |> member "viewer" |> parse_viewer_status in
-    let labels = 
+    let labels =
       match json |> member "labels" with
       | `Null -> None
       | labels_json -> Some (labels_json |> to_list |> List.map to_string)
@@ -54,8 +54,11 @@ module Actor = struct
 
   let parse_profiles json : profile list =
     let open Yojson.Safe.Util in
-    let profile_dump = json |> to_string in
-    Printf.printf "Profiles to parse: %s\n" profile_dump;
+    let profile_dump = json |> to_list |> List.map to_string in
+    match profile_dump with
+    | [] -> []
+    | hd :: _ ->
+    Printf.printf "Profiles to parse: %s\n" hd;
     let open Yojson.Safe.Util in
     let profiles = json |> member "profiles" |> to_list in
     List.map parse_profile profiles
