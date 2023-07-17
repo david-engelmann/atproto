@@ -84,7 +84,7 @@ module Notification = struct
     let list_notifications_url = App.create_endpoint_url base_url (create_notification_endpoint "listNotifications") in
     let body = Cohttp_client.create_body_from_pairs [("limit", string_of_int limit)] in
     let notifications = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers list_notifications_url body headers) in
-    notifications |> convert_body_to_json |> to_list |> List.map parse_notification
+    notifications |> convert_body_to_json |> member "notifications" |> to_list |> List.map parse_notification
 
   let update_seen (s : Session.session) (seen_at : string) : string =
     let bearer_token = Session.bearer_token_from_session s in
