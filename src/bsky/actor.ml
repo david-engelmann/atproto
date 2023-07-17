@@ -38,6 +38,7 @@ module Actor = struct
     let display_name = json |> member "displayName" |> to_string in
     let description = json |> member "description" |> to_string in
     let avatar = json |> member "avatar" |> to_string in
+    (*BANNER WASNT FOUND MIGHT HAVE SLIGHTLY DIFFERENT PROFILE FORMATS*)
     let banner = json |> member "banner" |> to_string in
     let follows_count = json |> member "followsCount" |> to_int in
     let followers_count = json |> member "followersCount" |> to_int in
