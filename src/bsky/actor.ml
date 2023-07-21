@@ -155,7 +155,7 @@ module Actor = struct
     let profiles_json = profiles |> convert_body_to_json in
     profiles_json |> parse_profiles
 
-  let get_suggestions (s : Session.session) (limit : int) : profile list =
+  let get_suggestions (s : Session.session) (limit : int) : short_profile list =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
@@ -164,7 +164,7 @@ module Actor = struct
     let body = Cohttp_client.create_body_from_pairs [("limit", string_of_int limit)] in
     let suggestions = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_suggestions_url body headers) in
     Printf.printf "Checkout Suggestions on ingestion: %s\n" suggestions;
-    suggestions |> convert_body_to_json |> parse_profiles
+    suggestions |> convert_body_to_json |> parse_short_profiles
 
   let search_actors (s : Session.session) (term : string) (limit : int) : short_profile list =
     let bearer_token = Session.bearer_token_from_session s in
