@@ -55,12 +55,6 @@ module Actor = struct
 
   let parse_profiles json : profile list =
     let open Yojson.Safe.Util in
-    let profile_dump = json |> to_list |> List.map to_string in
-    match profile_dump with
-    | [] -> []
-    | hd :: _ ->
-    Printf.printf "Profiles to parse: %s\n" hd;
-    let open Yojson.Safe.Util in
     let profiles = json |> member "profiles" |> to_list in
     List.map parse_profile profiles
 
@@ -82,7 +76,6 @@ module Actor = struct
     let profile = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_profile_url body headers) in
     Printf.printf "Checkout Profile on ingestion: %s\n" profile;
     let profile_json = profile |> convert_body_to_json in
-    Printf.printf "Checkout Profile on ingestion: %s\n" (to_string profile_json);
     profile_json |> parse_profile
 
 
@@ -95,8 +88,8 @@ module Actor = struct
     let get_profiles_url = App.create_endpoint_url base_url (create_actor_endpoint "getProfiles") in
     let body = Cohttp_client.add_query_params "actors" actors in
     let profiles = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_profiles_url body headers) in
+    Printf.printf "Checkout Profiles on ingestion: %s\n" profiles;
     let profiles_json = profiles |> convert_body_to_json in
-    Printf.printf "Checkout Profiles on ingestion: %s\n" (to_string profiles_json);
     profiles_json |> parse_profiles
 
   let get_suggestions (s : Session.session) (limit : int) : profile list =
