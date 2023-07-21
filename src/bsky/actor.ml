@@ -48,7 +48,8 @@ module Actor = struct
     let labels =
       match json |> member "labels" with
       | `Null -> None
-      | labels_json -> Some (labels_json |> to_list |> List.map to_string)
+      | `List labels_json -> Some (labels_json |> List.map to_string)
+      | _ -> None
     in
     { did; handle; display_name; description; avatar; banner; follows_count;
       followers_count; posts_count; indexed_at; viewer; labels }
