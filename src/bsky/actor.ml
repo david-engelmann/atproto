@@ -72,6 +72,7 @@ module Actor = struct
     "app.bsky.actor" ^ "." ^ query_name
 
   let get_profile (s : Session.session) (actor : string) : profile =
+    let open Yojson.Safe.Util in
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
@@ -79,9 +80,13 @@ module Actor = struct
     let get_profile_url = App.create_endpoint_url base_url (create_actor_endpoint "getProfile") in
     let body = Cohttp_client.create_body_from_pairs [("actor", actor)] in
     let profile = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_profile_url body headers) in
-    profile |> convert_body_to_json |> parse_profile
+    let profile_json = profile |> convert_body_to_json in
+    Printf.printf "Checkout Profile on ingestion: %s\n" (to_string profile_json);
+    profile_json |> parse_profile
+
 
   let get_profiles (s : Session.session) (actors : string list) : profile list =
+    let open Yojson.Safe.Util in
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
@@ -89,7 +94,9 @@ module Actor = struct
     let get_profiles_url = App.create_endpoint_url base_url (create_actor_endpoint "getProfiles") in
     let body = Cohttp_client.add_query_params "actors" actors in
     let profiles = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_profiles_url body headers) in
-    profiles |> convert_body_to_json |> parse_profiles
+    let profiles_json = profiles |> convert_body_to_json in
+    Printf.printf "Checkout Profiles on ingestion: %s\n" (to_string profiles_json);
+    profiles_json |> parse_profiles
 
   let get_suggestions (s : Session.session) (limit : int) : profile list =
     let bearer_token = Session.bearer_token_from_session s in
