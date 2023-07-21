@@ -15,7 +15,7 @@ module Actor = struct
     {
       did : string;
       handle : string;
-      display_name : string;
+      display_name : string option;
       description : string;
       avatar : string;
       banner : string;
@@ -31,7 +31,7 @@ module Actor = struct
     {
       did : string;
       handle : string;
-      display_name : string;
+      display_name : string option;
       description : string;
       avatar : string;
       indexed_at : string;
@@ -44,7 +44,7 @@ module Actor = struct
     {
       did : string;
       handle : string;
-      display_name : string;
+      display_name : string option;
       avatar : string;
       viewer : viewer_status;
       labels : (string list) option;
@@ -71,7 +71,7 @@ module Actor = struct
     let open Yojson.Safe.Util in
     let did = json |> member "did" |> to_string in
     let handle = json |> member "handle" |> to_string in
-    let display_name = json |> member "displayName" |> to_string in
+    let display_name = extract_string_option json "displayName" in
     let description = json |> member "description" |> to_string in
     let avatar = json |> member "avatar" |> to_string in
     let banner = json |> member "banner" |> to_string in
@@ -93,7 +93,7 @@ module Actor = struct
     let open Yojson.Safe.Util in
     let did = json |> member "did" |> to_string in
     let handle = json |> member "handle" |> to_string in
-    let display_name = json |> member "displayName" |> to_string in
+    let display_name = extract_string_option json "displayName" in
     let description = json |> member "description" |> to_string in
     let avatar = json |> member "avatar" |> to_string in
     let indexed_at = json |> member "indexedAt" |> to_string in
@@ -110,7 +110,7 @@ module Actor = struct
     let open Yojson.Safe.Util in
     let did = json |> member "did" |> to_string in
     let handle = json |> member "handle" |> to_string in
-    let display_name = json |> member "displayName" |> to_string in
+    let display_name = extract_string_option json "displayName" in
     let avatar = json |> member "avatar" |> to_string in
     let viewer = json |> member "viewer" |> parse_viewer_status in
     let labels =

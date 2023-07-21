@@ -21,7 +21,7 @@ module Notification = struct
       cid : string;
       author : Actor.short_profile;
       reason : string;
-      reason_subject : string;
+      reason_subject : string option;
       record : record;
       is_read : bool;
       indexed_at : string;
@@ -47,7 +47,7 @@ module Notification = struct
     let cid = json |> member "cid" |> to_string in
     let author = json |> member "author" |> Actor.parse_short_profile in
     let reason = json |> member "reason" |> to_string in
-    let reason_subject = json |> member "reasonSubject" |> to_string in
+    let reason_subject = Actor.extract_string_option json "reasonSubject" in
     let record = json |> member "record" |> parse_record in
     let is_read = json |> member "isRead" |> to_bool in
     let indexed_at = json |> member "indexedAt" |> to_string in
