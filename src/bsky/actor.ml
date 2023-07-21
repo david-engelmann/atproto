@@ -80,6 +80,7 @@ module Actor = struct
     let get_profile_url = App.create_endpoint_url base_url (create_actor_endpoint "getProfile") in
     let body = Cohttp_client.create_body_from_pairs [("actor", actor)] in
     let profile = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_profile_url body headers) in
+    Printf.printf "Checkout Profile on ingestion: %s\n" profile;
     let profile_json = profile |> convert_body_to_json in
     Printf.printf "Checkout Profile on ingestion: %s\n" (to_string profile_json);
     profile_json |> parse_profile
@@ -129,3 +130,4 @@ module Actor = struct
     profiles |> convert_body_to_json |> parse_profiles
 
 end
+
