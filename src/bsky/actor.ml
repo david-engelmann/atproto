@@ -62,7 +62,6 @@ module Actor = struct
     let display_name = json |> member "displayName" |> to_string in
     let description = json |> member "description" |> to_string in
     let avatar = json |> member "avatar" |> to_string in
-    (*BANNER WASNT FOUND MIGHT HAVE SLIGHTLY DIFFERENT PROFILE FORMATS*)
     let banner = json |> member "banner" |> to_string in
     let follows_count = json |> member "followsCount" |> to_int in
     let followers_count = json |> member "followersCount" |> to_int in
@@ -163,7 +162,6 @@ module Actor = struct
     let get_suggestions_url = App.create_endpoint_url base_url (create_actor_endpoint "getSuggestions") in
     let body = Cohttp_client.create_body_from_pairs [("limit", string_of_int limit)] in
     let suggestions = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_suggestions_url body headers) in
-    Printf.printf "Checkout Suggestions on ingestion: %s\n" suggestions;
     suggestions |> convert_body_to_json |> parse_short_profiles
 
   let search_actors (s : Session.session) (term : string) (limit : int) : short_profile list =
@@ -174,7 +172,6 @@ module Actor = struct
     let search_actors_url = App.create_endpoint_url base_url (create_actor_endpoint "searchActors") in
     let body = Cohttp_client.create_body_from_pairs [("term", term); ("limit", string_of_int limit)] in
     let profiles = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers search_actors_url body headers) in
-    Printf.printf "Checkout Search Actors on ingestion: %s\n" profiles;
     profiles |> convert_body_to_json |> parse_short_profiles
 
   let search_actors_typeahead (s : Session.session) (term : string) (limit : int) : typeahead_profile list =
@@ -185,7 +182,6 @@ module Actor = struct
     let search_actors_typeahead_url = App.create_endpoint_url base_url (create_actor_endpoint "searchActorsTypeahead") in
     let body = Cohttp_client.create_body_from_pairs [("term", term); ("limit", string_of_int limit)] in
     let profiles = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers search_actors_typeahead_url body headers) in
-    Printf.printf "Checkout Search Actors  Typeahead on ingestion: %s\n" profiles;
     profiles |> convert_body_to_json |> parse_typeahead_profiles
 
 end
