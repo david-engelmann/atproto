@@ -66,7 +66,6 @@ module Actor = struct
     "app.bsky.actor" ^ "." ^ query_name
 
   let get_profile (s : Session.session) (actor : string) : profile =
-    let open Yojson.Safe.Util in
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
@@ -80,7 +79,6 @@ module Actor = struct
 
 
   let get_profiles (s : Session.session) (actors : string list) : profile list =
-    let open Yojson.Safe.Util in
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
