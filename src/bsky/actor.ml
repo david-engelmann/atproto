@@ -7,6 +7,8 @@ module Actor = struct
     {
       muted : bool;
       blocked_by : bool;
+      following : string option;
+      followed_by : string option;
     }
 
   type profile =
@@ -49,11 +51,21 @@ module Actor = struct
 
     }
 
+  let extract_string_option json field : string option =
+    let open Yojson.Safe.Util in
+    try
+      Some (to_string (member field json))
+    with
+     Type_error _ -> None
+
+
   let parse_viewer_status json : viewer_status =
     let open Yojson.Safe.Util in
     let muted = json |> member "muted" |> to_bool in
     let blocked_by = json |> member "blockedBy" |> to_bool in
-    { muted; blocked_by }
+    let following = extract_string_option json "following" in
+    let followed_by = extract_string_option json "followedBy" in
+    { muted; blocked_by; following; followed_by }
 
   let parse_profile json : profile =
     let open Yojson.Safe.Util in

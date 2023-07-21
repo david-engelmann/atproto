@@ -19,7 +19,7 @@ module Notification = struct
     {
       uri : string;
       cid : string;
-      author : Actor.profile;
+      author : Actor.short_profile;
       reason : string;
       reason_subject : string;
       record : record;
@@ -45,7 +45,7 @@ module Notification = struct
     let open Yojson.Safe.Util in
     let uri = json |> member "uri" |> to_string in
     let cid = json |> member "cid" |> to_string in
-    let author = json |> member "author" |> Actor.parse_profile in
+    let author = json |> member "author" |> Actor.parse_short_profile in
     let reason = json |> member "reason" |> to_string in
     let reason_subject = json |> member "reasonSubject" |> to_string in
     let record = json |> member "record" |> parse_record in
@@ -85,6 +85,7 @@ module Notification = struct
     let list_notifications_url = App.create_endpoint_url base_url (create_notification_endpoint "listNotifications") in
     let body = Cohttp_client.create_body_from_pairs [("limit", string_of_int limit)] in
     let notifications = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers list_notifications_url body headers) in
+    Printf.printf "Notification from endpoint: %s\n" notifications;
     notifications |> convert_body_to_json |> member "notifications" |> to_list |> List.map parse_notification
 
   let update_seen (s : Session.session) (seen_at : string) : string =
