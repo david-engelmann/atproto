@@ -9,12 +9,49 @@ module Notification = struct
       uri : string;
       cid : string;
     }
-  type record =
+
+  type like_record =
     {
       record_type : string;
       subject : strong_ref;
       created_at : string;
     }
+
+  type follow_record =
+    {
+      record_type : string;
+      subject : string;
+      created_at : string;
+    }
+
+  type repost_record =
+    {
+      record_type : string;
+      subject : strong_ref;
+      created_at : string;
+    }
+
+  type reply =
+    {
+      root : strong_ref;
+      parent : strong_ref;
+    }
+
+  type reply_record =
+    {
+      text : string;
+      record_type : string;
+      langs : string list;
+      reply : reply;
+      created_at : string;
+   }
+
+  type record =
+    | `Like of like_record
+    | `Follow of follow_record
+    | `Repost of repost_record
+    | `Reply of reply_record
+
   type notification =
     {
       uri : string;
@@ -27,6 +64,23 @@ module Notification = struct
       indexed_at : string;
       labels : (string list) option;
     }
+
+  (*
+  let lookup_record (r : string) : record =
+    match r with
+    | "like" -> Like
+    | "follow" -> Follow
+    | "repost" -> Repost
+    | "reply" -> Reply
+
+  let lookup_record_type (r : record) =
+    match r with
+    | Like -> like_record
+    | Follow -> follow_record
+    | Repost -> repost_record
+    | Reply -> reply_record
+    | Unknown -> like_record
+  *)
 
   let parse_strong_ref json : strong_ref =
     let open Yojson.Safe.Util in
@@ -47,6 +101,7 @@ module Notification = struct
     let cid = json |> member "cid" |> to_string in
     let author = json |> member "author" |> Actor.parse_short_profile in
     let reason = json |> member "reason" |> to_string in
+    (*parse record based on reason maybe pass?*)
     let reason_subject = Actor.extract_string_option json "reasonSubject" in
     let record = json |> member "record" |> parse_record in
     let is_read = json |> member "isRead" |> to_bool in
@@ -84,9 +139,10 @@ module Notification = struct
     let base_url = App.create_base_url s in
     let list_notifications_url = App.create_endpoint_url base_url (create_notification_endpoint "listNotifications") in
     let body = Cohttp_client.create_body_from_pairs [("limit", string_of_int limit)] in
-    let notifications = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers list_notifications_url body headers) in
-    Printf.printf "Notification from endpoint: %s\n" notifications;
-    notifications |> convert_body_to_json |> member "notifications" |> to_list |> List.map parse_notification
+    let notifications_req = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers list_notifications_url body headers) in
+    Printf.printf "Notification from endpoint: %s\n" notifications_req;
+    let notification_list = notifications_req |> convert_body_to_json |> member "notifications" |> to_list in
+    notification_list |> List.map parse_notification
 
   let update_seen (s : Session.session) (seen_at : string) : string =
     let bearer_token = Session.bearer_token_from_session s in
