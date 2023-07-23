@@ -47,10 +47,12 @@ module Notification = struct
    }
 
   type record =
+    [
     | `Like of like_record
     | `Follow of follow_record
     | `Repost of repost_record
     | `Reply of reply_record
+    ]
 
   type notification =
     {
@@ -88,12 +90,39 @@ module Notification = struct
     let cid = json |> member "cid" |> to_string in
     { uri; cid }
 
-  let parse_record json : record =
+  let parse_reply json : reply =
     let open Yojson.Safe.Util in
-    let record_type = json |> member "$type" |> to_string in
-    let subject = json |> member "subject" |> parse_strong_ref in
-    let created_at = json |> member "createdAt" |> to_string in
-    { record_type; subject; created_at }
+    let root = json |> member "root" |> parse_strong_ref in
+    let parent = json |> member "parent" |> parse_strong_ref in
+    { root; parent }
+
+  let parse_record json reason : record =
+    let open Yojson.Safe.Util in
+    match reason with
+    | "like" ->
+        let record_type = json |> member "$type" |> to_string in
+        let subject = json |> member "subject" |> parse_strong_ref in
+        let created_at = json |> member "createdAt" |> to_string in
+        `Like { record_type; subject; created_at }
+    | "follow" ->
+        let record_type = json |> member "$type" |> to_string in
+        let subject = json |> member "subject" |> to_string in
+        let created_at = json |> member "createdAt" |> to_string in
+        `Follow { record_type; subject; created_at }
+    | "repost" ->
+        let record_type = json |> member "$type" |> to_string in
+        let subject = json |> member "subject" |> parse_strong_ref in
+        let created_at = json |> member "createdAt" |> to_string in
+        `Repost { record_type; subject; created_at }
+    | "reply" ->
+        let text = json |> member "text" |> to_string in
+        let record_type = json |> member "$type" |> to_string in
+        let langs = json |> member "langs" |> to_list |> List.map to_string in
+        let reply = json |> member "reply" |> parse_reply in
+        let created_at = json |> member "createdAt" |> to_string in
+        `Reply { text; record_type; langs; reply; created_at }
+    | _ -> failwith ("Unknown Record Type: " ^ reason)
+
 
   let parse_notification json : notification =
     let open Yojson.Safe.Util in
@@ -101,9 +130,9 @@ module Notification = struct
     let cid = json |> member "cid" |> to_string in
     let author = json |> member "author" |> Actor.parse_short_profile in
     let reason = json |> member "reason" |> to_string in
-    (*parse record based on reason maybe pass?*)
     let reason_subject = Actor.extract_string_option json "reasonSubject" in
-    let record = json |> member "record" |> parse_record in
+    let record_json = json |> member "record" in
+    let record = parse_record record_json reason in
     let is_read = json |> member "isRead" |> to_bool in
     let indexed_at = json |> member "indexedAt" |> to_string in
     let labels =
@@ -140,7 +169,6 @@ module Notification = struct
     let list_notifications_url = App.create_endpoint_url base_url (create_notification_endpoint "listNotifications") in
     let body = Cohttp_client.create_body_from_pairs [("limit", string_of_int limit)] in
     let notifications_req = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers list_notifications_url body headers) in
-    Printf.printf "Notification from endpoint: %s\n" notifications_req;
     let notification_list = notifications_req |> convert_body_to_json |> member "notifications" |> to_list in
     notification_list |> List.map parse_notification
 
