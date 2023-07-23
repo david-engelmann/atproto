@@ -10,8 +10,7 @@ let create_test_session _ =
 let test_get_author_feed _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let author_feed = Feed.get_author_feed test_session "david-engelmann.bsky.social" 20 in
-  Printf.printf "Author Feed: %s\n" author_feed;
-  OUnit2.assert_bool "Author Feed is not empty" (author_feed <> "")
+  OUnit2.assert_bool "Author Feed is not empty" ((List.length author_feed) > 10)
 
 let test_get_likes _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in

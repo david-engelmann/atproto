@@ -9,11 +9,6 @@ module Feed = struct
    * Depending on get_post_thread results, might want a type for each
    * combination ie. type feed_post, type feed_reply, feed_repost, feed_like?, feed_follow?
    * *)
-  type feed =
-    [
-    | `Post
-    | `Reply
-    ]
 
   type post_record =
     {
@@ -32,8 +27,21 @@ module Feed = struct
       created_at : string;
     }
 
+  type repost_record =
+    {
+      text : string;
+      record_type : string;
+      created_at : string;
+    }
+
   type like_viewer =
     {
+      like : string;
+    }
+
+  type repost_viewer =
+    {
+      repost : string;
       like : string;
     }
 
@@ -41,6 +49,7 @@ module Feed = struct
     [
     | `LikeViewer of like_viewer
     | `ViewerStatus of Actor.viewer_status
+    | `RepostViewer of repost_viewer
     | `EmptyViewer
     ]
 
@@ -72,6 +81,54 @@ module Feed = struct
       labels : (string list) option;
     }
 
+  type repost_post =
+    {
+      uri : string;
+      cid : string;
+      author : Actor.typeahead_profile;
+      record : repost_record;
+      reply_count : int;
+      repost_count : int;
+      like_count : int;
+      indexed_at : string;
+      viewer : feed_viewer;
+      labels : (string list) option;
+    }
+
+  (* lies *)
+  type reply =
+    {
+      root : repost_post;
+      parent : repost_post;
+    }
+
+  type reply_feed =
+    {
+      post : reply_post;
+      reply : reply;
+
+    }
+
+  type reason =
+    {
+      reason_type : string;
+      by : Actor.typeahead_profile;
+      indexed_at : string;
+    }
+
+  type repost_feed =
+    {
+      post : repost_post;
+      reason : reason;
+    }
+
+  type feed =
+    [
+    | `Post of post
+    | `Reply of reply_feed
+    | `Repost of repost_feed
+    ]
+
   let check_for_field field json =
     match json with
     | `Assoc fields -> List.exists (fun (key, _) -> key = field) fields
@@ -94,20 +151,37 @@ module Feed = struct
     let created_at = json |> member "createdAt" |> to_string in
     { text; record_type; langs; reply; created_at }
 
+  let parse_repost_record json : repost_record =
+    let open Yojson.Safe.Util in
+    let text = json |> member "text" |> to_string in
+    let record_type = json |> member "$type" |> to_string in
+    let created_at = json |> member "createdAt" |> to_string in
+    { text; record_type; created_at }
+
   let parse_like_viewer json : like_viewer =
     let open Yojson.Safe.Util in
     let like = json |> member "like" |> to_string in
     { like }
 
+  let parse_repost_viewer json : repost_viewer =
+    let open Yojson.Safe.Util in
+    let repost = json |> member "repost" |> to_string in
+    let like = json |> member "like" |> to_string in
+    { repost; like }
+
   let parse_feed_viewer json : feed_viewer =
+    let repost_check = check_for_field "repost" json in
     let like_check = check_for_field "like" json in
     let muted_check = check_for_field "muted" json in
-    match like_check with
-    | true -> `LikeViewer (parse_like_viewer json)
+    match repost_check with
+    | true -> `RepostViewer (parse_repost_viewer json)
     | false ->
-      match muted_check with
-      | true -> `ViewerStatus (Actor.parse_viewer_status json)
-      | false -> `EmptyViewer
+      match like_check with
+      | true -> `LikeViewer (parse_like_viewer json)
+      | false ->
+          match muted_check with
+          | true -> `ViewerStatus (Actor.parse_viewer_status json)
+          | false -> `EmptyViewer
 
   let parse_post json : post =
     let open Yojson.Safe.Util in
@@ -149,10 +223,70 @@ module Feed = struct
     { uri; cid; author; record; reply_count; repost_count; like_count;
       indexed_at; viewer; labels }
 
+  let parse_reason json : reason =
+    let open Yojson.Safe.Util in
+    let reason_type = json |> member "$type" |> to_string in
+    let by = json |> member "by" |> Actor.parse_typeahead_profile in
+    let indexed_at = json |> member "indexedAt" |> to_string in
+    { reason_type; by; indexed_at }
+
+  let parse_repost_post json : repost_post =
+    let open Yojson.Safe.Util in
+    let uri = json |> member "uri" |> to_string in
+    let cid = json |> member "cid" |> to_string in
+    let author = json |> member "author" |> Actor.parse_typeahead_profile in
+    let record = json |> member "record" |> parse_repost_record in
+    let reply_count = json |> member "replyCount" |> to_int in
+    let repost_count = json |> member "repostCount" |> to_int in
+    let like_count = json |> member "likeCount" |> to_int in
+    let indexed_at = json |> member "indexedAt" |> to_string in
+    let viewer = json |> member "viewer" |> parse_feed_viewer in
+    let labels =
+      match json |> member "labels" with
+      | `Null -> None
+      | `List labels_json -> Some (labels_json |> List.map to_string)
+      | _ -> None
+    in
+    { uri; cid; author; record; reply_count; repost_count; like_count;
+      indexed_at; viewer; labels }
+
+  let parse_reply json : reply =
+    let open Yojson.Safe.Util in
+    let root = json |> member "root" |> parse_repost_post in
+    let parent = json |> member "parent" |> parse_repost_post in
+    { root; parent }
+
+  let parse_repost_feed json : repost_feed =
+    let open Yojson.Safe.Util in
+    let post = json |> member "post" |> parse_repost_post in
+    let reason = json |> member "reason" |> parse_reason in
+    { post; reason }
+
+  let parse_reply_feed json : reply_feed =
+    let open Yojson.Safe.Util in
+    let post = json |> member "post" |> parse_reply_post in
+    let reply = json |> member "reply" |> parse_reply in
+    { post; reply }
+
+  let parse_feed json : feed =
+    let reason_field_check = check_for_field "reason" json in
+    let reply_field_check = check_for_field "reply" json in
+    match reason_field_check with
+    | true -> `Repost (parse_repost_feed json)
+    | false ->
+      match reply_field_check with
+      | true -> `Reply (parse_reply_feed json)
+      | false -> `Post (parse_post json)
+
+  let convert_body_to_json (body : string) : Yojson.Safe.t =
+    let json = Yojson.Safe.from_string body in
+    json
+
   let create_feed_endpoint (query_name : string) : string =
     "app.bsky.feed" ^ "." ^ query_name
 
-  let get_author_feed (s : Session.session) (actor : string) (limit : int) : string =
+  let get_author_feed (s : Session.session) (actor : string) (limit : int) : feed list =
+    let open Yojson.Safe.Util in
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
@@ -160,8 +294,9 @@ module Feed = struct
     let get_author_feed_url = App.create_endpoint_url base_url (create_feed_endpoint "getAuthorFeed") in
     let body = Cohttp_client.create_body_from_pairs [("actor", actor); ("limit", string_of_int limit)] in
     let author_feed = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_author_feed_url body headers) in
-    Printf.printf "Author Feed in func: %s\n" author_feed;
-    author_feed
+    let feed = author_feed |> convert_body_to_json |> member "feed" in
+    Printf.printf "\n\nparsing feed: %s\n\n" (to_string feed);
+    feed |> to_list |> List.map parse_feed
 
   let get_likes (s : Session.session) (uri : string) (cid : string) (limit : int) : string =
     let bearer_token = Session.bearer_token_from_session s in
