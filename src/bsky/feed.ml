@@ -3,6 +3,10 @@ open Cohttp_client
 open App
 
 module Feed = struct
+  (* Authors feed comes with either "post" "post"+"reply" or "post"+"reason"
+   * Depending on get_post_thread results, might want a type for each
+   * combination ie. type feed_post, type feed_reply, feed_repost, feed_like?, feed_follow?
+   * *)
   let create_feed_endpoint (query_name : string) : string =
     "app.bsky.feed" ^ "." ^ query_name
 
@@ -14,6 +18,7 @@ module Feed = struct
     let get_author_feed_url = App.create_endpoint_url base_url (create_feed_endpoint "getAuthorFeed") in
     let body = Cohttp_client.create_body_from_pairs [("actor", actor); ("limit", string_of_int limit)] in
     let author_feed = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_author_feed_url body headers) in
+    Printf.printf "Author Feed in func: %s\n" author_feed;
     author_feed
 
   let get_likes (s : Session.session) (uri : string) (cid : string) (limit : int) : string =
