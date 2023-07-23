@@ -10,8 +10,9 @@ let create_test_session _ =
 let test_get_unread_count _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let unread_count = Notification.get_unread_count test_session in
-  Printf.printf "Unread Count: %s\n" unread_count;
-  OUnit2.assert_bool "Unread Count is not empty" (unread_count <> "")
+  match unread_count with
+  | { count } ->
+    OUnit2.assert_bool "Count is not present" (count >= 0)
 
 let test_list_notifications _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
