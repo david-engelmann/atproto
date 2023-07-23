@@ -4,6 +4,10 @@ module Embed = struct
      * images
      * record
      * record_with_media
+     *
+     * need to parse embed similar to notification but with that bit about if
+     * the field is missing
+     *
      * *)
   type ref =
     {
@@ -35,10 +39,25 @@ module Embed = struct
       description : string;
     }
 
+  type ext_view =
+    {
+     uri : string;
+     title : string;
+     description : string;
+     thumb : string;
+    }
+
   type image_data =
     {
       alt : string;
       image : image;
+    }
+
+  type image_view =
+    {
+      thumb : string;
+      fullsize : string;
+      alt : string;
     }
 
   type image_embed =
@@ -47,16 +66,30 @@ module Embed = struct
       images : image_data list;
     }
 
+  type image_view_embed =
+    {
+      embed_type : string;
+      images : image_view list;
+    }
+
   type ext_embed =
     {
       embed_type : string;
       ext : ext;
     }
 
+  type ext_view_embed =
+    {
+      embed_type : string;
+      ext : ext_view;
+    }
+
   type embed = (* GONNA CHANGE TO | style *)
     [
     | `Image of image_embed
+    | `ImageView of image_view_embed
     | `External of ext_embed
+    | `ExternalView of ext_view_embed
     ]
 
   let parse_ref json : ref =
@@ -88,10 +121,24 @@ module Embed = struct
     let description = json |> member "description" |> to_string in
     { uri; thumb; title; description }
 
+  let parse_ext_view json : ext_view =
+    let open Yojson.Safe.Util in
+    let uri = json |> member "uri" |> to_string in
+    let title = json |> member "title" |> to_string in
+    let description = json |> member "description" |> to_string in
+    let thumb = json |> member "thumb" |> to_string in
+    { uri; title; description; thumb }
+
   let parse_ext_embed json : ext_embed =
     let open Yojson.Safe.Util in
     let embed_type = json |> member "$type" |> to_string in
     let ext = json |> member "external" |> parse_ext in
+    { embed_type; ext }
+
+  let parse_ext_view_embed json : ext_view_embed =
+    let open Yojson.Safe.Util in
+    let embed_type = json |> member "$type" |> to_string in
+    let ext = json |> member "external" |> parse_ext_view in
     { embed_type; ext }
 
   let parse_image_data json : image_data =
@@ -100,9 +147,22 @@ module Embed = struct
     let image = json |> member "image" |> parse_image in
     { alt; image }
 
+  let parse_image_view json : image_view =
+    let open Yojson.Safe.Util in
+    let thumb = json |> member "thumb" |> to_string in
+    let fullsize = json |> member "fullsize" |> to_string in
+    let alt = json |> member "alt" |> to_string in
+    { thumb; fullsize; alt }
+
   let parse_image_embed json : image_embed =
     let open Yojson.Safe.Util in
     let embed_type = json |> member "$type" |> to_string in
     let images = json |> member "images" |> to_list |> List.map parse_image_data in
+    { embed_type; images }
+
+  let parse_image_view_embed json : image_view_embed =
+    let open Yojson.Safe.Util in
+    let embed_type = json |> member "$type" |> to_string in
+    let images = json |> member "images" |> to_list |> List.map parse_image_view in
     { embed_type; images }
 end
