@@ -1,9 +1,4 @@
 module Facet = struct
-  (* link, mention
-   * link has no type in the facet list but it says link in the features->$type, use uri
-   * mention has type in the facet list and in features->$type, use did
-   *
-   * *)
   type facet_index =
     {
       byte_end : int;
