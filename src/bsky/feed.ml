@@ -12,6 +12,7 @@ module Feed = struct
   type feed =
     [
     | `Post
+    | `Reply
     ]
 
   type post_record =
@@ -19,6 +20,15 @@ module Feed = struct
       text : string;
       record_type : string;
       langs : string list;
+      created_at : string;
+    }
+
+  type reply_record =
+    {
+      text : string;
+      record_type : string;
+      langs : string list;
+      reply : Notification.reply;
       created_at : string;
     }
 
@@ -48,6 +58,20 @@ module Feed = struct
       labels : (string list) option;
     }
 
+  type reply_post =
+    {
+      uri : string;
+      cid : string;
+      author : Actor.typeahead_profile;
+      record : reply_record;
+      reply_count : int;
+      repost_count : int;
+      like_count : int;
+      indexed_at : string;
+      viewer : feed_viewer;
+      labels : (string list) option;
+    }
+
   let check_for_field field json =
     match json with
     | `Assoc fields -> List.exists (fun (key, _) -> key = field) fields
@@ -60,6 +84,15 @@ module Feed = struct
     let langs = json |> member "langs" |> to_list |> List.map to_string in
     let created_at = json |> member "createdAt" |> to_string in
     { text; record_type; langs; created_at }
+
+  let parse_reply_record json : reply_record =
+    let open Yojson.Safe.Util in
+    let text = json |> member "text" |> to_string in
+    let record_type = json |> member "$type" |> to_string in
+    let langs = json |> member "langs" |> to_list |> List.map to_string in
+    let reply = json |> member "reply" |> Notification.parse_reply in
+    let created_at = json |> member "createdAt" |> to_string in
+    { text; record_type; langs; reply; created_at }
 
   let parse_like_viewer json : like_viewer =
     let open Yojson.Safe.Util in
@@ -82,6 +115,26 @@ module Feed = struct
     let cid = json |> member "cid" |> to_string in
     let author = json |> member "author" |> Actor.parse_typeahead_profile in
     let record = json |> member "record" |> parse_post_record in
+    let reply_count = json |> member "replyCount" |> to_int in
+    let repost_count = json |> member "repostCount" |> to_int in
+    let like_count = json |> member "likeCount" |> to_int in
+    let indexed_at = json |> member "indexedAt" |> to_string in
+    let viewer = json |> member "viewer" |> parse_feed_viewer in
+    let labels =
+      match json |> member "labels" with
+      | `Null -> None
+      | `List labels_json -> Some (labels_json |> List.map to_string)
+      | _ -> None
+    in
+    { uri; cid; author; record; reply_count; repost_count; like_count;
+      indexed_at; viewer; labels }
+
+  let parse_reply_post json : reply_post =
+    let open Yojson.Safe.Util in
+    let uri = json |> member "uri" |> to_string in
+    let cid = json |> member "cid" |> to_string in
+    let author = json |> member "author" |> Actor.parse_typeahead_profile in
+    let record = json |> member "record" |> parse_reply_record in
     let reply_count = json |> member "replyCount" |> to_int in
     let repost_count = json |> member "repostCount" |> to_int in
     let like_count = json |> member "likeCount" |> to_int in
