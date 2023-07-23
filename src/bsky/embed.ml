@@ -165,4 +165,40 @@ module Embed = struct
     let embed_type = json |> member "$type" |> to_string in
     let images = json |> member "images" |> to_list |> List.map parse_image_view in
     { embed_type; images }
+
+  let check_for_field field json =
+    match json with
+    | `Assoc fields -> List.exists (fun (key, _) -> key = field) fields
+    | _ -> false
+
+  let check_field_is_string field json : bool =
+    let open Yojson.Safe.Util in
+    let test_field_value = member field json in
+    match test_field_value with
+     | `String _ -> true
+     | _ -> false
+
+  let parse_to_correct_external_type json =
+    let open Yojson.Safe.Util in
+    let thumb_check = check_field_is_string "thumb" (json |> member "external") in
+    match thumb_check with
+    | false -> `External (parse_ext_embed json)
+    | true -> `ExternalView (parse_ext_view_embed json)
+
+  let parse_to_correct_image_type json =
+    let open Yojson.Safe.Util in
+    let image_field_check = check_for_field "image" (json |> member "images" |> to_list |> List.hd) in
+    match image_field_check with
+    | false -> `ImageView (parse_image_view_embed json)
+    | true -> `Image (parse_image_embed json)
+
+  let parse_embed json : embed =
+    let images_field_check = check_for_field "images" json in
+    let external_field_check = check_for_field "external" json in
+    match images_field_check with
+    | true -> parse_to_correct_image_type json
+    | false ->
+      match external_field_check with
+      | false -> failwith "haven't got to record record_with_media"
+      | true -> parse_to_correct_external_type json
 end
