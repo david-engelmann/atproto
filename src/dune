@@ -5,5 +5,5 @@
  httpaf-lwt-unix h2-lwt-unix ssl jose lwt_ssl lwt)
  (preprocess (pps ppx_jane))
  (modules App Actor Auth Cohttp_client Session Moderation Graph User Http_client
- Http_method Notification Feed Label Request Response Repo Server Sync)
+ Http_method Notification Feed Facet Label Request Response Repo Server Sync)
 )
