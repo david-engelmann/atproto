@@ -1,12 +1,101 @@
 open Session
 open Cohttp_client
 open App
+open Actor
+open Notification
 
 module Feed = struct
   (* Authors feed comes with either "post" "post"+"reply" or "post"+"reason"
    * Depending on get_post_thread results, might want a type for each
    * combination ie. type feed_post, type feed_reply, feed_repost, feed_like?, feed_follow?
    * *)
+  type feed =
+    [
+    | `Post
+    ]
+
+  type post_record =
+    {
+      text : string;
+      record_type : string;
+      langs : string list;
+      created_at : string;
+    }
+
+  type like_viewer =
+    {
+      like : string;
+    }
+
+  type feed_viewer =
+    [
+    | `LikeViewer of like_viewer
+    | `ViewerStatus of Actor.viewer_status
+    | `EmptyViewer
+    ]
+
+  type post =
+    {
+      uri : string;
+      cid : string;
+      author : Actor.typeahead_profile;
+      record : post_record;
+      reply_count : int;
+      repost_count : int;
+      like_count : int;
+      indexed_at : string;
+      viewer : feed_viewer;
+      labels : (string list) option;
+    }
+
+  let check_for_field field json =
+    match json with
+    | `Assoc fields -> List.exists (fun (key, _) -> key = field) fields
+    | _ -> false
+
+  let parse_post_record json : post_record =
+    let open Yojson.Safe.Util in
+    let text = json |> member "text" |> to_string in
+    let record_type = json |> member "$type" |> to_string in
+    let langs = json |> member "langs" |> to_list |> List.map to_string in
+    let created_at = json |> member "createdAt" |> to_string in
+    { text; record_type; langs; created_at }
+
+  let parse_like_viewer json : like_viewer =
+    let open Yojson.Safe.Util in
+    let like = json |> member "like" |> to_string in
+    { like }
+
+  let parse_feed_viewer json : feed_viewer =
+    let like_check = check_for_field "like" json in
+    let muted_check = check_for_field "muted" json in
+    match like_check with
+    | true -> `LikeViewer (parse_like_viewer json)
+    | false ->
+      match muted_check with
+      | true -> `ViewerStatus (Actor.parse_viewer_status json)
+      | false -> `EmptyViewer
+
+  let parse_post json : post =
+    let open Yojson.Safe.Util in
+    let uri = json |> member "uri" |> to_string in
+    let cid = json |> member "cid" |> to_string in
+    let author = json |> member "author" |> Actor.parse_typeahead_profile in
+    let record = json |> member "record" |> parse_post_record in
+    let reply_count = json |> member "replyCount" |> to_int in
+    let repost_count = json |> member "repostCount" |> to_int in
+    let like_count = json |> member "likeCount" |> to_int in
+    let indexed_at = json |> member "indexedAt" |> to_string in
+    let viewer = json |> member "viewer" |> parse_feed_viewer in
+    let labels =
+      match json |> member "labels" with
+      | `Null -> None
+      | `List labels_json -> Some (labels_json |> List.map to_string)
+      | _ -> None
+    in
+    { uri; cid; author; record; reply_count; repost_count; like_count;
+      indexed_at; viewer; labels }
+
   let create_feed_endpoint (query_name : string) : string =
     "app.bsky.feed" ^ "." ^ query_name
 
