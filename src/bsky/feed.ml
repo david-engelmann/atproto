@@ -173,7 +173,6 @@ module Feed = struct
       post : repost_post;
     }
 
-
   type feed =
     [
     | `Post of post_feed
@@ -181,6 +180,10 @@ module Feed = struct
     | `Repost of repost_feed
     ]
 
+  type posts_feed =
+    {
+      posts : feed list;
+    }
 
   let check_for_field field json =
     match json with
@@ -224,6 +227,7 @@ module Feed = struct
     let open Yojson.Safe.Util in
     let text = json |> member "text" |> to_string in
     let record_type = json |> member "$type" |> to_string in
+    (* MAYBE REPLY NOW ALWAYS HERE *)
     let reply = json |> member "reply" |> Notification.parse_reply in
     let created_at = json |> member "createdAt" |> to_string in
     { text; record_type; reply; created_at }
@@ -379,6 +383,7 @@ module Feed = struct
     let post = json |> member "post" |> parse_repost_post in
     { post }
 
+
   let parse_reply_feed json : reply_feed =
     let open Yojson.Safe.Util in
     let post = json |> member "post" |> parse_reply_post in
@@ -440,6 +445,11 @@ module Feed = struct
     let thread = json |> member "thread" |> parse_thread in
     { thread }
 
+  let parse_posts_feed json : posts_feed =
+    let open Yojson.Safe.Util in
+    let posts = json |> member "posts" |> to_list |> List.map parse_feed in
+    { posts }
+
   let convert_body_to_json (body : string) : Yojson.Safe.t =
     let json = Yojson.Safe.from_string body in
     json
@@ -479,7 +489,7 @@ module Feed = struct
     let post_thread = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_post_thread_url body headers) in
     post_thread |> convert_body_to_json |> parse_thread_feed
 
-  let get_posts (s : Session.session) (uris: string list) : string =
+  let get_posts (s : Session.session) (uris: string list) : posts_feed =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
@@ -487,7 +497,7 @@ module Feed = struct
     let get_posts_url = App.create_endpoint_url base_url (create_feed_endpoint "getPosts") in
     let body = Cohttp_client.add_query_params "uris" uris in
     let posts = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_posts_url body headers) in
-    posts
+    posts |> convert_body_to_json |> parse_posts_feed
 
   let get_reposted_by (s : Session.session) (uri : string) (cid : string) (limit : int) : string =
     let bearer_token = Session.bearer_token_from_session s in
