@@ -40,6 +40,19 @@ module Actor = struct
 
     }
 
+  type short_profile_without_description =
+    {
+      did : string;
+      handle : string;
+      display_name : string option;
+      avatar : string;
+      indexed_at : string;
+      viewer : viewer_status;
+      labels : (string list) option;
+
+    }
+
+
   type typeahead_profile =
     {
       did : string;
@@ -89,6 +102,23 @@ module Actor = struct
     { did; handle; display_name; description; avatar; banner; follows_count;
       followers_count; posts_count; indexed_at; viewer; labels }
 
+  let parse_short_profile_without_description json : short_profile_without_description =
+    let open Yojson.Safe.Util in
+    let did = json |> member "did" |> to_string in
+    let handle = json |> member "handle" |> to_string in
+    let display_name = extract_string_option json "displayName" in
+    let avatar = json |> member "avatar" |> to_string in
+    let indexed_at = json |> member "indexedAt" |> to_string in
+    let viewer = json |> member "viewer" |> parse_viewer_status in
+    let labels =
+      match json |> member "labels" with
+      | `Null -> None
+      | `List labels_json -> Some (labels_json |> List.map to_string)
+      | _ -> None
+    in
+    { did; handle; display_name; avatar; indexed_at; viewer; labels }
+
+
   let parse_short_profile json : short_profile =
     let open Yojson.Safe.Util in
     let did = json |> member "did" |> to_string in
@@ -130,6 +160,11 @@ module Actor = struct
     let open Yojson.Safe.Util in
     let profiles = json |> member "actors" |> to_list in
     List.map parse_short_profile profiles
+
+  let parse_short_profile_without_descriptions json : short_profile_without_description list =
+    let open Yojson.Safe.Util in
+    let profiles = json |> member "actors" |> to_list in
+    List.map parse_short_profile_without_description profiles
 
   let parse_typeahead_profiles json : typeahead_profile list =
     let open Yojson.Safe.Util in
