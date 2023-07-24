@@ -190,6 +190,14 @@ module Feed = struct
       posts : reply_post list;
     }
 
+  type reposted_by_feed =
+    {
+      uri : string;
+      cid : string;
+      reposted_by : Actor.short_profile_without_description list;
+      cursor : string;
+    }
+
   let check_for_field field json =
     match json with
     | `Assoc fields -> List.exists (fun (key, _) -> key = field) fields
@@ -460,6 +468,14 @@ module Feed = struct
     let posts = json |> member "posts" |> to_list |> List.map parse_reply_post in
     { posts }
 
+  let parse_reposted_by_feed json : reposted_by_feed =
+    let open Yojson.Safe.Util in
+    let uri = json |> member "uri" |> to_string in
+    let cid = json |> member "cid" |> to_string in
+    let reposted_by = json |> member "repostedBy" |> to_list |> List.map Actor.parse_short_profile_without_description in
+    let cursor = json |> member "cursor" |> to_string in
+    { uri; cid; reposted_by; cursor }
+
   let convert_body_to_json (body : string) : Yojson.Safe.t =
     let json = Yojson.Safe.from_string body in
     json
@@ -509,7 +525,7 @@ module Feed = struct
     let posts = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_posts_url body headers) in
     posts |> convert_body_to_json |> parse_posts_feed (* used function name *)
 
-  let get_reposted_by (s : Session.session) (uri : string) (cid : string) (limit : int) : string =
+  let get_reposted_by (s : Session.session) (uri : string) (cid : string) (limit : int) : reposted_by_feed =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
@@ -517,7 +533,7 @@ module Feed = struct
     let get_reposted_by_url = App.create_endpoint_url base_url (create_feed_endpoint "getRepostedBy") in
     let body = Cohttp_client.create_body_from_pairs [("uri", uri); ("cid", cid); ("limit", string_of_int limit)] in
     let reposted_by = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_reposted_by_url body headers) in
-    reposted_by
+    reposted_by |> convert_body_to_json |> parse_reposted_by_feed
 
   let get_timeline (s : Session.session) (algorithm : string) (limit: int) : string =
     let bearer_token = Session.bearer_token_from_session s in
