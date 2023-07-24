@@ -11,6 +11,14 @@ module Feed = struct
    * combination ie. type feed_post, type feed_reply, feed_repost, feed_like?, feed_follow?
    * *)
 
+  type thread_record =
+    {
+      text : string;
+      record_type : string;
+      reply : Notification.reply;
+      created_at : string;
+    }
+
   type post_record =
     {
       text : string;
@@ -112,6 +120,21 @@ module Feed = struct
       labels : (string list) option;
     }
 
+  type thread_post =
+    {
+      uri : string;
+      cid : string;
+      author : Actor.typeahead_profile;
+      record : thread_record;
+      reply_count : int;
+      repost_count : int;
+      like_count : int;
+      indexed_at : string;
+      viewer : feed_viewer;
+      labels : (string list) option;
+    }
+
+
   (* lies *)
   type reply =
     {
@@ -124,6 +147,12 @@ module Feed = struct
       post : reply_post;
       reply : reply;
 
+    }
+
+  type replies =
+    {
+      replies_type : string;
+      post : reply_post;
     }
 
   type reason =
@@ -151,6 +180,7 @@ module Feed = struct
     | `Reply of reply_feed
     | `Repost of repost_feed
     ]
+
 
   let check_for_field field json =
     match json with
@@ -189,6 +219,14 @@ module Feed = struct
     let reply = json |> member "reply" |> Notification.parse_reply in
     let created_at = json |> member "createdAt" |> to_string in
     { text; record_type; langs; reply; created_at }
+
+  let parse_thread_record json : thread_record =
+    let open Yojson.Safe.Util in
+    let text = json |> member "text" |> to_string in
+    let record_type = json |> member "$type" |> to_string in
+    let reply = json |> member "reply" |> Notification.parse_reply in
+    let created_at = json |> member "createdAt" |> to_string in
+    { text; record_type; reply; created_at }
 
   let parse_repost_record json : repost_record =
     let open Yojson.Safe.Util in
@@ -248,6 +286,26 @@ module Feed = struct
     let cid = json |> member "cid" |> to_string in
     let author = json |> member "author" |> Actor.parse_typeahead_profile in
     let record = json |> member "record" |> parse_reply_record in
+    let reply_count = json |> member "replyCount" |> to_int in
+    let repost_count = json |> member "repostCount" |> to_int in
+    let like_count = json |> member "likeCount" |> to_int in
+    let indexed_at = json |> member "indexedAt" |> to_string in
+    let viewer = json |> member "viewer" |> parse_feed_viewer in
+    let labels =
+      match json |> member "labels" with
+      | `Null -> None
+      | `List labels_json -> Some (labels_json |> List.map to_string)
+      | _ -> None
+    in
+    { uri; cid; author; record; reply_count; repost_count; like_count;
+      indexed_at; viewer; labels }
+
+  let parse_thread_post json : thread_post =
+    let open Yojson.Safe.Util in
+    let uri = json |> member "uri" |> to_string in
+    let cid = json |> member "cid" |> to_string in
+    let author = json |> member "author" |> Actor.parse_typeahead_profile in
+    let record = json |> member "record" |> parse_thread_record in
     let reply_count = json |> member "replyCount" |> to_int in
     let repost_count = json |> member "repostCount" |> to_int in
     let like_count = json |> member "likeCount" |> to_int in
@@ -337,6 +395,51 @@ module Feed = struct
       | true -> `Reply (parse_reply_feed json)
       | false -> `Post (parse_post_feed json)
 
+  let parse_replies json : replies =
+    let open Yojson.Safe.Util in
+    let replies_type = json |> member "$type" |> to_string in
+    let post = json |> member "post" |> parse_reply_post in
+    { replies_type; post }
+
+  type thread_parent =
+    {
+     thread_type : string;
+     post : repost_post;
+     replies : replies list;
+    }
+  type thread =
+    {
+      thread_type : string;
+      post : thread_post;
+      parent : thread_parent;
+      replies : replies list;
+    }
+
+  type thread_feed =
+    {
+      thread : thread;
+    }
+
+  let parse_thread_parent json : thread_parent =
+    let open Yojson.Safe.Util in
+    let thread_type = json |> member "$type" |> to_string in
+    let post = json |> member "post" |> parse_repost_post in
+    let replies = json |> member "replies" |> to_list |> List.map parse_replies in
+    { thread_type; post; replies }
+
+  let parse_thread json : thread =
+    let open Yojson.Safe.Util in
+    let thread_type = json |> member "$type" |> to_string in
+    let post = json |> member "post" |> parse_thread_post in
+    let parent = json |> member "parent" |> parse_thread_parent in
+    let replies = json |> member "replies" |> to_list |> List.map parse_replies in
+    { thread_type; post; parent; replies }
+
+  let parse_thread_feed json : thread_feed =
+    let open Yojson.Safe.Util in
+    let thread = json |> member "thread" |> parse_thread in
+    { thread }
+
   let convert_body_to_json (body : string) : Yojson.Safe.t =
     let json = Yojson.Safe.from_string body in
     json
@@ -366,7 +469,7 @@ module Feed = struct
     let likes = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_likes_url body headers) in
     likes |> convert_body_to_json |> parse_likes
 
-  let get_post_thread (s : Session.session) (uri : string) (depth : int) : string =
+  let get_post_thread (s : Session.session) (uri : string) (depth : int) : thread_feed =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
@@ -374,7 +477,7 @@ module Feed = struct
     let get_post_thread_url = App.create_endpoint_url base_url (create_feed_endpoint "getPostThread") in
     let body = Cohttp_client.create_body_from_pairs [("uri", uri); ("depth", string_of_int depth)] in
     let post_thread = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_post_thread_url body headers) in
-    post_thread
+    post_thread |> convert_body_to_json |> parse_thread_feed
 
   let get_posts (s : Session.session) (uris: string list) : string =
     let bearer_token = Session.bearer_token_from_session s in
