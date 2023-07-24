@@ -10,13 +10,14 @@ let create_test_session _ =
 let test_get_author_feed _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let author_feed = Feed.get_author_feed test_session "david-engelmann.bsky.social" 50 in
-  OUnit2.assert_bool "Author Feed is not empty" ((List.length author_feed) > 10)
+  OUnit2.assert_bool "Author Feed is empty" ((List.length author_feed) > 10)
 
 let test_get_likes _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
-  let likes = Feed.get_likes test_session "at://did:plc:xov3uvxfd4to6ev3ak5g5uxk/app.bsky.feed.post/3jyf6gx25eb27" "bafyreiarimgpoqvxxnf3sg4h52gvfzvmyeybxk2xgy6v3dra7zuldy73aq" 1 in
-  Printf.printf "Likes Feed: %s\n" likes;
-  OUnit2.assert_bool "Likes Feed is not empty" (likes <> "")
+  let l = Feed.get_likes test_session "at://did:plc:xov3uvxfd4to6ev3ak5g5uxk/app.bsky.feed.post/3jyf6gx25eb27" "bafyreiarimgpoqvxxnf3sg4h52gvfzvmyeybxk2xgy6v3dra7zuldy73aq" 10 in
+  match l with
+  | { likes; _ } ->
+    OUnit2.assert_bool "Likes Feed is empty" ((List.length likes) > 0)
 
 let test_get_post_thread _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in

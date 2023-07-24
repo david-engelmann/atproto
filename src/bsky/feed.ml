@@ -55,6 +55,21 @@ module Feed = struct
     | `EmptyViewer
     ]
 
+  type like =
+    {
+      created_at : string;
+      indexed_at : string;
+      actor : Actor.short_profile;
+    }
+
+  type likes =
+    {
+      uri : string;
+      cid : string;
+      cursor : string;
+      likes : like list;
+    }
+
   type post =
     {
       uri : string;
@@ -247,6 +262,21 @@ module Feed = struct
     { uri; cid; author; record; reply_count; repost_count; like_count;
       indexed_at; viewer; labels }
 
+  let parse_like json : like =
+    let open Yojson.Safe.Util in
+    let created_at = json |> member "createdAt" |> to_string in
+    let indexed_at = json |> member "indexedAt" |> to_string in
+    let actor = json |> member "actor" |> Actor.parse_short_profile in
+    { created_at; indexed_at; actor }
+
+  let parse_likes json : likes =
+    let open Yojson.Safe.Util in
+    let uri = json |> member "uri" |> to_string in
+    let cid = json |> member "cid" |> to_string in
+    let cursor = json |> member "cursor" |> to_string in
+    let likes = json |> member "likes" |> to_list |> List.map parse_like in
+    { uri; cid; cursor; likes }
+
   let parse_reason json : reason =
     let open Yojson.Safe.Util in
     let reason_type = json |> member "$type" |> to_string in
@@ -326,7 +356,7 @@ module Feed = struct
     let feed = author_feed |> convert_body_to_json |> member "feed" in
     feed |> to_list |> List.map parse_feed
 
-  let get_likes (s : Session.session) (uri : string) (cid : string) (limit : int) : string =
+  let get_likes (s : Session.session) (uri : string) (cid : string) (limit : int) : likes =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
@@ -334,7 +364,7 @@ module Feed = struct
     let get_likes_url = App.create_endpoint_url base_url (create_feed_endpoint "getLikes") in
     let body = Cohttp_client.create_body_from_pairs [("uri", uri); ("cid", cid); ("limit", string_of_int limit)] in
     let likes = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_likes_url body headers) in
-    likes
+    likes |> convert_body_to_json |> parse_likes
 
   let get_post_thread (s : Session.session) (uri : string) (depth : int) : string =
     let bearer_token = Session.bearer_token_from_session s in
