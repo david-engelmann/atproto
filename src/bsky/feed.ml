@@ -3,6 +3,7 @@ open Cohttp_client
 open App
 open Actor
 open Notification
+open Facet
 
 module Feed = struct
   (* Authors feed comes with either "post" "post"+"reply" or "post"+"reason"
@@ -14,7 +15,8 @@ module Feed = struct
     {
       text : string;
       record_type : string;
-      langs : string list;
+      langs : (string list) option;
+      facets : (Facet.facet list) option;
       created_at : string;
     }
 
@@ -22,7 +24,7 @@ module Feed = struct
     {
       text : string;
       record_type : string;
-      langs : string list;
+      langs : (string list) option;
       reply : Notification.reply;
       created_at : string;
     }
@@ -122,9 +124,15 @@ module Feed = struct
       reason : reason;
     }
 
+  type post_feed =
+    {
+      post : repost_post;
+    }
+
+
   type feed =
     [
-    | `Post of post
+    | `Post of post_feed
     | `Reply of reply_feed
     | `Repost of repost_feed
     ]
@@ -134,19 +142,35 @@ module Feed = struct
     | `Assoc fields -> List.exists (fun (key, _) -> key = field) fields
     | _ -> false
 
+
+  let extract_langs_option json : (string list) option =
+    let open Yojson.Safe.Util in
+    try
+      Some (json |> member "langs" |> to_list |> List.map to_string)
+    with
+      Type_error _ -> None
+
+  let extract_facets_option json : (Facet.facet list) option =
+    let open Yojson.Safe.Util in
+    try
+      Some (json |> member "facets" |> to_list |> List.map Facet.parse_facet)
+    with
+      Type_error _ -> None
+
   let parse_post_record json : post_record =
     let open Yojson.Safe.Util in
     let text = json |> member "text" |> to_string in
     let record_type = json |> member "$type" |> to_string in
-    let langs = json |> member "langs" |> to_list |> List.map to_string in
+    let langs = extract_langs_option json in
+    let facets = extract_facets_option json in
     let created_at = json |> member "createdAt" |> to_string in
-    { text; record_type; langs; created_at }
+    { text; record_type; langs; facets; created_at }
 
   let parse_reply_record json : reply_record =
     let open Yojson.Safe.Util in
     let text = json |> member "text" |> to_string in
     let record_type = json |> member "$type" |> to_string in
-    let langs = json |> member "langs" |> to_list |> List.map to_string in
+    let langs = extract_langs_option json in
     let reply = json |> member "reply" |> Notification.parse_reply in
     let created_at = json |> member "createdAt" |> to_string in
     { text; record_type; langs; reply; created_at }
@@ -262,6 +286,11 @@ module Feed = struct
     let reason = json |> member "reason" |> parse_reason in
     { post; reason }
 
+  let parse_post_feed json : post_feed =
+    let open Yojson.Safe.Util in
+    let post = json |> member "post" |> parse_repost_post in
+    { post }
+
   let parse_reply_feed json : reply_feed =
     let open Yojson.Safe.Util in
     let post = json |> member "post" |> parse_reply_post in
@@ -276,7 +305,7 @@ module Feed = struct
     | false ->
       match reply_field_check with
       | true -> `Reply (parse_reply_feed json)
-      | false -> `Post (parse_post json)
+      | false -> `Post (parse_post_feed json)
 
   let convert_body_to_json (body : string) : Yojson.Safe.t =
     let json = Yojson.Safe.from_string body in
@@ -295,7 +324,6 @@ module Feed = struct
     let body = Cohttp_client.create_body_from_pairs [("actor", actor); ("limit", string_of_int limit)] in
     let author_feed = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_author_feed_url body headers) in
     let feed = author_feed |> convert_body_to_json |> member "feed" in
-    Printf.printf "\n\nparsing feed: %s\n\n" (to_string feed);
     feed |> to_list |> List.map parse_feed
 
   let get_likes (s : Session.session) (uri : string) (cid : string) (limit : int) : string =
