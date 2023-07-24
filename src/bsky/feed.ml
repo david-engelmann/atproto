@@ -173,6 +173,11 @@ module Feed = struct
       post : repost_post;
     }
 
+  type get_post_feed =
+    {
+      post : reply_post;
+    }
+
   type feed =
     [
     | `Post of post_feed
@@ -182,7 +187,7 @@ module Feed = struct
 
   type posts_feed =
     {
-      posts : feed list;
+      posts : reply_post list;
     }
 
   let check_for_field field json =
@@ -383,6 +388,10 @@ module Feed = struct
     let post = json |> member "post" |> parse_repost_post in
     { post }
 
+  let parse_get_post_feed json : get_post_feed =
+    let open Yojson.Safe.Util in
+    let post = json |> member "post" |> parse_reply_post in
+    { post }
 
   let parse_reply_feed json : reply_feed =
     let open Yojson.Safe.Util in
@@ -412,6 +421,7 @@ module Feed = struct
      post : repost_post;
      replies : replies list;
     }
+
   type thread =
     {
       thread_type : string;
@@ -447,7 +457,7 @@ module Feed = struct
 
   let parse_posts_feed json : posts_feed =
     let open Yojson.Safe.Util in
-    let posts = json |> member "posts" |> to_list |> List.map parse_feed in
+    let posts = json |> member "posts" |> to_list |> List.map parse_reply_post in
     { posts }
 
   let convert_body_to_json (body : string) : Yojson.Safe.t =
@@ -497,7 +507,7 @@ module Feed = struct
     let get_posts_url = App.create_endpoint_url base_url (create_feed_endpoint "getPosts") in
     let body = Cohttp_client.add_query_params "uris" uris in
     let posts = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_posts_url body headers) in
-    posts |> convert_body_to_json |> parse_posts_feed
+    posts |> convert_body_to_json |> parse_posts_feed (* used function name *)
 
   let get_reposted_by (s : Session.session) (uri : string) (cid : string) (limit : int) : string =
     let bearer_token = Session.bearer_token_from_session s in
