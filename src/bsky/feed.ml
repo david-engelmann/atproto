@@ -11,6 +11,7 @@ module Feed = struct
    * combination ie. type feed_post, type feed_reply, feed_repost, feed_like?, feed_follow?
    * *)
 
+
   type thread_record =
     {
       text : string;
@@ -196,6 +197,12 @@ module Feed = struct
       cid : string;
       reposted_by : Actor.short_profile_without_description list;
       cursor : string;
+    }
+
+  type timeline =
+    {
+      cursor : string;
+      feed : feed list;
     }
 
   let check_for_field field json =
@@ -417,6 +424,12 @@ module Feed = struct
       | true -> `Reply (parse_reply_feed json)
       | false -> `Post (parse_post_feed json)
 
+  let parse_timeline json : timeline =
+    let open Yojson.Safe.Util in
+    let cursor = json |> member "cursor" |> to_string in
+    let feed = json |> member "feed" |> to_list |> List.map parse_feed in
+    { cursor; feed }
+
   let parse_replies json : replies =
     let open Yojson.Safe.Util in
     let replies_type = json |> member "$type" |> to_string in
@@ -535,7 +548,7 @@ module Feed = struct
     let reposted_by = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_reposted_by_url body headers) in
     reposted_by |> convert_body_to_json |> parse_reposted_by_feed
 
-  let get_timeline (s : Session.session) (algorithm : string) (limit: int) : string =
+  let get_timeline (s : Session.session) (algorithm : string) (limit : int) : timeline =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
@@ -543,7 +556,7 @@ module Feed = struct
     let get_timeline_url = App.create_endpoint_url base_url (create_feed_endpoint "getTimeline") in
     let body = Cohttp_client.create_body_from_pairs [("algorithm", algorithm); ("limit", string_of_int limit)] in
     let timeline = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_timeline_url body headers) in
-    timeline
+    timeline |> convert_body_to_json |> parse_timeline
 
   let get_feed_skeleton (s : Session.session) (feed : string) (limit : int) : string =
     let bearer_token = Session.bearer_token_from_session s in

@@ -45,8 +45,9 @@ let test_get_reposted_by _ =
 let test_get_timeline _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let timeline = Feed.get_timeline test_session "reverse-chronological" 2 in
-  Printf.printf "Timeline Feed: %s\n" timeline;
-  OUnit2.assert_bool "Timeline Feed is not empty" (timeline <> "")
+  match timeline with
+  | { cursor; _ } ->
+    OUnit2.assert_bool "Timeline Feed is empty" (cursor <> "")
 
 (*
 let test_get_feed_skeleton _ =
