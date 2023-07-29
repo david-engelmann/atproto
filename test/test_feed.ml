@@ -51,7 +51,7 @@ let test_get_timeline _ =
 
 let test_get_feed_skeleton _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
-  let feed_skeleton = Feed.get_feed_skeleton test_session "1690211207532::bafyreiczrkekkemsr7qx6robw5y2tcnwccmbuvhhv5tbhsvnuhq4ow2sve" 2 in
+  let feed_skeleton = Feed.get_feed_skeleton test_session "at://did:plc:sho65umi6t4ohqyaijutbdcr/app.bsky.feed.post/3k3bop33b6u2e" 2 in
   Printf.printf "\n\nFeed Skeleton Feed: %s\n\n" feed_skeleton;
   OUnit2.assert_bool "Feed Skeleton Feed is not empty" (feed_skeleton <> "")
 
