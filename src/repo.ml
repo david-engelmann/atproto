@@ -1,8 +1,34 @@
 open Session
 open Cohttp_client
 open App
+open Embed
+open Facet
+open Feed
+open Notification
 
 module Repo = struct
+  type post_record =
+    {
+      text : string;
+      record_type : string;
+      embed : Embed.embed option;
+      facets : (Facet.facet list) option;
+      langs : (string list) option;
+      reply : Notification.reply option;
+      created_at : string;
+    }
+
+  let parse_post_record json : post_record =
+    let open Yojson.Safe.Util in
+    let text = json |> member "text" |> to_string in
+    let record_type = json |> member "$type" |> to_string in
+    let embed = Embed.parse_embed_option json in
+    let facets = Feed.extract_facets_option json in
+    let langs = Feed.extract_langs_option json in
+    let reply = Notification.parse_reply_option json in
+    let created_at = json |> member "createdAt" |> to_string in
+    { text; record_type; embed; facets; langs; reply; created_at }
+
   let create_repo_endpoint (query_name : string) : string =
     "com.atproto.repo" ^ "." ^ query_name
 
