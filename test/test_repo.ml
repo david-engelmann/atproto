@@ -13,6 +13,12 @@ let test_describe_repo _ =
   Printf.printf "Repo Description: %s\n" repo_description;
   OUnit2.assert_bool "Repo Description is not empty" (repo_description <> "")
 
+(*
+let test_create_record _ =
+  let test_session = create_test_session () |> Session.refresh_session_auth in
+  let created_record = Repo.create_record test_session "david-engelmann.bsky.social"
+*)
+
 let suite =
     "suite"
     >::: [

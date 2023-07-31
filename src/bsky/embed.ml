@@ -84,7 +84,7 @@ module Embed = struct
       ext : ext_view;
     }
 
-  type embed = (* GONNA CHANGE TO | style *)
+  type embed =
     [
     | `Image of image_embed
     | `ImageView of image_view_embed
@@ -201,4 +201,11 @@ module Embed = struct
       match external_field_check with
       | false -> failwith "haven't got to record record_with_media"
       | true -> parse_to_correct_external_type json
+
+  let parse_embed_option json : embed option =
+    let open Yojson.Safe.Util in
+    try
+      Some (json |> member "embed" |> parse_embed)
+    with
+      Type_error _ -> None
 end

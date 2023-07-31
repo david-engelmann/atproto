@@ -105,6 +105,13 @@ module Notification = struct
     let parent = json |> member "parent" |> parse_strong_ref in
     { root; parent }
 
+  let parse_reply_option json : reply option =
+    let open Yojson.Safe.Util in
+    try
+      Some (json |> member "reply" |> parse_reply)
+    with
+      Type_error _ -> None
+
   let parse_record json reason : record =
     let open Yojson.Safe.Util in
     match reason with
