@@ -36,4 +36,51 @@ module Repo = struct
     let records = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers list_records_url body headers) in
     records
 
+  let create_record (s : Session.session) (repo : string) (collection : string)  record ?(rkey = "") ?(validate = true) ?(swap_commit = "") : string =
+    let bearer_token = Session.bearer_token_from_session s in
+    let application_json = Cohttp_client.application_json_setting_tuple in
+    let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
+    let base_url = App.create_base_url s in
+    let create_record_url = App.create_endpoint_url base_url (create_repo_endpoint "createRecord") in
+    let use_rkey =
+      match rkey with
+      | "" -> false
+      | _ -> true
+    in
+    let use_swap_commit =
+      match swap_commit with
+      | "" -> false
+      | _ -> true
+    in
+    let json_data =
+      match (use_rkey, use_swap_commit) with
+      | (true, true) ->
+          `Assoc [("repo", `String repo);
+                  ("collection", `String collection);
+                  ("record", record);
+                  ("rkey", `String rkey);
+                  ("validate", `Bool validate);
+                  ("swapCommit", `String swap_commit);]
+     | (true, false) ->
+          `Assoc [("repo", `String repo);
+                  ("collection", `String collection);
+                  ("record", record);
+                  ("rkey", `String rkey);
+                  ("validate", `Bool validate);]
+    | (false, true) ->
+          `Assoc [("repo", `String repo);
+                  ("collection", `String collection);
+                  ("record", record);
+                  ("validate", `Bool validate);
+                  ("swapCommit", `String swap_commit);]
+    | (false, false) ->
+          `Assoc [("repo", `String repo);
+                  ("collection", `String collection);
+                  ("record", record);
+                  ("validate", `Bool validate);]
+    in
+    let data = Yojson.Basic.to_string json_data in
+    let created_record = Lwt_main.run (Cohttp_client.post_data_with_headers create_record_url data headers) in
+    created_record
+
 end
