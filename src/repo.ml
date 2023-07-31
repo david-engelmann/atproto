@@ -36,7 +36,7 @@ module Repo = struct
     let records = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers list_records_url body headers) in
     records
 
-  let create_record (s : Session.session) (repo : string) (collection : string) record ?rkey ?(validate = Some true) ?swap_commit : string =
+  let create_record (s : Session.session) (repo : string) (collection : string) record ?rkey ?(validate = true) ?swap_commit : string =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
@@ -100,7 +100,7 @@ module Repo = struct
         Some ("repo", `String repo);
         Some ("collection", `String collection);
         Some ("record", record);
-        Option.map (fun rkey -> ("rkey",  `String reky)) rkey;
+        Option.map (fun rkey -> ("rkey",  `String rkey)) rkey;
         Some ("validate", `Bool validate);
         Option.map (fun swap_commit -> ("swapCommit", `String swap_commit)) swap_commit;
       ] in
