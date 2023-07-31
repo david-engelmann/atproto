@@ -1,8 +1,21 @@
 open Session
 open Cohttp_client
 open App
+open Actor
 
 module Graph = struct
+  type subject =
+    {
+      did : string;
+      handle : string;
+      display_name : string;
+      description : string;
+      avatar : string;
+      indexed_at : string;
+      viewer : Actor.viewer_status;
+      labels : (string list) option;
+    }
+
   let create_graph_endpoint (query_name : string) : string =
     "app.bsky.graph" ^ "." ^ query_name
 
