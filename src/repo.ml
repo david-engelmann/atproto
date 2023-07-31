@@ -82,6 +82,27 @@ module Repo = struct
     let created_record = Lwt_main.run (Cohttp_client.post_data_with_headers create_record_url data headers) in
     created_record
 
+  let put_record (s : Session.session) (repo : string) (collection : string) ?rkey ?(validate = true) ?swap_record ?swap_commit (record : string) : string =
+    let bearer_token = Session.bearer_token_from_session s in
+    let application_json = Cohttp_client.application_json_setting_tuple in
+    let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
+    let base_url = App.create_base_url s in
+    let put_record_url = App.create_endpoint_url base_url (create_repo_endpoint "putRecord") in
+    let fields =
+      [
+        Some ("repo", `String repo);
+        Some ("collection", `String collection);
+        Some ("record", `String record);
+        Option.map (fun rkey -> ("rkey",  `String rkey)) rkey;
+        Some ("validate", `Bool validate);
+        Option.map (fun swap_record -> ("swapRecord", `String swap_record)) swap_record;
+        Option.map (fun swap_commit -> ("swapCommit", `String swap_commit)) swap_commit;
+      ] in
+    let json_data = `Assoc (List.filter_map Fun.id fields) in
+    let data = Yojson.Basic.to_string json_data in
+    let puted_record = Lwt_main.run (Cohttp_client.post_data_with_headers put_record_url data headers) in
+    puted_record
+
   let delete_record (s : Session.session) (repo : string) (collection : string) ?swap_record ?swap_commit (rkey : string) : string =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
