@@ -36,13 +36,13 @@ module Repo = struct
     let records = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers list_records_url body headers) in
     records
 
-  let create_record (s : Session.session) (repo : string) (collection : string)
-      record ?(rkey = None) ?(validate = Some true) ?(swap_commit = None) : string =
+  let create_record (s : Session.session) (repo : string) (collection : string) record ?rkey ?(validate = Some true) ?swap_commit : string =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
     let base_url = App.create_base_url s in
     let create_record_url = App.create_endpoint_url base_url (create_repo_endpoint "createRecord") in
+    (*
     let use_rkey = Option.is_some rkey in
     let use_swap_commit = Option.is_some swap_commit in
     let use_validate = Option.is_some validate in
@@ -72,8 +72,6 @@ module Repo = struct
                   ("collection", `String collection);
                   ("record", record);
                   ("validate", `Bool (Option.get validate));]
-
-
     | (true, true, false) ->
         `Assoc [("repo", `String repo);
               ("collection", `String collection);
@@ -96,7 +94,17 @@ module Repo = struct
               ("collection", `String collection);
               ("record", record);
               ]
-    in
+    *)
+    let fields =
+      [
+        Some ("repo", `String repo);
+        Some ("collection", `String collection);
+        Some ("record", record);
+        Option.map (fun rkey -> ("rkey",  `String reky)) rkey;
+        Some ("validate", `Bool validate);
+        Option.map (fun swap_commit -> ("swapCommit", `String swap_commit)) swap_commit;
+      ] in
+    let json_data = `Assoc (List.filter_map Fun.id fields) in
     let data = Yojson.Basic.to_string json_data in
     let created_record = Lwt_main.run (Cohttp_client.post_data_with_headers create_record_url data headers) in
     created_record
