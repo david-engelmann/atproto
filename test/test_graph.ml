@@ -10,8 +10,8 @@ let create_test_session _ =
 let test_get_blocks _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let blocks = Graph.get_blocks test_session 10 in
-  Printf.printf "Graph Blocks: %s\n" blocks;
-  OUnit2.assert_bool "Graph Blocks is not empty" (blocks <> "")
+  Printf.printf "\n\n\nGraph Blocks: %s\n\n\n" blocks;
+  OUnit2.assert_bool "Graph Blocks is empty" (blocks <> "")
 
 let test_get_followers _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
