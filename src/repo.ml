@@ -36,70 +36,17 @@ module Repo = struct
     let records = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers list_records_url body headers) in
     records
 
-  let create_record (s : Session.session) (repo : string) (collection : string) record ?rkey ?(validate = true) ?swap_commit : string =
+  let create_record (s : Session.session) (repo : string) (collection : string) ?rkey ?(validate = true) ?swap_commit (record : string) : string =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
     let base_url = App.create_base_url s in
     let create_record_url = App.create_endpoint_url base_url (create_repo_endpoint "createRecord") in
-    (*
-    let use_rkey = Option.is_some rkey in
-    let use_swap_commit = Option.is_some swap_commit in
-    let use_validate = Option.is_some validate in
-    let json_data =
-      match (use_rkey, use_swap_commit, use_validate) with
-      | (true, true, true) ->
-          `Assoc [("repo", `String repo);
-                  ("collection", `String collection);
-                  ("record", record);
-                  ("rkey", `String (Option.get rkey));
-                  ("validate", `Bool (Option.get validate));
-                  ("swapCommit", `String (Option.get swap_commit));]
-     | (true, false, true) ->
-          `Assoc [("repo", `String repo);
-                  ("collection", `String collection);
-                  ("record", record);
-                  ("rkey", `String (Option.get rkey));
-                  ("validate", `Bool (Option.get validate));]
-    | (false, true, true) ->
-          `Assoc [("repo", `String repo);
-                  ("collection", `String collection);
-                  ("record", record);
-                  ("validate", `Bool (Option.get validate));
-                  ("swapCommit", `String (Option.get swap_commit));]
-    | (false, false, true) ->
-          `Assoc [("repo", `String repo);
-                  ("collection", `String collection);
-                  ("record", record);
-                  ("validate", `Bool (Option.get validate));]
-    | (true, true, false) ->
-        `Assoc [("repo", `String repo);
-              ("collection", `String collection);
-              ("record", record);
-              ("rkey", `String (Option.get rkey));
-              ("swapCommit", `String (Option.get swap_commit));]
-    | (true, false, false) ->
-        `Assoc [("repo", `String repo);
-              ("collection", `String collection);
-              ("record", record);
-              ("rkey", `String (Option.get rkey));
-              ]
-    | (false, true, false) ->
-        `Assoc [("repo", `String repo);
-              ("collection", `String collection);
-              ("record", record);
-              ("swapCommit", `String (Option.get swap_commit));]
-    | (false, false, false) ->
-        `Assoc [("repo", `String repo);
-              ("collection", `String collection);
-              ("record", record);
-              ]
-    *)
     let fields =
       [
         Some ("repo", `String repo);
         Some ("collection", `String collection);
-        Some ("record", record);
+        Some ("record", `String record);
         Option.map (fun rkey -> ("rkey",  `String rkey)) rkey;
         Some ("validate", `Bool validate);
         Option.map (fun swap_commit -> ("swapCommit", `String swap_commit)) swap_commit;
