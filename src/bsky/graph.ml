@@ -4,20 +4,24 @@ open App
 open Actor
 
 module Graph = struct
-  type subject =
+  type followers =
     {
-      did : string;
-      handle : string;
-      display_name : string;
-      description : string;
-      avatar : string;
-      indexed_at : string;
-      viewer : Actor.viewer_status;
-      labels : (string list) option;
+      subject : Actor.short_profile;
+      followers : Actor.short_profile list;
     }
 
   let create_graph_endpoint (query_name : string) : string =
     "app.bsky.graph" ^ "." ^ query_name
+
+  let convert_body_to_json (body : string) : Yojson.Safe.t =
+    let json = Yojson.Safe.from_string body in
+    json
+
+  let parse_followers json : followers =
+    let open Yojson.Safe.Util in
+    let subject = json |> member "subject" |> Actor.parse_short_profile in
+    let followers = json |> member "followers" |> to_list |> List.map Actor.parse_short_profile in
+    { subject; followers }
 
   let get_blocks (s : Session.session) (limit : int) : string =
     let bearer_token = Session.bearer_token_from_session s in
@@ -29,7 +33,7 @@ module Graph = struct
     let blocks = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_blocks_url body headers) in
     blocks
 
-  let get_followers (s : Session.session) (actor : string) (limit : int) : string =
+  let get_followers (s : Session.session) (actor : string) (limit : int) : followers =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
@@ -37,7 +41,7 @@ module Graph = struct
     let get_followers_url = App.create_endpoint_url base_url (create_graph_endpoint "getFollowers") in
     let body = Cohttp_client.create_body_from_pairs [("actor", actor); ("limit", string_of_int limit)] in
     let followers = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_followers_url body headers) in
-    followers
+    followers |> convert_body_to_json |> parse_followers
 
   let get_follows (s : Session.session) (actor : string) (limit : int) : string =
     let bearer_token = Session.bearer_token_from_session s in

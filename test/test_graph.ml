@@ -16,8 +16,12 @@ let test_get_blocks _ =
 let test_get_followers _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let followers = Graph.get_followers test_session "david-engelmann.bsky.social" 10 in
-  Printf.printf "Graph Followers: %s\n" followers;
-  OUnit2.assert_bool "Graph Followers is not empty" (followers <> "")
+  match followers with
+  | { subject; _ } ->
+    match subject with
+    | { handle; _ } ->
+      OUnit2.assert_equal "david-engelmann.bsky.social" handle
+
 
 let test_get_follows _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
