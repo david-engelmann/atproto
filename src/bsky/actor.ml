@@ -64,6 +64,15 @@ module Actor = struct
 
     }
 
+  type block_profile =
+    {
+      did : string;
+      handle : string;
+      viewer : viewer_status;
+      labels : (string list) option;
+
+    }
+
   let extract_string_option json field : string option =
     let open Yojson.Safe.Util in
     try
@@ -150,6 +159,20 @@ module Actor = struct
       | _ -> None
     in
     { did; handle; display_name; avatar; viewer; labels }
+
+  let parse_block_profile json : block_profile =
+    let open Yojson.Safe.Util in
+    let did = json |> member "did" |> to_string in
+    let handle = json |> member "handle" |> to_string in
+    let viewer = json |> member "viewer" |> parse_viewer_status in
+    let labels =
+      match json |> member "labels" with
+      | `Null -> None
+      | `List labels_json -> Some (labels_json |> List.map to_string)
+      | _ -> None
+    in
+    { did; handle; viewer; labels }
+
 
   let parse_profiles json : profile list =
     let open Yojson.Safe.Util in

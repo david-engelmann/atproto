@@ -10,8 +10,13 @@ let create_test_session _ =
 let test_get_blocks _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let blocks = Graph.get_blocks test_session 10 in
-  Printf.printf "\n\n\nGraph Blocks: %s\n\n\n" blocks;
-  OUnit2.assert_bool "Graph Blocks is empty" (blocks <> "")
+  match blocks with
+  | { blocks; _ } ->
+    match blocks with
+    | [] -> OUnit2.assert_bool "Graph blocks is completely empty" ( 1 < 0 )
+    | hd :: _ ->
+      match hd with
+      | {did; _} -> OUnit2.assert_bool "Graph Blocks is empty" ((String.length did) > 0)
 
 let test_get_followers _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
