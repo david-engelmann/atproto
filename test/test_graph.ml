@@ -27,11 +27,10 @@ let test_get_followers _ =
     | { handle; _ } ->
       OUnit2.assert_equal "david-engelmann.bsky.social" handle
 
-
 let test_get_follows _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let follows = Graph.get_follows test_session "david-engelmann.bsky.social" 10 in
-  Printf.printf "Graph Follows: %s\n" follows;
+  Printf.printf "\n\nGraph Follows: %s\n\n" follows;
   OUnit2.assert_bool "Graph Follows is not empty" (follows <> "")
 
 let test_get_mutes _ =
