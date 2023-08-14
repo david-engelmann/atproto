@@ -50,13 +50,11 @@ let test_get_mutes _ =
 let test_mute_actor _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let muted_actor = Graph.mute_actor test_session "karen.bsky.social" in
-  Printf.printf "Graph Mute Actor: %s\n" muted_actor;
   OUnit2.assert_bool "Graph Mute Actor is not empty" (muted_actor = "")
 
 let test_unmute_actor _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let unmuted_actor = Graph.unmute_actor test_session "karen.bsky.social" in
-  Printf.printf "Graph Unmute Actor: %s\n" unmuted_actor;
   OUnit2.assert_bool "Graph Unmute Actor is not empty" (unmuted_actor = "")
 
 let suite =
