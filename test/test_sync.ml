@@ -10,7 +10,7 @@ let create_test_session _ =
 let test_get_checkout _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let checkout = Sync.get_checkout test_session "did:plc:xov3uvxfd4to6ev3ak5g5uxk" "bafkreieva64qpnxs7zmwc6ezo7hatq4d22ot7wqlj4hi24zimjqzoye4wq" in
-  Printf.printf "Checkout: %s\n" checkout;
+  Printf.printf "\n\nCheckout: %s\n\n" checkout;
   OUnit2.assert_bool "Checkout is not empty" (checkout <> "")
 
 let test_get_commit_path _ =
