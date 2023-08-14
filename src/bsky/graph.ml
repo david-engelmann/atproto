@@ -22,6 +22,12 @@ module Graph = struct
       cursor : string;
     }
 
+  type mutes =
+    {
+       mutes: Actor.block_profile list;
+       cursor : string;
+    }
+
   let create_graph_endpoint (query_name : string) : string =
     "app.bsky.graph" ^ "." ^ query_name
 
@@ -46,6 +52,12 @@ module Graph = struct
     let blocks = json |> member "blocks" |> to_list |> List.map Actor.parse_block_profile in
     let cursor = json |> member "cursor" |> to_string in
     { blocks; cursor }
+
+  let parse_mutes json : mutes =
+    let open Yojson.Safe.Util in
+    let mutes = json |> member "mutes" |> to_list |> List.map Actor.parse_block_profile in
+    let cursor = json |> member "cursor" |> to_string in
+    { mutes; cursor }
 
   let get_blocks (s : Session.session) (limit : int) : blocks =
     let bearer_token = Session.bearer_token_from_session s in
@@ -77,7 +89,7 @@ module Graph = struct
     let follows = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_follows_url body headers) in
     follows |> convert_body_to_json |> parse_follows
 
-  let get_mutes (s : Session.session) (limit : int) : string =
+  let get_mutes (s : Session.session) (limit : int) : mutes =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
@@ -85,7 +97,7 @@ module Graph = struct
     let get_mutes_url = App.create_endpoint_url base_url (create_graph_endpoint "getMutes") in
     let body = Cohttp_client.create_body_from_pairs [("limit", string_of_int limit)] in
     let mutes = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_mutes_url body headers) in
-    mutes
+    mutes |> convert_body_to_json |> parse_mutes
 
   let mute_actor (s : Session.session) (actor : string) : string =
     let bearer_token = Session.bearer_token_from_session s in

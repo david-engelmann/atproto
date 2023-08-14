@@ -39,8 +39,13 @@ let test_get_follows _ =
 let test_get_mutes _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let mutes = Graph.get_mutes test_session 10 in
-  Printf.printf "\n\n\nGraph Mutes: %s\n\n\n" mutes;
-  OUnit2.assert_bool "Graph Mutes is not empty" (mutes <> "")
+  match mutes with
+  | { mutes; _ } ->
+    match mutes with
+    | [] -> OUnit2.assert_bool "Graph blocks is completely empty" ( 1 < 0 )
+    | hd :: _ ->
+      match hd with
+      | {did; _} -> OUnit2.assert_bool "Graph Blocks is empty" ((String.length did) > 0)
 
 let test_mute_actor _ =
   let test_session = create_test_session () |> Session.refresh_session_auth in
