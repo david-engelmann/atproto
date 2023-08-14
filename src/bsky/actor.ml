@@ -16,8 +16,8 @@ module Actor = struct
       did : string;
       handle : string;
       display_name : string option;
-      description : string;
-      avatar : string;
+      description : string option;
+      avatar : string option;
       banner : string;
       follows_count : int;
       followers_count : int;
@@ -32,8 +32,8 @@ module Actor = struct
       did : string;
       handle : string;
       display_name : string option;
-      description : string;
-      avatar : string;
+      description : string option;
+      avatar : string option;
       indexed_at : string;
       viewer : viewer_status;
       labels : (string list) option;
@@ -45,7 +45,7 @@ module Actor = struct
       did : string;
       handle : string;
       display_name : string option;
-      avatar : string;
+      avatar : string option;
       indexed_at : string;
       viewer : viewer_status;
       labels : (string list) option;
@@ -58,7 +58,7 @@ module Actor = struct
       did : string;
       handle : string;
       display_name : string option;
-      avatar : string;
+      avatar : string option;
       viewer : viewer_status;
       labels : (string list) option;
 
@@ -94,8 +94,8 @@ module Actor = struct
     let did = json |> member "did" |> to_string in
     let handle = json |> member "handle" |> to_string in
     let display_name = extract_string_option json "displayName" in
-    let description = json |> member "description" |> to_string in
-    let avatar = json |> member "avatar" |> to_string in
+    let description = extract_string_option json "description" in
+    let avatar = extract_string_option json  "avatar" in
     let banner = json |> member "banner" |> to_string in
     let follows_count = json |> member "followsCount" |> to_int in
     let followers_count = json |> member "followersCount" |> to_int in
@@ -116,7 +116,7 @@ module Actor = struct
     let did = json |> member "did" |> to_string in
     let handle = json |> member "handle" |> to_string in
     let display_name = extract_string_option json "displayName" in
-    let avatar = json |> member "avatar" |> to_string in
+    let avatar = extract_string_option json "avatar" in
     let indexed_at = json |> member "indexedAt" |> to_string in
     let viewer = json |> member "viewer" |> parse_viewer_status in
     let labels =
@@ -133,8 +133,8 @@ module Actor = struct
     let did = json |> member "did" |> to_string in
     let handle = json |> member "handle" |> to_string in
     let display_name = extract_string_option json "displayName" in
-    let description = json |> member "description" |> to_string in
-    let avatar = json |> member "avatar" |> to_string in
+    let description = extract_string_option json "description" in
+    let avatar = extract_string_option json "avatar" in
     let indexed_at = json |> member "indexedAt" |> to_string in
     let viewer = json |> member "viewer" |> parse_viewer_status in
     let labels =
@@ -150,7 +150,7 @@ module Actor = struct
     let did = json |> member "did" |> to_string in
     let handle = json |> member "handle" |> to_string in
     let display_name = extract_string_option json "displayName" in
-    let avatar = json |> member "avatar" |> to_string in
+    let avatar = extract_string_option json "avatar" in
     let viewer = json |> member "viewer" |> parse_viewer_status in
     let labels =
       match json |> member "labels" with

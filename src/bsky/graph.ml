@@ -10,6 +10,12 @@ module Graph = struct
       followers : Actor.short_profile list;
     }
 
+  type follows =
+    {
+      subject : Actor.short_profile;
+      follows : Actor.short_profile list;
+    }
+
   type blocks =
     {
       blocks : Actor.block_profile list;
@@ -28,6 +34,12 @@ module Graph = struct
     let subject = json |> member "subject" |> Actor.parse_short_profile in
     let followers = json |> member "followers" |> to_list |> List.map Actor.parse_short_profile in
     { subject; followers }
+
+  let parse_follows json : follows =
+    let open Yojson.Safe.Util in
+    let subject = json |> member "subject" |> Actor.parse_short_profile in
+    let follows = json |> member "follows" |> to_list |> List.map Actor.parse_short_profile in
+    { subject; follows }
 
   let parse_blocks json : blocks =
     let open Yojson.Safe.Util in
@@ -55,7 +67,7 @@ module Graph = struct
     let followers = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_followers_url body headers) in
     followers |> convert_body_to_json |> parse_followers
 
-  let get_follows (s : Session.session) (actor : string) (limit : int) : string =
+  let get_follows (s : Session.session) (actor : string) (limit : int) : follows  =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers = Cohttp_client.create_headers_from_pairs [application_json; bearer_token] in
@@ -63,7 +75,7 @@ module Graph = struct
     let get_follows_url = App.create_endpoint_url base_url (create_graph_endpoint "getFollows") in
     let body = Cohttp_client.create_body_from_pairs [("actor", actor); ("limit", string_of_int limit)] in
     let follows = Lwt_main.run (Cohttp_client.get_request_with_body_and_headers get_follows_url body headers) in
-    follows
+    follows |> convert_body_to_json |> parse_follows
 
   let get_mutes (s : Session.session) (limit : int) : string =
     let bearer_token = Session.bearer_token_from_session s in
