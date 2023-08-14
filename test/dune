@@ -3,7 +3,7 @@
  test_http_client test_http_method test_feed test_label test_request test_repo
  test_response test_server test_blob test_blocks test_sync test_graph test_moderation test_notification test_download_image)
  (libraries async core uri cohttp cohttp-lwt-unix cohttp-async h2 httpaf
- httpaf-lwt-unix h2-lwt-unix lwt ssl jose lwt_ssl ounit2 atproto)
+ httpaf-lwt-unix h2-lwt-unix lwt ssl jose cbor lwt_ssl ounit2 atproto)
  (modules test_app test_actor test_auth test_session test_user
  test_cohttp_client test_http_client test_http_method test_feed test_label
  test_request test_repo test_response test_server test_blob test_blocks test_sync test_graph test_moderation test_notification test_download_image)
