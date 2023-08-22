@@ -1,4 +1,5 @@
 open Cohttp
+
 open Cohttp_lwt_unix
 
 module Cohttp_client = struct
@@ -65,8 +66,7 @@ module Cohttp_client = struct
     ) url values
 
     let add_query_params key values =
-      List.map (fun value -> key ^ "=" ^ value) values
-      |> String.concat "&"
+      List.map (fun value -> key ^ "=" ^ value) values |> String.concat "&"
 
   (*
   let create_body_from_pairs_with_array_value (data : (string * string list) list) =
@@ -112,6 +112,71 @@ module Cohttp_client = struct
     body |> Cohttp_lwt.Body.to_string >|= fun body ->
     (*Printf.printf "Body of length: %d\n" (String.length body);*)
     body
+
+  let temp_file_of_string s prefix suffix =
+    let open Core in
+    let temp_filename = Filename_unix.temp_file prefix suffix in
+    Out_channel.write_all temp_filename ~data:s;
+    temp_filename
+
+  let in_channel_of_temp_file f =
+    let open Core in
+    let ic = In_channel.create f in
+    ic
+
+  (*
+  let in_channel_of_string s =
+    let buffer = Lexing.from_string s in
+    let input_function buf len =
+      let available = String.length s - buffer.Lexing.lex_curr_pos in
+      let amount_to_read = min available len in
+      if amount_to_read > 0 then (
+        String.blit s buffer.Lexing.lex_curr_pos buf 0 amount_to_read;
+        buffer.Lexing.lex_curr_pos <- buffer.Lexing.lex_curr_pos + amount_to_read;
+        amount_to_read
+      ) else (
+        0
+      )
+    in
+    let seek_function = fun _ _ -> raise (Failure "seek not implemented") in
+    let close_function _ = () in
+    let channel_functions = {
+      input = input_function;
+      output = (fun _ _ _ -> raise (Failure "output not implemented"));
+      flush = (fun _ -> ());
+      seek = seek_function;
+      close_in = close_function;
+      close_out = (fun _ -> ());
+      set_binary_mode_in = (fun _ _ -> ());
+      set_binary_mode_out = (fun _ _ -> ());
+    }
+    in
+    open_in_gen [Open_rdonly] 0 channel_functions
+
+  let in_channel_of_string str =
+    let buffer = Buffer.create (String.length str) in
+    Buffer.add_string buffer str;
+    let channel = Buffer.contents buffer |> Lexing.from_string in
+    let input_fun buffer len =
+      let read_bytes = min len (String.length channel.Lexing.lex_buffer - channel.Lexing.lex_curr_pos) in
+      Bytes.blit_string channel.Lexing.lex_buffer channel.Lexing.lex_curr_pos buffer 0 read_bytes;
+      channel.Lexing.lex_curr_pos <- channel.Lexing.lex_curr_pos + read_bytes;
+      read_bytes
+    in
+    let close_fun () = () in
+    let seek_fun = None in
+    let pos_fun () = channel.Lexing.lex_curr_pos in
+    let input_channel = Stdlib.create_in_channel ~input_fun ~close_fun ~seek_fun ~pos_fun () in
+    input_channel
+  *)
+
+  let get_stream_request_with_body_and_headers (url : string) body headers =
+    let open Lwt.Infix in
+    let url_with_body = url ^ "?" ^ body in
+    let partial_temp_file_of_string str = temp_file_of_string str "test_temp" "car" in
+    Client.get ~headers (Uri.of_string url_with_body) >>= fun (_, body) ->
+    body |> Cohttp_lwt.Body.to_stream |> Lwt_stream.to_list >|= fun blob_list ->
+    (String.concat "" blob_list) |> partial_temp_file_of_string |> in_channel_of_temp_file
 
   let get_bytes_request_with_body_and_headers (url : string) body headers =
     let open Lwt.Infix in

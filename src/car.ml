@@ -1,6 +1,7 @@
 (*open Session
 open Cohttp_client
-open App*)
+open App
+open CBOR*)
 
 module Car = struct
   type block =
@@ -10,10 +11,10 @@ module Car = struct
     }
 
   type car =
-      {
-        root : string; (* cid *)
-        blocks : (string * block) list;
-      }
+    {
+      root : string; (* cid *)
+      blocks : (string * block) list;
+    }
   let decode_unsigned_leb128_from_channel ch =
     let rec loop acc shift bytes_read =
       try
@@ -26,27 +27,30 @@ module Car = struct
         failwith "Bad LEB128 encoding"
     in
     loop 0 0 0
-  
-    open Cbor
 
-  let extract_roots_from_car ch =
+  (*let extract_roots_from_car ch =*)
+  let show_car_contents ch =
     (* Read CAR magic bytes and verify *)
-    let magic_bytes = really_input_string ch 4 in
+    let magic_bytes = really_input_string ch 1000 in
+    print_endline "------------------------------ start magic bytes peek -----------------------------";
+    print_endline magic_bytes;
+    print_endline "------------------------------ end magic bytes peek -----------------------------";
+    (*
     if magic_bytes <> "\227\020\015\019" then
       failwith "Not a valid CAR file";
-
+    *)
     (* Decode the length of the CAR header using LEB128 *)
     let header_len, _ = decode_unsigned_leb128_from_channel ch in
 
     (* Read the CBOR-encoded CAR header *)
     let cbor_header = really_input_string ch header_len in
-    
     (* Decode the CBOR header *)
-    let header = Cbor.Decoder.of_bytes_exn cbor_header in
-    
+    let header = CBOR.Simple.decode cbor_header in
     (* Extract the "roots" key from the header *)
+    print_endline (CBOR.Simple.to_diagnostic header);
+    (*
     match header with
-    | `O lst ->
+    | hd :: res ->
         let roots_entry = List.assoc "roots" lst in
         Some roots_entry
     | _ -> None
@@ -54,7 +58,8 @@ module Car = struct
   let show_car_contents ch =
     let roots = extract_roots_from_car ch in
     match roots with
-    | Some r -> print_endline (Cbor.Encoder.encode_to_string r)
+    | Some r -> print_endline (CBOR.Simple.encode r)
     | None -> print_endline "No roots found"
+    *)
 
 end
