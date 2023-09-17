@@ -1,5 +1,6 @@
 open Auth
 open Cohttp_client
+open Error
 
 module Session = struct
   type session =
@@ -31,8 +32,15 @@ module Session = struct
   let create_session (username : string) (password: string) : session =
     let atp_host = atp_host_from_env in
     let body = Auth.make_auth_token_request username password atp_host in
-    let session_auth = body |> Auth.convert_body_to_json |> Auth.parse_auth in
-    { username; password; atp_host; auth=session_auth }
+    let session_json = body |> Auth.convert_body_to_json in
+    let session_error = session_json |> Auth.check_for_error in
+    match session_error with
+    | Some _ ->
+        Error.handle_error (Error.parse_error session_json)
+    | _ ->
+        let session_auth = session_json |> Auth.parse_auth in
+        { username; password; atp_host; auth=session_auth }
+
 
   let bearer_token_from_session (s : session) : (string * string) =
     let bearer_header = "Bearer " ^ s.auth.token in

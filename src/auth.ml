@@ -69,6 +69,11 @@ module Auth = struct
         { exp; iat; scope; did; jti; token; refresh_token }
       | Error _ -> failwith "Invalid JWT token"
 
+    let check_for_error json : string option =
+      let open Yojson.Safe.Util in
+      let error_present = try Some (json |> member "error" |> to_string) with _ -> None in
+      error_present
+
     let convert_body_to_json (body : string) : Yojson.Safe.t =
       print_endline body;
       let json = Yojson.Safe.from_string body in
