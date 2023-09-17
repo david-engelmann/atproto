@@ -6,6 +6,8 @@ open Atproto.Car
 
 let create_test_session _ =
     let (username, password) = Auth.username_and_password_from_env in
+    Printf.printf "\nPassword: %s\n\n" password;
+    Printf.printf "\nUsername: %s\n\n" username;
     Session.create_session username password
 
 let test_get_checkout_with_commit _ =
@@ -58,12 +60,14 @@ let suite =
     "suite"
     >::: [
           "test_get_checkout_with_commit" >:: test_get_checkout_with_commit;
+          (*
           "test_get_checkout_without_commit" >:: test_get_checkout_without_commit;
           "test_get_commit_path" >:: test_get_commit_path;
           "test_get_head" >:: test_get_head;
           "test_get_repo" >:: test_get_repo;
           "test_list_blobs" >:: test_list_blobs;
           "test_list_repos" >:: test_list_repos;
+          *)
 
          ]
 

@@ -28,13 +28,8 @@ module Car = struct
     in
     loop 0 0 0
 
-  (*let extract_roots_from_car ch =*)
-  let show_car_contents ch =
+  let extract_roots_from_car ch =
     (* Read CAR magic bytes and verify *)
-    let magic_bytes = really_input_string ch 1000 in
-    print_endline "------------------------------ start magic bytes peek -----------------------------";
-    print_endline magic_bytes;
-    print_endline "------------------------------ end magic bytes peek -----------------------------";
     (*
     if magic_bytes <> "\227\020\015\019" then
       failwith "Not a valid CAR file";
@@ -48,10 +43,9 @@ module Car = struct
     let header = CBOR.Simple.decode cbor_header in
     (* Extract the "roots" key from the header *)
     print_endline (CBOR.Simple.to_diagnostic header);
-    (*
     match header with
-    | hd :: res ->
-        let roots_entry = List.assoc "roots" lst in
+    | `Map lst ->
+        let roots_entry = List.assoc (`Text "roots") lst in
         Some roots_entry
     | _ -> None
 
@@ -60,6 +54,5 @@ module Car = struct
     match roots with
     | Some r -> print_endline (CBOR.Simple.encode r)
     | None -> print_endline "No roots found"
-    *)
 
 end

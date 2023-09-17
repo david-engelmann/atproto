@@ -115,7 +115,7 @@ module Cohttp_client = struct
 
   let temp_file_of_string s prefix suffix =
     let open Core in
-    let temp_filename = Filename_unix.temp_file prefix suffix in
+    let temp_filename = Filename.temp_file prefix suffix in
     Out_channel.write_all temp_filename ~data:s;
     temp_filename
 

@@ -70,6 +70,7 @@ module Auth = struct
       | Error _ -> failwith "Invalid JWT token"
 
     let convert_body_to_json (body : string) : Yojson.Safe.t =
+      print_endline body;
       let json = Yojson.Safe.from_string body in
       json
 
