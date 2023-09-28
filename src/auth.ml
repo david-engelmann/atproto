@@ -93,10 +93,10 @@ module Auth = struct
 
   let make_auth_token_request (username : string) (password : string)
       (personal_data_server : string) : string =
-    let base_endpoint = base_endpoint_from_env in
+    let base_endpoint = get_base_endpoint in
     let create_session_endpoint = create_server_endpoint "createSession" in
     let url =
-      Printf.sprintf "https://%s/%s/%s" personal_data_server base_endpoint
+      Printf.sprintf "https://%s/%s%s" personal_data_server base_endpoint
         create_session_endpoint
     in
     let data =
