@@ -1,5 +1,4 @@
 open Cohttp
-
 open Cohttp_lwt_unix
 
 module Cohttp_client = struct
@@ -18,15 +17,14 @@ module Cohttp_client = struct
     get_body url
 
   let add_pair_to_header h setting_pair =
-    match setting_pair with
-    | (setting, value) -> Header.add h setting value
+    match setting_pair with setting, value -> Header.add h setting value
 
   let rec add_pairs_to_header h (header_settings : (string * string) list) =
     match header_settings with
     | [] -> h
     | hd :: res ->
-      let h = add_pair_to_header h hd in
-      add_pairs_to_header h res
+        let h = add_pair_to_header h hd in
+        add_pairs_to_header h res
 
   let pairs_to_query_string params =
     let kv_to_string (k, v) = Uri.pct_encode k ^ "=" ^ Uri.pct_encode v in
@@ -42,31 +40,31 @@ module Cohttp_client = struct
   *)
 
   let create_body_from_pairs_with_array_value pairs =
-    `Assoc (List.map (fun (key, values) ->
-      (key, `List (List.map (fun value -> `String value) values))
-    ) pairs)
+    `Assoc
+      (List.map
+         (fun (key, values) ->
+           (key, `List (List.map (fun value -> `String value) values)))
+         pairs)
     |> Yojson.to_string
 
   let create_headers_from_pairs (header_settings : (string * string) list) =
     match header_settings with
     | [] -> Header.init ()
     | hd :: res ->
-      let headers = Header.init () in
-      let headers = add_pair_to_header headers hd in
-      add_pairs_to_header headers res
+        let headers = Header.init () in
+        let headers = add_pair_to_header headers hd in
+        add_pairs_to_header headers res
 
   let create_body_from_pairs (data : (string * string) list) =
-    match data with
-    | [] -> ""
-    | _ -> pairs_to_query_string data
+    match data with [] -> "" | _ -> pairs_to_query_string data
 
   let add_query_params_to_url url key values =
-    List.fold_left (fun url value ->
-      Uri.add_query_param' url (key, value)
-    ) url values
+    List.fold_left
+      (fun url value -> Uri.add_query_param' url (key, value))
+      url values
 
-    let add_query_params key values =
-      List.map (fun value -> key ^ "=" ^ value) values |> String.concat "&"
+  let add_query_params key values =
+    List.map (fun value -> key ^ "=" ^ value) values |> String.concat "&"
 
   (*
   let create_body_from_pairs_with_array_value (data : (string * string list) list) =
@@ -75,12 +73,14 @@ module Cohttp_client = struct
     | _ -> pairs_with_array_value_to_query_string data
   *)
 
-  let application_json_setting_tuple : (string * string) = ("Content-Type", "application/json")
+  let application_json_setting_tuple : string * string =
+    ("Content-Type", "application/json")
 
   let post_data (url : string) data =
     let open Lwt.Infix in
-    let headers = Header.init ()
-    |> fun h -> Header.add h "Content-Type" "application/json" in
+    let headers =
+      Header.init () |> fun h -> Header.add h "Content-Type" "application/json"
+    in
     let body = Cohttp_lwt.Body.of_string data in
     Client.post ~headers ~body (Uri.of_string url) >>= fun (_, body) ->
     (*let _ = resp |> Response.status |> Code.code_of_status in*)
@@ -101,7 +101,6 @@ module Cohttp_client = struct
     (*Printf.printf "Body of length: %d\n" (String.length body);*)
     body
 
-
   let get_request_with_body_and_headers (url : string) body headers =
     let open Lwt.Infix in
     let url_with_body = url ^ "?" ^ body in
@@ -115,7 +114,7 @@ module Cohttp_client = struct
 
   let temp_file_of_string s prefix suffix =
     let open Core in
-    let temp_filename = Filename.temp_file prefix suffix in
+    let temp_filename = Filename_unix.temp_file prefix suffix in
     Out_channel.write_all temp_filename ~data:s;
     temp_filename
 
@@ -173,10 +172,13 @@ module Cohttp_client = struct
   let get_stream_request_with_body_and_headers (url : string) body headers =
     let open Lwt.Infix in
     let url_with_body = url ^ "?" ^ body in
-    let partial_temp_file_of_string str = temp_file_of_string str "test_temp" "car" in
+    let partial_temp_file_of_string str =
+      temp_file_of_string str "test_temp" "car"
+    in
     Client.get ~headers (Uri.of_string url_with_body) >>= fun (_, body) ->
     body |> Cohttp_lwt.Body.to_stream |> Lwt_stream.to_list >|= fun blob_list ->
-    (String.concat "" blob_list) |> partial_temp_file_of_string |> in_channel_of_temp_file
+    String.concat "" blob_list |> partial_temp_file_of_string
+    |> in_channel_of_temp_file
 
   let get_bytes_request_with_body_and_headers (url : string) body headers =
     let open Lwt.Infix in
@@ -212,5 +214,4 @@ module Cohttp_client = struct
     match Header.get (Response.headers resp) "content-type" with
     | Some ct -> Lwt.return ct
     | None -> Lwt.return "No content-type found"
-
 end
