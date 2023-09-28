@@ -34,6 +34,15 @@ module Session = struct
         auth = None;
       }
 
+  let reset_global_session () =
+    global_session :=
+      {
+        username = "";
+        password = "";
+        atp_host = "https://bsky.social";
+        auth = None;
+      }
+
   let create_session (username : string) (password : string) : session =
     match !global_session.auth with
     | Some _ -> !global_session
@@ -107,12 +116,12 @@ module Session = struct
       Printf.sprintf "https://%s/%s%s" s.atp_host base_endpoint
         delete_session_endpoint
     in
-    print_endline delete_session_url;
     let deleted_session =
       Lwt_main.run
         (Cohttp_client.post_request_with_headers delete_session_url headers)
     in
     Printf.printf "Delete Session: %s\n" deleted_session;
+    reset_global_session ();
     deleted_session
 
   let authorize_session (s : session) : session =
