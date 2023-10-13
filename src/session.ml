@@ -105,7 +105,9 @@ module Session = struct
           current_session.handle current_session.did atp_host
       in
       let session_auth = body |> Auth.convert_body_to_json |> Auth.parse_auth in
-      { username; password; atp_host; auth = Some session_auth }
+      let new_session = { username; password; atp_host; auth = Some session_auth } in
+      global_session := new_session;
+      new_session
     else s
 
   let delete_session (s : session) : string =
