@@ -89,6 +89,7 @@ module Session = struct
     in
     session
 
+  (* Modify refresh session auth to work with global session flow *)
   let refresh_session_auth (s : session) : session =
     let bearer_auth = Option.get s.auth in
     if Auth.is_token_expired bearer_auth then
