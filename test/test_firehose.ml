@@ -3,6 +3,8 @@ open Atproto.Cid
 open Atproto.Dag_cbor
 open Atproto.Firehose
 open Atproto.Websocket
+open Atproto.Mst
+open Atproto.Car
 
 let test_subscribe_url _ =
   OUnit2.assert_equal
@@ -63,6 +65,7 @@ let test_decode_commit_ops _ =
            ("commit", Dag_cbor.Cid cid);
            ("rev", Dag_cbor.Text "3k5nobkf2w72g");
            ("since", Dag_cbor.Null);
+           ("prevData", Dag_cbor.Cid cid);
            ("blocks", Dag_cbor.Bytes empty_car);
            ( "ops",
              Dag_cbor.Array
@@ -84,7 +87,148 @@ let test_decode_commit_ops _ =
       OUnit2.assert_equal 1 (List.length commit.ops);
       OUnit2.assert_equal
         ~printer:(fun x -> x)
-        "create" (List.hd commit.ops).action
+        "create" (List.hd commit.ops).action;
+      OUnit2.assert_bool "prevData parsed"
+        (match commit.prev_data with
+        | Some p -> Cid.equal p cid
+        | None -> false);
+      OUnit2.assert_equal 0 (List.length commit.blobs)
+  | _ -> OUnit2.assert_failure "expected #commit frame"
+
+let synthetic_inverted_commit () =
+  let store = Mst.store_of_get (fun _ -> None) in
+  let t = Mst.empty_tree store in
+  let va = Cid.create ~codec:Cid.Raw "rec-a" in
+  let vb = Cid.create ~codec:Cid.Raw "rec-b" in
+  let t, _ = Mst.insert t "app.bsky.feed.post/aaa" va in
+  let prev_data = Mst.root_cid t in
+  let t, _ = Mst.insert t "app.bsky.feed.post/bbb" vb in
+  let mst_root = Mst.root_cid t in
+  let commit_bytes =
+    Mst.encode_repo_commit ~did:"did:plc:7iza6de2dwap2sbkpav7c6c6"
+      ~data:mst_root ~rev:"3k5nobkf2w72g" ()
+  in
+  let commit_cid = Cid.create commit_bytes in
+  let mst_blocks =
+    Hashtbl.fold
+      (fun k data acc -> { Car.cid = Cid.of_string k; data } :: acc)
+      t.store.created []
+  in
+  let car =
+    {
+      Car.roots = [ commit_cid ];
+      blocks = { Car.cid = commit_cid; data = commit_bytes } :: mst_blocks;
+    }
+  in
+  let raw = Car.encode car in
+  {
+    Firehose.seq = 1L;
+    rebase = false;
+    too_big = false;
+    repo = "did:plc:7iza6de2dwap2sbkpav7c6c6";
+    commit = commit_cid;
+    rev = "3k5nobkf2w72g";
+    since = None;
+    prev_data = Some prev_data;
+    blocks = car;
+    raw_blocks = raw;
+    ops =
+      [
+        {
+          Firehose.action = "create";
+          path = "app.bsky.feed.post/bbb";
+          cid = Some vb;
+          prev = None;
+        };
+      ];
+    blobs = [];
+    time = "2024-01-01T00:00:00.000Z";
+  }
+
+let test_invert_synthetic_commit _ =
+  let commit = synthetic_inverted_commit () in
+  Firehose.verify_commit commit;
+  let inverted = Firehose.invert_commit commit in
+  match commit.prev_data with
+  | Some expected ->
+      OUnit2.assert_bool "inverted root matches prevData"
+        (Cid.equal inverted expected)
+  | None -> OUnit2.assert_failure "fixture missing prevData"
+
+let test_invert_rejects_wrong_op _ =
+  let commit = synthetic_inverted_commit () in
+  let bad =
+    {
+      commit with
+      ops =
+        [
+          {
+            Firehose.action = "create";
+            path = "app.bsky.feed.post/missing";
+            cid = Some (Cid.create ~codec:Cid.Raw "nope");
+            prev = None;
+          };
+        ];
+    }
+  in
+  OUnit2.assert_bool "wrong op accepted"
+    (try
+       Firehose.verify_commit bad;
+       false
+     with Failure _ | Mst.Verify_error _ -> true)
+
+let test_decode_update_and_delete_ops _ =
+  let cid = Cid.of_digest (String.make 32 '\x04') in
+  let prev = Cid.of_digest (String.make 32 '\x05') in
+  let header = Firehose.encode_header { op = 1; t = Some "#commit" } in
+  let empty_car = Car.encode { Car.roots = [ cid ]; blocks = [] } in
+  let body =
+    Dag_cbor.encode
+      (Dag_cbor.Map
+         [
+           ("seq", Dag_cbor.Int 2);
+           ("rebase", Dag_cbor.Bool false);
+           ("tooBig", Dag_cbor.Bool false);
+           ("repo", Dag_cbor.Text "did:plc:7iza6de2dwap2sbkpav7c6c6");
+           ("commit", Dag_cbor.Cid cid);
+           ("rev", Dag_cbor.Text "3k5nobkf2w72h");
+           ("blocks", Dag_cbor.Bytes empty_car);
+           ( "ops",
+             Dag_cbor.Array
+               [
+                 Dag_cbor.Map
+                   [
+                     ("action", Dag_cbor.Text "update");
+                     ("path", Dag_cbor.Text "app.bsky.feed.post/2");
+                     ("cid", Dag_cbor.Cid cid);
+                     ("prev", Dag_cbor.Cid prev);
+                   ];
+                 Dag_cbor.Map
+                   [
+                     ("action", Dag_cbor.Text "delete");
+                     ("path", Dag_cbor.Text "app.bsky.feed.post/3");
+                     ("cid", Dag_cbor.Null);
+                     ("prev", Dag_cbor.Cid prev);
+                   ];
+               ] );
+           ("blobs", Dag_cbor.Array [ Dag_cbor.Cid cid ]);
+           ("time", Dag_cbor.Text "2024-01-01T00:00:00.000Z");
+         ])
+  in
+  match Firehose.decode_frame (header ^ body) with
+  | _, `Commit commit ->
+      OUnit2.assert_equal 2 (List.length commit.ops);
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "update" (List.nth commit.ops 0).action;
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "delete" (List.nth commit.ops 1).action;
+      OUnit2.assert_bool "delete prev"
+        (match (List.nth commit.ops 1).prev with
+        | Some p -> Cid.equal p prev
+        | None -> false);
+      OUnit2.assert_equal 1 (List.length commit.blobs)
   | _ -> OUnit2.assert_failure "expected #commit frame"
 
 let test_websocket_accept_rfc6455 _ =
@@ -144,6 +288,35 @@ let test_subscribe_live _ =
       with exn ->
         skip_if true ("subscribeRepos skipped: " ^ Printexc.to_string exn))
 
+let test_subscribe_invert_live _ =
+  let old =
+    Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
+  in
+  ignore (Unix.alarm 25);
+  Fun.protect
+    ~finally:(fun () ->
+      ignore (Unix.alarm 0);
+      Sys.set_signal Sys.sigalrm old)
+    (fun () ->
+      try
+        let found = ref false in
+        Firehose.subscribe ~max_messages:12 (fun (_header, msg) ->
+            match msg with
+            | `Commit c
+              when (not c.too_big) && (not c.rebase) && c.ops <> []
+                   && c.prev_data <> None -> (
+                try
+                  Firehose.verify_commit c;
+                  found := true
+                with exn ->
+                  skip_if true ("live invert skipped: " ^ Printexc.to_string exn)
+                )
+            | _ -> ());
+        skip_if (not !found)
+          "subscribeRepos produced no invertible #commit in the sample window"
+      with exn ->
+        skip_if true ("subscribeRepos invert skipped: " ^ Printexc.to_string exn))
+
 let suite =
   "firehose"
   >::: [
@@ -151,6 +324,10 @@ let suite =
          "test_decode_identity_frame" >:: test_decode_identity_frame;
          "test_decode_error_frame" >:: test_decode_error_frame;
          "test_decode_commit_ops" >:: test_decode_commit_ops;
+         "test_decode_update_and_delete_ops"
+         >:: test_decode_update_and_delete_ops;
+         "test_invert_synthetic_commit" >:: test_invert_synthetic_commit;
+         "test_invert_rejects_wrong_op" >:: test_invert_rejects_wrong_op;
          "test_websocket_accept_rfc6455" >:: test_websocket_accept_rfc6455;
          "test_websocket_unmasked_roundtrip"
          >:: test_websocket_unmasked_roundtrip;
@@ -158,6 +335,7 @@ let suite =
          "test_websocket_masked_roundtrip" >:: test_websocket_masked_roundtrip;
          "test_parse_wss_url" >:: test_parse_wss_url;
          "test_subscribe_live" >:: test_subscribe_live;
+         "test_subscribe_invert_live" >:: test_subscribe_invert_live;
        ]
 
 let () = run_test_tt_main suite

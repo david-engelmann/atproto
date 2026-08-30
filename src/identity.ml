@@ -86,10 +86,17 @@ module Identity = struct
         if Did_plc.Did_plc.is_plc_did actor then Did_plc.Did_plc.resolve actor
         else if Did_web.Did_web.is_web_did actor then
           Did_web.Did_web.resolve actor
+        else if Did_key.Did_key.is_did_key actor then
+          {
+            id = actor;
+            also_known_as = [];
+            verification_method = [];
+            service = [];
+          }
         else
           failwith
-            "Identity.resolve: only did:plc and did:web are supported for DID \
-             input"
+            "Identity.resolve: only did:plc, did:web, and did:key are \
+             supported for DID input"
       in
       {
         did = doc.Did_plc.Did_plc.id;

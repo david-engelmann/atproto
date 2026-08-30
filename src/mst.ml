@@ -187,4 +187,479 @@ module Mst = struct
 
   let get_block_of_car (car : Car.Car.t) (cid : Cid.t) : string option =
     match Car.Car.find_block car cid with Some b -> Some b.data | None -> None
+
+  (* Mutable overlay so inversion can write new MST nodes without losing CAR
+     blocks from the firehose diff. *)
+  type store = {
+    get : Cid.t -> string option;
+    created : (string, string) Hashtbl.t;
+  }
+
+  let store_of_get get = { get; created = Hashtbl.create 32 }
+  let store_of_car car = store_of_get (get_block_of_car car)
+
+  let store_get (s : store) (cid : Cid.t) : string option =
+    try Some (Hashtbl.find s.created (Cid.to_string cid))
+    with Not_found -> s.get cid
+
+  let store_put (s : store) (cid : Cid.t) (data : string) =
+    Hashtbl.replace s.created (Cid.to_string cid) data
+
+  type repo_commit = {
+    did : string;
+    version : int;
+    data : Cid.t;
+    rev : string;
+    prev : Cid.t option;
+    sig_ : string option;
+  }
+
+  let parse_repo_commit (v : Dag_cbor.value) : repo_commit =
+    let fields = Dag_cbor.get_map v in
+    {
+      did = Dag_cbor.as_text (Dag_cbor.require "did" fields);
+      version =
+        (match Dag_cbor.find "version" fields with
+        | Some v -> Dag_cbor.as_int v
+        | None -> 3);
+      data = Dag_cbor.as_cid (Dag_cbor.require "data" fields);
+      rev = Dag_cbor.as_text (Dag_cbor.require "rev" fields);
+      prev =
+        (match Dag_cbor.find "prev" fields with
+        | None | Some Dag_cbor.Null -> None
+        | Some c -> Some (Dag_cbor.as_cid c));
+      sig_ =
+        (match Dag_cbor.find "sig" fields with
+        | Some (Dag_cbor.Bytes b) -> Some b
+        | _ -> None);
+    }
+
+  let encode_repo_commit ?(version = 3) ~did ~data ~rev ?prev ?sig_ () : string
+      =
+    let fields =
+      [
+        ("data", Dag_cbor.Cid data);
+        ("did", Dag_cbor.Text did);
+        ("rev", Dag_cbor.Text rev);
+        ("version", Dag_cbor.Int version);
+      ]
+      @ [
+          ( "prev",
+            match prev with Some c -> Dag_cbor.Cid c | None -> Dag_cbor.Null );
+        ]
+      @ match sig_ with Some b -> [ ("sig", Dag_cbor.Bytes b) ] | None -> []
+    in
+    Dag_cbor.encode (Dag_cbor.Map fields)
+
+  type record_op = {
+    action : string;
+    path : string;
+    cid : Cid.t option;
+    prev : Cid.t option;
+  }
+
+  type node_entry = Value of string * Cid.t | Child of tree
+
+  and tree = {
+    store : store;
+    mutable pointer : Cid.t;
+    mutable entries : node_entry list option;
+    mutable layer : int option;
+    mutable outdated : bool;
+  }
+
+  let empty_node_bytes = to_bytes { left = None; entries = [] }
+  let empty_node_cid = Cid.create empty_node_bytes
+
+  let entries_to_node (entries : node_entry list) : node =
+    let left, rest =
+      match entries with
+      | Child t :: rest -> (Some t.pointer, rest)
+      | rest -> (None, rest)
+    in
+    let rec loop prev acc = function
+      | [] -> List.rev acc
+      | Value (key, value) :: rest ->
+          let prefix = common_prefix_len prev key in
+          let suffix = String.sub key prefix (String.length key - prefix) in
+          let right, rest =
+            match rest with
+            | Child t :: rest -> (Some t.pointer, rest)
+            | rest -> (None, rest)
+          in
+          loop key
+            ({ prefix_len = prefix; key_suffix = suffix; value; right } :: acc)
+            rest
+      | Child _ :: _ -> fail "MST: two child pointers next to each other"
+    in
+    { left; entries = loop "" [] rest }
+
+  let rec load_tree ?(layer : int option) (store : store) (cid : Cid.t) : tree =
+    { store; pointer = cid; entries = None; layer; outdated = false }
+
+  and child_of_cid store layer cid = load_tree ?layer store cid
+
+  let node_to_entries store layer (n : node) : node_entry list =
+    let child_layer =
+      match layer with Some l -> Some (l - 1) | None -> None
+    in
+    let left =
+      match n.left with
+      | Some cid -> [ Child (child_of_cid store child_layer cid) ]
+      | None -> []
+    in
+    let items = reconstruct n in
+    left
+    @ List.concat
+        (List.map
+           (fun (r : reconstructed) ->
+             Value (r.key, r.value)
+             ::
+             (match r.right with
+             | Some cid -> [ Child (child_of_cid store child_layer cid) ]
+             | None -> []))
+           items)
+
+  let get_entries (t : tree) : node_entry list =
+    match t.entries with
+    | Some e -> e
+    | None -> (
+        match store_get t.store t.pointer with
+        | None -> fail ("MST missing block " ^ Cid.to_string t.pointer)
+        | Some data ->
+            let node = node_of_bytes data in
+            let layer =
+              match t.layer with
+              | Some l -> Some l
+              | None -> (
+                  match reconstruct node with
+                  | hd :: _ -> Some (layer_for_key hd.key)
+                  | [] -> Some 0)
+            in
+            t.layer <- layer;
+            let entries = node_to_entries t.store layer node in
+            t.entries <- Some entries;
+            entries)
+
+  let new_tree (t : tree) (entries : node_entry list) : tree =
+    { t with entries = Some entries; outdated = true }
+
+  let rec serialize (t : tree) : Cid.t * string =
+    let entries = get_entries t in
+    List.iter
+      (function Child c -> ignore (root_cid c) | Value _ -> ())
+      entries;
+    let entries = get_entries t in
+    let node = entries_to_node entries in
+    let data = to_bytes node in
+    let cid = Cid.create data in
+    store_put t.store cid data;
+    t.pointer <- cid;
+    t.outdated <- false;
+    (cid, data)
+
+  and root_cid (t : tree) : Cid.t =
+    if t.outdated then fst (serialize t) else t.pointer
+
+  let create_tree store ?(layer = 0) entries =
+    let t =
+      {
+        store;
+        pointer = empty_node_cid;
+        entries = Some entries;
+        layer = Some layer;
+        outdated = true;
+      }
+    in
+    ignore (root_cid t);
+    t
+
+  let empty_tree store =
+    store_put store empty_node_cid empty_node_bytes;
+    {
+      store;
+      pointer = empty_node_cid;
+      entries = Some [];
+      layer = Some 0;
+      outdated = false;
+    }
+
+  let at_index t i =
+    let entries = get_entries t in
+    if i < 0 || i >= List.length entries then None
+    else Some (List.nth entries i)
+
+  let slice t start_i end_i =
+    let entries = get_entries t in
+    let rec take i acc = function
+      | [] -> List.rev acc
+      | _ when i >= end_i -> List.rev acc
+      | hd :: rest ->
+          if i >= start_i then take (i + 1) (hd :: acc) rest
+          else take (i + 1) acc rest
+    in
+    take 0 [] entries
+
+  let find_gt_or_equal_leaf_index t key =
+    let entries = get_entries t in
+    let rec loop i = function
+      | [] -> List.length entries
+      | Value (k, _) :: _ when String.compare k key >= 0 -> i
+      | _ :: rest -> loop (i + 1) rest
+    in
+    loop 0 entries
+
+  let rec attempt_get_layer t =
+    match t.layer with
+    | Some l -> Some l
+    | None ->
+        let entries = get_entries t in
+        let rec first_leaf = function
+          | [] -> None
+          | Value (k, _) :: _ -> Some (layer_for_key k)
+          | Child c :: rest -> (
+              match attempt_get_layer c with
+              | Some l -> Some (l + 1)
+              | None -> first_leaf rest)
+        in
+        let layer = first_leaf entries in
+        t.layer <- layer;
+        layer
+
+  let get_layer t = match attempt_get_layer t with Some l -> l | None -> 0
+
+  let update_entry t index entry =
+    new_tree t (slice t 0 index @ [ entry ] @ slice t (index + 1) max_int)
+
+  let remove_entry t index =
+    new_tree t (slice t 0 index @ slice t (index + 1) max_int)
+
+  let splice_in t entry index =
+    new_tree t (slice t 0 index @ [ entry ] @ slice t index max_int)
+
+  let replace_with_split t index left leaf right =
+    let left_e = match left with Some c -> [ Child c ] | None -> [] in
+    let right_e = match right with Some c -> [ Child c ] | None -> [] in
+    new_tree t
+      (slice t 0 index @ left_e @ [ leaf ] @ right_e
+      @ slice t (index + 1) max_int)
+
+  let rec split_around t key : tree option * tree option =
+    let index = find_gt_or_equal_leaf_index t key in
+    let left = new_tree t (slice t 0 index) in
+    let right = new_tree t (slice t index max_int) in
+    let left_entries = get_entries left in
+    let left, right =
+      match
+        if left_entries = [] then None
+        else Some (List.nth left_entries (List.length left_entries - 1))
+      with
+      | Some (Child last) ->
+          let left = remove_entry left (List.length left_entries - 1) in
+          let sl, sr = split_around last key in
+          let left =
+            match sl with
+            | Some c -> new_tree left (get_entries left @ [ Child c ])
+            | None -> left
+          in
+          let right =
+            match sr with
+            | Some c -> new_tree right (Child c :: get_entries right)
+            | None -> right
+          in
+          (left, right)
+      | _ -> (left, right)
+    in
+    ( (if get_entries left = [] then None else Some left),
+      if get_entries right = [] then None else Some right )
+
+  let rec append_merge left right =
+    if get_layer left <> get_layer right then
+      fail "MST: merge of nodes from different layers";
+    let le = get_entries left and re = get_entries right in
+    match (le, re) with
+    | _ :: _, Child first_r :: rest_r -> (
+        match List.nth le (List.length le - 1) with
+        | Child last_l ->
+            let merged = append_merge last_l first_r in
+            new_tree left
+              (slice left 0 (List.length le - 1) @ [ Child merged ] @ rest_r)
+        | Value _ -> new_tree left (le @ re))
+    | _ -> new_tree left (le @ re)
+
+  let rec trim_top t =
+    match get_entries t with [ Child child ] -> trim_top child | _ -> t
+
+  let create_child t = create_tree t.store ~layer:(get_layer t - 1) []
+  let create_parent t = create_tree t.store ~layer:(get_layer t + 1) [ Child t ]
+
+  let rec insert_rec t key value key_layer : tree * Cid.t option =
+    let layer = get_layer t in
+    if key_layer = layer then
+      let index = find_gt_or_equal_leaf_index t key in
+      match at_index t index with
+      | Some (Value (k, old)) when String.equal k key ->
+          (update_entry t index (Value (key, value)), Some old)
+      | _ -> (
+          let prev = at_index t (index - 1) in
+          match prev with
+          | Some (Child child) ->
+              let left, right = split_around child key in
+              ( replace_with_split t (index - 1) left (Value (key, value)) right,
+                None )
+          | _ -> (splice_in t (Value (key, value)) index, None))
+    else if key_layer < layer then
+      let index = find_gt_or_equal_leaf_index t key in
+      match at_index t (index - 1) with
+      | Some (Child child) ->
+          let child, prev = insert_rec child key value key_layer in
+          (update_entry t (index - 1) (Child child), prev)
+      | _ ->
+          let child = create_child t in
+          let child, prev = insert_rec child key value key_layer in
+          (splice_in t (Child child) index, prev)
+    else
+      let left, right = split_around t key in
+      let extra = key_layer - layer in
+      let rec wrap n side =
+        if n <= 0 || side = None then side
+        else
+          match side with
+          | None -> None
+          | Some c -> wrap (n - 1) (Some (create_parent c))
+      in
+      (* first split already accounts for one layer; wrap extras-1 *)
+      let left = wrap (extra - 1) left in
+      let right = wrap (extra - 1) right in
+      let entries =
+        (match left with Some c -> [ Child c ] | None -> [])
+        @ [ Value (key, value) ]
+        @ match right with Some c -> [ Child c ] | None -> []
+      in
+      (create_tree t.store ~layer:key_layer entries, None)
+
+  let insert (t : tree) (key : string) (value : Cid.t) : tree * Cid.t option =
+    if key = "" then fail "MST insert: empty key";
+    insert_rec t key value (layer_for_key key)
+
+  let rec get_rec t key =
+    let index = find_gt_or_equal_leaf_index t key in
+    match at_index t index with
+    | Some (Value (k, v)) when String.equal k key -> Some v
+    | _ -> (
+        match at_index t (index - 1) with
+        | Some (Child child) -> get_rec child key
+        | _ -> None)
+
+  let get t key = get_rec t key
+
+  let rec delete_recurse t key : tree * Cid.t option =
+    let index = find_gt_or_equal_leaf_index t key in
+    match at_index t index with
+    | Some (Value (k, old)) when String.equal k key -> (
+        match (at_index t (index - 1), at_index t (index + 1)) with
+        | Some (Child prev), Some (Child next) ->
+            let merged = append_merge prev next in
+            ( new_tree t
+                (slice t 0 (index - 1)
+                @ [ Child merged ]
+                @ slice t (index + 2) max_int),
+              Some old )
+        | _ -> (remove_entry t index, Some old))
+    | _ -> (
+        match at_index t (index - 1) with
+        | Some (Child child) ->
+            let child, prev = delete_recurse child key in
+            if get_entries child = [] then (remove_entry t (index - 1), prev)
+            else (update_entry t (index - 1) (Child child), prev)
+        | _ -> (t, None))
+
+  let remove t key =
+    let t, prev = delete_recurse t key in
+    (trim_top t, prev)
+
+  let normalize_ops (ops : record_op list) : record_op list =
+    let last = Hashtbl.create 8 in
+    List.iter (fun (op : record_op) -> Hashtbl.replace last op.path op) ops;
+    let seen = Hashtbl.create 8 in
+    List.rev
+      (List.fold_left
+         (fun acc (op : record_op) ->
+           if Hashtbl.mem seen op.path then acc
+           else (
+             Hashtbl.add seen op.path ();
+             Hashtbl.find last op.path :: acc))
+         [] (List.rev ops))
+
+  let invert_op (t : tree) (op : record_op) : tree =
+    match op.action with
+    | "create" -> (
+        match op.cid with
+        | None -> fail "MST invert: create is missing cid"
+        | Some expected -> (
+            let t, prev = remove t op.path in
+            match prev with
+            | Some c when Cid.equal c expected -> t
+            | Some c ->
+                fail
+                  (Printf.sprintf "MST invert create: tree had %s, op.cid is %s"
+                     (Cid.to_string c) (Cid.to_string expected))
+            | None -> fail ("MST invert create: missing " ^ op.path)))
+    | "update" -> (
+        match (op.cid, op.prev) with
+        | Some expected, Some old -> (
+            let t, prev = insert t op.path old in
+            match prev with
+            | Some c when Cid.equal c expected -> t
+            | Some c ->
+                fail
+                  (Printf.sprintf "MST invert update: tree had %s, op.cid is %s"
+                     (Cid.to_string c) (Cid.to_string expected))
+            | None -> fail ("MST invert update: missing " ^ op.path))
+        | _ -> fail "MST invert: update requires cid and prev")
+    | "delete" -> (
+        match op.prev with
+        | None -> fail "MST invert: delete is missing prev"
+        | Some old -> (
+            let t, prev = insert t op.path old in
+            match prev with
+            | None -> t
+            | Some c ->
+                fail
+                  (Printf.sprintf "MST invert delete: %s was present as %s"
+                     op.path (Cid.to_string c))))
+    | other -> fail ("MST invert: unknown action " ^ other)
+
+  let invert_ops (t : tree) (ops : record_op list) : tree =
+    List.fold_left invert_op t (normalize_ops ops)
+
+  let check_op (t : tree) (op : record_op) : unit =
+    match op.action with
+    | "create" | "update" -> (
+        match (op.cid, get t op.path) with
+        | Some expected, Some got when Cid.equal expected got -> ()
+        | Some expected, Some got ->
+            fail
+              (Printf.sprintf "MST op %s %s: tree %s != op.cid %s" op.action
+                 op.path (Cid.to_string got) (Cid.to_string expected))
+        | Some _, None ->
+            fail
+              (Printf.sprintf "MST op %s %s: path missing in tree" op.action
+                 op.path)
+        | None, _ -> fail (Printf.sprintf "MST op %s missing cid" op.action))
+    | "delete" -> (
+        match get t op.path with
+        | None -> ()
+        | Some c ->
+            fail
+              (Printf.sprintf "MST op delete %s: still present as %s" op.path
+                 (Cid.to_string c)))
+    | other -> fail ("MST check_op: unknown action " ^ other)
+
+  let tree_of_root store (root : Cid.t) = load_tree store root
+
+  let invert_firehose_ops ~get_block ~mst_root (ops : record_op list) : Cid.t =
+    let store = store_of_get get_block in
+    let tree = invert_ops (tree_of_root store mst_root) ops in
+    root_cid tree
 end

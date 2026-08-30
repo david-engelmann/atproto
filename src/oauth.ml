@@ -55,11 +55,39 @@ module Oauth = struct
   let ath_of_access_token (access_token : string) : string =
     Base64url.encode (Hash.sha256 access_token)
 
+  (* NIST P-256 group order n and floor(n/2) for low-S ECDSA (same as PLC). *)
+  let p256_n =
+    Hash.hex_decode
+      "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551"
+
+  let p256_n_half =
+    Hash.hex_decode
+      "7fffffff800000007fffffffffffffffde737d56d38bcf4279dce5617e3192a8"
+
+  let sub_be (n : string) (s : string) : string =
+    let out = Bytes.create (String.length n) in
+    let borrow = ref 0 in
+    for i = String.length n - 1 downto 0 do
+      let d = Char.code n.[i] - Char.code s.[i] - !borrow in
+      if d < 0 then (
+        Bytes.set out i (Char.chr (d + 256));
+        borrow := 1)
+      else (
+        Bytes.set out i (Char.chr d);
+        borrow := 0)
+    done;
+    Bytes.to_string out
+
+  let low_s (s : string) : string =
+    if String.compare s p256_n_half > 0 then sub_be p256_n s else s
+
+  let is_low_s (s : string) : bool = String.compare s p256_n_half <= 0
+
   let sign_es256 ~(priv : Mirage_crypto_ec.P256.Dsa.priv) (input : string) :
       string =
     let digest = Hash.sha256 input in
     let r, s = Mirage_crypto_ec.P256.Dsa.sign ~key:priv digest in
-    r ^ s
+    r ^ low_s s
 
   let dpop_proof ~(priv : Mirage_crypto_ec.P256.Dsa.priv)
       ~(pub : Mirage_crypto_ec.P256.Dsa.pub) ~htm ~htu ?ath ?jti ?iat () :
@@ -133,7 +161,9 @@ module Oauth = struct
       else
         let r = String.sub sig_ 0 32 in
         let t = String.sub sig_ 32 32 in
-        Mirage_crypto_ec.P256.Dsa.verify ~key:pub (r, t) (Hash.sha256 input)
+        if not (is_low_s t) then false
+        else
+          Mirage_crypto_ec.P256.Dsa.verify ~key:pub (r, t) (Hash.sha256 input)
     with _ -> false
 
   let par_url ?(host = "bsky.social") () =

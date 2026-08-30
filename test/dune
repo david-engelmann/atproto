@@ -52,6 +52,7 @@
   lwt_ssl
   digestif
   mirage-crypto-ec
+  zarith
   ounit2
   atproto)
  (modules

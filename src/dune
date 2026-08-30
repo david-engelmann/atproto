@@ -20,7 +20,8 @@
   lwt_ssl
   lwt
   digestif
-  mirage-crypto-ec)
+  mirage-crypto-ec
+  zarith)
  (preprocess
   (pps ppx_jane))
  (modules
@@ -48,6 +49,7 @@
   Http_client
   Http_method
   Identity
+  K256
   Label
   Lexicon
   Moderation

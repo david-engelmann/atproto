@@ -30,6 +30,7 @@ depends: [
     "jose"
     "digestif"
     "mirage-crypto-ec"
+    "zarith"
     "ppx_jane"
     "ounit2" {with-test}
     ]
