@@ -1,1 +1,2 @@
-(lang dune 1.10)
+(lang dune 2.9)
+(name atproto)

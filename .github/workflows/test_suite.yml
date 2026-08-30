@@ -40,17 +40,17 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Use OCaml ${{ matrix.ocaml-compiler }}
-        uses: ocaml/setup-ocaml@v2
+        uses: ocaml/setup-ocaml@v3
         with:
           dune-cache: true
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
           opam-disable-sandboxing: true
 
       - name: Cache opam dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         id: opam-cache
         with:
           path: ~/.opam
@@ -59,7 +59,7 @@ jobs:
             ${{ runner.os }}-opam-
 
       - name: Install Common Libs
-        run: opam install async base uri cohttp cohttp-lwt-unix cohttp-async h2 httpaf httpaf-lwt-unix h2-lwt-unix lwt core_kernel ssl lwt_ssl jose ounit qcheck dune ocamlformat
+        run: opam install async base core uri yojson ptime cohttp cohttp-lwt-unix cohttp-async h2 httpaf httpaf-lwt-unix h2-lwt-unix lwt core_kernel ssl lwt_ssl jose digestif mirage-crypto-ec ounit ounit2 ppx_jane qcheck dune ocamlformat
 #      - name: Install Repo
 #        run: opam install . --deps-only --with-doc --with-test
       - name: Dune Build
@@ -73,10 +73,12 @@ jobs:
           ATP_AUTH: ${{ secrets.ATP_AUTH }}
           ATP_HOST: ${{ secrets.ATP_HOST }}
       - name: Upload Log
-        uses: actions/upload-artifact@v2
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: dune_runtest
           path: dune_runtest.log
+          if-no-files-found: warn
 
   lint-doc:
     strategy:
@@ -91,17 +93,17 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Use OCaml ${{ matrix.ocaml-compiler }}
-        uses: ocaml/setup-ocaml@v2
+        uses: ocaml/setup-ocaml@v3
         with:
           dune-cache: true
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
           opam-disable-sandboxing: true
 
       - name: Lint doc
-        uses: ocaml/setup-ocaml/lint-doc@v2
+        uses: ocaml/setup-ocaml/lint-doc@v3
 
   lint-fmt:
     strategy:
@@ -116,14 +118,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Use OCaml ${{ matrix.ocaml-compiler }}
-        uses: ocaml/setup-ocaml@v2
+        uses: ocaml/setup-ocaml@v3
         with:
           dune-cache: true
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
           opam-disable-sandboxing: true
 
       - name: Lint fmt
-        uses: ocaml/setup-ocaml/lint-fmt@v2
+        uses: ocaml/setup-ocaml/lint-fmt@v3

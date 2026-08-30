@@ -1,9 +1,65 @@
 (include_subdirs unqualified)
+
 (library
  (name atproto)
- (libraries async core uri cohttp cohttp-lwt-unix cohttp-async h2 httpaf
- httpaf-lwt-unix h2-lwt-unix ssl jose lwt_ssl lwt)
- (preprocess (pps ppx_jane))
- (modules App Actor Auth Cohttp_client Embed Session Moderation Graph User Http_client
- Http_method Notification Feed Facet Label Request Response Repo Server Sync)
-)
+ (libraries
+  async
+  core
+  uri
+  yojson
+  ptime
+  cohttp
+  cohttp-lwt-unix
+  cohttp-async
+  h2
+  httpaf
+  httpaf-lwt-unix
+  h2-lwt-unix
+  ssl
+  jose
+  lwt_ssl
+  lwt
+  digestif
+  mirage-crypto-ec)
+ (preprocess
+  (pps ppx_jane))
+ (modules
+  App
+  Actor
+  At_uri
+  Auth
+  Base32
+  Base58
+  Base64url
+  Car
+  Cid
+  Cohttp_client
+  Dag_cbor
+  Did_key
+  Did_plc
+  Did_web
+  Embed
+  Error
+  Facet
+  Feed
+  Firehose
+  Graph
+  Hash
+  Http_client
+  Http_method
+  Identity
+  Label
+  Lexicon
+  Moderation
+  Mst
+  Notification
+  Oauth
+  Repo
+  Request
+  Response
+  Server
+  Session
+  Sync
+  User
+  Varint
+  Websocket))

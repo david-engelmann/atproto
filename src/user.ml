@@ -1,7 +1,3 @@
 module User = struct
-    type user =
-        {
-          username : string;
-          password : string;
-        }
+  type user = { username : string; password : string }
 end
