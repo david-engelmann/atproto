@@ -8,6 +8,8 @@ let create_test_session _ =
     Session.create_session username password
 
 let test_get_blocks _ =
+  skip_if (not Auth.has_live_credentials)
+    "ATP_AUTH not configured; live Bluesky test skipped";
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let blocks = Lwt_main.run (Sync.get_blocks test_session "did:plc:xov3uvxfd4to6ev3ak5g5uxk" ["bafkreieva64qpnxs7zmwc6ezo7hatq4d22ot7wqlj4hi24zimjqzoye4wq"]) in
   OUnit2.assert_bool "Blocks is not empty" (blocks <> "")

@@ -50,13 +50,17 @@ module Graph = struct
   let parse_blocks json : blocks =
     let open Yojson.Safe.Util in
     let blocks = json |> member "blocks" |> to_list |> List.map Actor.parse_block_profile in
-    let cursor = json |> member "cursor" |> to_string in
+    let cursor =
+      match json |> member "cursor" with `String s -> s | _ -> ""
+    in
     { blocks; cursor }
 
   let parse_mutes json : mutes =
     let open Yojson.Safe.Util in
     let mutes = json |> member "mutes" |> to_list |> List.map Actor.parse_block_profile in
-    let cursor = json |> member "cursor" |> to_string in
+    let cursor =
+      match json |> member "cursor" with `String s -> s | _ -> ""
+    in
     { mutes; cursor }
 
   let get_blocks (s : Session.session) (limit : int) : blocks =

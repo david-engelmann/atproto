@@ -106,13 +106,26 @@ let test_sample_auth_without_jti_refresh_token _ =
        | _ ->
          OUnit2.assert_equal 1 1
 
+let test_get_base_endpoint _ =
+  let endpoint = Auth.get_base_endpoint in
+  OUnit2.assert_bool "BASE_ENDPOINT should be non-empty and end with /"
+    (String.length endpoint > 0 && endpoint.[String.length endpoint - 1] = '/')
+
+let test_create_session_url _ =
+  OUnit2.assert_equal ~printer:(fun x -> x)
+    "https://bsky.social/xrpc/com.atproto.server.createSession"
+    (Auth.create_session_url "bsky.social")
+
 let test_make_auth_token_request_valid_info _ =
+  skip_if (not Auth.has_live_credentials)
+    "ATP_AUTH not configured; live Bluesky test skipped";
   let (username, password) = Auth.username_and_password_from_env in
   let body = Auth.make_auth_token_request username password "bsky.social" in
-  print_endline body;
-  OUnit2.assert_bool "Body is not empty" (body <> "")
+  OUnit2.assert_bool "createSession body is empty" (body <> "")
 
 let test_parse_auth _ =
+  skip_if (not Auth.has_live_credentials)
+    "ATP_AUTH not configured; live Bluesky test skipped";
   let (username, password) = Auth.username_and_password_from_env in
   let body = Auth.make_auth_token_request username password "bsky.social" in
   let test_auth = Auth.parse_auth (Auth.convert_body_to_json body) in
@@ -140,6 +153,8 @@ let suite =
          "test_sample_auth_without_jti_did" >:: test_sample_auth_without_jti_did;
          "test_sample_auth_without_jti_jti" >:: test_sample_auth_without_jti_jti;
          "test_sample_auth_without_jti_refresh_token" >:: test_sample_auth_without_jti_refresh_token;
+         "test_get_base_endpoint" >:: test_get_base_endpoint;
+         "test_create_session_url" >:: test_create_session_url;
          "test_make_auth_token_request_valid_info" >:: test_make_auth_token_request_valid_info;
          "test_parse_auth" >:: test_parse_auth;
        ]

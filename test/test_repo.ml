@@ -8,6 +8,8 @@ let create_test_session _ =
     Session.create_session username password
 
 let test_describe_repo _ =
+  skip_if (not Auth.has_live_credentials)
+    "ATP_AUTH not configured; live Bluesky test skipped";
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let repo_description = Repo.describe_repo test_session "go-bluesky-tester.bsky.social" in
   Printf.printf "Repo Description: %s\n" repo_description;

@@ -151,12 +151,7 @@ module Notification = struct
     let record = parse_record record_json reason in
     let is_read = json |> member "isRead" |> to_bool in
     let indexed_at = json |> member "indexedAt" |> to_string in
-    let labels =
-      match json |> member "labels" with
-      | `Null -> None
-      | `List labels_json -> Some (labels_json |> List.map to_string)
-      | _ -> None
-    in
+    let labels = Label.Label.parse_label_values (json |> member "labels") in
     { uri; cid; author; reason; reason_subject; record; is_read;
       indexed_at; labels }
 

@@ -295,12 +295,7 @@ module Feed = struct
     let like_count = json |> member "likeCount" |> to_int in
     let indexed_at = json |> member "indexedAt" |> to_string in
     let viewer = json |> member "viewer" |> parse_feed_viewer in
-    let labels =
-      match json |> member "labels" with
-      | `Null -> None
-      | `List labels_json -> Some (labels_json |> List.map to_string)
-      | _ -> None
-    in
+    let labels = Label.Label.parse_label_values (json |> member "labels") in
     { uri; cid; author; record; reply_count; repost_count; like_count;
       indexed_at; viewer; labels }
 
@@ -315,12 +310,7 @@ module Feed = struct
     let like_count = json |> member "likeCount" |> to_int in
     let indexed_at = json |> member "indexedAt" |> to_string in
     let viewer = json |> member "viewer" |> parse_feed_viewer in
-    let labels =
-      match json |> member "labels" with
-      | `Null -> None
-      | `List labels_json -> Some (labels_json |> List.map to_string)
-      | _ -> None
-    in
+    let labels = Label.Label.parse_label_values (json |> member "labels") in
     { uri; cid; author; record; reply_count; repost_count; like_count;
       indexed_at; viewer; labels }
 
@@ -335,12 +325,7 @@ module Feed = struct
     let like_count = json |> member "likeCount" |> to_int in
     let indexed_at = json |> member "indexedAt" |> to_string in
     let viewer = json |> member "viewer" |> parse_feed_viewer in
-    let labels =
-      match json |> member "labels" with
-      | `Null -> None
-      | `List labels_json -> Some (labels_json |> List.map to_string)
-      | _ -> None
-    in
+    let labels = Label.Label.parse_label_values (json |> member "labels") in
     { uri; cid; author; record; reply_count; repost_count; like_count;
       indexed_at; viewer; labels }
 
@@ -377,12 +362,7 @@ module Feed = struct
     let like_count = json |> member "likeCount" |> to_int in
     let indexed_at = json |> member "indexedAt" |> to_string in
     let viewer = json |> member "viewer" |> parse_feed_viewer in
-    let labels =
-      match json |> member "labels" with
-      | `Null -> None
-      | `List labels_json -> Some (labels_json |> List.map to_string)
-      | _ -> None
-    in
+    let labels = Label.Label.parse_label_values (json |> member "labels") in
     { uri; cid; author; record; reply_count; repost_count; like_count;
       indexed_at; viewer; labels }
 

@@ -16,6 +16,8 @@ depends: [
     "dune" {>= "2.0.0"}
     "h2" {>= "0.10.0"}
     "uri" {>= "4.2.0"}
+    "yojson"
+    "ptime"
     "lwt" {>= "5.6.1"}
     "h2-lwt-unix" {>= "0.10.0"}
     "httpaf" {>= "0.7.1"}
@@ -26,6 +28,8 @@ depends: [
     "ssl"
     "lwt_ssl"
     "jose"
+    "ppx_jane"
+    "ounit2" {with-test}
     ]
 available: arch != "arm32" & arch != "x86_32"
 synopsis: "OCaml-based tools for AT Protocol"

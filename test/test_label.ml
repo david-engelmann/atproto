@@ -8,6 +8,8 @@ let create_test_session _ =
     Session.create_session username password
 
 let test_query_labels _ =
+  skip_if (not Auth.has_live_credentials)
+    "ATP_AUTH not configured; live Bluesky test skipped";
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let labels = Label.query_labels test_session ["*"] in
   Printf.printf "Query Labels: %s\n" labels;

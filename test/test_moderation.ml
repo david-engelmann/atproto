@@ -13,6 +13,8 @@ let create_test_session _ =
     Session.create_session username password
 
 let test_create_report_no_reason _ =
+  skip_if (not Auth.has_live_credentials)
+    "ATP_AUTH not configured; live Bluesky test skipped";
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let created_report = Moderation.create_report_with_strong_ref test_session "com.atproto.moderation.defs#reasonOther" sample_strong_ref in
   match created_report with

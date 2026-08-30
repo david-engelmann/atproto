@@ -72,7 +72,10 @@ module Repo = struct
       [
         Some ("repo", `String repo);
         Some ("collection", `String collection);
-        Some ("record", `String record);
+        Some
+          ( "record",
+            try Yojson.Basic.from_string record
+            with _ -> `String record );
         Option.map (fun rkey -> ("rkey",  `String rkey)) rkey;
         Some ("validate", `Bool validate);
         Option.map (fun swap_commit -> ("swapCommit", `String swap_commit)) swap_commit;
@@ -92,7 +95,10 @@ module Repo = struct
       [
         Some ("repo", `String repo);
         Some ("collection", `String collection);
-        Some ("record", `String record);
+        Some
+          ( "record",
+            try Yojson.Basic.from_string record
+            with _ -> `String record );
         Option.map (fun rkey -> ("rkey",  `String rkey)) rkey;
         Some ("validate", `Bool validate);
         Option.map (fun swap_record -> ("swapRecord", `String swap_record)) swap_record;

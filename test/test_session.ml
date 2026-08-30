@@ -52,6 +52,8 @@ let test_sample_session_auth_did _ =
         OUnit2.assert_equal "did_public_key" did
 
 let test_create_session _ =
+  skip_if (not Auth.has_live_credentials)
+    "ATP_AUTH not configured; live Bluesky test skipped";
     let test_session = create_test_session () |> Session.refresh_session_auth in
     OUnit2.assert_equal ~printer:string_of_bool true ((String.length test_session.username) > 0);
     OUnit2.assert_equal ~printer:string_of_bool true ((String.length test_session.password) > 0);
@@ -60,6 +62,8 @@ let test_create_session _ =
     OUnit2.assert_equal ~printer:string_of_bool true ((String.length test_session.auth.did) > 0)
 
 let test_bearer_token_from_session _ =
+  skip_if (not Auth.has_live_credentials)
+    "ATP_AUTH not configured; live Bluesky test skipped";
     let test_session = create_test_session () |> Session.refresh_session_auth in
     let bearer_token = Session.bearer_token_from_session test_session in
     match bearer_token with
@@ -68,12 +72,16 @@ let test_bearer_token_from_session _ =
         OUnit2.assert_equal ~printer:string_of_bool true ((String.length bearer) > 0)
 
 let test_get_session_request _ =
+  skip_if (not Auth.has_live_credentials)
+    "ATP_AUTH not configured; live Bluesky test skipped";
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let session_info = Session.get_session_request test_session in
   print_endline session_info;
   OUnit2.assert_equal ~printer:string_of_bool true ((String.length session_info) > 0)
 
 let test_delete_session _ =
+  skip_if (not Auth.has_live_credentials)
+    "ATP_AUTH not configured; live Bluesky test skipped";
   let test_session = create_test_session () in
   let deleted_session = Session.delete_session test_session in
   Printf.printf "Delete Session: %s\n" deleted_session;

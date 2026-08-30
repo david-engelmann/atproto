@@ -29,7 +29,7 @@ module Http_client = struct
     let write_to_request_body body data =
       Buffer.add_string request_buffer data;
       H2.Body.Writer.write_string body data;
-      H2.Body.Writer.flush body (fun () -> ())
+      H2.Body.Writer.flush body (function `Written | `Closed -> ())
 
     let get_addr_info (host : string) (port : int) : Unix.addr_info list Lwt.t =
         Lwt_unix.getaddrinfo host (string_of_int port) [ Unix.(AI_FAMILY PF_INET) ]

@@ -3,6 +3,44 @@ open Cohttp_client
 open App
 
 module Label = struct
+  type label = {
+    src : string;
+    uri : string;
+    cid : string option;
+    val_ : string;
+    neg : bool option;
+    cts : string option;
+  }
+
+  let parse_label json : label =
+    let open Yojson.Safe.Util in
+    {
+      src = (match json |> member "src" with `String s -> s | _ -> "");
+      uri = (match json |> member "uri" with `String s -> s | _ -> "");
+      cid = (match json |> member "cid" with `String s -> Some s | _ -> None);
+      val_ = (match json |> member "val" with `String s -> s | _ -> "");
+      neg = (match json |> member "neg" with `Bool b -> Some b | _ -> None);
+      cts = (match json |> member "cts" with `String s -> Some s | _ -> None);
+    }
+
+  let parse_label_values json : string list option =
+    match json with
+    | `Null -> None
+    | `List items ->
+        let vals =
+          List.filter_map
+            (function
+              | `String s -> Some s
+              | `Assoc _ as obj ->
+                  (match Yojson.Safe.Util.member "val" obj with
+                  | `String s -> Some s
+                  | _ -> None)
+              | _ -> None)
+            items
+        in
+        if vals = [] then None else Some vals
+    | _ -> None
+
   let create_label_endpoint (query_name : string) : string =
     "com.atproto.label" ^ "." ^ query_name
 

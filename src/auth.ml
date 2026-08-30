@@ -40,8 +40,37 @@ module Auth = struct
     let convert_atp_auth_string_to_tuple (atp_auth : string) : (string * string) =
       split_atp_auth_string_on_colon atp_auth
 
+    let dummy_auth_markers =
+      [
+        "your.name@email.com";
+        "pppp-ppp6";
+        "julyjackson@gmail.com";
+        "acrazyapppassword";
+      ]
+
+    let string_contains hay needle =
+      let hlen = String.length hay in
+      let nlen = String.length needle in
+      let rec aux i =
+        if i + nlen > hlen then false
+        else if String.sub hay i nlen = needle then true
+        else aux (i + 1)
+      in
+      aux 0
+
+    let has_live_credentials : bool =
+      match Sys.getenv_opt "ATP_AUTH" with
+      | None -> false
+      | Some auth ->
+          String.contains auth ':'
+          && not (List.exists (string_contains auth) dummy_auth_markers)
+
     let username_and_password_from_env : (string * string) =
-      let atp_auth = try Sys.getenv "ATP_AUTH" with Not_found -> "julyjackson@gmail.com:acrazyapppassword" in
+      let atp_auth =
+        match Sys.getenv_opt "ATP_AUTH" with
+        | Some auth -> auth
+        | None -> "julyjackson@gmail.com:acrazyapppassword"
+      in
       convert_atp_auth_string_to_tuple atp_auth
 
     let create_server_endpoint (query_name : string) : string =
@@ -73,11 +102,19 @@ module Auth = struct
       let json = Yojson.Safe.from_string body in
       json
 
+    let create_session_url (personal_data_server : string) : string =
+      let base_endpoint = get_base_endpoint in
+      let create_session_endpoint = create_server_endpoint "createSession" in
+      Printf.sprintf "https://%s/%s%s" personal_data_server base_endpoint
+        create_session_endpoint
+
     let make_auth_token_request (username : string) (password : string) (personal_data_server : string) : string =
-      let url = Printf.sprintf "https://%s/xrpc/com.atproto.server.createSession" personal_data_server in
-      let data = Printf.sprintf "{\"identifier\": \"%s\", \"password\": \"%s\"}" username password in
-      let body = Lwt_main.run (Cohttp_client.post_data url data) in
-      body
+      let url = create_session_url personal_data_server in
+      let data =
+        Printf.sprintf "{\"identifier\": \"%s\", \"password\": \"%s\"}" username
+          password
+      in
+      Lwt_main.run (Cohttp_client.post_data url data)
 
     let refresh_auth_token_request (access_jwt : string) (refresh_jwt : string) (handle : string) (did : string) (personal_data_server : string) : string =
       let base_endpoint = get_base_endpoint in

@@ -8,6 +8,8 @@ let create_test_session _ =
     Session.create_session username password
 
 let test_get_unread_count _ =
+  skip_if (not Auth.has_live_credentials)
+    "ATP_AUTH not configured; live Bluesky test skipped";
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let unread_count = Notification.get_unread_count test_session in
   match unread_count with
@@ -15,6 +17,8 @@ let test_get_unread_count _ =
     OUnit2.assert_bool "Count is not present" (count >= 0)
 
 let test_list_notifications _ =
+  skip_if (not Auth.has_live_credentials)
+    "ATP_AUTH not configured; live Bluesky test skipped";
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let notifications = Notification.list_notifications test_session 10 in
   match notifications with
@@ -27,6 +31,8 @@ let test_list_notifications _ =
         OUnit2.assert_bool "Handle is empty" (String.length handle > 0)
 
 let test_update_seen _ =
+  skip_if (not Auth.has_live_credentials)
+    "ATP_AUTH not configured; live Bluesky test skipped";
   let test_session = create_test_session () |> Session.refresh_session_auth in
   let updated_seen = Notification.update_seen test_session "2023-07-15T12:34:56.789012Z" in
   Printf.printf "Updated Seen: %s\n" updated_seen;
