@@ -6,7 +6,7 @@ let test_pairs_to_query_string _ =
     Cohttp_client.create_body_from_pairs
       [ ("did", "did:plc:abc"); ("limit", "10") ]
   in
-  OUnit2.assert_equal ~printer:(fun x -> x) "did=did%3Aplc%3Aabc&limit=10" qs
+  OUnit2.assert_equal ~printer:(fun x -> x) "did=did:plc:abc&limit=10" qs
 
 let test_add_query_params _ =
   let qs = Cohttp_client.add_query_params "cids" [ "aaa"; "bbb" ] in

@@ -53,6 +53,21 @@ module Identity = struct
     | Some e -> failwith ("Identity: " ^ Error.Error.to_string e)
     | None -> Yojson.Safe.from_string resp
 
+  let host_of_service_endpoint (url : string) : string =
+    let strip prefix =
+      let plen = String.length prefix in
+      if String.length url >= plen && String.sub url 0 plen = prefix then
+        String.sub url plen (String.length url - plen)
+      else url
+    in
+    let rest =
+      let after_https = strip "https://" in
+      if after_https = url then strip "http://" else after_https
+    in
+    match String.index_opt rest '/' with
+    | None -> rest
+    | Some i -> String.sub rest 0 i
+
   let resolve_handle ?host ?session (handle : string) : resolved_handle =
     get_json ?host ?session
       (create_identity_endpoint "resolveHandle")

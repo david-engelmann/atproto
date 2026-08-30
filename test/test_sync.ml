@@ -13,13 +13,19 @@ let create_test_session _ =
   let username, password = Auth.username_and_password_from_env in
   Session.create_session username password
 
-let public_did () =
-  (Identity.resolve_handle "jay.bsky.team").did
+let public_actor () =
+  Identity.resolve "jay.bsky.team"
+
+let public_pds_host ident =
+  match ident.Identity.pds with
+  | Some pds -> Identity.host_of_service_endpoint pds
+  | None -> "bsky.social"
 
 let test_get_latest_commit_public _ =
   try
-    let did = public_did () in
-    let commit = Sync.get_latest_commit did in
+    let ident = public_actor () in
+    let host = public_pds_host ident in
+    let commit = Sync.get_latest_commit ~host ident.did in
     OUnit2.assert_bool "latest commit cid empty" (String.length commit.cid > 0);
     OUnit2.assert_bool "latest commit rev empty" (String.length commit.rev > 0)
   with exn ->
@@ -27,8 +33,9 @@ let test_get_latest_commit_public _ =
 
 let test_list_blobs_public _ =
   try
-    let did = public_did () in
-    let blobs = Sync.list_blobs ~limit:5 did in
+    let ident = public_actor () in
+    let host = public_pds_host ident in
+    let blobs = Sync.list_blobs ~host ~limit:5 ident.did in
     OUnit2.assert_bool "listBlobs should return a list"
       (List.length blobs.cids >= 0)
   with exn ->
@@ -38,8 +45,8 @@ let test_get_head _ =
   skip_without_auth ();
   let test_session = create_test_session () |> Session.refresh_session_auth in
   try
-    let did = public_did () in
-    let head = Sync.get_head test_session did in
+    let ident = public_actor () in
+    let head = Sync.get_head test_session ident.did in
     OUnit2.assert_bool "Sync Head is empty" (head <> "")
   with exn ->
     skip_if true ("get_head skipped: " ^ Printexc.to_string exn)
@@ -48,8 +55,9 @@ let test_get_repo_car _ =
   skip_without_auth ();
   let test_session = create_test_session () |> Session.refresh_session_auth in
   try
-    let did = public_did () in
-    let car = Sync.get_repo_car ~session:test_session did in
+    let ident = public_actor () in
+    let host = public_pds_host ident in
+    let car = Sync.get_repo_car ~host ~session:test_session ident.did in
     OUnit2.assert_bool "CAR roots missing"
       (match Car.root car with Some _ -> true | None -> false);
     OUnit2.assert_bool "CAR has no blocks" (List.length car.blocks > 0)

@@ -1,6 +1,13 @@
 open OUnit2
 open Atproto.Identity
 
+let test_host_of_service_endpoint _ =
+  OUnit2.assert_equal ~printer:(fun x -> x) "morel.us-east.host.bsky.network"
+    (Identity.host_of_service_endpoint
+       "https://morel.us-east.host.bsky.network");
+  OUnit2.assert_equal ~printer:(fun x -> x) "pds.example.com"
+    (Identity.host_of_service_endpoint "https://pds.example.com/xrpc")
+
 let test_resolve_handle_live _ =
   try
     let resolved = Identity.resolve_handle "jay.bsky.team" in
@@ -22,6 +29,7 @@ let test_resolve_actor_live _ =
 let suite =
   "identity"
   >::: [
+         "test_host_of_service_endpoint" >:: test_host_of_service_endpoint;
          "test_resolve_handle_live" >:: test_resolve_handle_live;
          "test_resolve_actor_live" >:: test_resolve_actor_live;
        ]
