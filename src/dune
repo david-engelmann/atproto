@@ -18,7 +18,9 @@
   ssl
   jose
   lwt_ssl
-  lwt)
+  lwt
+  digestif
+  mirage-crypto-ec)
  (preprocess
   (pps ppx_jane))
  (modules
@@ -27,24 +29,31 @@
   At_uri
   Auth
   Base32
+  Base58
+  Base64url
   Car
   Cid
   Cohttp_client
   Dag_cbor
+  Did_key
   Did_plc
+  Did_web
   Embed
   Error
   Facet
   Feed
   Firehose
   Graph
+  Hash
   Http_client
   Http_method
   Identity
   Label
   Lexicon
   Moderation
+  Mst
   Notification
+  Oauth
   Repo
   Request
   Response
@@ -52,4 +61,5 @@
   Session
   Sync
   User
-  Varint))
+  Varint
+  Websocket))

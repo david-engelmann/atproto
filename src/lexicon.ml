@@ -91,6 +91,17 @@ module Lexicon = struct
         List.filter_map (function `String s -> Some s | _ -> None) items
     | _ -> []
 
+  let shape_json json =
+    let open Yojson.Safe.Util in
+    match json |> member "type" with
+    | `String "record" -> (
+        match json |> member "record" with `Assoc _ as obj -> obj | _ -> json)
+    | `String "query" | `String "procedure" | `String "subscription" -> (
+        match json |> member "parameters" with
+        | `Assoc _ as obj -> obj
+        | _ -> json)
+    | _ -> json
+
   let parse_def name json : def =
     let open Yojson.Safe.Util in
     let kind =
@@ -98,12 +109,13 @@ module Lexicon = struct
       | `String t -> lookup_definition t
       | _ -> Unknown_def "unknown"
     in
+    let body = shape_json json in
     {
       name;
       kind;
       description = string_opt json "description";
-      required = parse_required json;
-      properties = parse_properties json;
+      required = parse_required body;
+      properties = parse_properties body;
     }
 
   let of_json json : document =
@@ -127,4 +139,96 @@ module Lexicon = struct
 
   let main (doc : document) : def option =
     List.find_opt (fun d -> d.name = "main") doc.defs
+
+  let ocaml_ident (s : string) : string =
+    let buf = Buffer.create (String.length s) in
+    String.iter
+      (function
+        | ('a' .. 'z' | 'A' .. 'Z' | '0' .. '9') as c -> Buffer.add_char buf c
+        | _ -> Buffer.add_char buf '_')
+      s;
+    let id = Buffer.contents buf in
+    if id = "" then "lexicon"
+    else if id.[0] >= '0' && id.[0] <= '9' then "_" ^ id
+    else id
+
+  let primitive_to_ocaml = function
+    | Boolean -> "bool"
+    | Number -> "float"
+    | Integer -> "int"
+    | String | Ref | Cid_link | Bytes -> "string"
+    | Union | Unknown -> "Yojson.Safe.t"
+
+  let kind_label = function
+    | Record -> "record"
+    | Query -> "query"
+    | Procedure -> "procedure"
+    | Subscription -> "subscription"
+    | Params -> "params"
+    | Token -> "token"
+    | Object -> "object"
+    | Blob -> "blob"
+    | Array -> "array"
+    | String_def -> "string"
+    | Unknown_def s -> s
+
+  let to_ocaml (doc : document) : string =
+    let buf = Buffer.create 256 in
+    let modname = String.capitalize_ascii (ocaml_ident doc.id) in
+    Printf.bprintf buf "(** generated from %s *)\n" doc.id;
+    Printf.bprintf buf "module %s = struct\n" modname;
+    Printf.bprintf buf "  let id = %S\n" doc.id;
+    Printf.bprintf buf "  let lexicon = %d\n\n" doc.lexicon;
+    List.iter
+      (fun (d : def) ->
+        let inner = String.capitalize_ascii (ocaml_ident d.name) in
+        Printf.bprintf buf "  (** %s *)\n" (kind_label d.kind);
+        Printf.bprintf buf "  module %s = struct\n" inner;
+        Printf.bprintf buf "    let name = %S\n" d.name;
+        (match d.properties with
+        | [] -> Printf.bprintf buf "    type t = unit\n"
+        | props ->
+            Printf.bprintf buf "    type t = {\n";
+            List.iter
+              (fun (n, prim) ->
+                let optional = not (List.mem n d.required) in
+                Printf.bprintf buf "      %s : %s%s;\n" (ocaml_ident n)
+                  (primitive_to_ocaml prim)
+                  (if optional then " option" else ""))
+              props;
+            Printf.bprintf buf "    }\n");
+        Printf.bprintf buf "  end\n\n")
+      doc.defs;
+    Printf.bprintf buf "end\n";
+    Buffer.contents buf
+
+  let primitive_matches prim json =
+    match (prim, json) with
+    | Boolean, `Bool _ -> true
+    | Number, (`Float _ | `Int _) -> true
+    | Integer, (`Int _ | `Intlit _) -> true
+    | (String | Ref | Cid_link | Bytes), `String _ -> true
+    | (Union | Unknown), _ -> true
+    | _ -> false
+
+  let validate (d : def) (json : Yojson.Safe.t) : (unit, string) result =
+    match json with
+    | `Assoc fields ->
+        let missing =
+          List.filter (fun req -> not (List.mem_assoc req fields)) d.required
+        in
+        if missing <> [] then
+          Error ("missing required: " ^ String.concat ", " missing)
+        else
+          let rec check = function
+            | [] -> Ok ()
+            | (name, prim) :: rest -> (
+                match List.assoc_opt name fields with
+                | None -> check rest
+                | Some v ->
+                    if primitive_matches prim v then check rest
+                    else Error ("field " ^ name ^ " has the wrong type"))
+          in
+          check d.properties
+    | _ -> Error "expected JSON object"
 end

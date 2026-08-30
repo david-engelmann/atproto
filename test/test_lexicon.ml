@@ -40,11 +40,55 @@ let test_lookup_helpers _ =
   OUnit2.assert_equal Lexicon.Subscription
     (Lexicon.lookup_definition "subscription")
 
+let test_nested_parameters_and_codegen _ =
+  let doc = Lexicon.of_string sample in
+  match Lexicon.main doc with
+  | None -> OUnit2.assert_failure "missing main"
+  | Some main -> (
+      OUnit2.assert_equal [ "handle" ] main.required;
+      OUnit2.assert_equal (Some Lexicon.String)
+        (List.assoc_opt "handle" main.properties);
+      let ocaml = Lexicon.to_ocaml doc in
+      OUnit2.assert_bool "codegen must mention the lexicon id"
+        (let needle = "com.atproto.identity.resolveHandle" in
+         let rec contains i =
+           i + String.length needle <= String.length ocaml
+           && (String.sub ocaml i (String.length needle) = needle
+              || contains (i + 1))
+         in
+         contains 0);
+      OUnit2.assert_bool "codegen must emit handle"
+        (let rec contains i =
+           i + 6 <= String.length ocaml
+           && (String.sub ocaml i 6 = "handle" || contains (i + 1))
+         in
+         contains 0);
+      match
+        Lexicon.validate main (`Assoc [ ("handle", `String "jay.bsky.team") ])
+      with
+      | Ok () -> ()
+      | Error e -> OUnit2.assert_failure e)
+
+let test_validate_errors _ =
+  let doc = Lexicon.of_string sample in
+  match Lexicon.main doc with
+  | None -> OUnit2.assert_failure "missing main"
+  | Some main -> (
+      (match Lexicon.validate main (`Assoc []) with
+      | Error msg -> OUnit2.assert_bool "mentions handle" (String.length msg > 0)
+      | Ok () -> OUnit2.assert_failure "empty object accepted");
+      match Lexicon.validate main (`Assoc [ ("handle", `Int 1) ]) with
+      | Error _ -> ()
+      | Ok () -> OUnit2.assert_failure "wrong type accepted")
+
 let suite =
   "lexicon"
   >::: [
          "test_parse_document" >:: test_parse_document;
          "test_lookup_helpers" >:: test_lookup_helpers;
+         "test_nested_parameters_and_codegen"
+         >:: test_nested_parameters_and_codegen;
+         "test_validate_errors" >:: test_validate_errors;
        ]
 
 let () = run_test_tt_main suite

@@ -40,6 +40,15 @@ let test_base32_roundtrip _ =
   let encoded = Base32.encode raw in
   OUnit2.assert_equal ~printer:(fun x -> x) raw (Base32.decode encoded)
 
+let test_create_sha256 _ =
+  let cid = Cid.create ~codec:Cid.Raw "hello" in
+  OUnit2.assert_equal Cid.Raw cid.codec;
+  OUnit2.assert_equal ~printer:string_of_int 32 (String.length cid.digest);
+  OUnit2.assert_bool "create must be content-addressed"
+    (Cid.equal cid (Cid.create ~codec:Cid.Raw "hello"));
+  OUnit2.assert_bool "different bytes must not collide"
+    (not (Cid.equal cid (Cid.create ~codec:Cid.Raw "hello!")))
+
 let suite =
   "cid"
   >::: [
@@ -49,6 +58,7 @@ let suite =
          "test_is_cid" >:: test_is_cid;
          "test_bytes_roundtrip" >:: test_bytes_roundtrip;
          "test_base32_roundtrip" >:: test_base32_roundtrip;
+         "test_create_sha256" >:: test_create_sha256;
        ]
 
 let () = run_test_tt_main suite

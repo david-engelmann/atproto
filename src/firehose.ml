@@ -1,10 +1,9 @@
 open Cid
 open Dag_cbor
 open Car
+open Websocket
 
-(** Decoder for com.atproto.sync.subscribeRepos frames (DAG-CBOR header + body).
-    A full WebSocket client is not included; feed frames from wss://...subscribeRepos
-    into [decode_frame]. *)
+(** Decoder and WebSocket client for com.atproto.sync.subscribeRepos. *)
 module Firehose = struct
   type header = { op : int; t : string option }
 
@@ -226,4 +225,27 @@ module Firehose = struct
       :: (match h.t with Some t -> [ ("t", Dag_cbor.Text t) ] | None -> [])
     in
     Dag_cbor.encode (Dag_cbor.Map fields)
+
+  let subscribe ?(host = default_relay_host) ?cursor ?max_messages f =
+    let url = subscribe_url ~host ?cursor () in
+    Websocket.with_connection url (fun ws ->
+        let rec loop n =
+          match max_messages with
+          | Some m when n >= m -> ()
+          | _ -> (
+              match Websocket.recv_message ws with
+              | Websocket.Binary payload | Websocket.Text payload ->
+                  f (decode_frame payload);
+                  loop (n + 1)
+              | Websocket.Close _ -> ()
+              | Websocket.Ping _ | Websocket.Pong _ -> loop n)
+        in
+        loop 0)
+
+  let subscribe_one ?host ?cursor () : header * message =
+    let cell = ref None in
+    subscribe ?host ?cursor ~max_messages:1 (fun frame -> cell := Some frame);
+    match !cell with
+    | Some frame -> frame
+    | None -> failwith "Firehose.subscribe_one: no frame received"
 end

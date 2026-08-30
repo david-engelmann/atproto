@@ -18,6 +18,10 @@ let test_resolve_handle_live _ =
       (String.length resolved.did > 8 && String.sub resolved.did 0 4 = "did:")
   with exn -> skip_if true ("resolveHandle skipped: " ^ Printexc.to_string exn)
 
+let test_resolve_did_web_url_only _ =
+  OUnit2.assert_bool "did:web is recognized"
+    (Atproto.Did_web.Did_web.is_web_did "did:web:example.com")
+
 let test_resolve_actor_live _ =
   try
     let ident = Identity.resolve "jay.bsky.team" in
@@ -31,6 +35,7 @@ let suite =
   "identity"
   >::: [
          "test_host_of_service_endpoint" >:: test_host_of_service_endpoint;
+         "test_resolve_did_web_url_only" >:: test_resolve_did_web_url_only;
          "test_resolve_handle_live" >:: test_resolve_handle_live;
          "test_resolve_actor_live" >:: test_resolve_actor_live;
        ]

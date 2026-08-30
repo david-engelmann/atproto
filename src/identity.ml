@@ -84,8 +84,12 @@ module Identity = struct
     if String.length actor >= 4 && String.sub actor 0 4 = "did:" then
       let doc =
         if Did_plc.Did_plc.is_plc_did actor then Did_plc.Did_plc.resolve actor
+        else if Did_web.Did_web.is_web_did actor then
+          Did_web.Did_web.resolve actor
         else
-          failwith "Identity.resolve: only did:plc is supported for DID input"
+          failwith
+            "Identity.resolve: only did:plc and did:web are supported for DID \
+             input"
       in
       {
         did = doc.Did_plc.Did_plc.id;
@@ -97,6 +101,13 @@ module Identity = struct
       let did = resolved.did in
       if Did_plc.Did_plc.is_plc_did did then
         let doc = Did_plc.Did_plc.resolve did in
+        {
+          did;
+          handle = Did_plc.Did_plc.handle_of_document doc;
+          pds = Did_plc.Did_plc.pds_endpoint doc;
+        }
+      else if Did_web.Did_web.is_web_did did then
+        let doc = Did_web.Did_web.resolve did in
         {
           did;
           handle = Did_plc.Did_plc.handle_of_document doc;

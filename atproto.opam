@@ -28,6 +28,8 @@ depends: [
     "ssl"
     "lwt_ssl"
     "jose"
+    "digestif"
+    "mirage-crypto-ec"
     "ppx_jane"
     "ounit2" {with-test}
     ]

@@ -7,7 +7,9 @@
   test_car
   test_cid
   test_cohttp_client
+  test_did_key
   test_did_plc
+  test_did_web
   test_error
   test_feed
   test_firehose
@@ -18,7 +20,9 @@
   test_label
   test_lexicon
   test_moderation
+  test_mst
   test_notification
+  test_oauth
   test_request
   test_repo
   test_response
@@ -46,6 +50,8 @@
   ssl
   jose
   lwt_ssl
+  digestif
+  mirage-crypto-ec
   ounit2
   atproto)
  (modules
@@ -56,7 +62,9 @@
   test_car
   test_cid
   test_cohttp_client
+  test_did_key
   test_did_plc
+  test_did_web
   test_error
   test_feed
   test_firehose
@@ -67,7 +75,9 @@
   test_label
   test_lexicon
   test_moderation
+  test_mst
   test_notification
+  test_oauth
   test_request
   test_repo
   test_response

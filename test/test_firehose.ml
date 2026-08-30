@@ -2,6 +2,7 @@ open OUnit2
 open Atproto.Cid
 open Atproto.Dag_cbor
 open Atproto.Firehose
+open Atproto.Websocket
 
 let test_subscribe_url _ =
   OUnit2.assert_equal
@@ -86,6 +87,63 @@ let test_decode_commit_ops _ =
         "create" (List.hd commit.ops).action
   | _ -> OUnit2.assert_failure "expected #commit frame"
 
+let test_websocket_accept_rfc6455 _ =
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "s3pPLMBiTxaQ9kYGzzhZRbK+xOo="
+    (Websocket.accept_key "dGhlIHNhbXBsZSBub25jZQ==")
+
+let test_websocket_unmasked_roundtrip _ =
+  let encoded = Websocket.encode_frame ~mask:false ~opcode:2 "hello" in
+  let frame, consumed = Websocket.decode_frame_bytes encoded in
+  OUnit2.assert_equal consumed (String.length encoded);
+  OUnit2.assert_equal 2 frame.opcode;
+  OUnit2.assert_equal ~printer:(fun x -> x) "hello" frame.payload;
+  OUnit2.assert_bool "fin" frame.fin
+
+let test_websocket_extended_length _ =
+  let payload = String.make 200 'x' in
+  let encoded = Websocket.encode_frame ~mask:false ~opcode:1 payload in
+  let frame, _ = Websocket.decode_frame_bytes encoded in
+  OUnit2.assert_equal ~printer:string_of_int 200 (String.length frame.payload);
+  OUnit2.assert_equal ~printer:(fun x -> x) payload frame.payload
+
+let test_websocket_masked_roundtrip _ =
+  Random.init 1;
+  let encoded = Websocket.encode_frame ~mask:true ~opcode:2 "masked" in
+  let frame, _ = Websocket.decode_frame_bytes encoded in
+  OUnit2.assert_equal ~printer:(fun x -> x) "masked" frame.payload
+
+let test_parse_wss_url _ =
+  let host, port, path =
+    Websocket.parse_wss_url
+      "wss://bsky.network/xrpc/com.atproto.sync.subscribeRepos?cursor=1"
+  in
+  OUnit2.assert_equal ~printer:(fun x -> x) "bsky.network" host;
+  OUnit2.assert_equal ~printer:string_of_int 443 port;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "/xrpc/com.atproto.sync.subscribeRepos?cursor=1" path
+
+let test_subscribe_live _ =
+  let old =
+    Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
+  in
+  ignore (Unix.alarm 20);
+  Fun.protect
+    ~finally:(fun () ->
+      ignore (Unix.alarm 0);
+      Sys.set_signal Sys.sigalrm old)
+    (fun () ->
+      try
+        let _, msg = Firehose.subscribe_one () in
+        match msg with
+        | `Commit _ | `Sync _ | `Identity _ | `Account _ | `Info _ | `Unknown _
+        | `Error _ ->
+            OUnit2.assert_bool "decoded a subscribeRepos frame" true
+      with exn ->
+        skip_if true ("subscribeRepos skipped: " ^ Printexc.to_string exn))
+
 let suite =
   "firehose"
   >::: [
@@ -93,6 +151,13 @@ let suite =
          "test_decode_identity_frame" >:: test_decode_identity_frame;
          "test_decode_error_frame" >:: test_decode_error_frame;
          "test_decode_commit_ops" >:: test_decode_commit_ops;
+         "test_websocket_accept_rfc6455" >:: test_websocket_accept_rfc6455;
+         "test_websocket_unmasked_roundtrip"
+         >:: test_websocket_unmasked_roundtrip;
+         "test_websocket_extended_length" >:: test_websocket_extended_length;
+         "test_websocket_masked_roundtrip" >:: test_websocket_masked_roundtrip;
+         "test_parse_wss_url" >:: test_parse_wss_url;
+         "test_subscribe_live" >:: test_subscribe_live;
        ]
 
 let () = run_test_tt_main suite

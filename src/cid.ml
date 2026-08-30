@@ -65,4 +65,10 @@ module Cid = struct
   let of_digest ?(version = 1) ?(codec = Dag_cbor) ?(hash_code = sha2_256)
       (digest : string) : t =
     { version; codec; hash_code; digest }
+
+  let sha256 (data : string) : string =
+    Digestif.SHA256.(digest_string data |> to_raw_string)
+
+  let create ?(codec = Dag_cbor) (data : string) : t =
+    of_digest ~codec (sha256 data)
 end

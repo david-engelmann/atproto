@@ -1,4 +1,10 @@
 open Cohttp_client
+open Cid
+open Dag_cbor
+open Base32
+open Base64url
+open Hash
+open Did_key
 
 (** did:plc documents and directory resolution — https://web.plc.directory/spec/v0.1/did-plc *)
 module Did_plc = struct
@@ -167,4 +173,168 @@ module Did_plc = struct
     match Yojson.Safe.from_string body with
     | `List items -> List.map parse_operation items
     | _ -> failwith "Did_plc.resolve_log: expected a JSON array"
+
+  let rec json_to_cbor : Yojson.Safe.t -> Dag_cbor.value = function
+    | `Null -> Dag_cbor.Null
+    | `Bool b -> Dag_cbor.Bool b
+    | `Int n -> Dag_cbor.Int n
+    | `Intlit s -> Dag_cbor.Int64 (Int64.of_string s)
+    | `Float f ->
+        let n = Int64.of_float f in
+        if Float.equal f (Int64.to_float n) then Dag_cbor.Int64 n
+        else failwith "Did_plc: DAG-CBOR cannot encode floats"
+    | `String s -> Dag_cbor.Text s
+    | `List xs -> Dag_cbor.Array (List.map json_to_cbor xs)
+    | `Assoc fields ->
+        Dag_cbor.Map (List.map (fun (k, v) -> (k, json_to_cbor v)) fields)
+
+  let strip_sig = function
+    | `Assoc fields -> `Assoc (List.filter (fun (k, _) -> k <> "sig") fields)
+    | other -> other
+
+  let cbor_of_json json = Dag_cbor.encode (json_to_cbor json)
+  let unsigned_bytes (op : operation) = cbor_of_json (strip_sig op.raw)
+  let signed_bytes (op : operation) = cbor_of_json op.raw
+
+  let genesis_did_of_signed_cbor (signed_cbor : string) : string =
+    let hash = Hash.sha256 signed_cbor in
+    "did:plc:" ^ String.sub (Base32.encode hash) 0 24
+
+  let genesis_did (op : operation) : string =
+    genesis_did_of_signed_cbor (signed_bytes op)
+
+  let cid_of_operation (op : operation) : Cid.t = Cid.create (signed_bytes op)
+
+  let rotation_keys_of_json json =
+    match Yojson.Safe.Util.member "rotationKeys" json with
+    | `List items ->
+        List.filter_map (function `String s -> Some s | _ -> None) items
+    | _ ->
+        let open Yojson.Safe.Util in
+        List.filter_map
+          (fun field ->
+            match member field json with `String s -> Some s | _ -> None)
+          [ "signingKey"; "recoveryKey" ]
+
+  (* NIST P-256 group order n and floor(n/2) for low-S ECDSA. *)
+  let p256_n =
+    Hash.hex_decode
+      "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551"
+
+  let p256_n_half =
+    Hash.hex_decode
+      "7fffffff800000007fffffffffffffffde737d56d38bcf4279dce5617e3192a8"
+
+  let sub_be (n : string) (s : string) : string =
+    let out = Bytes.create (String.length n) in
+    let borrow = ref 0 in
+    for i = String.length n - 1 downto 0 do
+      let d = Char.code n.[i] - Char.code s.[i] - !borrow in
+      if d < 0 then (
+        Bytes.set out i (Char.chr (d + 256));
+        borrow := 1)
+      else (
+        Bytes.set out i (Char.chr d);
+        borrow := 0)
+    done;
+    Bytes.to_string out
+
+  let low_s (s : string) : string =
+    if String.compare s p256_n_half > 0 then sub_be p256_n s else s
+
+  let is_low_s (s : string) : bool = String.compare s p256_n_half <= 0
+
+  type sig_status =
+    [ `Valid | `Invalid | `Unsupported_curve of string | `Missing ]
+
+  let sign_p256 ~(priv : Mirage_crypto_ec.P256.Dsa.priv) (json : Yojson.Safe.t)
+      : Yojson.Safe.t =
+    let unsigned = strip_sig json in
+    let digest = Hash.sha256 (cbor_of_json unsigned) in
+    let r, s = Mirage_crypto_ec.P256.Dsa.sign ~key:priv digest in
+    let s = low_s s in
+    let sig_b64 = Base64url.encode (r ^ s) in
+    match unsigned with
+    | `Assoc fields -> `Assoc (fields @ [ ("sig", `String sig_b64) ])
+    | _ -> failwith "Did_plc.sign_p256: expected a JSON object"
+
+  let verify_p256 ~(pub : Mirage_crypto_ec.P256.Dsa.pub) (op : operation) :
+      sig_status =
+    match op.sig_ with
+    | None -> `Missing
+    | Some b64 ->
+        let raw = Base64url.decode b64 in
+        if String.length raw <> 64 then `Invalid
+        else
+          let r = String.sub raw 0 32 in
+          let s = String.sub raw 32 32 in
+          if not (is_low_s s) then `Invalid
+          else
+            let digest = Hash.sha256 (unsigned_bytes op) in
+            if Mirage_crypto_ec.P256.Dsa.verify ~key:pub (r, s) digest then
+              `Valid
+            else `Invalid
+
+  let verify_with_rotation_keys (keys : string list) (op : operation) :
+      sig_status =
+    let parsed =
+      List.filter_map
+        (fun k -> try Some (Did_key.of_string k) with _ -> None)
+        keys
+    in
+    let p256s = List.filter (fun k -> k.Did_key.curve = Did_key.P256) parsed in
+    let has_k256 =
+      List.exists (fun k -> k.Did_key.curve = Did_key.K256) parsed
+    in
+    let rec try_p256 = function
+      | [] -> if has_k256 then `Unsupported_curve "k256" else `Invalid
+      | k :: rest -> (
+          match Did_key.p256_pub k with
+          | Some pub -> (
+              match verify_p256 ~pub op with
+              | `Valid -> `Valid
+              | _ -> try_p256 rest)
+          | None -> try_p256 rest)
+    in
+    try_p256 p256s
+
+  type chain_result = {
+    genesis_ok : bool;
+    prev_links_ok : bool;
+    signatures : sig_status list;
+  }
+
+  let verify_chain ~(did : string) (ops : operation list) : chain_result =
+    match ops with
+    | [] -> failwith "Did_plc.verify_chain: empty log"
+    | genesis :: rest ->
+        let genesis_ok =
+          genesis_did genesis = did
+          && match genesis.prev with None -> true | Some _ -> false
+        in
+        let rec walk prev_cid keys acc_ok acc_sigs = function
+          | [] -> (acc_ok, List.rev acc_sigs)
+          | op :: rest ->
+              let prev_ok =
+                match op.prev with
+                | Some p -> p = Cid.to_string prev_cid
+                | None -> false
+              in
+              let sig_st = verify_with_rotation_keys keys op in
+              let keys =
+                match rotation_keys_of_json op.raw with [] -> keys | ks -> ks
+              in
+              walk (cid_of_operation op) keys (acc_ok && prev_ok)
+                (sig_st :: acc_sigs) rest
+        in
+        let keys = rotation_keys_of_json genesis.raw in
+        let genesis_sig = verify_with_rotation_keys keys genesis in
+        let prev_ok, rest_sigs =
+          walk (cid_of_operation genesis) keys true [] rest
+        in
+        {
+          genesis_ok;
+          prev_links_ok = prev_ok;
+          signatures = genesis_sig :: rest_sigs;
+        }
 end

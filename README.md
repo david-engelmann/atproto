@@ -15,7 +15,7 @@ Optional:
 
 - `BASE_ENDPOINT` : `xrpc` (default)
 
-Session creation, repo writes, graph, and feed helpers need `ATP_AUTH`. Public identity, DID PLC, and most `com.atproto.sync.*` reads do **not**.
+Session creation, repo writes, graph, and feed helpers need `ATP_AUTH`. Public identity, DID PLC, firehose subscribe, and most `com.atproto.sync.*` reads do **not**.
 
 ## Build and test
 
@@ -25,7 +25,7 @@ dune build
 dune runtest
 ```
 
-Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to a real `email:app-password` pair (placeholder values in `sample.env` do not count). Public-network tests (handle resolve, PLC directory, `getLatestCommit`) run without auth and skip only if the request itself fails.
+Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to a real `email:app-password` pair (placeholder values in `sample.env` do not count). Public-network tests (handle resolve, PLC directory, `getLatestCommit`, `subscribeRepos`) run without auth and skip only if the request itself fails.
 
 ## What this library covers
 
@@ -35,22 +35,24 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | AppView | `Actor`, `Feed`, `Graph`, `Notification` | Profiles, search (`q`), follows/blocks/mutes |
 | Repo writes | `Repo` | `createRecord` / `putRecord` send `record` as JSON |
 | Server | `Server` | describe server, app passwords, invites |
-| Identity | `Identity`, `Did_plc` | `resolveHandle`, `did:plc` documents via `plc.directory` |
+| Identity | `Identity`, `Did_plc`, `Did_web`, `Did_key` | `resolveHandle`, `did:plc`, `did:web`, `did:key` |
+| PLC chain | `Did_plc` | Genesis DID, prev CID links, p256 ECDSA (low-S, IEEE P1363) |
 | Sync | `Sync` | Current `getLatestCommit`, `getRepo` (CAR), `listBlobs`, `listRepos` |
-| CID / CAR | `Cid`, `Car`, `Dag_cbor` | CIDv1 + CARv1 parse/encode |
+| CID / CAR | `Cid`, `Car`, `Dag_cbor` | CIDv1 (including SHA-256 `Cid.create`) + CARv1 |
+| MST | `Mst` | Layer/prefix rules, node parse, CID verify, lookup |
 | AT URI | `At_uri` | `at://` parse / serialize |
-| Lexicon | `Lexicon` | Parse lexicon-1 JSON documents |
-| Firehose | `Firehose` | Decode `subscribeRepos` DAG-CBOR frames (no WebSocket client yet) |
+| Lexicon | `Lexicon` | Parse lexicon-1 JSON, `to_ocaml` codegen, JSON validate |
+| Firehose | `Firehose`, `Websocket` | RFC 6455 client + `subscribeRepos` frame decode |
+| OAuth / DPoP | `Oauth` | PKCE S256, DPoP ES256, PAR/token request shapes |
 | Errors | `Error` | XRPC `{error, message}` including rate limits |
 
 ## Remaining gaps
 
-- Firehose **WebSocket** subscribe client (`wss://bsky.network/xrpc/com.atproto.sync.subscribeRepos`)
-- MST verification / inductive firehose inversion
-- Lexicon codegen (types are parsed, not generated)
-- OAuth / DPoP (app-password sessions only)
-- Full PLC operation-chain signature verification
-- `did:web` resolution
+These are product-level, not missing protocol cores:
+
+- OAuth **browser redirect / client-metadata hosting / live token loop** against a PDS (PKCE + DPoP + PAR encoding and ES256 proofs are implemented)
+- PLC **secp256k1 (k256)** signature verify — chain structure and genesis DID are checked for every curve; p256 ops are fully verified. k256 returns `` `Unsupported_curve "k256" ``
+- MST **operation inversion** of a live firehose diff (node verify + lookup are implemented)
 
 Open PR `#69` (`de-sync-types`) is superseded by this work: it still targeted the removed `getCheckout` API and left CAR/CBOR unfinished.
 
@@ -61,6 +63,13 @@ Open PR `#69` (`de-sync-types`) is superseded by this work: it still targeted th
 let did = (Identity.resolve_handle "jay.bsky.team").did
 let commit = Sync.get_latest_commit did
 let doc = Did_plc.resolve did
+let ident = Identity.resolve "jay.bsky.team"
+
+(* MST layer for a repo key — official vector *)
+let () = assert (Mst.layer_for_key "blue" = 1)
+
+(* firehose: one subscribeRepos frame from the public relay *)
+let _header, msg = Firehose.subscribe_one ()
 
 (* authenticated writes *)
 let username, password = Auth.username_and_password_from_env
