@@ -5,13 +5,13 @@ open Dag_cbor
 (** CARv1 reader/writer used by com.atproto.sync.getRepo and firehose diffs. *)
 module Car = struct
   type block = { cid : Cid.t; data : string }
-
   type t = { roots : Cid.t list; blocks : block list }
 
   let parse (bytes : string) : t =
     if String.length bytes = 0 then failwith "Car.parse: empty";
     let header_len, i = Varint.decode_from bytes 0 in
-    if i + header_len > String.length bytes then failwith "Car.parse: truncated header";
+    if i + header_len > String.length bytes then
+      failwith "Car.parse: truncated header";
     let header = Dag_cbor.decode (String.sub bytes i header_len) in
     let i = i + header_len in
     let fields = Dag_cbor.get_map header in
@@ -20,7 +20,8 @@ module Car = struct
       | Some v -> Dag_cbor.as_int v
       | None -> 1
     in
-    if version <> 1 then failwith (Printf.sprintf "Car.parse: unsupported version %d" version);
+    if version <> 1 then
+      failwith (Printf.sprintf "Car.parse: unsupported version %d" version);
     let roots =
       match Dag_cbor.find "roots" fields with
       | Some (Dag_cbor.Array items) -> List.map Dag_cbor.as_cid items
@@ -30,7 +31,8 @@ module Car = struct
       if i >= String.length bytes then List.rev acc
       else
         let block_len, i = Varint.decode_from bytes i in
-        if i + block_len > String.length bytes then failwith "Car.parse: truncated block";
+        if i + block_len > String.length bytes then
+          failwith "Car.parse: truncated block";
         let cid, after_cid = Cid.of_bytes_from bytes i in
         let data_len = block_len - (after_cid - i) in
         if data_len < 0 then failwith "Car.parse: CID longer than block";
@@ -45,7 +47,8 @@ module Car = struct
         (Dag_cbor.Map
            [
              ("version", Dag_cbor.Int 1);
-             ("roots", Dag_cbor.Array (List.map (fun c -> Dag_cbor.Cid c) car.roots));
+             ( "roots",
+               Dag_cbor.Array (List.map (fun c -> Dag_cbor.Cid c) car.roots) );
            ])
     in
     let buf = Buffer.create (String.length header + 64) in
@@ -65,7 +68,5 @@ module Car = struct
     List.find_opt (fun (b : block) -> Cid.equal b.cid cid) car.blocks
 
   let root (car : t) : Cid.t option =
-    match car.roots with
-    | hd :: _ -> Some hd
-    | [] -> None
+    match car.roots with hd :: _ -> Some hd | [] -> None
 end

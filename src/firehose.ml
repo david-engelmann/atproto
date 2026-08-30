@@ -62,13 +62,14 @@ module Firehose = struct
     | `Account of account
     | `Info of info
     | `Error of string * string option
-    | `Unknown of string * Dag_cbor.value
-    ]
+    | `Unknown of string * Dag_cbor.value ]
 
   let default_relay_host = "bsky.network"
 
   let subscribe_url ?(host = default_relay_host) ?cursor () =
-    let base = Printf.sprintf "wss://%s/xrpc/com.atproto.sync.subscribeRepos" host in
+    let base =
+      Printf.sprintf "wss://%s/xrpc/com.atproto.sync.subscribeRepos" host
+    in
     match cursor with
     | None -> base
     | Some c -> base ^ "?cursor=" ^ Int64.to_string c
@@ -100,13 +101,18 @@ module Firehose = struct
 
   let parse_car_bytes = function
     | Dag_cbor.Bytes b ->
-        let car = if String.length b = 0 then { Car.roots = []; blocks = [] } else Car.parse b in
+        let car =
+          if String.length b = 0 then { Car.roots = []; blocks = [] }
+          else Car.parse b
+        in
         (car, b)
     | _ -> failwith "Firehose: blocks field must be bytes"
 
   let parse_commit (v : Dag_cbor.value) : commit =
     let fields = Dag_cbor.get_map v in
-    let blocks, raw_blocks = parse_car_bytes (Dag_cbor.require "blocks" fields) in
+    let blocks, raw_blocks =
+      parse_car_bytes (Dag_cbor.require "blocks" fields)
+    in
     {
       seq = Dag_cbor.as_int64 (Dag_cbor.require "seq" fields);
       rebase =
@@ -135,7 +141,9 @@ module Firehose = struct
 
   let parse_sync (v : Dag_cbor.value) : sync =
     let fields = Dag_cbor.get_map v in
-    let blocks, raw_blocks = parse_car_bytes (Dag_cbor.require "blocks" fields) in
+    let blocks, raw_blocks =
+      parse_car_bytes (Dag_cbor.require "blocks" fields)
+    in
     {
       seq = Dag_cbor.as_int64 (Dag_cbor.require "seq" fields);
       did = Dag_cbor.as_text (Dag_cbor.require "did" fields);
@@ -209,15 +217,13 @@ module Firehose = struct
             | None -> `Unknown ("", body)
         in
         (header, message)
-    | _ -> failwith "Firehose.decode_frame: expected header and body CBOR values"
+    | _ ->
+        failwith "Firehose.decode_frame: expected header and body CBOR values"
 
   let encode_header (h : header) : string =
     let fields =
       ("op", Dag_cbor.Int h.op)
-      ::
-      (match h.t with
-      | Some t -> [ ("t", Dag_cbor.Text t) ]
-      | None -> [])
+      :: (match h.t with Some t -> [ ("t", Dag_cbor.Text t) ] | None -> [])
     in
     Dag_cbor.encode (Dag_cbor.Map fields)
 end

@@ -6,18 +6,18 @@ module Base32 = struct
     let len = String.length data in
     if len = 0 then ""
     else
-      let out_len = (len * 8 + 4) / 5 in
+      let out_len = ((len * 8) + 4) / 5 in
       let buf = Bytes.create out_len in
       let rec loop i bitbuf bits written =
         if i < len then
           let bitbuf = (bitbuf lsl 8) lor Char.code data.[i] in
           let bits = bits + 8 in
           let rec flush bitbuf bits written =
-            if bits >= 5 then
+            if bits >= 5 then (
               let bits = bits - 5 in
               let idx = (bitbuf lsr bits) land 0x1f in
               Bytes.set buf written alphabet.[idx];
-              flush bitbuf bits (written + 1)
+              flush bitbuf bits (written + 1))
             else (bitbuf, bits, written)
           in
           let bitbuf, bits, written = flush bitbuf bits written in
@@ -41,7 +41,7 @@ module Base32 = struct
 
   let decode (s : string) : string =
     let len = String.length s in
-    let buf = Buffer.create ((len * 5) / 8) in
+    let buf = Buffer.create (len * 5 / 8) in
     let rec loop i bitbuf bits =
       if i >= len then ()
       else

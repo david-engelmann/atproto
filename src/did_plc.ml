@@ -9,11 +9,7 @@ module Did_plc = struct
     public_key_multibase : string option;
   }
 
-  type service = {
-    id : string;
-    type_ : string;
-    service_endpoint : string;
-  }
+  type service = { id : string; type_ : string; service_endpoint : string }
 
   type did_document = {
     id : string;
@@ -35,10 +31,13 @@ module Did_plc = struct
     String.length did > 8 && String.sub did 0 8 = "did:plc:"
 
   let validate_plc_did (did : string) : unit =
-    if not (is_plc_did did) then failwith ("Did_plc: not a did:plc identifier: " ^ did);
+    if not (is_plc_did did) then
+      failwith ("Did_plc: not a did:plc identifier: " ^ did);
     let suffix = String.sub did 8 (String.length did - 8) in
     if String.length suffix <> 24 then
-      failwith "Did_plc: did:plc identifier must be 24 base32 characters after the prefix";
+      failwith
+        "Did_plc: did:plc identifier must be 24 base32 characters after the \
+         prefix";
     String.iter
       (function
         | 'a' .. 'z' | '2' .. '7' -> ()
@@ -48,9 +47,7 @@ module Did_plc = struct
   let string_list json field =
     match Yojson.Safe.Util.member field json with
     | `List items ->
-        List.filter_map
-          (function `String s -> Some s | _ -> None)
-          items
+        List.filter_map (function `String s -> Some s | _ -> None) items
     | _ -> []
 
   let parse_verification_method json : verification_method =
@@ -72,9 +69,7 @@ module Did_plc = struct
       id = (match json |> member "id" with `String s -> s | _ -> "");
       type_ = (match json |> member "type" with `String s -> s | _ -> "");
       service_endpoint =
-        (match json |> member "serviceEndpoint" with
-        | `String s -> s
-        | _ -> "");
+        (match json |> member "serviceEndpoint" with `String s -> s | _ -> "");
     }
 
   let parse_document json : did_document =
@@ -94,14 +89,20 @@ module Did_plc = struct
       | `List items -> List.map parse_service items
       | _ -> []
     in
-    { id; also_known_as = string_list json "alsoKnownAs"; verification_method; service }
+    {
+      id;
+      also_known_as = string_list json "alsoKnownAs";
+      verification_method;
+      service;
+    }
 
   let parse_operation json : operation =
     let open Yojson.Safe.Util in
     {
       type_ = (match json |> member "type" with `String s -> s | _ -> "");
       sig_ = (match json |> member "sig" with `String s -> Some s | _ -> None);
-      prev = (match json |> member "prev" with `String s -> Some s | _ -> None);
+      prev =
+        (match json |> member "prev" with `String s -> Some s | _ -> None);
       raw = json;
     }
 
@@ -145,19 +146,24 @@ module Did_plc = struct
       Cohttp_client.create_headers_from_pairs
         [ Cohttp_client.application_json_setting_tuple ]
     in
-    let body = Lwt_main.run (Cohttp_client.get_request_with_headers url headers) in
+    let body =
+      Lwt_main.run (Cohttp_client.get_request_with_headers url headers)
+    in
     match Error.Error.of_body body with
     | Some e -> failwith ("Did_plc.resolve: " ^ Error.Error.to_string e)
     | None -> parse_document (Yojson.Safe.from_string body)
 
-  let resolve_log ?(directory = default_directory) (did : string) : operation list =
+  let resolve_log ?(directory = default_directory) (did : string) :
+      operation list =
     validate_plc_did did;
     let url = Printf.sprintf "https://%s/%s/log" directory did in
     let headers =
       Cohttp_client.create_headers_from_pairs
         [ Cohttp_client.application_json_setting_tuple ]
     in
-    let body = Lwt_main.run (Cohttp_client.get_request_with_headers url headers) in
+    let body =
+      Lwt_main.run (Cohttp_client.get_request_with_headers url headers)
+    in
     match Yojson.Safe.from_string body with
     | `List items -> List.map parse_operation items
     | _ -> failwith "Did_plc.resolve_log: expected a JSON array"

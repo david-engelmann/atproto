@@ -60,8 +60,9 @@ let test_parse_did_record _ =
     "at://did:plc:xov3uvxfd4to6ev3ak5g5uxk/app.bsky.feed.post/3jyf6gx25eb27"
   in
   let u = Uri.of_string raw in
-  OUnit2.assert_equal ~printer:(fun x -> x) "did:plc:xov3uvxfd4to6ev3ak5g5uxk"
-    u.authority;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:xov3uvxfd4to6ev3ak5g5uxk" u.authority;
   OUnit2.assert_equal (Some "app.bsky.feed.post") u.collection;
   OUnit2.assert_equal (Some "3jyf6gx25eb27") u.rkey;
   OUnit2.assert_equal ~printer:(fun x -> x) raw (Uri.to_string u)
@@ -74,9 +75,11 @@ let test_parse_handle_authority _ =
 let test_legacy_roundtrip _ =
   let u = Uri.of_legacy sample_uri_with_search_params in
   let back = Uri.to_legacy u in
-  OUnit2.assert_equal ~printer:(fun x -> x) sample_uri_with_search_params.host
-    back.host;
-  OUnit2.assert_equal ~printer:(fun x -> x)
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    sample_uri_with_search_params.host back.host;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
     sample_uri_with_search_params.path_name back.path_name
 
 let suite =

@@ -4,10 +4,12 @@ open Atproto.Dag_cbor
 open Atproto.Firehose
 
 let test_subscribe_url _ =
-  OUnit2.assert_equal ~printer:(fun x -> x)
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
     "wss://bsky.network/xrpc/com.atproto.sync.subscribeRepos"
     (Firehose.subscribe_url ());
-  OUnit2.assert_equal ~printer:(fun x -> x)
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
     "wss://relay.example/xrpc/com.atproto.sync.subscribeRepos?cursor=99"
     (Firehose.subscribe_url ~host:"relay.example" ~cursor:99L ())
 
@@ -48,9 +50,7 @@ let test_decode_error_frame _ =
 let test_decode_commit_ops _ =
   let cid = Cid.of_digest (String.make 32 '\x03') in
   let header = Firehose.encode_header { op = 1; t = Some "#commit" } in
-  let empty_car =
-    Atproto.Car.Car.encode { roots = [ cid ]; blocks = [] }
-  in
+  let empty_car = Atproto.Car.Car.encode { roots = [ cid ]; blocks = [] } in
   let body =
     Dag_cbor.encode
       (Dag_cbor.Map
@@ -81,8 +81,9 @@ let test_decode_commit_ops _ =
   | _, `Commit commit ->
       OUnit2.assert_equal ~printer:(fun x -> x) "3k5nobkf2w72g" commit.rev;
       OUnit2.assert_equal 1 (List.length commit.ops);
-      OUnit2.assert_equal ~printer:(fun x -> x) "create"
-        (List.hd commit.ops).action
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "create" (List.hd commit.ops).action
   | _ -> OUnit2.assert_failure "expected #commit frame"
 
 let suite =

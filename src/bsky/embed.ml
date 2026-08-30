@@ -1,96 +1,56 @@
 module Embed = struct
-    (*
-     * external
-     * images
-     * record
-     * record_with_media
-     *
-     * need to parse embed similar to notification but with that bit about if
-     * the field is missing
-     *
-     * *)
-  type ref =
-    {
-     ref_link : string;
-    }
+  (*
+   * external
+   * images
+   * record
+   * record_with_media
+   *
+   * need to parse embed similar to notification but with that bit about if
+   * the field is missing
+   *
+   * *)
+  type ref = { ref_link : string }
 
-  type image =
-    {
-      image_type : string;
-      ref : ref;
-      mime_type : string;
-      size : int;
-    }
+  type image = {
+    image_type : string;
+    ref : ref;
+    mime_type : string;
+    size : int;
+  }
 
-  type thumb =
-    {
-      thumb_type : string;
-      ref : ref;
-      mime_type : string;
-      size : int;
+  type thumb = {
+    thumb_type : string;
+    ref : ref;
+    mime_type : string;
+    size : int;
+  }
 
-    }
+  type ext = {
+    uri : string;
+    thumb : thumb;
+    title : string;
+    description : string;
+  }
 
-  type ext =
-    {
-      uri : string;
-      thumb : thumb;
-      title : string;
-      description : string;
-    }
+  type ext_view = {
+    uri : string;
+    title : string;
+    description : string;
+    thumb : string;
+  }
 
-  type ext_view =
-    {
-     uri : string;
-     title : string;
-     description : string;
-     thumb : string;
-    }
-
-  type image_data =
-    {
-      alt : string;
-      image : image;
-    }
-
-  type image_view =
-    {
-      thumb : string;
-      fullsize : string;
-      alt : string;
-    }
-
-  type image_embed =
-    {
-      embed_type : string;
-      images : image_data list;
-    }
-
-  type image_view_embed =
-    {
-      embed_type : string;
-      images : image_view list;
-    }
-
-  type ext_embed =
-    {
-      embed_type : string;
-      ext : ext;
-    }
-
-  type ext_view_embed =
-    {
-      embed_type : string;
-      ext : ext_view;
-    }
+  type image_data = { alt : string; image : image }
+  type image_view = { thumb : string; fullsize : string; alt : string }
+  type image_embed = { embed_type : string; images : image_data list }
+  type image_view_embed = { embed_type : string; images : image_view list }
+  type ext_embed = { embed_type : string; ext : ext }
+  type ext_view_embed = { embed_type : string; ext : ext_view }
 
   type embed =
-    [
-    | `Image of image_embed
+    [ `Image of image_embed
     | `ImageView of image_view_embed
     | `External of ext_embed
-    | `ExternalView of ext_view_embed
-    ]
+    | `ExternalView of ext_view_embed ]
 
   let parse_ref json : ref =
     let open Yojson.Safe.Util in
@@ -157,13 +117,17 @@ module Embed = struct
   let parse_image_embed json : image_embed =
     let open Yojson.Safe.Util in
     let embed_type = json |> member "$type" |> to_string in
-    let images = json |> member "images" |> to_list |> List.map parse_image_data in
+    let images =
+      json |> member "images" |> to_list |> List.map parse_image_data
+    in
     { embed_type; images }
 
   let parse_image_view_embed json : image_view_embed =
     let open Yojson.Safe.Util in
     let embed_type = json |> member "$type" |> to_string in
-    let images = json |> member "images" |> to_list |> List.map parse_image_view in
+    let images =
+      json |> member "images" |> to_list |> List.map parse_image_view
+    in
     { embed_type; images }
 
   let check_for_field field json =
@@ -174,20 +138,22 @@ module Embed = struct
   let check_field_is_string field json : bool =
     let open Yojson.Safe.Util in
     let test_field_value = member field json in
-    match test_field_value with
-     | `String _ -> true
-     | _ -> false
+    match test_field_value with `String _ -> true | _ -> false
 
   let parse_to_correct_external_type json =
     let open Yojson.Safe.Util in
-    let thumb_check = check_field_is_string "thumb" (json |> member "external") in
+    let thumb_check =
+      check_field_is_string "thumb" (json |> member "external")
+    in
     match thumb_check with
     | false -> `External (parse_ext_embed json)
     | true -> `ExternalView (parse_ext_view_embed json)
 
   let parse_to_correct_image_type json =
     let open Yojson.Safe.Util in
-    let image_field_check = check_for_field "image" (json |> member "images" |> to_list |> List.hd) in
+    let image_field_check =
+      check_for_field "image" (json |> member "images" |> to_list |> List.hd)
+    in
     match image_field_check with
     | false -> `ImageView (parse_image_view_embed json)
     | true -> `Image (parse_image_embed json)
@@ -197,15 +163,12 @@ module Embed = struct
     let external_field_check = check_for_field "external" json in
     match images_field_check with
     | true -> parse_to_correct_image_type json
-    | false ->
-      match external_field_check with
-      | false -> failwith "haven't got to record record_with_media"
-      | true -> parse_to_correct_external_type json
+    | false -> (
+        match external_field_check with
+        | false -> failwith "haven't got to record record_with_media"
+        | true -> parse_to_correct_external_type json)
 
   let parse_embed_option json : embed option =
     let open Yojson.Safe.Util in
-    try
-      Some (json |> member "embed" |> parse_embed)
-    with
-      Type_error _ -> None
+    try Some (json |> member "embed" |> parse_embed) with Type_error _ -> None
 end

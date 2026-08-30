@@ -25,8 +25,9 @@ let sample =
 let test_parse_document _ =
   let doc = Lexicon.of_string sample in
   OUnit2.assert_equal 1 doc.lexicon;
-  OUnit2.assert_equal ~printer:(fun x -> x) "com.atproto.identity.resolveHandle"
-    doc.id;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "com.atproto.identity.resolveHandle" doc.id;
   match Lexicon.main doc with
   | None -> OUnit2.assert_failure "missing main def"
   | Some main ->

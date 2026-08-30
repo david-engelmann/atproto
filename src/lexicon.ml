@@ -88,9 +88,7 @@ module Lexicon = struct
   let parse_required json : string list =
     match Yojson.Safe.Util.member "required" json with
     | `List items ->
-        List.filter_map
-          (function `String s -> Some s | _ -> None)
-          items
+        List.filter_map (function `String s -> Some s | _ -> None) items
     | _ -> []
 
   let parse_def name json : def =
@@ -110,11 +108,7 @@ module Lexicon = struct
 
   let of_json json : document =
     let open Yojson.Safe.Util in
-    let lexicon =
-      match json |> member "lexicon" with
-      | `Int n -> n
-      | _ -> 1
-    in
+    let lexicon = match json |> member "lexicon" with `Int n -> n | _ -> 1 in
     let id =
       match json |> member "id" with
       | `String s -> s
@@ -122,12 +116,14 @@ module Lexicon = struct
     in
     let defs =
       match json |> member "defs" with
-      | `Assoc fields -> List.map (fun (name, body) -> parse_def name body) fields
+      | `Assoc fields ->
+          List.map (fun (name, body) -> parse_def name body) fields
       | _ -> []
     in
     { lexicon; id; description = string_opt json "description"; defs }
 
-  let of_string (body : string) : document = of_json (Yojson.Safe.from_string body)
+  let of_string (body : string) : document =
+    of_json (Yojson.Safe.from_string body)
 
   let main (doc : document) : def option =
     List.find_opt (fun d -> d.name = "main") doc.defs

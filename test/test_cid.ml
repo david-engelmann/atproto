@@ -21,8 +21,9 @@ let test_parse_known_raw _ =
   let cid = Cid.of_string sample_from_repo_tests in
   OUnit2.assert_equal Cid.Raw cid.codec;
   OUnit2.assert_equal ~printer:string_of_int 1 cid.version;
-  OUnit2.assert_equal ~printer:(fun x -> x) sample_from_repo_tests
-    (Cid.to_string cid)
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    sample_from_repo_tests (Cid.to_string cid)
 
 let test_is_cid _ =
   let encoded = Cid.to_string (Cid.of_digest (String.make 32 '\x00')) in

@@ -4,14 +4,11 @@ open Atproto.Car
 open Atproto.Dag_cbor
 
 let test_empty_car_roundtrip _ =
-  let cid =
-    Cid.of_digest ~codec:Cid.Dag_cbor (String.make 32 '\x00')
-  in
+  let cid = Cid.of_digest ~codec:Cid.Dag_cbor (String.make 32 '\x00') in
   let car = { Car.roots = [ cid ]; blocks = [] } in
   let parsed = Car.parse (Car.encode car) in
   OUnit2.assert_equal 1 (List.length parsed.roots);
-  OUnit2.assert_bool "root CID mismatch"
-    (Cid.equal cid (List.hd parsed.roots));
+  OUnit2.assert_bool "root CID mismatch" (Cid.equal cid (List.hd parsed.roots));
   OUnit2.assert_equal 0 (List.length parsed.blocks)
 
 let test_car_with_block _ =
@@ -21,8 +18,7 @@ let test_car_with_block _ =
   let parsed = Car.parse (Car.encode car) in
   match Car.find_block parsed cid with
   | None -> OUnit2.assert_failure "expected block missing after CAR roundtrip"
-  | Some block ->
-      OUnit2.assert_equal ~printer:(fun x -> x) data block.data
+  | Some block -> OUnit2.assert_equal ~printer:(fun x -> x) data block.data
 
 let test_dag_cbor_map _ =
   let encoded =
@@ -34,7 +30,9 @@ let test_dag_cbor_map _ =
   | Dag_cbor.Map fields ->
       OUnit2.assert_equal ~printer:string_of_int 1
         (Dag_cbor.as_int (Dag_cbor.require "version" fields));
-      OUnit2.assert_equal ~printer:(fun x -> x) "atproto"
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "atproto"
         (Dag_cbor.as_text (Dag_cbor.require "name" fields))
   | _ -> OUnit2.assert_failure "expected DAG-CBOR map"
 

@@ -1,22 +1,16 @@
 (** XRPC error objects returned by AT Protocol HTTP endpoints. *)
 module Error = struct
   type t = { error : string; message : string }
-
   type error = t
-
   type error_type = [ `RateLimitExceeded of t | `Xrpc of t ]
 
   let parse_error_from_json json : t =
     let open Yojson.Safe.Util in
     let error =
-      match json |> member "error" with
-      | `String s -> s
-      | _ -> "Unknown"
+      match json |> member "error" with `String s -> s | _ -> "Unknown"
     in
     let message =
-      match json |> member "message" with
-      | `String s -> s
-      | _ -> ""
+      match json |> member "message" with `String s -> s | _ -> ""
     in
     { error; message }
 
@@ -32,9 +26,7 @@ module Error = struct
 
   let check_for_error json : string option =
     let open Yojson.Safe.Util in
-    match json |> member "error" with
-    | `String s -> Some s
-    | _ -> None
+    match json |> member "error" with `String s -> Some s | _ -> None
 
   let parse_error json : error_type =
     let e = parse_error_from_json json in

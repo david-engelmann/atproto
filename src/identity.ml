@@ -47,7 +47,8 @@ module Identity = struct
             [ Cohttp_client.application_json_setting_tuple ]
     in
     let resp =
-      Lwt_main.run (Cohttp_client.get_request_with_body_and_headers url body headers)
+      Lwt_main.run
+        (Cohttp_client.get_request_with_body_and_headers url body headers)
     in
     match Error.Error.of_body resp with
     | Some e -> failwith ("Identity: " ^ Error.Error.to_string e)
@@ -75,13 +76,16 @@ module Identity = struct
     |> parse_resolved_handle
 
   let resolve_did ?host ?session (did : string) : Yojson.Safe.t =
-    get_json ?host ?session (create_identity_endpoint "resolveDid") [ ("did", did) ]
+    get_json ?host ?session
+      (create_identity_endpoint "resolveDid")
+      [ ("did", did) ]
 
   let resolve ?host ?session (actor : string) : resolved_identity =
     if String.length actor >= 4 && String.sub actor 0 4 = "did:" then
       let doc =
         if Did_plc.Did_plc.is_plc_did actor then Did_plc.Did_plc.resolve actor
-        else failwith "Identity.resolve: only did:plc is supported for DID input"
+        else
+          failwith "Identity.resolve: only did:plc is supported for DID input"
       in
       {
         did = doc.Did_plc.Did_plc.id;

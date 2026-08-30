@@ -14,15 +14,8 @@ module Sync = struct
     status : string option;
   }
 
-  type list_repos = {
-    cursor : string option;
-    repos : repo_list_item list;
-  }
-
-  type list_blobs = {
-    cursor : string option;
-    cids : string list;
-  }
+  type list_repos = { cursor : string option; repos : repo_list_item list }
+  type list_blobs = { cursor : string option; cids : string list }
 
   let create_sync_endpoint (query_name : string) : string =
     "com.atproto.sync." ^ query_name
@@ -50,7 +43,8 @@ module Sync = struct
     let body = Cohttp_client.create_body_from_pairs pairs in
     let headers = headers_of session in
     let resp =
-      Lwt_main.run (Cohttp_client.get_request_with_body_and_headers url body headers)
+      Lwt_main.run
+        (Cohttp_client.get_request_with_body_and_headers url body headers)
     in
     match Error.Error.of_body resp with
     | Some e -> failwith ("Sync: " ^ Error.Error.to_string e)
@@ -62,7 +56,8 @@ module Sync = struct
     let url = App.create_endpoint_url base_url endpoint in
     let body = Cohttp_client.create_body_from_pairs pairs in
     let headers = headers_of session in
-    Lwt_main.run (Cohttp_client.get_request_with_body_and_headers url body headers)
+    Lwt_main.run
+      (Cohttp_client.get_request_with_body_and_headers url body headers)
 
   let string_opt json field =
     match Yojson.Safe.Util.member field json with
@@ -83,15 +78,10 @@ module Sync = struct
       head =
         (match json |> member "head" with
         | `String s -> s
-        | _ -> (
-            match json |> member "cid" with
-            | `String s -> s
-            | _ -> ""));
+        | _ -> ( match json |> member "cid" with `String s -> s | _ -> ""));
       rev = (match json |> member "rev" with `String s -> s | _ -> "");
       active =
-        (match json |> member "active" with
-        | `Bool b -> Some b
-        | _ -> None);
+        (match json |> member "active" with `Bool b -> Some b | _ -> None);
       status = string_opt json "status";
     }
 
@@ -133,11 +123,16 @@ module Sync = struct
   let get_repo_car ?host ?session ?since (did : string) : Car.t =
     Car.parse (get_repo ?host ?session ?since did)
 
-  let get_blob (s : Session.session) (did : string) (cid : string) : string Lwt.t =
+  let get_blob (s : Session.session) (did : string) (cid : string) :
+      string Lwt.t =
     let host = s.atp_host in
     let base_url = App.create_public_base_url ~host () in
-    let url = App.create_endpoint_url base_url (create_sync_endpoint "getBlob") in
-    let body = Cohttp_client.create_body_from_pairs [ ("did", did); ("cid", cid) ] in
+    let url =
+      App.create_endpoint_url base_url (create_sync_endpoint "getBlob")
+    in
+    let body =
+      Cohttp_client.create_body_from_pairs [ ("did", did); ("cid", cid) ]
+    in
     let headers = headers_of (Some s) in
     Cohttp_client.get_request_with_body_and_headers url body headers
 
@@ -153,7 +148,9 @@ module Sync = struct
     let get_blob_url =
       App.create_endpoint_url base_url (create_sync_endpoint "getBlob")
     in
-    let body = Cohttp_client.create_body_from_pairs [ ("did", did); ("cid", cid) ] in
+    let body =
+      Cohttp_client.create_body_from_pairs [ ("did", did); ("cid", cid) ]
+    in
     Cohttp_client.get_content_type_with_body_headers get_blob_url body headers
     >>= fun content_type ->
     match content_type with
@@ -177,12 +174,13 @@ module Sync = struct
       string Lwt.t =
     let host = s.atp_host in
     let base_url = App.create_public_base_url ~host () in
-    let url = App.create_endpoint_url base_url (create_sync_endpoint "getBlocks") in
+    let url =
+      App.create_endpoint_url base_url (create_sync_endpoint "getBlocks")
+    in
     let body =
       Cohttp_client.create_body_from_pairs [ ("did", did) ]
       ^
-      if cids = [] then ""
-      else "&" ^ Cohttp_client.add_query_params "cids" cids
+      if cids = [] then "" else "&" ^ Cohttp_client.add_query_params "cids" cids
     in
     let headers = headers_of (Some s) in
     Cohttp_client.get_request_with_body_and_headers url body headers
@@ -191,12 +189,11 @@ module Sync = struct
       (rkey : string) : string =
     request_bytes ?host ?session
       (create_sync_endpoint "getRecord")
-      (("did", did)
-      :: ("collection", collection)
-      :: ("rkey", rkey)
+      (("did", did) :: ("collection", collection) :: ("rkey", rkey)
       :: optional_pairs [ ("commit", commit) ])
 
-  let list_blobs ?host ?session ?since ?cursor ?limit (did : string) : list_blobs =
+  let list_blobs ?host ?session ?since ?cursor ?limit (did : string) :
+      list_blobs =
     request_json ?host ?session
       (create_sync_endpoint "listBlobs")
       (("did", did)
@@ -228,9 +225,11 @@ module Sync = struct
   (* Deprecated 2023 endpoints kept as thin wrappers so older call sites compile. *)
   let get_head (s : Session.session) (did : string) : string =
     let c = get_latest_commit ~session:s did in
-    Yojson.Safe.to_string (`Assoc [ ("cid", `String c.cid); ("rev", `String c.rev) ])
+    Yojson.Safe.to_string
+      (`Assoc [ ("cid", `String c.cid); ("rev", `String c.rev) ])
 
-  let get_checkout (s : Session.session) (did : string) (_commit : string) : string =
+  let get_checkout (s : Session.session) (did : string) (_commit : string) :
+      string =
     get_repo ~session:s did
 
   let get_commit_path (_s : Session.session) (_did : string) (_latest : string)
@@ -242,8 +241,8 @@ module Sync = struct
       (_latest : string) : string =
     get_repo ~session:s did
 
-  let list_blobs_legacy (s : Session.session) (did : string) (_earliest : string)
-      (_latest : string) : string =
+  let list_blobs_legacy (s : Session.session) (did : string)
+      (_earliest : string) (_latest : string) : string =
     let blobs = list_blobs ~session:s did in
     Yojson.Safe.to_string
       (`Assoc [ ("cids", `List (List.map (fun c -> `String c) blobs.cids)) ])
@@ -252,19 +251,19 @@ module Sync = struct
     let repos = list_repos ~session:s ~limit () in
     Yojson.Safe.to_string
       (`Assoc
-         [
-           ( "repos",
-             `List
-               (List.map
-                  (fun (r : repo_list_item) ->
-                    `Assoc
-                      [
-                        ("did", `String r.did);
-                        ("head", `String r.head);
-                        ("rev", `String r.rev);
-                      ])
-                  repos.repos) );
-         ])
+        [
+          ( "repos",
+            `List
+              (List.map
+                 (fun (r : repo_list_item) ->
+                   `Assoc
+                     [
+                       ("did", `String r.did);
+                       ("head", `String r.head);
+                       ("rev", `String r.rev);
+                     ])
+                 repos.repos) );
+        ])
 
   let notify_of_update (_s : Session.session) (_hostname : string) : string =
     failwith "com.atproto.sync.notifyOfUpdate is deprecated; use request_crawl"

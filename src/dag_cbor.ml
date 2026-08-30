@@ -52,17 +52,17 @@ module Dag_cbor = struct
   and encode_head major n =
     let major = (major land 0x7) lsl 5 in
     if n < 24 then String.make 1 (Char.chr (major lor n))
-    else if n < 256 then
+    else if n < 256 then (
       let b = Bytes.create 2 in
       Bytes.set b 0 (Char.chr (major lor 24));
       Bytes.set b 1 (Char.chr n);
-      Bytes.to_string b
-    else if n < 65536 then
+      Bytes.to_string b)
+    else if n < 65536 then (
       let b = Bytes.create 3 in
       Bytes.set b 0 (Char.chr (major lor 25));
       Bytes.set b 1 (Char.chr ((n lsr 8) land 0xff));
       Bytes.set b 2 (Char.chr (n land 0xff));
-      Bytes.to_string b
+      Bytes.to_string b)
     else
       let b = Bytes.create 5 in
       Bytes.set b 0 (Char.chr (major lor 26));
@@ -72,8 +72,7 @@ module Dag_cbor = struct
       Bytes.set b 4 (Char.chr (n land 0xff));
       Bytes.to_string b
 
-  and encode_bytes major s =
-    encode_head major (String.length s) ^ s
+  and encode_bytes major s = encode_head major (String.length s) ^ s
 
   and encode_int (n : int64) : string =
     if Int64.compare n 0L >= 0 then encode_uint 0 n
@@ -82,19 +81,19 @@ module Dag_cbor = struct
   and encode_uint major (n : int64) : string =
     if Int64.compare n 24L < 0 then
       String.make 1 (Char.chr ((major lsl 5) lor Int64.to_int n))
-    else if Int64.compare n 256L < 0 then
+    else if Int64.compare n 256L < 0 then (
       let b = Bytes.create 2 in
       Bytes.set b 0 (Char.chr ((major lsl 5) lor 24));
       Bytes.set b 1 (Char.chr (Int64.to_int n));
-      Bytes.to_string b
-    else if Int64.compare n 65536L < 0 then
+      Bytes.to_string b)
+    else if Int64.compare n 65536L < 0 then (
       let v = Int64.to_int n in
       let b = Bytes.create 3 in
       Bytes.set b 0 (Char.chr ((major lsl 5) lor 25));
       Bytes.set b 1 (Char.chr ((v lsr 8) land 0xff));
       Bytes.set b 2 (Char.chr (v land 0xff));
-      Bytes.to_string b
-    else if Int64.compare n 0x1_0000_0000L < 0 then
+      Bytes.to_string b)
+    else if Int64.compare n 0x1_0000_0000L < 0 then (
       let v = Int64.to_int n in
       let b = Bytes.create 5 in
       Bytes.set b 0 (Char.chr ((major lsl 5) lor 26));
@@ -102,7 +101,7 @@ module Dag_cbor = struct
       Bytes.set b 2 (Char.chr ((v lsr 16) land 0xff));
       Bytes.set b 3 (Char.chr ((v lsr 8) land 0xff));
       Bytes.set b 4 (Char.chr (v land 0xff));
-      Bytes.to_string b
+      Bytes.to_string b)
     else
       let b = Bytes.create 9 in
       Bytes.set b 0 (Char.chr ((major lsl 5) lor 27));
@@ -110,7 +109,9 @@ module Dag_cbor = struct
         if i > 8 then ()
         else (
           Bytes.set b i
-            (Char.chr (Int64.to_int (Int64.logand (Int64.shift_right_logical n shift) 0xffL)));
+            (Char.chr
+               (Int64.to_int
+                  (Int64.logand (Int64.shift_right_logical n shift) 0xffL)));
           put (i + 1) (shift - 8))
       in
       put 1 56;
@@ -141,8 +142,7 @@ module Dag_cbor = struct
       else if addl = 27 then (
         if i + 7 >= String.length s then fail "truncated arg";
         let rec acc k n =
-          if k = 8 then n
-          else acc (k + 1) ((n lsl 8) lor Char.code s.[i + k])
+          if k = 8 then n else acc (k + 1) ((n lsl 8) lor Char.code s.[i + k])
         in
         (acc 0 0, i + 8))
       else fail "indefinite lengths are not allowed in DAG-CBOR"
@@ -204,7 +204,9 @@ module Dag_cbor = struct
           | Bytes raw ->
               if String.length raw < 2 || raw.[0] <> '\x00' then
                 fail "CID tag 42 must be identity-multibase bytes";
-              let cid = Cid.of_bytes (String.sub raw 1 (String.length raw - 1)) in
+              let cid =
+                Cid.of_bytes (String.sub raw 1 (String.length raw - 1))
+              in
               (Cid cid, i)
           | _ -> fail "CID tag 42 payload must be bytes"
         else (Tag (tag, inner), i)
@@ -213,7 +215,10 @@ module Dag_cbor = struct
         | 20 -> (Bool false, off + 1)
         | 21 -> (Bool true, off + 1)
         | 22 -> (Null, off + 1)
-        | _ -> fail (Printf.sprintf "unsupported simple/float CBOR additional %d" addl))
+        | _ ->
+            fail
+              (Printf.sprintf "unsupported simple/float CBOR additional %d" addl)
+        )
     | _ -> fail "unknown CBOR major type"
 
   and read_int64 s i =
@@ -222,7 +227,8 @@ module Dag_cbor = struct
       if k = 8 then n
       else
         acc (k + 1)
-          (Int64.logor (Int64.shift_left n 8) (Int64.of_int (Char.code s.[i + k])))
+          (Int64.logor (Int64.shift_left n 8)
+             (Int64.of_int (Char.code s.[i + k])))
     in
     (acc 0 0L, i + 8)
 
@@ -241,9 +247,7 @@ module Dag_cbor = struct
     loop 0 []
 
   let get_map (v : value) : (string * value) list =
-    match v with
-    | Map m -> m
-    | _ -> fail "expected map"
+    match v with Map m -> m | _ -> fail "expected map"
 
   let find key fields =
     try Some (List.assoc key fields) with Not_found -> None
@@ -253,9 +257,7 @@ module Dag_cbor = struct
     | Some v -> v
     | None -> fail ("missing field " ^ key)
 
-  let as_text = function
-    | Text t -> t
-    | _ -> fail "expected text"
+  let as_text = function Text t -> t | _ -> fail "expected text"
 
   let as_int = function
     | Int n -> n
@@ -267,17 +269,9 @@ module Dag_cbor = struct
     | Int64 n -> n
     | _ -> fail "expected int64"
 
-  let as_bool = function
-    | Bool b -> b
-    | _ -> fail "expected bool"
-
-  let as_bytes = function
-    | Bytes b -> b
-    | _ -> fail "expected bytes"
-
-  let as_array = function
-    | Array a -> a
-    | _ -> fail "expected array"
+  let as_bool = function Bool b -> b | _ -> fail "expected bool"
+  let as_bytes = function Bytes b -> b | _ -> fail "expected bytes"
+  let as_array = function Array a -> a | _ -> fail "expected array"
 
   let as_cid = function
     | Cid c -> c
@@ -289,7 +283,5 @@ module Dag_cbor = struct
     | Text t -> Some t
     | _ -> fail "expected text or null"
 
-  let as_cid_opt = function
-    | Null -> None
-    | v -> Some (as_cid v)
+  let as_cid_opt = function Null -> None | v -> Some (as_cid v)
 end

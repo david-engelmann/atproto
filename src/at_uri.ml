@@ -71,15 +71,14 @@ module Uri = struct
       | None -> (rest, None)
       | Some i ->
           ( String.sub rest 0 i,
-            parse_query (String.sub rest (i + 1) (String.length rest - i - 1)) )
+            parse_query (String.sub rest (i + 1) (String.length rest - i - 1))
+          )
     in
     if rest = "" then failwith "Uri.of_string: empty authority";
     if rest.[String.length rest - 1] = '/' && String.length rest > 0 then
       (* trailing slash after authority-only is invalid; also reject trailing slash generally *)
-      if
-        String.contains rest '/'
-        && rest.[String.length rest - 1] = '/'
-      then failwith "Uri.of_string: trailing slash is not allowed";
+      if String.contains rest '/' && rest.[String.length rest - 1] = '/' then
+        failwith "Uri.of_string: trailing slash is not allowed";
     let authority, path =
       match String.index_opt rest '/' with
       | None -> (rest, None)
@@ -108,10 +107,10 @@ module Uri = struct
     Buffer.add_string buf "at://";
     Buffer.add_string buf u.authority;
     (match u.collection with
-    | Some c ->
+    | Some c -> (
         Buffer.add_char buf '/';
         Buffer.add_string buf c;
-        (match u.rkey with
+        match u.rkey with
         | Some r ->
             Buffer.add_char buf '/';
             Buffer.add_string buf r

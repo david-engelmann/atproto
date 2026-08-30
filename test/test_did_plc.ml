@@ -38,24 +38,26 @@ let test_validate_plc_did _ =
 
 let test_parse_document _ =
   let doc = Did_plc.parse_document (Yojson.Safe.from_string sample_doc) in
-  OUnit2.assert_equal ~printer:(fun x -> x) "did:plc:7iza6de2dwap2sbkpav7c6c6"
-    doc.id;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:7iza6de2dwap2sbkpav7c6c6" doc.id;
   OUnit2.assert_equal (Some "alice.test") (Did_plc.handle_of_document doc);
   OUnit2.assert_equal (Some "https://example2.com") (Did_plc.pds_endpoint doc);
   match Did_plc.signing_key doc with
   | None -> OUnit2.assert_failure "missing #atproto key"
-  | Some key ->
-      OUnit2.assert_equal ~printer:(fun x -> x) "Multikey" key.type_
+  | Some key -> OUnit2.assert_equal ~printer:(fun x -> x) "Multikey" key.type_
 
 let test_directory_url _ =
-  OUnit2.assert_equal ~printer:(fun x -> x)
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
     "https://plc.directory/did:plc:7iza6de2dwap2sbkpav7c6c6"
     (Did_plc.directory_url "did:plc:7iza6de2dwap2sbkpav7c6c6")
 
 let test_resolve_live _ =
   try
     let doc = Did_plc.resolve "did:plc:z72i7hdynmk6r22z27h6tvur" in
-    OUnit2.assert_equal ~printer:(fun x -> x)
+    OUnit2.assert_equal
+      ~printer:(fun x -> x)
       "did:plc:z72i7hdynmk6r22z27h6tvur" doc.id;
     OUnit2.assert_bool "expected a PDS service"
       (match Did_plc.pds_endpoint doc with Some _ -> true | None -> false)
