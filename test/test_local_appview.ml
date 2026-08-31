@@ -8,9 +8,11 @@ open Atproto.Records
 open Atproto.Repo
 open Atproto.Client
 open Atproto.Error
+open Atproto.Notification
 open Actor
 open Feed
 open Graph
+open Notification
 
 (* Real app.bsky.* calls against official @atproto/dev-env AppView. *)
 
@@ -85,12 +87,23 @@ let bob_session () =
   | None -> session_of "bob.test:hunter2"
 
 let session () = Lazy.force live_session
+let method_missing err = err = "MethodNotFound" || err = "MethodNotImplemented"
 
 (* Public AppView reads omit the PDS session. Authenticated AppView calls
    mint a service-auth JWT (aud=AppView DID, lxm=NSID) and never send at+jwt. *)
 let av_get ?session nsid pairs =
   Client.get_json_appview ?session ~host:(appview_host ()) nsid pairs
   |> ensure_ok
+
+(* Only assert when this AppView revision actually implements the NSID. *)
+let av_get_if_served ?session nsid pairs =
+  let json =
+    Client.get_json_appview ?session ~host:(appview_host ()) nsid pairs
+  in
+  match Error.check_for_error json with
+  | Some err when method_missing err -> None
+  | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
+  | None -> Some json
 
 let test_get_profile _ =
   let s = session () in
@@ -108,8 +121,6 @@ let test_get_profiles _ =
   in
   let profiles = Actor.parse_profiles json in
   OUnit2.assert_bool "getProfiles count" (List.length profiles >= 1)
-
-let method_missing err = err = "MethodNotFound" || err = "MethodNotImplemented"
 
 let test_get_suggestions _ =
   ignore (session ());
@@ -228,6 +239,90 @@ let test_graph _ =
   in
   OUnit2.assert_bool "getMutes after muteActor" (List.length mutes.mutes >= 0)
 
+let test_more_appview _ =
+  let s = session () in
+  let author_json =
+    av_get "app.bsky.feed.getAuthorFeed"
+      [ ("actor", "alice.test"); ("limit", "5") ]
+  in
+  (match Yojson.Safe.Util.member "feed" author_json with
+  | `List (item :: _) -> (
+      match Yojson.Safe.Util.member "post" item with
+      | `Assoc _ as post -> (
+          match Yojson.Safe.Util.member "uri" post with
+          | `String uri when String.length uri > 0 -> (
+              match
+                av_get_if_served ~session:s "app.bsky.feed.getPosts"
+                  [ ("uris", uri) ]
+              with
+              | None -> ()
+              | Some json ->
+                  let got = Feed.parse_posts_feed json in
+                  OUnit2.assert_bool "getPosts" (List.length got.posts >= 1))
+          | _ -> ())
+      | _ -> ())
+  | _ -> ());
+  (match
+     av_get_if_served ~session:s "app.bsky.graph.getRelationships"
+       [ ("actor", "alice.test"); ("others", "bob.test") ]
+   with
+  | None -> ()
+  | Some json ->
+      let rel = Graph.parse_relationships json in
+      OUnit2.assert_bool "getRelationships" (List.length rel.relationships >= 0));
+  (match
+     av_get_if_served ~session:s "app.bsky.graph.getLists"
+       [ ("actor", "alice.test"); ("limit", "10") ]
+   with
+  | None -> ()
+  | Some json ->
+      let lists = Graph.parse_lists json in
+      OUnit2.assert_bool "getLists" (List.length lists.lists >= 0));
+  (match
+     av_get_if_served ~session:s "app.bsky.graph.getActorStarterPacks"
+       [ ("actor", "alice.test"); ("limit", "5") ]
+   with
+  | None -> ()
+  | Some json ->
+      let packs = Graph.parse_starter_packs json in
+      OUnit2.assert_bool "getActorStarterPacks"
+        (List.length packs.starter_packs >= 0));
+  (match av_get_if_served ~session:s "app.bsky.actor.getPreferences" [] with
+  | None -> ()
+  | Some json ->
+      let prefs = Actor.parse_preferences json in
+      OUnit2.assert_bool "getPreferences" (List.length prefs.preferences >= 0));
+  (match
+     av_get_if_served ~session:s "app.bsky.notification.getUnreadCount" []
+   with
+  | None -> ()
+  | Some json ->
+      let unread = Notification.parse_unread_count json in
+      OUnit2.assert_bool "getUnreadCount" (unread.count >= 0));
+  (match
+     av_get_if_served ~session:s "app.bsky.graph.getBlocks" [ ("limit", "10") ]
+   with
+  | None -> ()
+  | Some json ->
+      let blocks = Graph.parse_blocks json in
+      OUnit2.assert_bool "getBlocks" (List.length blocks.blocks >= 0));
+  (match
+     av_get_if_served ~session:s "app.bsky.graph.getKnownFollowers"
+       [ ("actor", "alice.test"); ("limit", "5") ]
+   with
+  | None -> ()
+  | Some json ->
+      let known = Graph.parse_followers json in
+      OUnit2.assert_bool "getKnownFollowers" (List.length known.followers >= 0));
+  match
+    av_get_if_served ~session:s "app.bsky.actor.searchActorsTypeahead"
+      [ ("q", "alice"); ("limit", "5") ]
+  with
+  | None -> ()
+  | Some json ->
+      let typeahead = Actor.parse_typeahead_profiles json in
+      OUnit2.assert_bool "searchActorsTypeahead" (List.length typeahead >= 0)
+
 let test_notifications _ =
   let s = session () in
   let json =
@@ -250,6 +345,7 @@ let suite =
          "test_get_suggestions" >:: test_get_suggestions;
          "test_feed_after_writes" >:: test_feed_after_writes;
          "test_graph" >:: test_graph;
+         "test_more_appview" >:: test_more_appview;
          "test_notifications" >:: test_notifications;
        ]
 

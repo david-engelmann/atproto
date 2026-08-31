@@ -140,6 +140,37 @@ let test_handle_txt_helpers _ =
     "https://jay.bsky.team/.well-known/atproto-did"
     (Identity.handle_well_known_url "jay.bsky.team")
 
+let test_resolve_did_directory_wrap _ =
+  let doc =
+    `Assoc
+      [
+        ("id", `String "did:plc:ewvi7nxzyoun6zhxrhs64oiz");
+        ("alsoKnownAs", `List [ `String "at://jay.bsky.team" ]);
+        ("verificationMethod", `List []);
+        ("service", `List []);
+      ]
+  in
+  let wrapped = `Assoc [ ("didDoc", doc) ] in
+  let resolved = Identity.parse_did_resolution wrapped in
+  (match resolved.document with
+  | Some d ->
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "did:plc:ewvi7nxzyoun6zhxrhs64oiz" d.id
+  | None -> OUnit2.assert_failure "expected wrapped didDoc");
+  let info =
+    Identity.parse_identity_info
+      (`Assoc
+        [
+          ("did", `String "did:plc:ewvi7nxzyoun6zhxrhs64oiz");
+          ("handle", `String "jay.bsky.team");
+          ("didDoc", doc);
+        ])
+  in
+  OUnit2.assert_equal ~printer:(fun x -> x) "jay.bsky.team" info.handle;
+  OUnit2.assert_bool "didDoc"
+    (match info.did_doc with Some _ -> true | None -> false)
+
 let test_refresh_identity_body _ =
   let body = Identity.refresh_identity_body ~identifier:"jay.bsky.team" in
   let open Yojson.Safe.Util in
@@ -162,6 +193,7 @@ let suite =
          "test_recommended_did_credentials" >:: test_recommended_did_credentials;
          "test_handle_txt_helpers" >:: test_handle_txt_helpers;
          "test_update_handle_body" >:: test_update_handle_body;
+         "test_resolve_did_directory_wrap" >:: test_resolve_did_directory_wrap;
          "test_refresh_identity_body" >:: test_refresh_identity_body;
        ]
 

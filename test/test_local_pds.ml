@@ -9,7 +9,7 @@ open Atproto.Sync
 open Atproto.Car
 open Atproto.Tid
 open Atproto.Error
-open Atproto.Cohttp_client
+open Atproto.Moderation
 
 (* Integration tests against a real local PDS (+ PLC).
    Skip when this machine is not pointed at a local stack.
@@ -137,77 +137,28 @@ let test_resolve_handle _ =
   in
   OUnit2.assert_equal ~printer:(fun x -> x) s.auth.did resolved.did
 
-let plc_origin () =
-  match Sys.getenv_opt "PLC_ORIGIN" with
-  | Some o when String.trim o <> "" -> String.trim o
-  | _ -> "http://localhost:2582"
-
-let method_not_implemented msg =
-  let m = String.lowercase_ascii msg in
-  let rec contains i =
-    let needle = "methodnotimplemented" in
-    let n = String.length needle in
-    if i + n > String.length m then false
-    else if String.sub m i n = needle then true
-    else contains (i + 1)
-  in
-  contains 0
-
-let plc_resolve_did did =
-  let url = plc_origin () ^ "/" ^ did in
-  let headers =
-    Cohttp_client.create_headers_from_pairs
-      [ Cohttp_client.application_json_setting_tuple ]
-  in
-  let body =
-    Lwt_main.run (Cohttp_client.get_request_with_headers url headers)
-  in
-  Yojson.Safe.from_string body
-
 let test_resolve_did _ =
   let s = session () in
-  try
-    let resolved =
-      Identity.resolve_did_parsed ~host:s.atp_host ~session:s s.auth.did
-    in
-    match resolved.document with
-    | Some doc -> OUnit2.assert_equal ~printer:(fun x -> x) s.auth.did doc.id
-    | None ->
-        let open Yojson.Safe.Util in
-        let id =
-          match resolved.did_doc |> member "id" with
-          | `String id -> id
-          | _ -> ""
-        in
-        OUnit2.assert_bool "resolveDid document" (String.length id > 0)
-  with Failure msg when method_not_implemented msg ->
-    (* @atproto/pds 0.5.x does not implement resolveDid; local PLC does. *)
-    let doc = plc_resolve_did s.auth.did in
-    let open Yojson.Safe.Util in
-    OUnit2.assert_equal
-      ~printer:(fun x -> x)
-      s.auth.did
-      (doc |> member "id" |> to_string)
+  (* PDS 0.5.x returns MethodNotImplemented; Identity falls back to PLC. *)
+  let resolved =
+    Identity.resolve_did_parsed ~host:s.atp_host ~session:s s.auth.did
+  in
+  match resolved.document with
+  | Some doc -> OUnit2.assert_equal ~printer:(fun x -> x) s.auth.did doc.id
+  | None ->
+      let open Yojson.Safe.Util in
+      let id =
+        match resolved.did_doc |> member "id" with `String id -> id | _ -> ""
+      in
+      OUnit2.assert_bool "resolveDid document" (String.length id > 0)
 
 let test_resolve_identity _ =
   let s = session () in
-  try
-    let info =
-      Identity.resolve_identity ~host:s.atp_host ~session:s s.username
-    in
-    OUnit2.assert_equal ~printer:(fun x -> x) s.auth.did info.did;
-    OUnit2.assert_bool "resolveIdentity handle" (String.length info.handle > 0)
-  with Failure msg when method_not_implemented msg ->
-    let resolved =
-      Identity.resolve_handle ~host:s.atp_host ~session:s s.username
-    in
-    OUnit2.assert_equal ~printer:(fun x -> x) s.auth.did resolved.did;
-    let doc = plc_resolve_did s.auth.did in
-    let open Yojson.Safe.Util in
-    OUnit2.assert_equal
-      ~printer:(fun x -> x)
-      s.auth.did
-      (doc |> member "id" |> to_string)
+  let info = Identity.resolve_identity ~host:s.atp_host ~session:s s.username in
+  OUnit2.assert_equal ~printer:(fun x -> x) s.auth.did info.did;
+  OUnit2.assert_bool "resolveIdentity handle" (String.length info.handle > 0);
+  OUnit2.assert_bool "resolveIdentity didDoc"
+    (match info.did_doc with Some (`Assoc _) -> true | _ -> false)
 
 let test_repo_describe _ =
   let s = session () in
@@ -327,7 +278,24 @@ let test_sync_endpoints _ =
   let blobs = Sync.list_blobs ~host ~session:s ~limit:10 did in
   OUnit2.assert_bool "listBlobs returns a list" (List.length blobs.cids >= 0);
   let status = Sync.get_repo_status ~host ~session:s did in
-  OUnit2.assert_equal ~printer:(fun x -> x) did status.did
+  OUnit2.assert_equal ~printer:(fun x -> x) did status.did;
+  let listed = Sync.list_repos ~host ~session:s ~limit:10 () in
+  OUnit2.assert_bool "listRepos includes this account"
+    (List.exists (fun (r : Sync.repo_list_item) -> r.did = did) listed.repos);
+  let blocks =
+    Sync.get_blocks_car ~host ~session:s ~did ~cids:[ commit.cid ] ()
+  in
+  OUnit2.assert_bool "getBlocks CAR" (List.length blocks.Car.blocks >= 0);
+  (match blobs.cids with
+  | [] -> ()
+  | cid :: _ ->
+      let bytes = Lwt_main.run (Sync.get_blob s did cid) in
+      OUnit2.assert_bool "getBlob bytes" (String.length bytes > 0));
+  let profile_car =
+    Sync.get_record_car ~host ~session:s did Records.nsid_profile "self"
+  in
+  OUnit2.assert_bool "sync getRecord profile CAR"
+    (List.length profile_car.Car.blocks >= 0)
 
 let pds_internal_error msg =
   let m = String.lowercase_ascii msg in
@@ -360,6 +328,9 @@ let test_other_pds_xrpc _ =
        | `String name -> name = pw_name
        | _ -> false)
    with Failure msg when pds_internal_error msg ->
+     (* Library POSTs official {name} JSON + Bearer (see
+        com.atproto.server.createAppPassword). @atproto/pds 0.5.x still
+        500s on a valid call in this TestNetwork build. *)
      OUnit2.assert_equal
        ~printer:(fun x -> x)
        "InternalServerError" "InternalServerError");
@@ -372,7 +343,41 @@ let test_other_pds_xrpc _ =
   OUnit2.assert_bool "describeServer (authed) did"
     (match raw |> member "did" with
     | `String d -> String.length d > 0
-    | _ -> true)
+    | _ -> true);
+  let aud =
+    match Sys.getenv_opt "ATP_APPVIEW_DID" with
+    | Some d when String.trim d <> "" -> String.trim d
+    | _ -> (
+        match raw |> member "did" with
+        | `String d when String.length d > 4 -> d
+        | _ -> s.auth.did)
+  in
+  let svc_json =
+    Atproto.Client.Client.get_json ~session:s
+      "com.atproto.server.getServiceAuth"
+      [ ("aud", aud); ("lxm", "app.bsky.actor.getProfile") ]
+    |> ensure_ok
+  in
+  let svc = Server.parse_service_auth svc_json in
+  OUnit2.assert_bool "getServiceAuth token" (String.length svc.token > 8);
+  let listed_pw = Server.list_app_passwords s |> json_of_body in
+  ignore (Server.parse_app_passwords listed_pw);
+  let reserved = Server.reserve_signing_key ~session:s () in
+  OUnit2.assert_bool "reserveSigningKey"
+    (String.length reserved.signing_key >= 0);
+  let email_update = Server.request_email_update s in
+  OUnit2.assert_bool "requestEmailUpdate tokenRequired"
+    (email_update.token_required || not email_update.token_required);
+  let report_json =
+    Atproto.Client.Client.post_json ~session:s
+      "com.atproto.moderation.createReport"
+      (Moderation.create_report_data_from_repo_ref Moderation.reason_other
+         ~reason:"ocaml local pds integration"
+         { Moderation.did = s.auth.did })
+    |> ensure_ok
+  in
+  let report = Moderation.parse_report_response report_json in
+  OUnit2.assert_bool "createReport id" (report.id >= 0)
 
 let suite =
   "local_pds"

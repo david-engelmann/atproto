@@ -37,6 +37,14 @@ module Error = struct
   let to_string (e : t) : string =
     if e.message = "" then e.error else e.error ^ ": " ^ e.message
 
+  let is_not_implemented (e : t) : bool =
+    e.error = "MethodNotImplemented" || e.error = "MethodNotFound"
+
+  let is_not_implemented_json json : bool =
+    match check_for_error json with
+    | Some "MethodNotImplemented" | Some "MethodNotFound" -> true
+    | _ -> false
+
   let handle_error error_type =
     match error_type with
     | `RateLimitExceeded e -> failwith ("RateLimitExceeded: " ^ e.message)

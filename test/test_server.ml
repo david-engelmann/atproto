@@ -214,6 +214,72 @@ let test_email_and_account_bodies _ =
         "did:plc:abc123xyz0001112223333" did
   | _ -> OUnit2.assert_failure "expected forAccounts"
 
+let test_procedure_bodies_and_app_passwords _ =
+  let open Yojson.Safe.Util in
+  let invite =
+    Server.create_invite_code_body ~use_count:3
+      ~for_account:"did:plc:abc123xyz0001112223333" ()
+  in
+  OUnit2.assert_equal 3 (invite |> member "useCount" |> to_int);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:abc123xyz0001112223333"
+    (invite |> member "forAccount" |> to_string);
+  let reset = Server.request_password_reset_body ~email:"a@b.test" in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "a@b.test"
+    (reset |> member "email" |> to_string);
+  let del =
+    Server.delete_account_body ~did:"did:plc:abc123xyz0001112223333"
+      ~password:"secret" ~token:"tok"
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "tok"
+    (del |> member "token" |> to_string);
+  let rp = Server.reset_password_body ~token:"t" ~password:"p" in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "p"
+    (rp |> member "password" |> to_string);
+  let rev = Server.revoke_app_password_body ~name:"cli" in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "cli"
+    (rev |> member "name" |> to_string);
+  OUnit2.assert_equal (`Assoc []) (Server.request_account_delete_body ());
+  let created =
+    Server.parse_app_password
+      (`Assoc
+        [
+          ("name", `String "cli");
+          ("password", `String "xxxx-yyyy");
+          ("createdAt", `String "2026-01-01T00:00:00.000Z");
+          ("privileged", `Bool false);
+        ])
+  in
+  OUnit2.assert_equal ~printer:(fun x -> x) "cli" created.name;
+  OUnit2.assert_equal (Some "xxxx-yyyy") created.password;
+  OUnit2.assert_equal (Some false) created.privileged;
+  let listed =
+    Server.parse_app_passwords
+      (`Assoc
+        [
+          ( "passwords",
+            `List
+              [
+                `Assoc
+                  [
+                    ("name", `String "cli");
+                    ("createdAt", `String "2026-01-01T00:00:00.000Z");
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal 1 (List.length listed);
+  OUnit2.assert_equal None (List.hd listed).password
+
 let test_describe_server_public _ =
   try
     with_public_timeout (fun () ->
@@ -242,6 +308,8 @@ let suite =
          "test_create_account_and_app_password_bodies"
          >:: test_create_account_and_app_password_bodies;
          "test_email_and_account_bodies" >:: test_email_and_account_bodies;
+         "test_procedure_bodies_and_app_passwords"
+         >:: test_procedure_bodies_and_app_passwords;
          "test_describe_server_public" >:: test_describe_server_public;
        ]
 

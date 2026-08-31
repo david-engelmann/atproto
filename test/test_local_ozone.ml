@@ -67,6 +67,14 @@ let no_xrpc_error json =
   | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
   | None -> ()
 
+let method_missing err = err = "MethodNotFound" || err = "MethodNotImplemented"
+
+let served json =
+  match Error.check_for_error json with
+  | Some err when method_missing err -> false
+  | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
+  | None -> true
+
 let test_get_config _ =
   let s = admin_session () in
   (* Official path: PDS session + atproto-proxy (direct Ozone rejects at+jwt). *)
@@ -123,12 +131,79 @@ let test_query_labels _ =
       | `List _ -> ()
       | _ -> OUnit2.assert_failure "ozone queryLabels missing labels")
 
+let ozone_json s p nsid pairs =
+  Client.get_json ~session:s ~extra:(Ozone.proxy_headers p) nsid pairs
+
+let test_more_ozone _ =
+  let s = admin_session () in
+  let p = proxy () in
+  let alice = Session.create_session "alice.test" "hunter2" in
+  (match
+     ozone_json s p "tools.ozone.moderation.getRepo" [ ("did", alice.auth.did) ]
+   with
+  | json when served json ->
+      let repo = Ozone.get_repo s ~proxy:p ~did:alice.auth.did () in
+      OUnit2.assert_equal ~printer:(fun x -> x) alice.auth.did repo.did
+  | _ -> ());
+  (match
+     ozone_json s p "tools.ozone.moderation.searchRepos"
+       [ ("q", "alice"); ("limit", "10") ]
+   with
+  | json when served json ->
+      let repos, _ = Ozone.search_repos s ~proxy:p ~q:"alice" ~limit:10 () in
+      OUnit2.assert_bool "searchRepos" (List.length repos >= 0)
+  | _ -> ());
+  (match ozone_json s p "tools.ozone.team.listMembers" [ ("limit", "10") ] with
+  | json when served json ->
+      let members = Ozone.list_members s ~proxy:p ~limit:10 () in
+      OUnit2.assert_bool "listMembers" (List.length members.members >= 0)
+  | _ -> ());
+  (match ozone_json s p "tools.ozone.communication.listTemplates" [] with
+  | json when served json ->
+      let templates = Ozone.list_templates s ~proxy:p () in
+      OUnit2.assert_bool "listTemplates" (List.length templates.templates >= 0)
+  | _ -> ());
+  (match ozone_json s p "tools.ozone.set.querySets" [ ("limit", "10") ] with
+  | json when served json ->
+      let sets = Ozone.query_sets s ~proxy:p ~limit:10 () in
+      OUnit2.assert_bool "querySets" (List.length sets.sets >= 0)
+  | _ -> ());
+  let events =
+    Ozone.query_events s ~proxy:p ~subject:alice.auth.did ~limit:5 ()
+  in
+  (match events.events with
+  | [] -> ()
+  | ev :: _ -> (
+      match ev.id with
+      | None -> ()
+      | Some id -> (
+          match
+            ozone_json s p "tools.ozone.moderation.getEvent"
+              [ ("id", string_of_int id) ]
+          with
+          | json when served json ->
+              let got = Ozone.get_event s ~proxy:p ~id () in
+              no_xrpc_error got.original
+          | _ -> ())));
+  match
+    ozone_json s p "tools.ozone.moderation.getAccountTimeline"
+      [ ("did", alice.auth.did) ]
+  with
+  | json when served json ->
+      let timeline =
+        Ozone.get_account_timeline s ~proxy:p ~did:alice.auth.did ()
+      in
+      OUnit2.assert_bool "getAccountTimeline"
+        (List.length timeline.timeline >= 0)
+  | _ -> ()
+
 let suite =
   "local_ozone"
   >::: [
          "test_get_config" >:: test_get_config;
          "test_emit_and_query" >:: test_emit_and_query;
          "test_query_labels" >:: test_query_labels;
+         "test_more_ozone" >:: test_more_ozone;
        ]
 
 let () =

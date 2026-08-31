@@ -92,7 +92,21 @@ let test_directory_url _ =
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "https://plc.directory/did:plc:7iza6de2dwap2sbkpav7c6c6"
-    (Did_plc.directory_url "did:plc:7iza6de2dwap2sbkpav7c6c6")
+    (Did_plc.directory_url "did:plc:7iza6de2dwap2sbkpav7c6c6");
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "http://localhost:2582/did:plc:7iza6de2dwap2sbkpav7c6c6"
+    (Did_plc.directory_url ~directory:"http://localhost:2582"
+       "did:plc:7iza6de2dwap2sbkpav7c6c6");
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "https://plc.example/did:plc:7iza6de2dwap2sbkpav7c6c6"
+    (Did_plc.directory_url ~directory:"plc.example"
+       "did:plc:7iza6de2dwap2sbkpav7c6c6");
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "http://localhost:2582"
+    (Did_plc.origin_of_directory "http://localhost:2582/")
 
 let rfc6979_p256_priv =
   Hash.hex_decode
