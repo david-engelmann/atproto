@@ -270,4 +270,71 @@ module Server = struct
            body headers)
     in
     revoke_app_password
+
+  type service_auth = { token : string }
+
+  let parse_service_auth json : service_auth =
+    let open Yojson.Safe.Util in
+    { token = json |> member "token" |> to_string }
+
+  let get_service_auth_url ~aud ?lxm ?exp (s : Session.session) : string =
+    let pairs =
+      (("aud", aud) :: (match lxm with Some n -> [ ("lxm", n) ] | None -> []))
+      @ match exp with Some n -> [ ("exp", Int64.to_string n) ] | None -> []
+    in
+    let base =
+      App.create_endpoint_url (App.create_base_url s)
+        (create_server_endpoint "getServiceAuth")
+    in
+    let qs = Cohttp_client.create_body_from_pairs pairs in
+    if qs = "" then base else base ^ "?" ^ qs
+
+  let get_service_auth (s : Session.session) ~aud ?lxm ?exp () : service_auth =
+    let _ = Xrpc.Xrpc.service_auth_body ~aud ?lxm ?exp () in
+    let bearer_token = Session.bearer_token_from_session s in
+    let application_json = Cohttp_client.application_json_setting_tuple in
+    let headers =
+      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
+    in
+    let url = get_service_auth_url ~aud ?lxm ?exp s in
+    let body =
+      Lwt_main.run (Cohttp_client.get_request_with_headers url headers)
+    in
+    parse_service_auth (Yojson.Safe.from_string body)
+
+  type account_status = {
+    activated : bool option;
+    valid_did : bool option;
+    expected_blobs : int option;
+    imported_blobs : int option;
+  }
+
+  let parse_account_status json : account_status =
+    let open Yojson.Safe.Util in
+    {
+      activated =
+        (match json |> member "activated" with `Bool b -> Some b | _ -> None);
+      valid_did =
+        (match json |> member "validDid" with `Bool b -> Some b | _ -> None);
+      expected_blobs =
+        (match json |> member "expectedBlobs" with
+        | `Int n -> Some n
+        | _ -> None);
+      imported_blobs =
+        (match json |> member "importedBlobs" with
+        | `Int n -> Some n
+        | _ -> None);
+    }
+
+  let deactivate_account_url (s : Session.session) : string =
+    App.create_endpoint_url (App.create_base_url s)
+      (create_server_endpoint "deactivateAccount")
+
+  let activate_account_url (s : Session.session) : string =
+    App.create_endpoint_url (App.create_base_url s)
+      (create_server_endpoint "activateAccount")
+
+  let check_account_status_url (s : Session.session) : string =
+    App.create_endpoint_url (App.create_base_url s)
+      (create_server_endpoint "checkAccountStatus")
 end

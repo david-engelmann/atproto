@@ -52,6 +52,64 @@ let test_resolve_actor_live _ =
   with exn ->
     skip_if true ("Identity.resolve skipped: " ^ Printexc.to_string exn)
 
+let test_parse_identity_info _ =
+  let json =
+    `Assoc
+      [
+        ("did", `String "did:plc:ewvi7nxzyoun6zhxrhs64oiz");
+        ("handle", `String "jay.bsky.team");
+        ("didDoc", `Assoc [ ("id", `String "did:plc:ewvi7nxzyoun6zhxrhs64oiz") ]);
+      ]
+  in
+  let info = Identity.parse_identity_info json in
+  OUnit2.assert_equal ~printer:(fun x -> x) "jay.bsky.team" info.handle;
+  OUnit2.assert_bool "didDoc present"
+    (match info.did_doc with Some _ -> true | None -> false)
+
+let test_plc_operation_bodies _ =
+  let signed =
+    Identity.sign_plc_operation_body ~token:"email-token"
+      ~rotation_keys:
+        [ "did:key:zDnaerDaTF5BXEavCrfUZPJjEBhG8KNmk45G65Kd8uKbVhcwK" ]
+      ~also_known_as:[ "at://alice.test" ] ()
+  in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "email-token"
+    (signed |> member "token" |> to_string);
+  let submitted = Identity.submit_plc_operation_body signed in
+  OUnit2.assert_bool "operation wrapped"
+    (match submitted |> member "operation" with `Assoc _ -> true | _ -> false)
+
+let test_recommended_did_credentials _ =
+  let json =
+    `Assoc
+      [
+        ( "rotationKeys",
+          `List
+            [
+              `String
+                "did:key:zDnaerDaTF5BXEavCrfUZPJjEBhG8KNmk45G65Kd8uKbVhcwK";
+            ] );
+        ("alsoKnownAs", `List [ `String "at://alice.test" ]);
+        ("verificationMethods", `Assoc []);
+        ("services", `Assoc []);
+      ]
+  in
+  let creds = Identity.parse_recommended_did_credentials json in
+  OUnit2.assert_equal 1 (List.length creds.rotation_keys);
+  OUnit2.assert_equal (Some "at://alice.test")
+    (List.nth_opt creds.also_known_as 0)
+
+let test_handle_txt_helpers _ =
+  OUnit2.assert_equal (Some "did:plc:ewvi7nxzyoun6zhxrhs64oiz")
+    (Identity.parse_txt_did "did=did:plc:ewvi7nxzyoun6zhxrhs64oiz");
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "https://jay.bsky.team/.well-known/atproto-did"
+    (Identity.handle_well_known_url "jay.bsky.team")
+
 let suite =
   "identity"
   >::: [
@@ -60,6 +118,10 @@ let suite =
          "test_resolve_did_key_offline" >:: test_resolve_did_key_offline;
          "test_resolve_handle_live" >:: test_resolve_handle_live;
          "test_resolve_actor_live" >:: test_resolve_actor_live;
+         "test_parse_identity_info" >:: test_parse_identity_info;
+         "test_plc_operation_bodies" >:: test_plc_operation_bodies;
+         "test_recommended_did_credentials" >:: test_recommended_did_credentials;
+         "test_handle_txt_helpers" >:: test_handle_txt_helpers;
        ]
 
 let () = run_test_tt_main suite

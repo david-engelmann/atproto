@@ -85,6 +85,69 @@ let test_list_repos _ =
       (List.length repos.repos >= 0)
   with exn -> skip_if true ("listRepos skipped: " ^ Printexc.to_string exn)
 
+let test_parse_repo_status _ =
+  let json =
+    `Assoc
+      [
+        ("did", `String "did:plc:ewvi7nxzyoun6zhxrhs64oiz");
+        ("active", `Bool false);
+        ("status", `String "deactivated");
+        ("rev", `String "3jzfcijpj2z2a");
+      ]
+  in
+  let s = Sync.parse_repo_status json in
+  OUnit2.assert_equal false s.active;
+  OUnit2.assert_equal (Some "deactivated") s.status;
+  OUnit2.assert_equal (Some "3jzfcijpj2z2a") s.rev
+
+let test_parse_list_hosts _ =
+  let json =
+    `Assoc
+      [
+        ("cursor", `String "c2");
+        ( "hosts",
+          `List
+            [
+              `Assoc
+                [
+                  ("hostname", `String "morel.us-east.host.bsky.network");
+                  ("seq", `Int 99);
+                  ("accountCount", `Int 12);
+                  ("status", `String "active");
+                ];
+            ] );
+      ]
+  in
+  let h = Sync.parse_list_hosts json in
+  OUnit2.assert_equal (Some "c2") h.cursor;
+  OUnit2.assert_equal 1 (List.length h.hosts);
+  OUnit2.assert_equal (Some 99L) (List.hd h.hosts).seq
+
+let test_parse_list_repos_by_collection _ =
+  let json =
+    `Assoc
+      [
+        ( "repos",
+          `List
+            [
+              `Assoc [ ("did", `String "did:plc:aaaa") ];
+              `Assoc [ ("did", `String "did:plc:bbbb") ];
+            ] );
+      ]
+  in
+  let r = Sync.parse_list_repos_by_collection json in
+  OUnit2.assert_equal 2 (List.length r.repos);
+  OUnit2.assert_equal "did:plc:aaaa" (List.hd r.repos).did
+
+let test_get_repo_status_public _ =
+  try
+    with_public_timeout (fun () ->
+        let ident = public_actor () in
+        let host = public_pds_host ident in
+        let st = Sync.get_repo_status ~host ident.did in
+        OUnit2.assert_equal ~printer:(fun x -> x) ident.did st.did)
+  with exn -> skip_if true ("getRepoStatus skipped: " ^ Printexc.to_string exn)
+
 let suite =
   "sync"
   >::: [
@@ -93,6 +156,11 @@ let suite =
          "test_get_head" >:: test_get_head;
          "test_get_repo_car" >:: test_get_repo_car;
          "test_list_repos" >:: test_list_repos;
+         "test_parse_repo_status" >:: test_parse_repo_status;
+         "test_parse_list_hosts" >:: test_parse_list_hosts;
+         "test_parse_list_repos_by_collection"
+         >:: test_parse_list_repos_by_collection;
+         "test_get_repo_status_public" >:: test_get_repo_status_public;
        ]
 
 let () = run_test_tt_main suite

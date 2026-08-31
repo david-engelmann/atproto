@@ -121,4 +121,79 @@ module Identity = struct
           pds = Did_plc.Did_plc.pds_endpoint doc;
         }
       else { did; handle = Some actor; pds = None }
+
+  type identity_info = {
+    did : string;
+    handle : string;
+    did_doc : Yojson.Safe.t option;
+  }
+
+  let parse_identity_info json : identity_info =
+    let open Yojson.Safe.Util in
+    {
+      did = json |> member "did" |> to_string;
+      handle = (match json |> member "handle" with `String s -> s | _ -> "");
+      did_doc =
+        (match json |> member "didDoc" with
+        | `Null -> None
+        | `Assoc _ as doc -> Some doc
+        | _ -> None);
+    }
+
+  let resolve_identity ?host ?session (identifier : string) : identity_info =
+    get_json ?host ?session
+      (create_identity_endpoint "resolveIdentity")
+      [ ("identifier", identifier) ]
+    |> parse_identity_info
+
+  let update_handle_body (handle : string) : Yojson.Safe.t =
+    `Assoc [ ("handle", `String handle) ]
+
+  type recommended_did_credentials = {
+    rotation_keys : string list;
+    also_known_as : string list;
+    verification_methods : Yojson.Safe.t;
+    services : Yojson.Safe.t;
+  }
+
+  let parse_recommended_did_credentials json : recommended_did_credentials =
+    let open Yojson.Safe.Util in
+    let strings field =
+      match json |> member field with
+      | `List items ->
+          List.filter_map (function `String s -> Some s | _ -> None) items
+      | _ -> []
+    in
+    {
+      rotation_keys = strings "rotationKeys";
+      also_known_as = strings "alsoKnownAs";
+      verification_methods = json |> member "verificationMethods";
+      services = json |> member "services";
+    }
+
+  let sign_plc_operation_body ?token ?rotation_keys ?also_known_as
+      ?verification_methods ?services () : Yojson.Safe.t =
+    let str_list xs = `List (List.map (fun s -> `String s) xs) in
+    let fields =
+      (match token with Some t -> [ ("token", `String t) ] | None -> [])
+      @ (match rotation_keys with
+        | Some ks -> [ ("rotationKeys", str_list ks) ]
+        | None -> [])
+      @ (match also_known_as with
+        | Some aka -> [ ("alsoKnownAs", str_list aka) ]
+        | None -> [])
+      @ (match verification_methods with
+        | Some v -> [ ("verificationMethods", v) ]
+        | None -> [])
+      @ match services with Some s -> [ ("services", s) ] | None -> []
+    in
+    `Assoc fields
+
+  let submit_plc_operation_body (operation : Yojson.Safe.t) : Yojson.Safe.t =
+    `Assoc [ ("operation", operation) ]
+
+  let handle_txt_name = Syntax.Syntax.handle_txt_name
+  let parse_txt_did = Syntax.Syntax.parse_txt_did
+  let handle_well_known_url = Syntax.Syntax.handle_well_known_url
+  let parse_well_known_did = Syntax.Syntax.parse_well_known_did
 end

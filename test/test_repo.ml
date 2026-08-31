@@ -110,12 +110,53 @@ let test_parse_blob_ref _ =
     ~printer:(fun x -> x)
     "bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku" blob.cid
 
+let test_parse_list_missing_blobs _ =
+  let json =
+    `Assoc
+      [
+        ("cursor", `String "next");
+        ( "blobs",
+          `List
+            [
+              `Assoc
+                [
+                  ( "cid",
+                    `String
+                      "bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku"
+                  );
+                  ( "recordUri",
+                    `String
+                      "at://did:plc:alice/app.bsky.feed.post/3jzfcijpj2z2a" );
+                ];
+            ] );
+      ]
+  in
+  let missing = Repo.parse_list_missing_blobs json in
+  OUnit2.assert_equal (Some "next") missing.cursor;
+  OUnit2.assert_equal 1 (List.length missing.blobs);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku"
+    (List.hd missing.blobs).cid
+
+let test_import_repo_url _ =
+  skip_if
+    (not Auth.has_live_credentials)
+    "ATP_AUTH not configured; live Bluesky test skipped";
+  let test_session = create_test_session () in
+  let url = Repo.import_repo_url test_session in
+  OUnit2.assert_bool "importRepo URL"
+    (let n = String.length url in
+     n > 10 && String.sub url (n - 10) 10 = "importRepo")
+
 let suite =
   "suite"
   >::: [
          "test_describe_repo" >:: test_describe_repo;
          "test_apply_writes_body" >:: test_apply_writes_body;
          "test_parse_blob_ref" >:: test_parse_blob_ref;
+         "test_parse_list_missing_blobs" >:: test_parse_list_missing_blobs;
+         "test_import_repo_url" >:: test_import_repo_url;
        ]
 
 let () = run_test_tt_main suite

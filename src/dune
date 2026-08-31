@@ -63,7 +63,9 @@
   Server
   Session
   Sync
+  Syntax
   Tid
   User
   Varint
-  Websocket))
+  Websocket
+  Xrpc))

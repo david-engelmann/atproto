@@ -31,32 +31,34 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 
 | Area | Module | Notes |
 | --- | --- | --- |
+| Syntax | `Syntax` | Handle, DID, NSID, record key, datetime, language, at-identifier |
 | Session / JWT | `Auth`, `Session` | `createSession` URL uses `ATP_HOST` + `BASE_ENDPOINT` |
 | AppView | `Actor`, `Feed`, `Graph`, `Notification` | Profiles, search (`q`), follows/blocks/mutes |
-| Repo writes | `Repo` | `createRecord` / `putRecord` / `deleteRecord` / `applyWrites` bodies; `uploadBlob` parse |
-| Server | `Server` | describe server, app passwords, invites |
-| Identity | `Identity`, `Did_plc`, `Did_web`, `Did_key` | `resolveHandle`, `did:plc`, `did:web` (including `%3A` ports), `did:key` |
-| PLC chain | `Did_plc` | Genesis DID, prev CID links, p256 **and k256** ECDSA (low-S, IEEE P1363) |
-| Sync | `Sync` | Current `getLatestCommit`, `getRepo` (CAR), `listBlobs`, `listRepos` |
+| Repo writes | `Repo` | `createRecord` / `putRecord` / `applyWrites` / `uploadBlob` / `listMissingBlobs` / `importRepo` |
+| Server | `Server` | describe server, app passwords, invites, `getServiceAuth`, account status |
+| Identity | `Identity`, `Did_plc`, `Did_web`, `Did_key` | `resolveHandle` / `resolveIdentity`, `did:plc`, `did:web`, `did:key` |
+| PLC chain | `Did_plc` | Genesis DID, prev CID links, p256 + k256 ECDSA (low-S, IEEE P1363) |
+| Sync | `Sync` | `getLatestCommit`, `getRepo` (CAR), `listBlobs`, `listRepos`, `getRepoStatus`, `listHosts`, `listReposByCollection` |
 | CID / CAR | `Cid`, `Car`, `Dag_cbor` | CIDv1 (including SHA-256 `Cid.create`) + CARv1 |
-| MST | `Mst` | Layer/prefix rules, node parse, CID verify, lookup, insert/delete, firehose-diff inversion, p256/k256 commit sign+verify |
-| TID | `Tid` | Record-key / commit-rev identifiers (base32-sortable, official syntax) |
+| MST | `Mst` | Layer/prefix rules, node parse, CID verify, lookup, insert/delete, firehose-diff invert |
 | AT URI | `At_uri` | `at://` parse / serialize |
 | Lexicon | `Lexicon` | Parse lexicon-1 JSON, `to_ocaml` codegen, JSON validate |
-| Firehose | `Firehose`, `Websocket` | RFC 6455 client + `subscribeRepos` frame decode (`#commit`/`#sync`/`#identity`/`#account`/`#info`) |
-| OAuth / DPoP | `Oauth` | PKCE S256, DPoP ES256 + nonce, client metadata, AS/resource metadata, redirect callback, PAR/token loop (injectable HTTP) |
-| Labels | `Label` | `queryLabels` + label / query parse (`ver`, `exp`) |
-| Errors | `Error` | XRPC `{error, message}` including rate limits |
+| Firehose | `Firehose`, `Websocket` | RFC 6455 client + `subscribeRepos` frame decode + commit verify |
+| Labels | `Label` | `queryLabels` parse, signed labels (p256/k256), `subscribeLabels` frames |
+| XRPC | `Xrpc`, `Error` | `atproto-proxy`, accept/content-labelers, rate-limit headers, service-auth JWT |
+| OAuth / DPoP | `Oauth` | PKCE S256, DPoP ES256, PAR/token request shapes |
+| TID | `Tid` | Timestamp identifiers |
+| Signed commits | `Mst` | Repo commit sign/verify (p256/k256) |
 
 ## Remaining gaps
 
-These are product-level, not missing protocol cores:
+The protocol core is complete. Leftovers are product / application-level:
 
-- Hosting a public **client-metadata document** and completing a **live browser login** against a PDS (the protocol core — metadata, PAR + DPoP-nonce retry, authorize URL, redirect `code`/`state`/`iss`, token parse — is implemented and tested with fixtures)
-
-PLC k256 verify, MST firehose-diff inversion, signed-commit verify, and OAuth client-metadata / PAR+token loop are implemented in this stack (#70 / #71 / this slice).
-
-Open PR `#69` (`de-sync-types`) is superseded by this work: it still targeted the removed `getCheckout` API and left CAR/CBOR unfinished.
+- OAuth **browser redirect / client-metadata hosting / live token loop** against a PDS (PKCE + DPoP + PAR encoding and ES256 proofs are implemented)
+- Hosting a public client-metadata URL or completing a live browser login
+- AppView product surfaces beyond the existing profile / feed / graph / notification helpers
+- Admin / ozone moderation dashboards (createReport + labeler proxy headers are implemented)
+- Live `getServiceAuth` against a real PDS (JWT parse and request shape are implemented; skipped without `ATP_AUTH`)
 
 ## Sample usage
 
@@ -67,18 +69,13 @@ let commit = Sync.get_latest_commit did
 let doc = Did_plc.resolve did
 let ident = Identity.resolve "jay.bsky.team"
 
+(* syntax — official spec vectors *)
+let () = assert (Syntax.is_valid_nsid "com.atproto.sync.getRecord")
+let () = assert (Syntax.is_valid_handle "jay.bsky.team")
+let () = assert (Syntax.is_valid_datetime "1985-04-12T23:20:50.123Z")
+
 (* MST layer for a repo key — official vector *)
 let () = assert (Mst.layer_for_key "blue" = 1)
-
-(* TID used as record keys and commit revs *)
-let () = assert (Tid.is_valid "3jzfcijpj2z2a")
-
-(* OAuth client metadata + authorize URL (no hosted client required) *)
-let meta =
-  Oauth.public_metadata
-    ~client_id:"https://client.example/client-metadata.json"
-    ~redirect_uris:[ "https://client.example/cb" ] ()
-let _ = Oauth.validate_metadata meta
 
 (* firehose: one subscribeRepos frame from the public relay *)
 let _header, msg = Firehose.subscribe_one ()
