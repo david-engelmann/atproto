@@ -1,6 +1,8 @@
 open Session
 open Cohttp_client
 open App
+open Http_client
+open Response
 
 (** Shared XRPC GET/POST helpers for AppView, chat, ozone, and admin clients. *)
 module Client = struct

@@ -227,8 +227,8 @@ let test_more_ozone _ =
         | latest when served latest ->
             let got = Ozone.get_latest_report s ~proxy:p () in
             OUnit2.assert_bool "getLatestReport" (got.id >= 0)
-        | _ -> ()
-        | _ -> ()));
+        | _ -> ())
+  | _ -> ());
   (match ozone_json s p "tools.ozone.queue.listQueues" [ ("limit", "10") ] with
   | json when served json ->
       let queues = Ozone.list_queues s ~proxy:p ~limit:10 () in
