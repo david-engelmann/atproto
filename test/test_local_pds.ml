@@ -414,64 +414,36 @@ let local_plc_directory () =
 let test_plc_directory_write _ =
   skip_unless_local_pds ();
   Mirage_crypto_rng_unix.use_default ();
-  Random.self_init ();
-  let rec random_p256 n =
-    if n <= 0 then failwith "could not generate a P-256 key";
-    let bytes = Bytes.create 32 in
-    for i = 0 to 31 do
-      Bytes.set bytes i (Char.chr (Random.int 256))
-    done;
-    match Mirage_crypto_ec.P256.Dsa.priv_of_octets (Bytes.to_string bytes) with
-    | Ok priv -> priv
-    | Error _ -> random_p256 (n - 1)
-  in
-  let priv = random_p256 32 in
-  let pub = Mirage_crypto_ec.P256.Dsa.pub_of_priv priv in
-  let octets = Mirage_crypto_ec.P256.Dsa.pub_to_octets ~compress:true pub in
-  let rotation =
-    Atproto.Did_key.Did_key.to_string
-      (Atproto.Did_key.Did_key.of_p256_octets octets)
-  in
-  let services =
-    [
-      ( "atproto_pds",
-        {
-          Atproto.Did_plc.Did_plc.type_ = "AtprotoPersonalDataServer";
-          endpoint = "http://localhost:2583";
-        } );
-    ]
-  in
+  let open Atproto.Did_plc.Did_plc in
+  let priv, pub = generate_k256 () in
+  let rotation = k256_did_key pub in
+  OUnit2.assert_bool "k256 did:key (zQ3s…)"
+    (String.length rotation > 12 && String.sub rotation 0 12 = "did:key:zQ3s");
   let genesis =
-    Atproto.Did_plc.Did_plc.genesis_operation ~rotation_keys:[ rotation ]
-      ~verification_methods:[ ("atproto", rotation) ]
-      ~also_known_as:[ "at://plcwrite.test" ] ~services ()
+    format_atproto_op ~signing_key:rotation ~rotation_keys:[ rotation ]
+      ~handle:"plcwrite.test" ~pds:"http://localhost:2583" ()
   in
-  let signed = Atproto.Did_plc.Did_plc.sign_p256 ~priv genesis in
-  let op = Atproto.Did_plc.Did_plc.parse_operation signed in
-  let did = Atproto.Did_plc.Did_plc.genesis_did op in
+  let signed, did = sign_genesis_k256 ~priv genesis in
+  let op = parse_operation signed in
+  OUnit2.assert_equal `Valid (verify_with_rotation_keys [ rotation ] op);
   let directory = local_plc_directory () in
-  ignore (Atproto.Did_plc.Did_plc.submit_operation ~directory did signed);
-  let doc = Atproto.Did_plc.Did_plc.resolve ~directory did in
+  ignore (submit_operation ~directory did signed);
+  let doc = resolve ~directory did in
   OUnit2.assert_equal ~printer:(fun x -> x) did doc.id;
-  let data = Atproto.Did_plc.Did_plc.resolve_data ~directory did in
+  let data = resolve_data ~directory did in
   OUnit2.assert_equal [ rotation ] data.rotation_keys;
-  let prev =
-    Atproto.Cid.Cid.to_string (Atproto.Did_plc.Did_plc.cid_of_operation op)
-  in
+  let prev = Atproto.Cid.Cid.to_string (cid_of_operation op) in
   let update =
-    Atproto.Did_plc.Did_plc.update_operation ~rotation_keys:[ rotation ]
-      ~verification_methods:[ ("atproto", rotation) ]
-      ~also_known_as:[ "at://plcwrite-updated.test" ]
-      ~services ~prev ()
+    format_atproto_op ~signing_key:rotation ~rotation_keys:[ rotation ]
+      ~handle:"plcwrite-updated.test" ~pds:"http://localhost:2583" ~prev ()
   in
-  let signed_update = Atproto.Did_plc.Did_plc.sign_p256 ~priv update in
-  ignore (Atproto.Did_plc.Did_plc.submit_operation ~directory did signed_update);
-  let audit = Atproto.Did_plc.Did_plc.resolve_audit_log ~directory did in
+  let signed_update = sign_k256 ~priv update in
+  OUnit2.assert_equal `Valid
+    (verify_with_rotation_keys [ rotation ] (parse_operation signed_update));
+  ignore (submit_operation ~directory did signed_update);
+  let audit = resolve_audit_log ~directory did in
   OUnit2.assert_bool "audit log after update" (List.length audit >= 2);
-  let chain =
-    Atproto.Did_plc.Did_plc.verify_chain ~did
-      (Atproto.Did_plc.Did_plc.resolve_log ~directory did)
-  in
+  let chain = verify_chain ~did (resolve_log ~directory did) in
   OUnit2.assert_bool "PLC chain genesis" chain.genesis_ok;
   OUnit2.assert_bool "PLC chain prev" chain.prev_links_ok
 

@@ -346,6 +346,7 @@ module Did_plc = struct
            ))
          services)
 
+  (* Field order matches @did-plc/lib formatAtprotoOp. DAG-CBOR sorts keys. *)
   let genesis_operation ?(also_known_as = [])
       ?(verification_methods : (string * string) list = [])
       ?(services : (string * plc_service) list = []) ~rotation_keys () :
@@ -353,8 +354,8 @@ module Did_plc = struct
     `Assoc
       [
         ("type", `String "plc_operation");
-        ("rotationKeys", `List (List.map (fun k -> `String k) rotation_keys));
         ("verificationMethods", assoc_strings verification_methods);
+        ("rotationKeys", `List (List.map (fun k -> `String k) rotation_keys));
         ("alsoKnownAs", `List (List.map (fun a -> `String a) also_known_as));
         ("services", services_json services);
         ("prev", `Null);
@@ -367,12 +368,44 @@ module Did_plc = struct
     `Assoc
       [
         ("type", `String "plc_operation");
-        ("rotationKeys", `List (List.map (fun k -> `String k) rotation_keys));
         ("verificationMethods", assoc_strings verification_methods);
+        ("rotationKeys", `List (List.map (fun k -> `String k) rotation_keys));
         ("alsoKnownAs", `List (List.map (fun a -> `String a) also_known_as));
         ("services", services_json services);
         ("prev", `String prev);
       ]
+
+  let k256_did_key (pub : K256.K256.pub) : string =
+    Did_key.to_string
+      (Did_key.of_k256_octets (K256.K256.pub_to_octets ~compress:true pub))
+
+  let generate_k256 () : K256.K256.priv * K256.K256.pub = K256.K256.generate ()
+
+  (* @did-plc/lib formatAtprotoOp: type plc_operation, verificationMethods.atproto,
+     rotationKeys, alsoKnownAs [at://handle], services.atproto_pds, prev. *)
+  let format_atproto_op ~signing_key ~rotation_keys ~handle ~pds ?prev () :
+      Yojson.Safe.t =
+    let also_known_as =
+      if handle = "" then []
+      else if starts_with "at://" handle then [ handle ]
+      else [ "at://" ^ handle ]
+    in
+    let services =
+      if pds = "" then []
+      else
+        [
+          ( "atproto_pds",
+            { type_ = "AtprotoPersonalDataServer"; endpoint = pds } );
+        ]
+    in
+    let verification_methods = [ ("atproto", signing_key) ] in
+    match prev with
+    | None ->
+        genesis_operation ~also_known_as ~verification_methods ~services
+          ~rotation_keys ()
+    | Some p ->
+        update_operation ~also_known_as ~verification_methods ~services
+          ~rotation_keys ~prev:p ()
 
   let tombstone_operation ~prev () : Yojson.Safe.t =
     `Assoc [ ("type", `String "plc_tombstone"); ("prev", `String prev) ]
@@ -511,6 +544,11 @@ module Did_plc = struct
     match unsigned with
     | `Assoc fields -> `Assoc (fields @ [ ("sig", `String sig_b64) ])
     | _ -> failwith "Did_plc.sign_k256: expected a JSON object"
+
+  let sign_genesis_k256 ~(priv : K256.K256.priv) (unsigned : Yojson.Safe.t) :
+      Yojson.Safe.t * string =
+    let signed = sign_k256 ~priv unsigned in
+    (signed, genesis_did (parse_operation signed))
 
   let verify_k256 ~(pub : K256.K256.pub) (op : operation) : sig_status =
     match op.sig_ with

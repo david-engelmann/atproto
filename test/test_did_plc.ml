@@ -372,6 +372,44 @@ let test_parse_data_and_audit _ =
     "plc_operation" audit.operation.type_;
   OUnit2.assert_bool "not nullified" (not audit.nullified)
 
+let test_format_atproto_op_k256 _ =
+  let priv, pub = Did_plc.generate_k256 () in
+  let key = Did_plc.k256_did_key pub in
+  OUnit2.assert_bool "k256 did:key prefix"
+    (String.length key > 12 && String.sub key 0 12 = "did:key:zQ3s");
+  let genesis =
+    Did_plc.format_atproto_op ~signing_key:key ~rotation_keys:[ key ]
+      ~handle:"alice.test" ~pds:"https://example.com" ()
+  in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "plc_operation"
+    (genesis |> member "type" |> to_string);
+  OUnit2.assert_equal `Null (genesis |> member "prev");
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    key
+    (genesis |> member "verificationMethods" |> member "atproto" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "at://alice.test"
+    (genesis |> member "alsoKnownAs" |> index 0 |> to_string);
+  let signed, did = Did_plc.sign_genesis_k256 ~priv genesis in
+  let op = Did_plc.parse_operation signed in
+  OUnit2.assert_bool "genesis did:plc" (Did_plc.is_plc_did did);
+  OUnit2.assert_equal `Valid (Did_plc.verify_with_rotation_keys [ key ] op);
+  OUnit2.assert_equal ~printer:(fun x -> x) did (Did_plc.genesis_did op);
+  let prev = Atproto.Cid.Cid.to_string (Did_plc.cid_of_operation op) in
+  let update =
+    Did_plc.format_atproto_op ~signing_key:key ~rotation_keys:[ key ]
+      ~handle:"alice-updated.test" ~pds:"https://example.com" ~prev ()
+  in
+  let second = Did_plc.parse_operation (Did_plc.sign_k256 ~priv update) in
+  let chain = Did_plc.verify_chain ~did [ op; second ] in
+  OUnit2.assert_bool "formatAtprotoOp genesis_ok" chain.genesis_ok;
+  OUnit2.assert_bool "formatAtprotoOp prev_links_ok" chain.prev_links_ok
+
 let test_unsigned_omits_sig _ =
   let priv, pub = p256_pair () in
   let signed = Did_plc.sign_p256 ~priv (genesis_json (rotation_did_key pub)) in
@@ -435,6 +473,7 @@ let suite =
          >:: test_verify_missing_and_wrong_key;
          "test_chain_prev_and_genesis" >:: test_chain_prev_and_genesis;
          "test_operation_builders" >:: test_operation_builders;
+         "test_format_atproto_op_k256" >:: test_format_atproto_op_k256;
          "test_parse_data_and_audit" >:: test_parse_data_and_audit;
          "test_unsigned_omits_sig" >:: test_unsigned_omits_sig;
          "test_live_chain_structure" >:: test_live_chain_structure;
