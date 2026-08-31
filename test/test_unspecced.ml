@@ -242,7 +242,8 @@ let test_parse_thread_v2 _ =
             ] );
       ]
   in
-  let parsed = Unspecced.parse_thread_v2
+  let parsed =
+    Unspecced.parse_thread_v2
       (`Assoc
         [
           ("thread", `List [ item ]);
@@ -347,8 +348,7 @@ let test_get_post_thread_v2_live _ =
               Unspecced.get_post_thread_v2 ~anchor:hd.uri ~below:2
                 ~branching_factor:3 ()
             in
-            OUnit2.assert_bool "thread v2 items"
-              (List.length thread.thread >= 0))
+            OUnit2.assert_bool "thread v2 items" (List.length thread.thread >= 0))
   with exn ->
     skip_if true ("getPostThreadV2 skipped: " ^ Printexc.to_string exn)
 

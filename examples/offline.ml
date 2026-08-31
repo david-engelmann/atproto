@@ -256,9 +256,20 @@ let () =
   in
   assert (List.length thread_v2.thread = 1);
   let draft_body =
-    Draft.draft_json ~posts:[ { text = "draft"; labels = None; embed_images = [];
-        embed_gallery = None; embed_videos = []; embed_externals = [];
-        embed_records = [] } ] ()
+    Draft.draft_json
+      ~posts:
+        [
+          {
+            text = "draft";
+            labels = None;
+            embed_images = [];
+            embed_gallery = None;
+            embed_videos = [];
+            embed_externals = [];
+            embed_records = [];
+          };
+        ]
+      ()
   in
   assert (
     match Yojson.Safe.Util.member "posts" draft_body with
@@ -288,8 +299,7 @@ let () =
    with
   | { preferences = [ { kind = `Muted_words _; _ } ]; _ } -> ()
   | _ -> assert false);
-  assert (
-    String.length (Chat.subscribe_mod_events_url ()) > 20);
+  assert (String.length (Chat.subscribe_mod_events_url ()) > 20);
   (match
      Ozone.parse_subject
        (`Assoc

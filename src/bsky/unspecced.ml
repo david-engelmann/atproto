@@ -259,6 +259,7 @@ module Unspecced = struct
 
   type suggested_feeds = { feeds : generator_view list }
   type uri_skeleton = { uris : string list }
+
   type did_skeleton = {
     dids : string list;
     rec_id : string option;
@@ -285,11 +286,7 @@ module Unspecced = struct
     | `Blocked of thread_item_blocked
     | `Unknown of Yojson.Safe.t ]
 
-  type thread_item = {
-    uri : string;
-    depth : int;
-    value : thread_item_value;
-  }
+  type thread_item = { uri : string; depth : int; value : thread_item_value }
 
   type thread_v2 = {
     thread : thread_item list;
@@ -583,8 +580,8 @@ module Unspecced = struct
       @ Client.opt_int "limit" limit)
     |> parse_did_skeleton
 
-  let get_suggested_users_for_discover ?session ?host ?limit () : suggested_users
-      =
+  let get_suggested_users_for_discover ?session ?host ?limit () :
+      suggested_users =
     Client.get_json ?session ?host
       "app.bsky.unspecced.getSuggestedUsersForDiscover"
       (Client.opt_int "limit" limit)

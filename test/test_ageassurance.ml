@@ -2,6 +2,17 @@ open OUnit2
 open Atproto.Ageassurance
 open Atproto.Auth
 
+let with_public_timeout ?(seconds = 20) f =
+  let old =
+    Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
+  in
+  ignore (Unix.alarm seconds);
+  Fun.protect
+    ~finally:(fun () ->
+      ignore (Unix.alarm 0);
+      Sys.set_signal Sys.sigalrm old)
+    f
+
 let test_parse_state_and_config _ =
   let bundle =
     Ageassurance.parse_state_bundle
@@ -35,8 +46,7 @@ let test_parse_state_and_config _ =
                     ("countryCode", `String "GB");
                     ("minAccessAge", `Int 18);
                     ("platforms", `List [ `String "ios"; `String "android" ]);
-                    ( "additionalVerificationMethods",
-                      `List [ `String "device" ] );
+                    ("additionalVerificationMethods", `List [ `String "device" ]);
                     ( "rules",
                       `List
                         [
@@ -99,8 +109,9 @@ let test_parse_event _ =
 
 let test_get_config_live _ =
   try
-    let cfg = Ageassurance.get_config () in
-    OUnit2.assert_bool "regions list parsed" (List.length cfg.regions >= 0)
+    with_public_timeout (fun () ->
+        let cfg = Ageassurance.get_config () in
+        OUnit2.assert_bool "regions list parsed" (List.length cfg.regions >= 0))
   with exn ->
     skip_if true ("ageassurance.getConfig skipped: " ^ Printexc.to_string exn)
 

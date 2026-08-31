@@ -4,15 +4,15 @@ open Actor
 
 (** app.bsky.contact — phone-verified contact import / match (current lexicons). *)
 module Contact = struct
-  type match_and_index = {
-    match_ : Actor.short_profile;
-    contact_index : int;
-  }
-
+  type match_and_index = { match_ : Actor.short_profile; contact_index : int }
   type import_result = { matches : match_and_index list }
   type sync_status = { synced_at : string; matches_count : int }
   type sync_status_opt = { sync_status : sync_status option }
-  type matches_page = { cursor : string option; matches : Actor.short_profile list }
+
+  type matches_page = {
+    cursor : string option;
+    matches : Actor.short_profile list;
+  }
 
   let parse_match_and_index json : match_and_index =
     let match_ =

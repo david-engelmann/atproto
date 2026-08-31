@@ -250,7 +250,8 @@ module Websocket = struct
          Sec-WebSocket-Key: %s\r\n\
          Sec-WebSocket-Version: 13\r\n\
          %s\r\n"
-        path host key (extra_header_lines extra_headers)
+        path host key
+        (extra_header_lines extra_headers)
     in
     write_all ssl req;
     let resp = read_handshake_response ssl in

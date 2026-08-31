@@ -474,9 +474,7 @@ module Actor = struct
 
   let parse_threadgate_rule json : threadgate_rule =
     let ty =
-      match Yojson.Safe.Util.member "$type" json with
-      | `String s -> s
-      | _ -> ""
+      match Yojson.Safe.Util.member "$type" json with `String s -> s | _ -> ""
     in
     if ends_with "mentionRule" ty then `Mention
     else if ends_with "followerRule" ty then `Follower
@@ -487,9 +485,7 @@ module Actor = struct
 
   let parse_postgate_rule json : postgate_rule =
     let ty =
-      match Yojson.Safe.Util.member "$type" json with
-      | `String s -> s
-      | _ -> ""
+      match Yojson.Safe.Util.member "$type" json with `String s -> s | _ -> ""
     in
     if ends_with "disableRule" ty then `Disable else `Unknown json
 

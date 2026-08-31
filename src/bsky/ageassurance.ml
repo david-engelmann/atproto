@@ -106,7 +106,9 @@ module Ageassurance = struct
     }
 
   let parse_config json : config =
-    { regions = List.map parse_config_region (Client.list_member json "regions") }
+    {
+      regions = List.map parse_config_region (Client.list_member json "regions");
+    }
 
   let parse_event json : event =
     {
@@ -142,7 +144,8 @@ module Ageassurance = struct
   let get_state (s : Session.session) ~country_code ?region_code () :
       state_bundle =
     Client.get_json ~session:s "app.bsky.ageassurance.getState"
-      ([ ("countryCode", country_code) ] @ Client.opt_pair "regionCode" region_code)
+      ([ ("countryCode", country_code) ]
+      @ Client.opt_pair "regionCode" region_code)
     |> parse_state_bundle
 
   let begin_assurance (s : Session.session) ~email ~language ~country_code

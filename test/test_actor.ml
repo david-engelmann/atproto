@@ -135,8 +135,7 @@ let test_parse_preferences _ =
                       [
                         `Assoc
                           [
-                            ("id", `String "welcome");
-                            ("completed", `Bool true);
+                            ("id", `String "welcome"); ("completed", `Bool true);
                           ];
                       ] );
                 ];
@@ -147,7 +146,9 @@ let test_parse_preferences _ =
                     `List
                       [
                         `Assoc
-                          [ ("did", `String "did:plc:ar7c4by46qjdydhdevvrndac") ];
+                          [
+                            ("did", `String "did:plc:ar7c4by46qjdydhdevvrndac");
+                          ];
                       ] );
                 ];
               `Assoc

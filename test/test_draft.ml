@@ -55,8 +55,7 @@ let test_parse_and_build _ =
                   [
                     `Assoc
                       [
-                        ( "$type",
-                          `String "app.bsky.feed.threadgate#mentionRule" );
+                        ("$type", `String "app.bsky.feed.threadgate#mentionRule");
                       ];
                   ] );
               ( "postgateEmbeddingRules",
@@ -87,8 +86,17 @@ let test_parse_and_build _ =
     Draft.draft_json ~device_id:"device-1" ~langs:[ "en" ]
       ~threadgate_allow:[ `Following ]
       ~posts:
-        [ { text = "hi"; labels = None; embed_images = []; embed_gallery = None;
-            embed_videos = []; embed_externals = []; embed_records = [] } ]
+        [
+          {
+            text = "hi";
+            labels = None;
+            embed_images = [];
+            embed_gallery = None;
+            embed_videos = [];
+            embed_externals = [];
+            embed_records = [];
+          };
+        ]
       ()
   in
   let open Yojson.Safe.Util in

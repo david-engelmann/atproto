@@ -330,7 +330,8 @@ let test_subscribe_mod_events _ =
       (`Assoc
         [
           ( "$type",
-            `String "chat.bsky.moderation.subscribeModEvents#eventConvoFirstMessage"
+            `String
+              "chat.bsky.moderation.subscribeModEvents#eventConvoFirstMessage"
           );
           ("convoId", `String "c1");
           ("createdAt", `String "2024-01-01T00:00:00.000Z");
@@ -350,8 +351,8 @@ let test_subscribe_mod_events _ =
       (`Assoc
         [
           ( "$type",
-            `String "chat.bsky.moderation.subscribeModEvents#eventGroupChatCreated"
-          );
+            `String
+              "chat.bsky.moderation.subscribeModEvents#eventGroupChatCreated" );
           ("actorDid", `String "did:plc:abc123xyz0001112223333");
           ("convoCreatedAt", `String "2024-01-01T00:00:00.000Z");
           ("convoId", `String "g1");
@@ -391,16 +392,20 @@ let test_subscribe_mod_events _ =
   | `Group_chat_join_request_approved e ->
       OUnit2.assert_equal ~printer:(fun x -> x) "g1" e.convo_id
   | _ -> OUnit2.assert_failure "expected join approved, not bare join request");
-  let header = Atproto.Firehose.Firehose.encode_header
+  let header =
+    Atproto.Firehose.Firehose.encode_header
       { op = 1; t = Some "#eventRateLimitExceeded" }
   in
   let body =
     Atproto.Dag_cbor.Dag_cbor.encode
       (Atproto.Dag_cbor.Dag_cbor.Map
          [
-           ("actorDid", Atproto.Dag_cbor.Dag_cbor.Text "did:plc:abc123xyz0001112223333");
-           ("createdAt", Atproto.Dag_cbor.Dag_cbor.Text "2024-01-01T00:00:00.000Z");
-           ("endpoint", Atproto.Dag_cbor.Dag_cbor.Text "chat.bsky.convo.sendMessage");
+           ( "actorDid",
+             Atproto.Dag_cbor.Dag_cbor.Text "did:plc:abc123xyz0001112223333" );
+           ( "createdAt",
+             Atproto.Dag_cbor.Dag_cbor.Text "2024-01-01T00:00:00.000Z" );
+           ( "endpoint",
+             Atproto.Dag_cbor.Dag_cbor.Text "chat.bsky.convo.sendMessage" );
            ("rev", Atproto.Dag_cbor.Dag_cbor.Text "r9");
          ])
   in

@@ -96,8 +96,7 @@ let test_get_sync_status_auth_skipped _ =
     let st = Contact.get_sync_status s in
     OUnit2.assert_bool "sync status parsed"
       (match st.sync_status with Some _ | None -> true)
-  with exn ->
-    skip_if true ("getSyncStatus skipped: " ^ Printexc.to_string exn)
+  with exn -> skip_if true ("getSyncStatus skipped: " ^ Printexc.to_string exn)
 
 let suite =
   "contact"

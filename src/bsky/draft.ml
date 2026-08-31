@@ -18,7 +18,11 @@ module Draft = struct
   type embed_gallery = { items : embed_image list }
 
   type threadgate_rule =
-    [ `Mention | `Follower | `Following | `List of string | `Unknown of Yojson.Safe.t ]
+    [ `Mention
+    | `Follower
+    | `Following
+    | `List of string
+    | `Unknown of Yojson.Safe.t ]
 
   type postgate_rule = [ `Disable | `Unknown of Yojson.Safe.t ]
 
@@ -110,7 +114,8 @@ module Draft = struct
     let items =
       match Yojson.Safe.Util.member "items" json with
       | `List xs -> List.map parse_embed_image xs
-      | `Assoc _ as g -> List.map parse_embed_image (Client.list_member g "items")
+      | `Assoc _ as g ->
+          List.map parse_embed_image (Client.list_member g "items")
       | _ -> List.map parse_embed_image (Client.list_member json "items")
     in
     { items }
@@ -131,7 +136,8 @@ module Draft = struct
   let parse_draft_post json : draft_post =
     {
       text = Client.string_member json "text";
-      labels = Label.Label.parse_self_labels (Yojson.Safe.Util.member "labels" json);
+      labels =
+        Label.Label.parse_self_labels (Yojson.Safe.Util.member "labels" json);
       embed_images =
         List.map parse_embed_image (Client.list_member json "embedImages");
       embed_gallery =
@@ -156,7 +162,8 @@ module Draft = struct
         List.map parse_postgate_rule
           (Client.list_member json "postgateEmbeddingRules");
       threadgate_allow =
-        List.map parse_threadgate_rule (Client.list_member json "threadgateAllow");
+        List.map parse_threadgate_rule
+          (Client.list_member json "threadgateAllow");
       original = json;
     }
 
@@ -233,8 +240,8 @@ module Draft = struct
         | Some g ->
             [
               ( "embedGallery",
-                `Assoc
-                  [ ("items", `List (List.map embed_image_json g.items)) ] );
+                `Assoc [ ("items", `List (List.map embed_image_json g.items)) ]
+              );
             ]
         | None -> [])
       @ (match p.embed_videos with
@@ -290,14 +297,12 @@ module Draft = struct
         | [] -> []
         | xs ->
             [
-              ( "postgateEmbeddingRules",
-                `List (List.map postgate_rule_json xs) );
+              ("postgateEmbeddingRules", `List (List.map postgate_rule_json xs));
             ])
       @
       match threadgate_allow with
       | [] -> []
-      | xs ->
-          [ ("threadgateAllow", `List (List.map threadgate_rule_json xs)) ]
+      | xs -> [ ("threadgateAllow", `List (List.map threadgate_rule_json xs)) ]
     in
     `Assoc fields
 
