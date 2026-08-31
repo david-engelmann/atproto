@@ -22,8 +22,35 @@ module Server = struct
     in
     server_description
 
+  let create_account_body ~handle ?email ?did ?invite_code ?verification_code
+      ?verification_phone ?password ?recovery_key ?plc_op () : Yojson.Safe.t =
+    let fields =
+      ("handle", `String handle)
+      :: (match email with Some s -> [ ("email", `String s) ] | None -> [])
+      @ (match did with Some s -> [ ("did", `String s) ] | None -> [])
+      @ (match invite_code with
+        | Some s -> [ ("inviteCode", `String s) ]
+        | None -> [])
+      @ (match verification_code with
+        | Some s -> [ ("verificationCode", `String s) ]
+        | None -> [])
+      @ (match verification_phone with
+        | Some s -> [ ("verificationPhone", `String s) ]
+        | None -> [])
+      @ (match password with
+        | Some s -> [ ("password", `String s) ]
+        | None -> [])
+      @ (match recovery_key with
+        | Some s -> [ ("recoveryKey", `String s) ]
+        | None -> [])
+      @
+      match plc_op with Some v -> [ ("plcOp", v) ] | None -> []
+    in
+    `Assoc fields
+
   let create_account (s : Session.session) (handle : string) (email : string)
-      ?invite_code ?recovery_key (password : string) : string =
+      ?invite_code ?recovery_key ?did ?verification_code ?verification_phone
+      ?plc_op (password : string) : string =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers =
@@ -34,26 +61,10 @@ module Server = struct
       App.create_endpoint_url base_url (create_server_endpoint "createAccount")
     in
     let data =
-      match (invite_code, recovery_key) with
-      | Some actual_invite_code, Some actual_recovery_key ->
-          Printf.sprintf
-            "{\"email\": \"%s\", \"handle\": \"%s\", \"password\": \"%s\", \
-             \"inviteCode\": \"%s\", \"recoveryKey\": \"%s\"}"
-            email handle password actual_invite_code actual_recovery_key
-      | Some actual_invite_code, None ->
-          Printf.sprintf
-            "{\"email\": \"%s\", \"handle\": \"%s\", \"password\": \"%s\", \
-             \"inviteCode\": \"%s\"}"
-            email handle password actual_invite_code
-      | None, Some actual_recovery_key ->
-          Printf.sprintf
-            "{\"email\": \"%s\", \"handle\": \"%s\", \"password\": \"%s\", \
-             \"recoveryKey\": \"%s\"}"
-            email handle password actual_recovery_key
-      | None, None ->
-          Printf.sprintf
-            "{\"email\": \"%s\", \"handle\": \"%s\", \"password\": \"%s\"}"
-            email handle password
+      Yojson.Safe.to_string
+        (create_account_body ~handle ~email ?did ?invite_code
+           ?verification_code ?verification_phone ~password ?recovery_key
+           ?plc_op ())
     in
     let created_account =
       Lwt_main.run
@@ -61,7 +72,18 @@ module Server = struct
     in
     created_account
 
-  let create_app_password (s : Session.session) (name : string) : string =
+  let create_app_password_body ~name ?privileged () : Yojson.Safe.t =
+    let fields =
+      ("name", `String name)
+      ::
+      (match privileged with
+      | Some b -> [ ("privileged", `Bool b) ]
+      | None -> [])
+    in
+    `Assoc fields
+
+  let create_app_password (s : Session.session) ?privileged (name : string) :
+      string =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers =
@@ -72,7 +94,9 @@ module Server = struct
       App.create_endpoint_url base_url
         (create_server_endpoint "createAppPassword")
     in
-    let data = Printf.sprintf "{\"name\": \"%s\"}" name in
+    let data =
+      Yojson.Safe.to_string (create_app_password_body ~name ?privileged ())
+    in
     let created_app_password =
       Lwt_main.run
         (Cohttp_client.post_data_with_headers create_app_password_url data

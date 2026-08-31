@@ -56,7 +56,17 @@ let test_graph_and_like_builders _ =
   in
   let profile =
     Records.profile ~display_name:"Ada" ~pronouns:"she/her"
-      ~website:"https://atproto.com" ()
+      ~website:"https://atproto.com"
+      ~joined_via_starter_pack:
+        (`Assoc
+          [
+            ( "uri",
+              `String
+                "at://did:plc:alice000111222333444555666/app.bsky.graph.starterpack/3k"
+            );
+            ("cid", `String "bafyreipack");
+          ])
+      ()
   in
   let open Yojson.Safe.Util in
   OUnit2.assert_equal
@@ -74,7 +84,11 @@ let test_graph_and_like_builders _ =
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "Ada"
-    (profile |> member "displayName" |> to_string)
+    (profile |> member "displayName" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "at://did:plc:alice000111222333444555666/app.bsky.graph.starterpack/3k"
+    (profile |> member "joinedViaStarterPack" |> member "uri" |> to_string)
 
 let test_list_and_starterpack_builders _ =
   let list =

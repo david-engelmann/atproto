@@ -145,7 +145,23 @@ module Graph = struct
     in
     mutes |> convert_body_to_json |> parse_mutes
 
-  let mute_actor (s : Session.session) (actor : string) : string =
+  (* app.bsky.graph.muteActor — optional onlyReposts / onlyQuoteposts replace
+     a full mute with a scoped mute. Repeat calls replace the stored scope. *)
+  let mute_actor_body ~actor ?only_reposts ?only_quoteposts () : Yojson.Safe.t =
+    let fields =
+      ("actor", `String actor)
+      :: (match only_reposts with
+         | Some b -> [ ("onlyReposts", `Bool b) ]
+         | None -> [])
+      @
+      match only_quoteposts with
+      | Some b -> [ ("onlyQuoteposts", `Bool b) ]
+      | None -> []
+    in
+    `Assoc fields
+
+  let mute_actor (s : Session.session) ?only_reposts ?only_quoteposts
+      (actor : string) : string =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
     let headers =
@@ -155,7 +171,10 @@ module Graph = struct
     let get_muted_actor_url =
       App.create_endpoint_url base_url (create_graph_endpoint "muteActor")
     in
-    let data = Printf.sprintf "{\"actor\": \"%s\"}" actor in
+    let data =
+      Yojson.Safe.to_string
+        (mute_actor_body ~actor ?only_reposts ?only_quoteposts ())
+    in
     let muted_actor =
       Lwt_main.run
         (Cohttp_client.post_data_with_headers get_muted_actor_url data headers)

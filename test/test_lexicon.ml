@@ -231,6 +231,12 @@ let test_union_codegen_and_official_bundle _ =
               "app.bsky.feed.defs";
               "app.bsky.embed.video";
               "com.atproto.lexicon.schema";
+              "app.bsky.graph.muteActor";
+              "app.bsky.actor.defs";
+              "com.atproto.server.createSession";
+              "com.atproto.server.createAccount";
+              "com.atproto.server.getSession";
+              "com.atproto.server.createAppPassword";
             ];
           let defs =
             List.find
@@ -242,7 +248,33 @@ let test_union_codegen_and_official_bundle _ =
               (fun (d : Lexicon.def) -> d.name = "knownLikers")
               defs.defs
           in
-          OUnit2.assert_equal [ "count"; "actors" ] known.required)
+          OUnit2.assert_equal [ "count"; "actors" ] known.required;
+          let actor_defs =
+            List.find
+              (fun (d : Lexicon.document) -> d.id = "app.bsky.actor.defs")
+              docs
+          in
+          let viewer =
+            List.find
+              (fun (d : Lexicon.def) -> d.name = "viewerState")
+              actor_defs.defs
+          in
+          OUnit2.assert_bool "mutedOnlyReposts"
+            (List.exists
+               (fun (name, _) -> name = "mutedOnlyReposts")
+               viewer.properties);
+          let mute =
+            List.find
+              (fun (d : Lexicon.document) -> d.id = "app.bsky.graph.muteActor")
+              docs
+          in
+          match Lexicon.main mute with
+          | None -> OUnit2.assert_failure "missing muteActor main"
+          | Some main ->
+              OUnit2.assert_bool "onlyReposts"
+                (List.exists
+                   (fun (name, _) -> name = "onlyReposts")
+                   main.input.properties))
 
 let test_parse_resolved_lexicon _ =
   let json =

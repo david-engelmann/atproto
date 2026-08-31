@@ -71,6 +71,11 @@ module Feed = struct
     indexed_at : string;
     viewer : feed_viewer;
     known_likers : known_likers option;
+    bookmarked : bool option;
+    thread_muted : bool option;
+    reply_disabled : bool option;
+    embedding_disabled : bool option;
+    pinned : bool option;
     labels : string list option;
     embed : Embed.embed option;
   }
@@ -239,6 +244,14 @@ module Feed = struct
         | _ -> None)
     | _ -> None
 
+  let viewer_bool_opt json field =
+    match json with
+    | `Assoc _ -> (
+        match Yojson.Safe.Util.member field json with
+        | `Bool b -> Some b
+        | _ -> None)
+    | _ -> None
+
   let parse_post json : post =
     let open Yojson.Safe.Util in
     let uri = string_or_empty json "uri" in
@@ -269,6 +282,11 @@ module Feed = struct
       indexed_at;
       viewer;
       known_likers;
+      bookmarked = viewer_bool_opt viewer_json "bookmarked";
+      thread_muted = viewer_bool_opt viewer_json "threadMuted";
+      reply_disabled = viewer_bool_opt viewer_json "replyDisabled";
+      embedding_disabled = viewer_bool_opt viewer_json "embeddingDisabled";
+      pinned = viewer_bool_opt viewer_json "pinned";
       labels;
       embed;
     }
@@ -707,6 +725,11 @@ module Feed = struct
     quote_count : int option;
     bookmark_count : int option;
     known_likers : known_likers option;
+    bookmarked : bool option;
+    thread_muted : bool option;
+    reply_disabled : bool option;
+    embedding_disabled : bool option;
+    pinned : bool option;
     original : Yojson.Safe.t;
   }
 
@@ -897,6 +920,12 @@ module Feed = struct
         | `Int n -> Some n
         | _ -> None);
       known_likers = parse_known_likers_opt (json |> member "viewer");
+      bookmarked = viewer_bool_opt (json |> member "viewer") "bookmarked";
+      thread_muted = viewer_bool_opt (json |> member "viewer") "threadMuted";
+      reply_disabled = viewer_bool_opt (json |> member "viewer") "replyDisabled";
+      embedding_disabled =
+        viewer_bool_opt (json |> member "viewer") "embeddingDisabled";
+      pinned = viewer_bool_opt (json |> member "viewer") "pinned";
       original = json;
     }
 

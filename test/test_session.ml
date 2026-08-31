@@ -79,6 +79,42 @@ let test_bearer_token_from_session _ =
       OUnit2.assert_equal "Authorization" setting_name;
       OUnit2.assert_equal ~printer:string_of_bool true (String.length bearer > 0)
 
+let test_parse_session_request _ =
+  let full =
+    Session.parse_session_request
+      (`Assoc
+        [
+          ("handle", `String "alice.test");
+          ("did", `String "did:plc:abc123xyz0001112223333");
+          ("email", `String "alice@example.com");
+          ("emailConfirmed", `Bool true);
+          ("emailAuthFactor", `Bool false);
+          ("active", `Bool true);
+          ("didDoc", `Assoc [ ("id", `String "did:plc:abc123xyz0001112223333") ]);
+        ])
+  in
+  OUnit2.assert_equal (Some "alice@example.com") full.email;
+  OUnit2.assert_equal (Some true) full.email_confirmed;
+  OUnit2.assert_equal (Some false) full.email_auth_factor;
+  OUnit2.assert_equal (Some true) full.active;
+  OUnit2.assert_equal None full.status;
+  (match full.did_doc with
+  | Some _ -> ()
+  | None -> OUnit2.assert_failure "expected didDoc");
+  let minimal =
+    Session.parse_session_request
+      (`Assoc
+        [
+          ("handle", `String "bob.test");
+          ("did", `String "did:plc:xyz789aaa0001112223333");
+          ("active", `Bool false);
+          ("status", `String "takendown");
+        ])
+  in
+  OUnit2.assert_equal None minimal.email;
+  OUnit2.assert_equal (Some false) minimal.active;
+  OUnit2.assert_equal (Some "takendown") minimal.status
+
 let test_get_session_request _ =
   skip_if
     (not Auth.has_live_credentials)
@@ -110,6 +146,7 @@ let suite =
          "test_sample_session_auth_did" >:: test_sample_session_auth_did;
          "test_create_session" >:: test_create_session;
          "test_bearer_token_from_session" >:: test_bearer_token_from_session;
+         "test_parse_session_request" >:: test_parse_session_request;
          "test_get_session_request" >:: test_get_session_request;
          "test_delete_session" >:: test_delete_session;
        ]

@@ -240,6 +240,145 @@ let test_parse_preferences _ =
   | `Live_event e -> OUnit2.assert_equal [ "live-1" ] e.hidden_feed_ids
   | _ -> OUnit2.assert_failure "expected liveEventPreferences"
 
+let test_parse_profile_and_scoped_mute_viewer _ =
+  let json =
+    `Assoc
+      [
+        ("did", `String "did:plc:abc123xyz0001112223333");
+        ("handle", `String "alice.test");
+        ("displayName", `String "Alice");
+        ("pronouns", `String "she/her");
+        ("website", `String "https://alice.test");
+        ("createdAt", `String "2024-01-01T00:00:00.000Z");
+        ( "pinnedPost",
+          `Assoc
+            [
+              ( "uri",
+                `String
+                  "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k" );
+              ("cid", `String "bafyreiabc");
+            ] );
+        ( "associated",
+          `Assoc
+            [
+              ("lists", `Int 2);
+              ("labeler", `Bool true);
+              ( "chat",
+                `Assoc
+                  [
+                    ("allowIncoming", `String "following");
+                    ("allowGroupInvites", `String "none");
+                  ] );
+              ( "germ",
+                `Assoc
+                  [
+                    ("showButtonTo", `String "everyone");
+                    ("messageMeUrl", `String "https://germ.example/alice");
+                  ] );
+              ( "activitySubscription",
+                `Assoc [ ("allowSubscriptions", `String "followers") ] );
+            ] );
+        ( "verification",
+          `Assoc
+            [
+              ("verifiedStatus", `String "valid");
+              ("trustedVerifierStatus", `String "none");
+              ( "verifications",
+                `List
+                  [
+                    `Assoc
+                      [
+                        ("issuer", `String "did:plc:verifier000111222333444");
+                        ("uri", `String "at://did:plc:verifier/app.bsky.graph.verification/1");
+                        ("isValid", `Bool true);
+                        ("createdAt", `String "2024-02-01T00:00:00.000Z");
+                      ];
+                  ] );
+            ] );
+        ( "status",
+          `Assoc
+            [
+              ("status", `String "app.bsky.actor.status#live");
+              ("isActive", `Bool true);
+            ] );
+        ( "viewer",
+          `Assoc
+            [
+              ("muted", `Bool false);
+              ("mutedOnlyReposts", `Bool true);
+              ("mutedOnlyQuoteposts", `Bool false);
+              ("blockedBy", `Bool false);
+              ( "blocking",
+                `String
+                  "at://did:plc:me/app.bsky.graph.block/1" );
+              ( "knownFollowers",
+                `Assoc
+                  [
+                    ("count", `Int 3);
+                    ( "followers",
+                      `List
+                        [
+                          `Assoc
+                            [
+                              ("did", `String "did:plc:abc123xyz0001112223333");
+                              ("handle", `String "bob.test");
+                            ];
+                        ] );
+                  ] );
+              ( "activitySubscription",
+                `Assoc [ ("post", `Bool true); ("reply", `Bool false) ] );
+            ] );
+      ]
+  in
+  let profile = Actor.parse_profile json in
+  OUnit2.assert_equal (Some "she/her") profile.pronouns;
+  OUnit2.assert_equal (Some "https://alice.test") profile.website;
+  OUnit2.assert_equal
+    (Some "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k")
+    profile.pinned_post_uri;
+  (match profile.associated with
+  | Some assoc -> (
+      OUnit2.assert_equal (Some 2) assoc.lists;
+      OUnit2.assert_equal (Some true) assoc.labeler;
+      (match assoc.germ with
+      | Some g ->
+          OUnit2.assert_equal
+            ~printer:(fun x -> x)
+            "everyone" g.show_button_to
+      | None -> OUnit2.assert_failure "expected associated.germ");
+      match assoc.chat with
+      | Some c ->
+          OUnit2.assert_equal
+            ~printer:(fun x -> x)
+            "following" c.allow_incoming
+      | None -> OUnit2.assert_failure "expected associated.chat")
+  | None -> OUnit2.assert_failure "expected associated");
+  (match profile.verification with
+  | Some v ->
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "valid" v.verified_status;
+      OUnit2.assert_equal 1 (List.length v.verifications)
+  | None -> OUnit2.assert_failure "expected verification");
+  (match profile.status with
+  | Some s -> OUnit2.assert_equal (Some true) s.is_active
+  | None -> OUnit2.assert_failure "expected status");
+  OUnit2.assert_equal false profile.viewer.muted;
+  OUnit2.assert_equal (Some true) profile.viewer.muted_only_reposts;
+  OUnit2.assert_equal (Some false) profile.viewer.muted_only_quoteposts;
+  (match profile.viewer.known_followers with
+  | Some kf ->
+      OUnit2.assert_equal 3 kf.count;
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "bob.test" (List.hd kf.followers).handle
+  | None -> OUnit2.assert_failure "expected knownFollowers");
+  match profile.viewer.activity_subscription with
+  | Some a ->
+      OUnit2.assert_equal true a.post;
+      OUnit2.assert_equal false a.reply
+  | None -> OUnit2.assert_failure "expected viewer activitySubscription"
+
 let test_get_preferences_auth_skipped _ =
   skip_if
     (not Auth.has_live_credentials)
@@ -257,6 +396,8 @@ let suite =
          "test_search_actors" >:: test_search_actors;
          "test_search_actors_typeahead" >:: test_search_actors_typeahead;
          "test_parse_preferences" >:: test_parse_preferences;
+         "test_parse_profile_and_scoped_mute_viewer"
+         >:: test_parse_profile_and_scoped_mute_viewer;
          "test_get_preferences_auth_skipped"
          >:: test_get_preferences_auth_skipped;
        ]

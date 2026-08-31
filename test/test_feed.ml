@@ -429,9 +429,39 @@ let test_parse_known_likers _ =
       OUnit2.assert_equal (Some "Alice") (List.hd kl.actors).display_name
   | None -> OUnit2.assert_failure "expected knownLikers on post viewer");
   let view = Feed.parse_post_view json in
-  match view.known_likers with
+  (match view.known_likers with
   | Some kl -> OUnit2.assert_equal 12 kl.count
-  | None -> OUnit2.assert_failure "expected knownLikers on post_view"
+  | None -> OUnit2.assert_failure "expected knownLikers on post_view");
+  let flags =
+    post_view_json
+      ~uri:"at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k"
+      ~text:"flags" ()
+    |> function
+    | `Assoc fields ->
+        `Assoc
+          (fields
+          @ [
+              ( "viewer",
+                `Assoc
+                  [
+                    ("bookmarked", `Bool true);
+                    ("threadMuted", `Bool true);
+                    ("replyDisabled", `Bool false);
+                    ("embeddingDisabled", `Bool true);
+                    ("pinned", `Bool false);
+                  ] );
+            ])
+    | other -> other
+  in
+  let flagged = Feed.parse_post flags in
+  OUnit2.assert_equal (Some true) flagged.bookmarked;
+  OUnit2.assert_equal (Some true) flagged.thread_muted;
+  OUnit2.assert_equal (Some false) flagged.reply_disabled;
+  OUnit2.assert_equal (Some true) flagged.embedding_disabled;
+  OUnit2.assert_equal (Some false) flagged.pinned;
+  let flagged_view = Feed.parse_post_view flags in
+  OUnit2.assert_equal (Some true) flagged_view.bookmarked;
+  OUnit2.assert_equal (Some true) flagged_view.thread_muted
 
 let test_parse_post_view_embed _ =
   let json =

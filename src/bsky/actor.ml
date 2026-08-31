@@ -3,11 +3,84 @@ open Cohttp_client
 open App
 
 module Actor = struct
+  (* app.bsky.actor.defs#knownFollowers — subject's followers the viewer also follows. *)
+  type known_follower = {
+    did : string;
+    handle : string;
+    display_name : string option;
+  }
+
+  type known_followers = { count : int; followers : known_follower list }
+
+  (* app.bsky.notification.defs#activitySubscription on viewerState. *)
+  type viewer_activity_subscription = { post : bool; reply : bool }
+
+  type list_ref = {
+    uri : string;
+    cid : string option;
+    name : string option;
+  }
+
+  (* app.bsky.actor.defs#viewerState — includes scoped mutes (onlyReposts / onlyQuoteposts). *)
   type viewer_status = {
     muted : bool;
+    muted_only_reposts : bool option;
+    muted_only_quoteposts : bool option;
+    muted_by_list : list_ref option;
     blocked_by : bool;
+    blocking : string option;
+    blocking_by_list : list_ref option;
     following : string option;
     followed_by : string option;
+    known_followers : known_followers option;
+    activity_subscription : viewer_activity_subscription option;
+  }
+
+  type profile_associated_chat = {
+    allow_incoming : string;
+    allow_group_invites : string option;
+  }
+
+  (* app.bsky.actor.defs#profileAssociatedGerm — Germ Network button on a profile. *)
+  type profile_associated_germ = {
+    show_button_to : string;
+    message_me_url : string;
+  }
+
+  type profile_associated_activity = { allow_subscriptions : string }
+
+  type profile_associated = {
+    lists : int option;
+    feedgens : int option;
+    starter_packs : int option;
+    labeler : bool option;
+    chat : profile_associated_chat option;
+    activity_subscription : profile_associated_activity option;
+    germ : profile_associated_germ option;
+  }
+
+  type verification_view = {
+    issuer : string;
+    issuer_display_name : string option;
+    issuer_handle : string option;
+    uri : string;
+    is_valid : bool;
+    created_at : string;
+  }
+
+  type verification_state = {
+    verifications : verification_view list;
+    verified_status : string;
+    trusted_verifier_status : string;
+  }
+
+  type status_view = {
+    uri : string option;
+    cid : string option;
+    status : string;
+    expires_at : string option;
+    is_active : bool option;
+    is_disabled : bool option;
   }
 
   type profile = {
@@ -15,12 +88,19 @@ module Actor = struct
     handle : string;
     display_name : string option;
     description : string option;
+    pronouns : string option;
+    website : string option;
     avatar : string option;
     banner : string option;
     follows_count : int;
     followers_count : int;
     posts_count : int;
     indexed_at : string;
+    created_at : string option;
+    pinned_post_uri : string option;
+    associated : profile_associated option;
+    verification : verification_state option;
+    status : status_view option;
     viewer : viewer_status;
     labels : string list option;
   }
@@ -66,16 +146,89 @@ module Actor = struct
     let open Yojson.Safe.Util in
     try Some (to_string (member field json)) with Type_error _ -> None
 
+  let extract_bool_option json field : bool option =
+    match Yojson.Safe.Util.member field json with
+    | `Bool b -> Some b
+    | _ -> None
+
+  let extract_int_option json field : int option =
+    match Yojson.Safe.Util.member field json with
+    | `Int n -> Some n
+    | `Intlit s -> ( try Some (int_of_string s) with _ -> None)
+    | _ -> None
+
+  let empty_viewer_status : viewer_status =
+    {
+      muted = false;
+      muted_only_reposts = None;
+      muted_only_quoteposts = None;
+      muted_by_list = None;
+      blocked_by = false;
+      blocking = None;
+      blocking_by_list = None;
+      following = None;
+      followed_by = None;
+      known_followers = None;
+      activity_subscription = None;
+    }
+
+  let parse_list_ref json : list_ref option =
+    match json with
+    | `Assoc _ ->
+        (match extract_string_option json "uri" with
+        | None -> None
+        | Some uri ->
+            Some
+              {
+                uri;
+                cid = extract_string_option json "cid";
+                name = extract_string_option json "name";
+              })
+    | _ -> None
+
+  let parse_known_follower json : known_follower =
+    {
+      did = (match extract_string_option json "did" with Some s -> s | None -> "");
+      handle =
+        (match extract_string_option json "handle" with Some s -> s | None -> "");
+      display_name = extract_string_option json "displayName";
+    }
+
+  let parse_known_followers_opt json : known_followers option =
+    match json with
+    | `Assoc _ ->
+        Some
+          {
+            count =
+              (match extract_int_option json "count" with Some n -> n | None -> 0);
+            followers =
+              (match Yojson.Safe.Util.member "followers" json with
+              | `List xs -> List.map parse_known_follower xs
+              | _ -> []);
+          }
+    | _ -> None
+
+  let parse_viewer_activity_subscription json : viewer_activity_subscription option
+      =
+    match json with
+    | `Assoc _ ->
+        Some
+          {
+            post =
+              (match extract_bool_option json "post" with
+              | Some b -> b
+              | None -> false);
+            reply =
+              (match extract_bool_option json "reply" with
+              | Some b -> b
+              | None -> false);
+          }
+    | _ -> None
+
   let parse_viewer_status json : viewer_status =
     let open Yojson.Safe.Util in
     match json with
-    | `Null ->
-        {
-          muted = false;
-          blocked_by = false;
-          following = None;
-          followed_by = None;
-        }
+    | `Null -> empty_viewer_status
     | _ ->
         let muted =
           match json |> member "muted" with `Bool b -> b | _ -> false
@@ -83,9 +236,114 @@ module Actor = struct
         let blocked_by =
           match json |> member "blockedBy" with `Bool b -> b | _ -> false
         in
-        let following = extract_string_option json "following" in
-        let followed_by = extract_string_option json "followedBy" in
-        { muted; blocked_by; following; followed_by }
+        {
+          muted;
+          muted_only_reposts = extract_bool_option json "mutedOnlyReposts";
+          muted_only_quoteposts = extract_bool_option json "mutedOnlyQuoteposts";
+          muted_by_list = parse_list_ref (json |> member "mutedByList");
+          blocked_by;
+          blocking = extract_string_option json "blocking";
+          blocking_by_list = parse_list_ref (json |> member "blockingByList");
+          following = extract_string_option json "following";
+          followed_by = extract_string_option json "followedBy";
+          known_followers = parse_known_followers_opt (json |> member "knownFollowers");
+          activity_subscription =
+            parse_viewer_activity_subscription
+              (json |> member "activitySubscription");
+        }
+
+  let parse_associated_chat json : profile_associated_chat option =
+    match extract_string_option json "allowIncoming" with
+    | None -> None
+    | Some allow_incoming ->
+        Some
+          {
+            allow_incoming;
+            allow_group_invites = extract_string_option json "allowGroupInvites";
+          }
+
+  let parse_associated_germ json : profile_associated_germ option =
+    match
+      ( extract_string_option json "showButtonTo",
+        extract_string_option json "messageMeUrl" )
+    with
+    | Some show_button_to, Some message_me_url ->
+        Some { show_button_to; message_me_url }
+    | _ -> None
+
+  let parse_associated json : profile_associated option =
+    match json with
+    | `Assoc _ ->
+        Some
+          {
+            lists = extract_int_option json "lists";
+            feedgens = extract_int_option json "feedgens";
+            starter_packs = extract_int_option json "starterPacks";
+            labeler = extract_bool_option json "labeler";
+            chat =
+              (match Yojson.Safe.Util.member "chat" json with
+              | `Assoc _ as c -> parse_associated_chat c
+              | _ -> None);
+            activity_subscription =
+              (match Yojson.Safe.Util.member "activitySubscription" json with
+              | `Assoc _ as a ->
+                  (match extract_string_option a "allowSubscriptions" with
+                  | Some s -> Some { allow_subscriptions = s }
+                  | None -> None)
+              | _ -> None);
+            germ =
+              (match Yojson.Safe.Util.member "germ" json with
+              | `Assoc _ as g -> parse_associated_germ g
+              | _ -> None);
+          }
+    | _ -> None
+
+  let parse_verification_view json : verification_view =
+    {
+      issuer =
+        (match extract_string_option json "issuer" with Some s -> s | None -> "");
+      issuer_display_name = extract_string_option json "issuerDisplayName";
+      issuer_handle = extract_string_option json "issuerHandle";
+      uri = (match extract_string_option json "uri" with Some s -> s | None -> "");
+      is_valid =
+        (match extract_bool_option json "isValid" with Some b -> b | None -> false);
+      created_at =
+        (match extract_string_option json "createdAt" with Some s -> s | None -> "");
+    }
+
+  let parse_verification_state json : verification_state option =
+    match json with
+    | `Assoc _ ->
+        Some
+          {
+            verifications =
+              (match Yojson.Safe.Util.member "verifications" json with
+              | `List xs -> List.map parse_verification_view xs
+              | _ -> []);
+            verified_status =
+              (match extract_string_option json "verifiedStatus" with
+              | Some s -> s
+              | None -> "");
+            trusted_verifier_status =
+              (match extract_string_option json "trustedVerifierStatus" with
+              | Some s -> s
+              | None -> "");
+          }
+    | _ -> None
+
+  let parse_status_view json : status_view option =
+    match extract_string_option json "status" with
+    | None -> None
+    | Some status ->
+        Some
+          {
+            uri = extract_string_option json "uri";
+            cid = extract_string_option json "cid";
+            status;
+            expires_at = extract_string_option json "expiresAt";
+            is_active = extract_bool_option json "isActive";
+            is_disabled = extract_bool_option json "isDisabled";
+          }
 
   let parse_profile json : profile =
     let open Yojson.Safe.Util in
@@ -109,27 +367,33 @@ module Actor = struct
     in
     let viewer =
       match json |> member "viewer" with
-      | `Null ->
-          {
-            muted = false;
-            blocked_by = false;
-            following = None;
-            followed_by = None;
-          }
+      | `Null -> empty_viewer_status
       | v -> parse_viewer_status v
     in
     let labels = Label.Label.parse_label_values (json |> member "labels") in
+    let pinned_post_uri =
+      match json |> member "pinnedPost" with
+      | `Assoc _ as p -> extract_string_option p "uri"
+      | _ -> None
+    in
     {
       did;
       handle;
       display_name;
       description;
+      pronouns = extract_string_option json "pronouns";
+      website = extract_string_option json "website";
       avatar;
       banner;
       follows_count;
       followers_count;
       posts_count;
       indexed_at;
+      created_at = extract_string_option json "createdAt";
+      pinned_post_uri;
+      associated = parse_associated (json |> member "associated");
+      verification = parse_verification_state (json |> member "verification");
+      status = parse_status_view (json |> member "status");
       viewer;
       labels;
     }

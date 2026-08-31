@@ -108,6 +108,26 @@ let test_get_base_endpoint _ =
   OUnit2.assert_bool "BASE_ENDPOINT should be non-empty and end with /"
     (String.length endpoint > 0 && endpoint.[String.length endpoint - 1] = '/')
 
+let test_create_session_body _ =
+  let open Yojson.Safe.Util in
+  let basic =
+    Auth.create_session_body ~identifier:"alice.test" ~password:"secret" ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "alice.test"
+    (basic |> member "identifier" |> to_string);
+  OUnit2.assert_equal `Null (basic |> member "authFactorToken");
+  let extra =
+    Auth.create_session_body ~identifier:"alice.test" ~password:"secret"
+      ~auth_factor_token:"otp-9" ~allow_takendown:true ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "otp-9"
+    (extra |> member "authFactorToken" |> to_string);
+  OUnit2.assert_equal true (extra |> member "allowTakendown" |> to_bool)
+
 let test_create_session_url _ =
   OUnit2.assert_equal
     ~printer:(fun x -> x)
@@ -161,6 +181,7 @@ let suite =
          "test_sample_auth_without_jti_refresh_token"
          >:: test_sample_auth_without_jti_refresh_token;
          "test_get_base_endpoint" >:: test_get_base_endpoint;
+         "test_create_session_body" >:: test_create_session_body;
          "test_create_session_url" >:: test_create_session_url;
          "test_make_auth_token_request_valid_info"
          >:: test_make_auth_token_request_valid_info;

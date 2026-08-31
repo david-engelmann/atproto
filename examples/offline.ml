@@ -38,6 +38,8 @@ open Atproto.Admin
 open Atproto.Request
 open Atproto.Response
 open Atproto.Http_client
+open Atproto.Auth
+open Atproto.Session
 
 let () =
   (* TID used as record keys and commit revs *)
@@ -209,6 +211,77 @@ let () =
   (match liked.known_likers with
   | Some kl -> assert (kl.count = 1)
   | None -> assert false);
+  assert (liked.bookmarked = None);
+  let mute =
+    Graph.mute_actor_body ~actor:"alice.test" ~only_reposts:true ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "onlyReposts" mute with
+    | `Bool true -> true
+    | _ -> false);
+  let session_body =
+    Auth.create_session_body ~identifier:"alice.test" ~password:"x"
+      ~allow_takendown:true ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "allowTakendown" session_body with
+    | `Bool true -> true
+    | _ -> false);
+  let acct =
+    Server.create_account_body ~handle:"alice.test"
+      ~verification_code:"123456" ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "verificationCode" acct with
+    | `String "123456" -> true
+    | _ -> false);
+  let app_pw = Server.create_app_password_body ~name:"cli" ~privileged:true () in
+  assert (
+    match Yojson.Safe.Util.member "privileged" app_pw with
+    | `Bool true -> true
+    | _ -> false);
+  let profile_view =
+    Actor.parse_profile
+      (`Assoc
+        [
+          ("did", `String "did:plc:abc123xyz0001112223333");
+          ("handle", `String "alice.test");
+          ("pronouns", `String "she/her");
+          ( "associated",
+            `Assoc
+              [
+                ( "germ",
+                  `Assoc
+                    [
+                      ("showButtonTo", `String "everyone");
+                      ("messageMeUrl", `String "https://germ.example/a");
+                    ] );
+              ] );
+          ( "viewer",
+            `Assoc
+              [ ("muted", `Bool false); ("mutedOnlyReposts", `Bool true) ] );
+        ])
+  in
+  assert (profile_view.pronouns = Some "she/her");
+  assert (profile_view.viewer.muted_only_reposts = Some true);
+  (match profile_view.associated with
+  | Some a -> (
+      match a.germ with
+      | Some g -> assert (g.show_button_to = "everyone")
+      | None -> assert false)
+  | None -> assert false);
+  let sess =
+    Session.parse_session_request
+      (`Assoc
+        [
+          ("handle", `String "alice.test");
+          ("did", `String "did:plc:abc123xyz0001112223333");
+          ("active", `Bool false);
+          ("status", `String "takendown");
+        ])
+  in
+  assert (sess.email = None);
+  assert (sess.status = Some "takendown");
   let schema =
     Records.lexicon_schema ~id:"com.example.ping"
       ~defs:(`Assoc [ ("main", `Assoc [ ("type", `String "query") ]) ])

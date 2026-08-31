@@ -9,14 +9,53 @@ module Session = struct
     auth : Auth.auth;
   }
 
-  type session_request = { handle : string; did : string; email : string }
+  (* com.atproto.server.getSession / createSession output extras. *)
+  type session_request = {
+    handle : string;
+    did : string;
+    email : string option;
+    email_confirmed : bool option;
+    email_auth_factor : bool option;
+    active : bool option;
+    status : string option;
+    did_doc : Yojson.Safe.t option;
+  }
 
   let parse_session_request json : session_request =
     let open Yojson.Safe.Util in
     let handle = json |> member "handle" |> to_string in
     let did = json |> member "did" |> to_string in
-    let email = json |> member "email" |> to_string in
-    { handle; did; email }
+    let email =
+      match json |> member "email" with `String s -> Some s | _ -> None
+    in
+    let email_confirmed =
+      match json |> member "emailConfirmed" with `Bool b -> Some b | _ -> None
+    in
+    let email_auth_factor =
+      match json |> member "emailAuthFactor" with `Bool b -> Some b | _ -> None
+    in
+    let active =
+      match json |> member "active" with `Bool b -> Some b | _ -> None
+    in
+    let status =
+      match json |> member "status" with `String s -> Some s | _ -> None
+    in
+    let did_doc =
+      match json |> member "didDoc" with
+      | `Null | `String _ -> None
+      | (`Assoc _ | `List _) as d -> Some d
+      | _ -> None
+    in
+    {
+      handle;
+      did;
+      email;
+      email_confirmed;
+      email_auth_factor;
+      active;
+      status;
+      did_doc;
+    }
 
   let atp_host_from_env : string =
     let atp_host =
@@ -24,9 +63,13 @@ module Session = struct
     in
     atp_host
 
-  let create_session (username : string) (password : string) : session =
+  let create_session ?auth_factor_token ?allow_takendown (username : string)
+      (password : string) : session =
     let atp_host = atp_host_from_env in
-    let body = Auth.make_auth_token_request username password atp_host in
+    let body =
+      Auth.make_auth_token_request ?auth_factor_token ?allow_takendown username
+        password atp_host
+    in
     let session_auth = body |> Auth.convert_body_to_json |> Auth.parse_auth in
     { username; password; atp_host; auth = session_auth }
 
@@ -55,6 +98,9 @@ module Session = struct
         (Cohttp_client.get_request_with_headers get_session_url headers)
     in
     session
+
+  let get_session (s : session) : session_request =
+    Yojson.Safe.from_string (get_session_request s) |> parse_session_request
 
   let refresh_session_auth (s : session) : session =
     if Auth.is_token_expired s.auth then
