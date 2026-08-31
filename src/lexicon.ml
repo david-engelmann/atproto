@@ -417,6 +417,24 @@ module Lexicon = struct
   let official_lexicon_schema =
     {|{"lexicon":1,"id":"com.atproto.lexicon.schema","defs":{"main":{"type":"record","description":"Representation of Lexicon schemas themselves, when published as atproto records.","key":"nsid","record":{"type":"object","required":["lexicon"],"properties":{"lexicon":{"type":"integer"}}}}}}|}
 
+  let official_mute_actor =
+    {|{"lexicon":1,"id":"app.bsky.graph.muteActor","defs":{"main":{"type":"procedure","description":"Creates a mute relationship for the specified account.","input":{"encoding":"application/json","schema":{"type":"object","required":["actor"],"properties":{"actor":{"type":"string"},"onlyReposts":{"type":"boolean"},"onlyQuoteposts":{"type":"boolean"}}}}}}}|}
+
+  let official_actor_defs =
+    {|{"lexicon":1,"id":"app.bsky.actor.defs","defs":{"viewerState":{"type":"object","properties":{"muted":{"type":"boolean"},"mutedOnlyReposts":{"type":"boolean"},"mutedOnlyQuoteposts":{"type":"boolean"},"blocking":{"type":"string"},"knownFollowers":{"type":"ref","ref":"#knownFollowers"}}},"profileAssociatedGerm":{"type":"object","required":["showButtonTo","messageMeUrl"],"properties":{"showButtonTo":{"type":"string"},"messageMeUrl":{"type":"string"}}},"profileAssociated":{"type":"object","properties":{"germ":{"type":"ref","ref":"#profileAssociatedGerm"}}}}}|}
+
+  let official_create_session =
+    {|{"lexicon":1,"id":"com.atproto.server.createSession","defs":{"main":{"type":"procedure","description":"Create an authentication session.","input":{"encoding":"application/json","schema":{"type":"object","required":["identifier","password"],"properties":{"identifier":{"type":"string"},"password":{"type":"string"},"authFactorToken":{"type":"string"},"allowTakendown":{"type":"boolean"}}}}}}}|}
+
+  let official_create_account =
+    {|{"lexicon":1,"id":"com.atproto.server.createAccount","defs":{"main":{"type":"procedure","description":"Create an account.","input":{"encoding":"application/json","schema":{"type":"object","required":["handle"],"properties":{"handle":{"type":"string"},"email":{"type":"string"},"did":{"type":"string"},"inviteCode":{"type":"string"},"verificationCode":{"type":"string"},"verificationPhone":{"type":"string"},"password":{"type":"string"},"recoveryKey":{"type":"string"},"plcOp":{"type":"unknown"}}}}}}}|}
+
+  let official_get_session =
+    {|{"lexicon":1,"id":"com.atproto.server.getSession","defs":{"main":{"type":"query","description":"Get information about the current auth session.","output":{"encoding":"application/json","schema":{"type":"object","required":["handle","did"],"properties":{"handle":{"type":"string"},"did":{"type":"string"},"email":{"type":"string"},"emailConfirmed":{"type":"boolean"},"emailAuthFactor":{"type":"boolean"},"active":{"type":"boolean"},"status":{"type":"string"}}}}}}}|}
+
+  let official_create_app_password =
+    {|{"lexicon":1,"id":"com.atproto.server.createAppPassword","defs":{"main":{"type":"procedure","description":"Create an App Password.","input":{"encoding":"application/json","schema":{"type":"object","required":["name"],"properties":{"name":{"type":"string"},"privileged":{"type":"boolean"}}}}}}}|}
+
   let official_lexicons : (string * string) list =
     [
       ("app.bsky.graph.listitem", official_listitem);
@@ -449,6 +467,12 @@ module Lexicon = struct
       ("app.bsky.feed.defs", official_feed_known_likers);
       ("app.bsky.embed.video", official_embed_video);
       ("com.atproto.lexicon.schema", official_lexicon_schema);
+      ("app.bsky.graph.muteActor", official_mute_actor);
+      ("app.bsky.actor.defs", official_actor_defs);
+      ("com.atproto.server.createSession", official_create_session);
+      ("com.atproto.server.createAccount", official_create_account);
+      ("com.atproto.server.getSession", official_get_session);
+      ("com.atproto.server.createAppPassword", official_create_app_password);
     ]
 
   let official_documents () : document list =

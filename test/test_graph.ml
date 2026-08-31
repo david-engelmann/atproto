@@ -98,6 +98,21 @@ let with_public_timeout ?(seconds = 20) f =
       Sys.set_signal Sys.sigalrm old)
     f
 
+let test_mute_actor_body _ =
+  let open Yojson.Safe.Util in
+  let full = Graph.mute_actor_body ~actor:"alice.test" () in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "alice.test"
+    (full |> member "actor" |> to_string);
+  OUnit2.assert_equal `Null (full |> member "onlyReposts");
+  let scoped =
+    Graph.mute_actor_body ~actor:"did:plc:abc123xyz0001112223333"
+      ~only_reposts:true ~only_quoteposts:false ()
+  in
+  OUnit2.assert_equal true (scoped |> member "onlyReposts" |> to_bool);
+  OUnit2.assert_equal false (scoped |> member "onlyQuoteposts" |> to_bool)
+
 let test_parse_list _ =
   let json =
     `Assoc
@@ -307,6 +322,7 @@ let suite =
          "test_get_mutes" >:: test_get_mutes;
          "test_mute_actor" >:: test_mute_actor;
          "test_unmute_actor" >:: test_unmute_actor;
+         "test_mute_actor_body" >:: test_mute_actor_body;
          "test_parse_list" >:: test_parse_list;
          "test_parse_starter_pack" >:: test_parse_starter_pack;
          "test_parse_relationships" >:: test_parse_relationships;

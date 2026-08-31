@@ -176,7 +176,8 @@ module Records = struct
     `Assoc fields
 
   let profile ?display_name ?description ?pronouns ?website ?avatar ?banner
-      ?self_labels ?pinned_post ?created_at () : Yojson.Safe.t =
+      ?self_labels ?pinned_post ?joined_via_starter_pack ?created_at () :
+      Yojson.Safe.t =
     let fields =
       [ ("$type", `String nsid_profile) ]
       @ (match display_name with
@@ -195,6 +196,9 @@ module Records = struct
         | Some xs -> [ ("labels", Label.Label.self_labels_to_json xs) ]
         | None -> [])
       @ (match pinned_post with Some r -> [ ("pinnedPost", r) ] | None -> [])
+      @ (match joined_via_starter_pack with
+        | Some r -> [ ("joinedViaStarterPack", r) ]
+        | None -> [])
       @
       match created_at with
       | Some s -> [ ("createdAt", `String s) ]

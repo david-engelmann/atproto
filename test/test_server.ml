@@ -125,6 +125,32 @@ let test_reserve_signing_key_body _ =
     "did:plc:abc123xyz0001112223333"
     (body |> member "did" |> to_string)
 
+let test_create_account_and_app_password_bodies _ =
+  let open Yojson.Safe.Util in
+  let acct =
+    Server.create_account_body ~handle:"alice.test" ~email:"a@b.test"
+      ~did:"did:plc:abc123xyz0001112223333" ~verification_code:"123456"
+      ~verification_phone:"+15551212" ~password:"secret"
+      ~plc_op:(`Assoc [ ("sig", `String "abc") ])
+      ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:abc123xyz0001112223333"
+    (acct |> member "did" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "123456"
+    (acct |> member "verificationCode" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "abc"
+    (acct |> member "plcOp" |> member "sig" |> to_string);
+  let app = Server.create_app_password_body ~name:"cli" ~privileged:true () in
+  OUnit2.assert_equal true (app |> member "privileged" |> to_bool);
+  let basic = Server.create_app_password_body ~name:"cli" () in
+  OUnit2.assert_equal `Null (basic |> member "privileged")
+
 let test_email_and_account_bodies _ =
   let open Yojson.Safe.Util in
   let confirm = Server.confirm_email_body ~email:"a@b.test" ~token:"tok-1" in
@@ -174,6 +200,8 @@ let suite =
          "test_parse_describe_server_missing_contact"
          >:: test_parse_describe_server_missing_contact;
          "test_reserve_signing_key_body" >:: test_reserve_signing_key_body;
+         "test_create_account_and_app_password_bodies"
+         >:: test_create_account_and_app_password_bodies;
          "test_email_and_account_bodies" >:: test_email_and_account_bodies;
          "test_describe_server_public" >:: test_describe_server_public;
        ]

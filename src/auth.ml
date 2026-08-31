@@ -115,12 +115,28 @@ module Auth = struct
     Printf.sprintf "https://%s/%s%s" personal_data_server base_endpoint
       create_session_endpoint
 
-  let make_auth_token_request (username : string) (password : string)
-      (personal_data_server : string) : string =
+  let create_session_body ~identifier ~password ?auth_factor_token
+      ?allow_takendown () : Yojson.Safe.t =
+    let fields =
+      [ ("identifier", `String identifier); ("password", `String password) ]
+      @ (match auth_factor_token with
+        | Some t -> [ ("authFactorToken", `String t) ]
+        | None -> [])
+      @
+      match allow_takendown with
+      | Some b -> [ ("allowTakendown", `Bool b) ]
+      | None -> []
+    in
+    `Assoc fields
+
+  let make_auth_token_request ?auth_factor_token ?allow_takendown
+      (username : string) (password : string) (personal_data_server : string) :
+      string =
     let url = create_session_url personal_data_server in
     let data =
-      Printf.sprintf "{\"identifier\": \"%s\", \"password\": \"%s\"}" username
-        password
+      Yojson.Safe.to_string
+        (create_session_body ~identifier:username ~password ?auth_factor_token
+           ?allow_takendown ())
     in
     Lwt_main.run (Cohttp_client.post_data url data)
 
