@@ -61,6 +61,17 @@ let test_now_is_valid _ =
   let tid = Tid.now ~clock_id:1 () in
   OUnit2.assert_bool tid (Tid.is_valid tid)
 
+let test_future_rev _ =
+  OUnit2.assert_bool "past TID is not future"
+    (not (Tid.is_future ~now_us:2_000_000_000_000_000L "3jzfcijpj2z2a"));
+  let future = Tid.create ~clock_id:0 9_000_000_000_000_000L in
+  OUnit2.assert_bool "far-future TID"
+    (Tid.is_future ~now_us:1_700_000_000_000_000L future);
+  OUnit2.assert_bool "within skew is accepted"
+    (not
+       (Tid.is_future ~now_us:1_700_000_000_000_000L ~skew_us:10_000_000L
+          (Tid.create ~clock_id:0 1_700_000_005_000_000L)))
+
 let suite =
   "tid"
   >::: [
@@ -71,6 +82,7 @@ let suite =
          "test_sorts_with_time" >:: test_sorts_with_time;
          "test_rejects_bad_syntax" >:: test_rejects_bad_syntax;
          "test_now_is_valid" >:: test_now_is_valid;
+         "test_future_rev" >:: test_future_rev;
        ]
 
 let () = run_test_tt_main suite

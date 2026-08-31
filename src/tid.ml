@@ -76,4 +76,19 @@ module Tid = struct
   let now ?(clock_id = Random.int 1024) () : string =
     let us = Int64.of_float (Unix.gettimeofday () *. 1_000_000.) in
     create ~clock_id us
+
+  (* Sync spec: reject commit revs corresponding to a future timestamp
+     beyond a short clock-drift window (default 5 minutes). *)
+  let default_clock_skew_us = 300_000_000L
+
+  let is_future ?(now_us : int64 option) ?(skew_us = default_clock_skew_us)
+      (s : string) : bool =
+    if not (is_valid s) then false
+    else
+      let now =
+        match now_us with
+        | Some n -> n
+        | None -> Int64.of_float (Unix.gettimeofday () *. 1_000_000.)
+      in
+      Int64.compare (timestamp_us s) (Int64.add now skew_us) > 0
 end

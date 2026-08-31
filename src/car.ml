@@ -69,4 +69,53 @@ module Car = struct
 
   let root (car : t) : Cid.t option =
     match car.roots with hd :: _ -> Some hd | [] -> None
+
+  let block_cids (car : t) : Cid.t list =
+    List.map (fun (b : block) -> b.cid) car.blocks
+
+  let first_occurrences (cids : Cid.t list) : Cid.t list =
+    let seen = Hashtbl.create 16 in
+    List.filter
+      (fun c ->
+        let k = Cid.to_string c in
+        if Hashtbl.mem seen k then false
+        else (
+          Hashtbl.add seen k ();
+          true))
+      cids
+
+  (* True when [actual] visits every CID in [expected] in that order. Extra
+     unlinked blocks and later duplicates are tolerated (CARv1 / repo spec). *)
+  let follows_order ~(expected : Cid.t list) (actual : Cid.t list) : bool =
+    let rec loop exp act =
+      match (exp, act) with
+      | [], _ -> true
+      | _ :: _, [] -> false
+      | e :: er, a :: ar -> if Cid.equal e a then loop er ar else loop exp ar
+    in
+    loop expected (first_occurrences actual)
+
+  let reorder ~(expected : Cid.t list) (car : t) : t =
+    let by_cid = Hashtbl.create (List.length car.blocks) in
+    List.iter
+      (fun (b : block) ->
+        let k = Cid.to_string b.cid in
+        if not (Hashtbl.mem by_cid k) then Hashtbl.add by_cid k b)
+      car.blocks;
+    let ordered =
+      List.filter_map
+        (fun c ->
+          match Hashtbl.find_opt by_cid (Cid.to_string c) with
+          | None -> None
+          | Some b ->
+              Hashtbl.remove by_cid (Cid.to_string c);
+              Some b)
+        expected
+    in
+    let extras =
+      List.filter
+        (fun (b : block) -> Hashtbl.mem by_cid (Cid.to_string b.cid))
+        car.blocks
+    in
+    { car with blocks = ordered @ extras }
 end

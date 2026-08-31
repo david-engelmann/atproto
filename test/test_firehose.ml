@@ -5,6 +5,7 @@ open Atproto.Firehose
 open Atproto.Websocket
 open Atproto.Mst
 open Atproto.Car
+open Atproto.Tid
 
 let test_subscribe_url _ =
   OUnit2.assert_equal
@@ -446,6 +447,55 @@ let test_subscribe_invert_live _ =
       with exn ->
         skip_if true ("subscribeRepos invert skipped: " ^ Printexc.to_string exn))
 
+let test_validate_limits _ =
+  let cid = Cid.of_digest (String.make 32 '\x03') in
+  let empty_car = { Car.roots = [ cid ]; blocks = [] } in
+  let base =
+    {
+      Firehose.seq = 1L;
+      rebase = false;
+      too_big = false;
+      repo = "did:plc:7iza6de2dwap2sbkpav7c6c6";
+      commit = cid;
+      rev = "3jzfcijpj2z2a";
+      since = None;
+      prev_data = None;
+      blocks = empty_car;
+      raw_blocks = String.make 16 'x';
+      ops =
+        [
+          {
+            Firehose.action = "create";
+            path = "app.bsky.feed.post/3jzfcijpj2z2a";
+            cid = Some cid;
+            prev = None;
+          };
+        ];
+      blobs = [];
+      time = "2024-01-01T00:00:00.000Z";
+    }
+  in
+  Firehose.validate_limits base;
+  OUnit2.assert_bool "bad path rejected"
+    (try
+       Firehose.validate_limits
+         { base with ops = [ { (List.hd base.ops) with path = "not-a-path" } ] };
+       false
+     with Failure _ -> true);
+  OUnit2.assert_bool "too many ops rejected"
+    (try
+       let op = List.hd base.ops in
+       Firehose.validate_limits
+         { base with ops = List.init (Firehose.max_ops + 1) (fun _ -> op) };
+       false
+     with Failure _ -> true);
+  OUnit2.assert_bool "future rev rejected"
+    (try
+       Firehose.validate_limits
+         { base with rev = Tid.create ~clock_id:0 9_000_000_000_000_000L };
+       false
+     with Failure _ -> true)
+
 let suite =
   "firehose"
   >::: [
@@ -470,6 +520,7 @@ let suite =
          "test_parse_wss_url" >:: test_parse_wss_url;
          "test_subscribe_live" >:: test_subscribe_live;
          "test_subscribe_invert_live" >:: test_subscribe_invert_live;
+         "test_validate_limits" >:: test_validate_limits;
        ]
 
 let () = run_test_tt_main suite

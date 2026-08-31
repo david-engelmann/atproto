@@ -97,4 +97,20 @@ module Cid = struct
           failwith
             (Printf.sprintf "Cid.verify_block: expected %s got %s"
                (to_string cid) (to_string got))
+
+  (* Data-model "blessed" CID: CIDv1 + sha2-256 (32 bytes) + dag-cbor or raw.
+     MST/commit links must be dag-cbor; record leaves may be either. *)
+  let is_blessed ?(codec : codec option) (c : t) : bool =
+    c.version = 1 && c.hash_code = sha2_256
+    && String.length c.digest = 32
+    &&
+    match codec with
+    | Some want -> c.codec = want
+    | None -> ( match c.codec with Dag_cbor | Raw -> true | Other _ -> false)
+
+  let ensure_blessed ?(codec : codec option) (c : t) : unit =
+    if not (is_blessed ?codec c) then
+      failwith
+        (Printf.sprintf "Cid.ensure_blessed: %s is not a blessed atproto CID"
+           (to_string c))
 end

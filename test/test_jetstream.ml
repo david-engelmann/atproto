@@ -400,6 +400,77 @@ let test_subscribe_live _ =
             OUnit2.assert_bool "decoded a Jetstream frame" true
       with exn -> skip_if true ("jetstream skipped: " ^ Printexc.to_string exn))
 
+let test_jss_header_and_columnar _ =
+  let open Jetstream.Jss in
+  let header =
+    {
+      checksum = 0L;
+      version = 1;
+      block_count = 1;
+      event_count = 1;
+      unique_did_count = 1;
+      min_seq = 1L;
+      max_seq = 1L;
+      min_witnessed_at = 1_700_000_000_000_000L;
+      max_witnessed_at = 1_700_000_000_000_001L;
+      footer_offset = 0L;
+      did_bloom_offset = 0L;
+      block_did_bloom_offset = 0L;
+      collection_index_offset = 0L;
+      block_index_offset = 0L;
+      sealed = false;
+    }
+  in
+  let encoded = encode_header header in
+  OUnit2.assert_equal ~printer:string_of_int 256 (String.length encoded);
+  let parsed = parse_header encoded in
+  OUnit2.assert_equal 1 parsed.version;
+  OUnit2.assert_equal 1 parsed.block_count;
+  OUnit2.assert_equal ~printer:Int64.to_string 1L parsed.min_seq;
+  OUnit2.assert_bool "unsealed" (not parsed.sealed);
+  let row =
+    {
+      seq = 42L;
+      witnessed_at = 1_700_000_000_000_000L;
+      indexed_at = 0L;
+      kind = Create;
+      collection = "app.bsky.feed.post";
+      did = "did:plc:7iza6de2dwap2sbkpav7c6c6";
+      rkey = "3jzfcijpj2z2a";
+      rev = "3jzfcijpj2z2a";
+      payload = "cbor";
+    }
+  in
+  let body = encode_columnar [ row ] in
+  let decoded = decode_columnar body in
+  OUnit2.assert_equal 1 (List.length decoded);
+  let got = List.hd decoded in
+  OUnit2.assert_equal ~printer:Int64.to_string 42L got.seq;
+  OUnit2.assert_equal ~printer:(fun x -> x) "app.bsky.feed.post" got.collection;
+  OUnit2.assert_equal ~printer:(fun x -> x) "cbor" got.payload;
+  (match row_to_event got with
+  | `Commit c ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "create" c.operation;
+      OUnit2.assert_equal ~printer:(fun x -> x) row.rkey c.rkey
+  | _ -> OUnit2.assert_failure "expected commit event");
+  let empty = decode_columnar (encode_columnar []) in
+  OUnit2.assert_equal 0 (List.length empty);
+  let framed =
+    let buf = Buffer.create 64 in
+    Buffer.add_string buf encoded;
+    let len = String.length body in
+    let len64 = Bytes.create 8 in
+    for i = 0 to 7 do
+      Bytes.set len64 i (Char.chr ((len lsr (8 * i)) land 0xff))
+    done;
+    Buffer.add_bytes buf len64;
+    Buffer.add_string buf body;
+    Buffer.contents buf
+  in
+  let walked = walk_frames framed in
+  OUnit2.assert_equal 1 (List.length walked);
+  OUnit2.assert_equal ~printer:Int64.to_string 42L (List.hd walked).seq
+
 let suite =
   "jetstream"
   >::: [
@@ -417,6 +488,7 @@ let suite =
          "test_replay_planner" >:: test_replay_planner;
          "test_snapshot_gated_live" >:: test_snapshot_gated_live;
          "test_subscribe_live" >:: test_subscribe_live;
+         "test_jss_header_and_columnar" >:: test_jss_header_and_columnar;
        ]
 
 let () = run_test_tt_main suite

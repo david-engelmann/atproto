@@ -693,4 +693,410 @@ module Jetstream = struct
     in
     parse_snapshot_plan
       (Yojson.Safe.from_string (classify_snapshot_status code body))
+
+  (* Sealed-segment columnar format (.jss v1). Public spec:
+     https://tangled.org/zat.dev/stream/blob/main/docs/jss-format-v1.md
+     (condensed from bluesky-social/jetstream segment/*.go).
+
+     Decode only. No archive token and no invented credentials. zstd frames
+     are accepted through an injected [decompress] callback so this library
+     does not take a compression dependency. *)
+  module Jss = struct
+    exception Error of string
+
+    let fail msg = raise (Error msg)
+    let magic = "jss0"
+    let header_size = 256
+    let block_index_entry_size = 52
+    let default_events_per_block = 4096
+    let max_block_events = 1 lsl 18
+    let max_block_count = 1 lsl 20
+    let max_collection_count = 1 lsl 20
+    let max_decompressed_block = 1 lsl 30
+    let max_did_len = 65535
+    let max_short_len = 255
+
+    type header = {
+      checksum : int64;
+      version : int;
+      block_count : int;
+      event_count : int;
+      unique_did_count : int;
+      min_seq : int64;
+      max_seq : int64;
+      min_witnessed_at : int64;
+      max_witnessed_at : int64;
+      footer_offset : int64;
+      did_bloom_offset : int64;
+      block_did_bloom_offset : int64;
+      collection_index_offset : int64;
+      block_index_offset : int64;
+      sealed : bool;
+    }
+
+    type block_index_entry = {
+      offset : int64;
+      compressed_size : int;
+      uncompressed_size : int;
+      event_count : int;
+      min_seq : int64;
+      max_seq : int64;
+      min_witnessed_at : int64;
+      max_witnessed_at : int64;
+    }
+
+    type row_kind =
+      | Create
+      | Update
+      | Delete
+      | Identity
+      | Account
+      | Sync
+      | Create_resync
+
+    type row = {
+      seq : int64;
+      witnessed_at : int64;
+      indexed_at : int64;
+      kind : row_kind;
+      collection : string;
+      did : string;
+      rkey : string;
+      rev : string;
+      payload : string;
+    }
+
+    let require_len s need what =
+      if String.length s < need then
+        fail
+          (Printf.sprintf "jss %s: need %d bytes, got %d" what need
+             (String.length s))
+
+    let u8 s i = Char.code s.[i]
+
+    let u16_le s i =
+      require_len s (i + 2) "u16";
+      u8 s i lor (u8 s (i + 1) lsl 8)
+
+    let u32_le s i =
+      require_len s (i + 4) "u32";
+      Int64.logor
+        (Int64.of_int (u8 s i))
+        (Int64.logor
+           (Int64.shift_left (Int64.of_int (u8 s (i + 1))) 8)
+           (Int64.logor
+              (Int64.shift_left (Int64.of_int (u8 s (i + 2))) 16)
+              (Int64.shift_left (Int64.of_int (u8 s (i + 3))) 24)))
+
+    let u32_le_int s i = Int64.to_int (u32_le s i)
+
+    let u64_le s i =
+      require_len s (i + 8) "u64";
+      Int64.logor (u32_le s i) (Int64.shift_left (u32_le s (i + 4)) 32)
+
+    let i64_le s i = u64_le s i
+    let put_u8 buf n = Buffer.add_char buf (Char.chr (n land 0xff))
+
+    let put_u16_le buf n =
+      put_u8 buf n;
+      put_u8 buf (n lsr 8)
+
+    let put_u32_le buf n =
+      let n = Int64.to_int (Int64.logand n 0xFFFFFFFFL) in
+      put_u8 buf n;
+      put_u8 buf (n lsr 8);
+      put_u8 buf (n lsr 16);
+      put_u8 buf (n lsr 24)
+
+    let put_u64_le buf n =
+      put_u32_le buf n;
+      put_u32_le buf (Int64.shift_right_logical n 32)
+
+    let kind_of_int = function
+      | 1 -> Create
+      | 2 -> Update
+      | 3 -> Delete
+      | 4 -> Identity
+      | 5 -> Account
+      | 6 -> Sync
+      | 7 -> Create_resync
+      | n -> fail (Printf.sprintf "jss unknown kind %d" n)
+
+    let int_of_kind = function
+      | Create -> 1
+      | Update -> 2
+      | Delete -> 3
+      | Identity -> 4
+      | Account -> 5
+      | Sync -> 6
+      | Create_resync -> 7
+
+    let parse_header (bytes : string) : header =
+      require_len bytes header_size "header";
+      if String.sub bytes 0 4 <> magic then fail "jss magic is not jss0";
+      let checksum = u64_le bytes 4 in
+      let version = u16_le bytes 12 in
+      if version <> 1 then
+        fail (Printf.sprintf "jss unsupported version %d" version);
+      let block_count = u32_le_int bytes 14 in
+      let event_count = u32_le_int bytes 18 in
+      if block_count > max_block_count then
+        fail "jss block_count exceeds sanity cap";
+      {
+        checksum;
+        version;
+        block_count;
+        event_count;
+        unique_did_count = u32_le_int bytes 22;
+        min_seq = u64_le bytes 26;
+        max_seq = u64_le bytes 34;
+        min_witnessed_at = i64_le bytes 42;
+        max_witnessed_at = i64_le bytes 50;
+        footer_offset = u64_le bytes 58;
+        did_bloom_offset = u64_le bytes 66;
+        block_did_bloom_offset = u64_le bytes 74;
+        collection_index_offset = u64_le bytes 82;
+        block_index_offset = u64_le bytes 90;
+        sealed = checksum <> 0L;
+      }
+
+    let encode_header (h : header) : string =
+      let buf = Buffer.create header_size in
+      Buffer.add_string buf magic;
+      put_u64_le buf h.checksum;
+      put_u16_le buf h.version;
+      put_u32_le buf (Int64.of_int h.block_count);
+      put_u32_le buf (Int64.of_int h.event_count);
+      put_u32_le buf (Int64.of_int h.unique_did_count);
+      put_u64_le buf h.min_seq;
+      put_u64_le buf h.max_seq;
+      put_u64_le buf h.min_witnessed_at;
+      put_u64_le buf h.max_witnessed_at;
+      put_u64_le buf h.footer_offset;
+      put_u64_le buf h.did_bloom_offset;
+      put_u64_le buf h.block_did_bloom_offset;
+      put_u64_le buf h.collection_index_offset;
+      put_u64_le buf h.block_index_offset;
+      Buffer.add_bytes buf (Bytes.make 158 '\x00');
+      Buffer.contents buf
+
+    let parse_block_index_entry (bytes : string) (off : int) : block_index_entry
+        =
+      require_len bytes (off + block_index_entry_size) "block index";
+      {
+        offset = u64_le bytes off;
+        compressed_size = u32_le_int bytes (off + 8);
+        uncompressed_size = u32_le_int bytes (off + 12);
+        event_count = u32_le_int bytes (off + 16);
+        min_seq = u64_le bytes (off + 20);
+        max_seq = u64_le bytes (off + 28);
+        min_witnessed_at = i64_le bytes (off + 36);
+        max_witnessed_at = i64_le bytes (off + 44);
+      }
+
+    let parse_block_index (bytes : string) (h : header) : block_index_entry list
+        =
+      if not h.sealed then []
+      else
+        let off = Int64.to_int h.block_index_offset in
+        let rec loop i acc =
+          if i >= h.block_count then List.rev acc
+          else
+            loop (i + 1)
+              (parse_block_index_entry bytes (off + (i * block_index_entry_size))
+              :: acc)
+        in
+        loop 0 []
+
+    let slice_by_lens blob lens max_len what =
+      let rec loop off acc = function
+        | [] ->
+            if off <> String.length blob then
+              fail (Printf.sprintf "jss %s blob trailing bytes" what);
+            List.rev acc
+        | n :: rest ->
+            if n > max_len then
+              fail (Printf.sprintf "jss %s length %d exceeds max" what n);
+            if off + n > String.length blob then
+              fail (Printf.sprintf "jss %s blob truncated" what);
+            loop (off + n) (String.sub blob off n :: acc) rest
+      in
+      loop 0 [] lens
+
+    let decode_columnar (body : string) : row list =
+      require_len body 4 "columnar event_count";
+      let n = u32_le_int body 0 in
+      if n > max_block_events then fail "jss event_count exceeds sanity cap";
+      if n = 0 then
+        if String.length body = 4 then []
+        else fail "jss empty block has trailing bytes"
+      else
+        let off = ref 4 in
+        let take_arr size read =
+          let items = List.init n (fun i -> read body (!off + (i * size))) in
+          off := !off + (n * size);
+          items
+        in
+        let seqs = take_arr 8 u64_le in
+        let witnessed = take_arr 8 i64_le in
+        let indexed = take_arr 8 i64_le in
+        let kinds = take_arr 1 (fun s i -> kind_of_int (u8 s i)) in
+        let coll_lens = take_arr 1 u8 in
+        let did_lens = take_arr 2 u16_le in
+        let rkey_lens = take_arr 1 u8 in
+        let rev_lens = take_arr 1 u8 in
+        let event_lens =
+          take_arr 4 (fun s i ->
+              let n = u32_le_int s i in
+              if n < 0 then fail "jss event_len overflow";
+              n)
+        in
+        let rest = String.sub body !off (String.length body - !off) in
+        let take_blob lens max_len what rem =
+          let total = List.fold_left ( + ) 0 lens in
+          if String.length rem < total then
+            fail (Printf.sprintf "jss %s blob truncated" what);
+          let blob = String.sub rem 0 total in
+          let rem = String.sub rem total (String.length rem - total) in
+          (slice_by_lens blob lens max_len what, rem)
+        in
+        let cols, rest = take_blob coll_lens max_short_len "collection" rest in
+        let dids, rest = take_blob did_lens max_did_len "did" rest in
+        let rkeys, rest = take_blob rkey_lens max_short_len "rkey" rest in
+        let revs, rest = take_blob rev_lens max_short_len "rev" rest in
+        let payloads, rest =
+          take_blob event_lens max_decompressed_block "payload" rest
+        in
+        if rest <> "" then fail "jss columnar trailing bytes";
+        let rec zip acc s w i k c d r v p =
+          match (s, w, i, k, c, d, r, v, p) with
+          | [], [], [], [], [], [], [], [], [] -> List.rev acc
+          | ( s :: ss,
+              w :: ws,
+              i :: is,
+              k :: ks,
+              c :: cs,
+              d :: ds,
+              r :: rs,
+              v :: vs,
+              p :: ps ) ->
+              zip
+                ({
+                   seq = s;
+                   witnessed_at = w;
+                   indexed_at = i;
+                   kind = k;
+                   collection = c;
+                   did = d;
+                   rkey = r;
+                   rev = v;
+                   payload = p;
+                 }
+                :: acc)
+                ss ws is ks cs ds rs vs ps
+          | _ -> fail "jss columnar column length mismatch"
+        in
+        zip [] seqs witnessed indexed kinds cols dids rkeys revs payloads
+
+    let encode_columnar (rows : row list) : string =
+      let n = List.length rows in
+      let buf = Buffer.create 64 in
+      put_u32_le buf (Int64.of_int n);
+      List.iter (fun r -> put_u64_le buf r.seq) rows;
+      List.iter (fun r -> put_u64_le buf r.witnessed_at) rows;
+      List.iter (fun r -> put_u64_le buf r.indexed_at) rows;
+      List.iter (fun r -> put_u8 buf (int_of_kind r.kind)) rows;
+      List.iter (fun r -> put_u8 buf (String.length r.collection)) rows;
+      List.iter (fun r -> put_u16_le buf (String.length r.did)) rows;
+      List.iter (fun r -> put_u8 buf (String.length r.rkey)) rows;
+      List.iter (fun r -> put_u8 buf (String.length r.rev)) rows;
+      List.iter
+        (fun r -> put_u32_le buf (Int64.of_int (String.length r.payload)))
+        rows;
+      List.iter (fun r -> Buffer.add_string buf r.collection) rows;
+      List.iter (fun r -> Buffer.add_string buf r.did) rows;
+      List.iter (fun r -> Buffer.add_string buf r.rkey) rows;
+      List.iter (fun r -> Buffer.add_string buf r.rev) rows;
+      List.iter (fun r -> Buffer.add_string buf r.payload) rows;
+      Buffer.contents buf
+
+    let time_of_us us =
+      let secs = Int64.to_float (Int64.div us 1_000_000L) in
+      match Ptime.of_float_s secs with
+      | None -> Printf.sprintf "%Ld" us
+      | Some t -> Ptime.to_rfc3339 ~frac_s:6 t
+
+    let row_to_event (r : row) : event =
+      match r.kind with
+      | Create | Update | Delete | Create_resync ->
+          let operation =
+            match r.kind with
+            | Update -> "update"
+            | Delete -> "delete"
+            | _ -> "create"
+          in
+          `Commit
+            {
+              did = r.did;
+              seq = r.seq;
+              time = time_of_us r.witnessed_at;
+              operation;
+              collection = r.collection;
+              rkey = r.rkey;
+              rev = r.rev;
+              cid = None;
+              record = None;
+            }
+      | Identity ->
+          `Identity
+            {
+              did = r.did;
+              seq = r.seq;
+              time = time_of_us r.witnessed_at;
+              handle = None;
+            }
+      | Account ->
+          `Account
+            {
+              did = r.did;
+              seq = r.seq;
+              time = time_of_us r.witnessed_at;
+              active = true;
+              status = None;
+            }
+      | Sync ->
+          `Sync
+            {
+              did = r.did;
+              seq = r.seq;
+              time = time_of_us r.witnessed_at;
+              rev = r.rev;
+            }
+
+    (* Sequential frame walk. Each frame is `block_len u64` + `block_len`
+       compressed bytes. Pass [decompress] to unwrap zstd (no dictionary). *)
+    let walk_frames ?(decompress : (string -> string) option) (bytes : string) :
+        row list =
+      let h = parse_header bytes in
+      let rec loop i acc =
+        if i >= String.length bytes then List.rev acc
+        else if
+          h.sealed && Int64.of_int i >= h.footer_offset && h.footer_offset <> 0L
+        then List.rev acc
+        else if i + 8 > String.length bytes then List.rev acc
+        else
+          let len64 = u64_le bytes i in
+          let len = Int64.to_int len64 in
+          if len < 0 || i + 8 + len > String.length bytes then
+            fail "jss truncated block frame";
+          let frame = String.sub bytes (i + 8) len in
+          let body =
+            match decompress with Some f -> f frame | None -> frame
+          in
+          if String.length body > max_decompressed_block then
+            fail "jss decompressed block exceeds 1 GiB";
+          loop (i + 8 + len) (List.rev_append (decode_columnar body) acc)
+      in
+      loop header_size []
+  end
 end

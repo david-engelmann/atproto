@@ -165,6 +165,23 @@ let test_record_key _ =
       ""; "."; ".."; "alpha/beta"; "#extra"; "@handle"; "any space"; "any+space";
     ]
 
+let test_repo_path _ =
+  OUnit2.assert_bool "valid path"
+    (Syntax.is_valid_repo_path "app.bsky.feed.post/3jzfcijpj2z2a");
+  OUnit2.assert_equal
+    (Some ("app.bsky.feed.post", "3jzfcijpj2z2a"))
+    (Syntax.split_repo_path "app.bsky.feed.post/3jzfcijpj2z2a");
+  List.iter
+    (fun p -> assert_bad p Syntax.is_valid_repo_path)
+    [
+      "nocollection";
+      "/app.bsky.feed.post/self";
+      "app.bsky.feed.post/self/extra";
+      "not-an-nsid/self";
+      "app.bsky.feed.post/";
+      "app.bsky.feed.post/.";
+    ]
+
 let test_at_identifier _ =
   OUnit2.assert_bool "handle" (Syntax.is_valid_at_identifier "jay.bsky.team");
   OUnit2.assert_bool "did"
@@ -251,6 +268,7 @@ let suite =
          "test_nsid_spec_examples" >:: test_nsid_spec_examples;
          "test_nsid_glob_and_ref" >:: test_nsid_glob_and_ref;
          "test_record_key" >:: test_record_key;
+         "test_repo_path" >:: test_repo_path;
          "test_at_identifier" >:: test_at_identifier;
          "test_datetime_spec_examples" >:: test_datetime_spec_examples;
          "test_language" >:: test_language;

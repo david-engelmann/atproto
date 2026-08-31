@@ -448,6 +448,26 @@ let test_cid_mismatch _ =
        false
      with Mst.Verify_error _ -> true)
 
+let test_collection_range_and_preorder _ =
+  let start, end_ = Mst.collection_range "app.bsky.feed.post" in
+  OUnit2.assert_equal ~printer:(fun x -> x) "app.bsky.feed.post/" start;
+  OUnit2.assert_equal ~printer:(fun x -> x) "app.bsky.feed.post0" end_;
+  OUnit2.assert_bool "post in range"
+    (Mst.key_in_range ~start ~end_exclusive:end_ "app.bsky.feed.post/aaa");
+  OUnit2.assert_bool "like out of range"
+    (not (Mst.key_in_range ~start ~end_exclusive:end_ "app.bsky.feed.like/bbb"));
+  let store = Mst.store_of_get (fun _ -> None) in
+  let t = Mst.empty_tree store in
+  let va = Cid.create ~codec:Cid.Raw "rec-a" in
+  let vb = Cid.create ~codec:Cid.Raw "rec-b" in
+  let t, _ = Mst.insert t "app.bsky.feed.post/aaa" va in
+  let t, _ = Mst.insert t "app.bsky.feed.like/bbb" vb in
+  ignore (Mst.root_cid t);
+  let pre = Mst.preorder_blocks ~records:false t in
+  OUnit2.assert_bool "preorder starts with MST root"
+    (Cid.equal (List.hd pre).cid (Mst.root_cid t));
+  OUnit2.assert_bool "max entries is documented" (Mst.max_entries_per_node = 64)
+
 let suite =
   "mst"
   >::: [
@@ -469,6 +489,8 @@ let suite =
          "test_commit_sig_wrong_key_and_missing"
          >:: test_commit_sig_wrong_key_and_missing;
          "test_cid_mismatch" >:: test_cid_mismatch;
+         "test_collection_range_and_preorder"
+         >:: test_collection_range_and_preorder;
        ]
 
 let () = run_test_tt_main suite

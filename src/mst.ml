@@ -20,6 +20,10 @@ module Mst = struct
 
   let fail msg = raise (Verify_error msg)
 
+  (* Spec: limit TreeEntries per node against key-mining DoS. Fanout 4 makes
+     64 statistically extreme (expected ~4). *)
+  let max_entries_per_node = 64
+
   let leading_zeros_on_hash (key : string) : int =
     let digest = Hash.sha256 key in
     let rec loop i acc =
@@ -107,8 +111,24 @@ module Mst = struct
     in
     loop keys
 
+  let ensure_mst_link (cid : Cid.t) : unit =
+    if not (Cid.is_blessed ~codec:Cid.Dag_cbor cid) then
+      fail
+        (Printf.sprintf
+           "MST child link %s is not a blessed dag-cbor SHA-256 CID"
+           (Cid.to_string cid))
+
   let verify_node ?(expected_layer : int option) (n : node) : reconstructed list
       =
+    if List.length n.entries > max_entries_per_node then
+      fail
+        (Printf.sprintf "MST node has %d entries (max %d)"
+           (List.length n.entries) max_entries_per_node);
+    (match n.left with Some c -> ensure_mst_link c | None -> ());
+    List.iter
+      (fun (e : entry) ->
+        match e.right with Some c -> ensure_mst_link c | None -> ())
+      n.entries;
     let items = reconstruct n in
     let keys = List.map (fun r -> r.key) items in
     keys_strictly_increasing keys;
@@ -766,6 +786,213 @@ module Mst = struct
       acc (get_entries t)
 
   let walk (t : tree) : (string * Cid.t) list = List.rev (collect_entries t [])
+
+  let rec collect_available (t : tree) acc =
+    match store_get t.store t.pointer with
+    | None when t.entries = None -> acc
+    | _ -> (
+        try
+          List.fold_left
+            (fun acc e ->
+              match e with
+              | Value (path, cid) -> (path, cid) :: acc
+              | Child c -> collect_available c acc)
+            acc (get_entries t)
+        with Verify_error _ -> acc)
+
+  let walk_available (t : tree) : (string * Cid.t) list =
+    List.rev (collect_available t [])
+
+  let block_of_cid store cid =
+    match store_get store cid with
+    | Some data -> { Car.Car.cid; data }
+    | None -> fail ("MST missing block " ^ Cid.to_string cid)
+
+  (* Streamable CAR pre-order: this MST node, then each entry in node order
+     (left child, then for every leaf: record then right child).
+     https://atproto.com/specs/repository#streamable-car-block-ordering *)
+  let rec preorder_blocks ?(records = true) (t : tree) : Car.Car.block list =
+    let cid = root_cid t in
+    let node_block = block_of_cid t.store cid in
+    node_block
+    :: List.concat
+         (List.map
+            (function
+              | Child c -> preorder_blocks ~records c
+              | Value (_, rec_cid) -> (
+                  if not records then []
+                  else
+                    match store_get t.store rec_cid with
+                    | Some data -> [ { Car.Car.cid = rec_cid; data } ]
+                    | None -> []))
+            (get_entries t))
+
+  let collection_start (collection : string) = collection ^ "/"
+
+  (* Exclusive end of `collection/` — '/' (0x2F) + 1 = '0'. *)
+  let collection_end (collection : string) = collection ^ "0"
+
+  let collection_range (collection : string) : string * string =
+    (collection_start collection, collection_end collection)
+
+  let key_in_range ~start ~end_exclusive key =
+    String.compare key start >= 0 && String.compare key end_exclusive < 0
+
+  let rec subtree_key_bounds (t : tree) : (string * string) option =
+    let rec loop lo hi = function
+      | [] -> ( match (lo, hi) with Some a, Some b -> Some (a, b) | _ -> None)
+      | Value (k, _) :: rest ->
+          let lo = match lo with None -> Some k | Some a -> Some a in
+          loop lo (Some k) rest
+      | Child c :: rest -> (
+          match subtree_key_bounds c with
+          | None -> loop lo hi rest
+          | Some (a, b) ->
+              let lo = match lo with None -> Some a | Some x -> Some x in
+              loop lo (Some b) rest)
+    in
+    loop None None (get_entries t)
+
+  let ranges_overlap (a0, a1) (b0, b1) =
+    String.compare a0 b1 < 0 && String.compare b0 a1 < 0
+
+  let last_opt xs = match List.rev xs with hd :: _ -> Some hd | [] -> None
+
+  (* MST nodes proving every key in [start, end) plus the immediately
+     adjacent keys, plus in-range record blocks. *)
+  let range_blocks ~start ~end_exclusive ?(records = true) (t : tree) :
+      Car.Car.block list =
+    let walked = walk t in
+    let in_range =
+      List.filter (fun (k, _) -> key_in_range ~start ~end_exclusive k) walked
+    in
+    let left_adj =
+      walked
+      |> List.filter (fun (k, _) -> String.compare k start < 0)
+      |> last_opt
+    in
+    let right_adj =
+      List.find_opt (fun (k, _) -> String.compare k end_exclusive >= 0) walked
+    in
+    let needed =
+      List.map fst in_range
+      @ (match left_adj with Some (k, _) -> [ k ] | None -> [])
+      @ match right_adj with Some (k, _) -> [ k ] | None -> []
+    in
+    let rec collect (node : tree) : Car.Car.block list =
+      let this = block_of_cid node.store (root_cid node) in
+      let rec loop acc = function
+        | [] -> List.rev acc
+        | Child c :: rest ->
+            let keep =
+              match subtree_key_bounds c with
+              | None -> false
+              | Some (lo, hi) ->
+                  List.exists
+                    (fun k ->
+                      String.compare lo k <= 0 && String.compare k hi <= 0)
+                    needed
+                  || ranges_overlap (lo, hi ^ "\x00") (start, end_exclusive)
+            in
+            let acc = if keep then List.rev_append (collect c) acc else acc in
+            loop acc rest
+        | Value (k, rec_cid) :: rest ->
+            let acc =
+              if records && key_in_range ~start ~end_exclusive k then
+                match store_get node.store rec_cid with
+                | Some data -> { Car.Car.cid = rec_cid; data } :: acc
+                | None -> acc
+              else acc
+            in
+            loop acc rest
+      in
+      this :: loop [] (get_entries node)
+    in
+    collect t
+
+  let covering_proof (t : tree) (key : string) : Car.Car.block list =
+    range_blocks ~start:key ~end_exclusive:(key ^ "\x00") ~records:true t
+
+  (* Verify included MST nodes; missing children are allowed (partial proof). *)
+  let rec verify_tree_available ~(get_block : Cid.t -> string option)
+      ?(layer : int option) (root : Cid.t) : unit =
+    match get_block root with
+    | None -> ()
+    | Some data ->
+        let expected = Cid.create data in
+        if not (Cid.equal expected root) then
+          fail
+            (Printf.sprintf "MST CID mismatch: got %s expected %s"
+               (Cid.to_string expected) (Cid.to_string root));
+        let node = node_of_bytes data in
+        let items = verify_node ?expected_layer:layer node in
+        let this_layer =
+          match (layer, items) with
+          | Some l, _ -> l
+          | None, hd :: _ -> layer_for_key hd.key
+          | None, [] -> 0
+        in
+        let child_layer = this_layer - 1 in
+        let check_child = function
+          | None -> ()
+          | Some cid ->
+              if child_layer < 0 then fail "MST child below layer 0";
+              verify_tree_available ~get_block ~layer:child_layer cid
+        in
+        check_child node.left;
+        List.iter (fun r -> check_child r.right) items
+
+  type range_status = Complete | Incomplete of string
+
+  let rec range_completeness ~start ~end_exclusive
+      ~(get_block : Cid.t -> string option) ?(layer : int option) (root : Cid.t)
+      : range_status =
+    match get_block root with
+    | None ->
+        Incomplete
+          (Printf.sprintf "missing MST node %s in collection range"
+             (Cid.to_string root))
+    | Some data -> (
+        let node = node_of_bytes data in
+        let items = verify_node ?expected_layer:layer node in
+        let this_layer =
+          match (layer, items) with
+          | Some l, _ -> l
+          | None, hd :: _ -> layer_for_key hd.key
+          | None, [] -> 0
+        in
+        let child_layer = this_layer - 1 in
+        let check_child cid lo hi =
+          if ranges_overlap (lo, hi) (start, end_exclusive) then
+            if child_layer < 0 then Incomplete "MST child below layer 0"
+            else
+              range_completeness ~start ~end_exclusive ~get_block
+                ~layer:child_layer cid
+          else Complete
+        in
+        let left_status =
+          match node.left with
+          | None -> Complete
+          | Some cid ->
+              let first =
+                match items with hd :: _ -> hd.key | [] -> end_exclusive
+              in
+              check_child cid start first
+        in
+        let rec walk = function
+          | [] -> Complete
+          | hd :: rest -> (
+              let next_lo =
+                match rest with r :: _ -> r.key | [] -> end_exclusive
+              in
+              match hd.right with
+              | None -> walk rest
+              | Some cid -> (
+                  match check_child cid hd.key next_lo with
+                  | Incomplete _ as i -> i
+                  | Complete -> walk rest))
+        in
+        match left_status with Incomplete _ as i -> i | Complete -> walk items)
 
   let check_op (t : tree) (op : record_op) : unit =
     match op.action with

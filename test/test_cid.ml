@@ -62,7 +62,16 @@ let test_blob_cid _ =
      with Failure _ -> true);
   let dag = Cid.create ~codec:Cid.Dag_cbor "{\"text\":\"hi\"}" in
   OUnit2.assert_bool "verify_block dag-cbor"
-    (Cid.equal dag (Cid.verify_block ~expected:dag "{\"text\":\"hi\"}"))
+    (Cid.equal dag (Cid.verify_block ~expected:dag "{\"text\":\"hi\"}"));
+  OUnit2.assert_bool "blessed dag-cbor" (Cid.is_blessed ~codec:Cid.Dag_cbor dag);
+  OUnit2.assert_bool "blessed raw blob" (Cid.is_blessed ~codec:Cid.Raw cid);
+  OUnit2.assert_bool "raw is not a dag-cbor link"
+    (not (Cid.is_blessed ~codec:Cid.Dag_cbor cid));
+  let other =
+    Cid.of_digest ~codec:(Cid.Other 0x55) ~hash_code:0x13
+      (String.make 32 '\x00')
+  in
+  OUnit2.assert_bool "unknown hash is not blessed" (not (Cid.is_blessed other))
 
 let suite =
   "cid"

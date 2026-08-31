@@ -300,6 +300,25 @@ module Syntax = struct
   let ensure_record_key s =
     if not (is_valid_record_key s) then fail ("invalid record key " ^ s)
 
+  (* Repo paths are exactly `collection/rkey` (no leading slash, two segments).
+     https://atproto.com/specs/repository#repository-paths *)
+  let split_repo_path (input : string) : (string * string) option =
+    match String.index_opt input '/' with
+    | None -> None
+    | Some i ->
+        let collection = String.sub input 0 i in
+        let rkey = String.sub input (i + 1) (String.length input - i - 1) in
+        if String.contains rkey '/' then None else Some (collection, rkey)
+
+  let is_valid_repo_path (input : string) : bool =
+    match split_repo_path input with
+    | None -> false
+    | Some (collection, rkey) ->
+        is_valid_nsid collection && is_valid_record_key rkey
+
+  let ensure_repo_path s =
+    if not (is_valid_repo_path s) then fail ("invalid repo path " ^ s)
+
   (* ---- at-identifier (handle or DID) ----------------------------------- *)
 
   let is_valid_at_identifier s = is_valid_did s || is_valid_handle s
