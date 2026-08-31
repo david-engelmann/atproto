@@ -518,7 +518,8 @@ let () =
                 ( "$type",
                   `String "chat.bsky.convo.defs#systemMessageDataUnlockConvo" );
                 ( "unlockedBy",
-                  `Assoc [ ("did", `String "did:plc:abc123xyz0001112223333") ] );
+                  `Assoc [ ("did", `String "did:plc:abc123xyz0001112223333") ]
+                );
               ] );
         ])
   in
@@ -540,8 +541,8 @@ let () =
                     ("convoId", `String "g1");
                     ("name", `String "Friends");
                     ( "owner",
-                      `Assoc [ ("did", `String "did:plc:abc123xyz0001112223333") ]
-                    );
+                      `Assoc
+                        [ ("did", `String "did:plc:abc123xyz0001112223333") ] );
                     ("memberCount", `Int 2);
                     ("memberLimit", `Int 50);
                   ];

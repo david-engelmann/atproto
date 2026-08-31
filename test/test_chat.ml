@@ -635,7 +635,8 @@ let test_parse_system_messages_and_members _ =
                 ( "$type",
                   `String "chat.bsky.convo.defs#systemMessageDataAddMember" );
                 ( "member",
-                  `Assoc [ ("did", `String "did:plc:member0000000000000001") ] );
+                  `Assoc [ ("did", `String "did:plc:member0000000000000001") ]
+                );
                 ("role", `String "standard");
                 ( "addedBy",
                   `Assoc [ ("did", `String "did:plc:owner0000000000000001") ] );
@@ -658,7 +659,8 @@ let test_parse_system_messages_and_members _ =
       (`Assoc
         [
           ("$type", `String "chat.bsky.convo.defs#systemMessageDataMemberJoin");
-          ("member", `Assoc [ ("did", `String "did:plc:member0000000000000001") ]);
+          ( "member",
+            `Assoc [ ("did", `String "did:plc:member0000000000000001") ] );
           ("role", `String "standard");
           ( "approvedBy",
             `Assoc [ ("did", `String "did:plc:owner0000000000000001") ] );
@@ -689,9 +691,9 @@ let test_parse_system_messages_and_members _ =
     Chat.parse_system_data
       (`Assoc
         [
-          ( "$type",
-            `String "chat.bsky.convo.defs#systemMessageDataRemoveMember" );
-          ("member", `Assoc [ ("did", `String "did:plc:member0000000000000001") ]);
+          ("$type", `String "chat.bsky.convo.defs#systemMessageDataRemoveMember");
+          ( "member",
+            `Assoc [ ("did", `String "did:plc:member0000000000000001") ] );
           ( "removedBy",
             `Assoc [ ("did", `String "did:plc:owner0000000000000001") ] );
         ])
@@ -866,7 +868,8 @@ let test_parse_log_and_convo_requests _ =
           ("memberLimit", `Int 100);
           ("requireApproval", `Bool true);
           ("joinRule", `String "anyone");
-          ("viewer", `Assoc [ ("requestedAt", `String "2026-01-03T00:00:00.000Z") ]);
+          ( "viewer",
+            `Assoc [ ("requestedAt", `String "2026-01-03T00:00:00.000Z") ] );
         ])
   in
   match preview with

@@ -199,7 +199,8 @@ module Chat = struct
     else if ends_with "systemMessageDataEditGroup" ty then
       `Edit_group
         (Client.string_opt json "oldName", Client.string_opt json "newName")
-    else if ends_with "systemMessageDataCreateJoinLink" ty then `Create_join_link
+    else if ends_with "systemMessageDataCreateJoinLink" ty then
+      `Create_join_link
     else if ends_with "systemMessageDataEditJoinLink" ty then `Edit_join_link
     else if ends_with "systemMessageDataEnableJoinLink" ty then
       `Enable_join_link
@@ -577,7 +578,10 @@ module Chat = struct
     | `Join_request of join_request_convo
     | `Unknown of Yojson.Safe.t ]
 
-  type convo_requests = { cursor : string option; requests : convo_request list }
+  type convo_requests = {
+    cursor : string option;
+    requests : convo_request list;
+  }
 
   let parse_join_request_convo json : join_request_convo =
     {
@@ -600,11 +604,11 @@ module Chat = struct
     let ty = Option.value ~default:"" (Client.string_opt json "$type") in
     if
       ends_with "joinRequestConvoView" ty
-      || (Client.string_member json "convoId" <> ""
-         && Client.string_member json "id" = "")
+      || Client.string_member json "convoId" <> ""
+         && Client.string_member json "id" = ""
     then `Join_request (parse_join_request_convo json)
-    else if Client.string_member json "id" <> "" || ends_with "convoView" ty then
-      `Convo (parse_convo json)
+    else if Client.string_member json "id" <> "" || ends_with "convoView" ty
+    then `Convo (parse_convo json)
     else `Unknown json
 
   let parse_convo_requests json : convo_requests =
@@ -838,7 +842,8 @@ module Chat = struct
       requested_by =
         (match Yojson.Safe.Util.member "requestedBy" json with
         | `Assoc _ as m -> parse_member m
-        | _ -> { empty_member with did = Client.string_member json "requestedBy" });
+        | _ ->
+            { empty_member with did = Client.string_member json "requestedBy" });
       requested_at = Client.string_member json "requestedAt";
     }
 
