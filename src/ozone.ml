@@ -122,6 +122,10 @@ module Ozone = struct
   type server_config = {
     viewer_role : string option;
     appview : string option;
+    pds : string option;
+    blob_divert : string option;
+    chat : string option;
+    verifier_did : string option;
     original : Yojson.Safe.t;
   }
 
@@ -314,13 +318,23 @@ module Ozone = struct
       original = json;
     }
 
+  let service_url json field : string option =
+    match Yojson.Safe.Util.member field json with
+    | `Assoc _ as a -> Client.string_opt a "url"
+    | `String s -> Some s
+    | _ -> None
+
   let parse_server_config json : server_config =
     {
-      viewer_role = Client.string_opt json "viewer";
-      appview =
-        (match Yojson.Safe.Util.member "appview" json with
-        | `Assoc _ as a -> Client.string_opt a "url"
-        | _ -> Client.string_opt json "appview");
+      viewer_role =
+        (match Yojson.Safe.Util.member "viewer" json with
+        | `Assoc _ as v -> Client.string_opt v "role"
+        | _ -> Client.string_opt json "viewer");
+      appview = service_url json "appview";
+      pds = service_url json "pds";
+      blob_divert = service_url json "blobDivert";
+      chat = service_url json "chat";
+      verifier_did = Client.string_opt json "verifierDid";
       original = json;
     }
 
@@ -1377,6 +1391,7 @@ module Ozone = struct
     start_at : string option;
     end_at : string option;
     queue : queue_view option;
+    moderator : team_member option;
     original : Yojson.Safe.t;
   }
 
@@ -1441,6 +1456,10 @@ module Ozone = struct
       queue =
         (match Yojson.Safe.Util.member "queue" json with
         | `Assoc _ as q -> Some (parse_queue_view q)
+        | _ -> None);
+      moderator =
+        (match Yojson.Safe.Util.member "moderator" json with
+        | `Assoc _ as m -> Some (parse_team_member m)
         | _ -> None);
       original = json;
     }

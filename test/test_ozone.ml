@@ -457,6 +457,53 @@ let test_query_statuses_auth_skipped _ =
     OUnit2.assert_bool "statuses parsed" (List.length page.subject_statuses >= 0)
   with exn -> skip_if true ("queryStatuses skipped: " ^ Printexc.to_string exn)
 
+let test_parse_server_config_leftovers _ =
+  let cfg =
+    Ozone.parse_server_config
+      (`Assoc
+        [
+          ("appview", `Assoc [ ("url", `String "https://appview.example") ]);
+          ("pds", `Assoc [ ("url", `String "https://pds.example") ]);
+          ("blobDivert", `Assoc [ ("url", `String "https://divert.example") ]);
+          ("chat", `Assoc [ ("url", `String "https://chat.example") ]);
+          ( "viewer",
+            `Assoc [ ("role", `String "tools.ozone.team.defs#roleAdmin") ] );
+          ("verifierDid", `String "did:plc:verifier000111222333444555");
+        ])
+  in
+  OUnit2.assert_equal (Some "https://appview.example") cfg.appview;
+  OUnit2.assert_equal (Some "https://pds.example") cfg.pds;
+  OUnit2.assert_equal (Some "https://divert.example") cfg.blob_divert;
+  OUnit2.assert_equal (Some "https://chat.example") cfg.chat;
+  OUnit2.assert_equal (Some "tools.ozone.team.defs#roleAdmin") cfg.viewer_role;
+  OUnit2.assert_equal (Some "did:plc:verifier000111222333444555")
+    cfg.verifier_did
+
+let test_parse_assignment_moderator _ =
+  let asg =
+    Ozone.parse_assignment_view
+      (`Assoc
+        [
+          ("id", `Int 3);
+          ("did", `String "did:plc:mod000111222333444555666");
+          ("startAt", `String "2024-01-01T00:00:00.000Z");
+          ( "moderator",
+            `Assoc
+              [
+                ("did", `String "did:plc:mod000111222333444555666");
+                ("role", `String "tools.ozone.team.defs#roleModerator");
+                ("disabled", `Bool false);
+              ] );
+        ])
+  in
+  match asg.moderator with
+  | Some m ->
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "did:plc:mod000111222333444555666" m.did;
+      OUnit2.assert_equal (Some "tools.ozone.team.defs#roleModerator") m.role
+  | None -> OUnit2.assert_failure "expected assignment.moderator"
+
 let test_list_queues_auth_skipped _ =
   skip_if
     (not Auth.has_live_credentials)
@@ -483,6 +530,9 @@ let suite =
          "test_list_queues_auth_skipped" >:: test_list_queues_auth_skipped;
          "test_operator_namespace_parsers" >:: test_operator_namespace_parsers;
          "test_parse_queue_and_report" >:: test_parse_queue_and_report;
+         "test_parse_server_config_leftovers"
+         >:: test_parse_server_config_leftovers;
+         "test_parse_assignment_moderator" >:: test_parse_assignment_moderator;
        ]
 
 let () = run_test_tt_main suite

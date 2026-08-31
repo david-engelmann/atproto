@@ -877,16 +877,196 @@ let test_parse_log_and_convo_requests _ =
       OUnit2.assert_equal (Some "2026-01-03T00:00:00.000Z") p.requested_at
   | _ -> OUnit2.assert_failure "expected join preview viewer.requestedAt"
 
+let test_effective_proxy_from_did_doc _ =
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:web:api.bsky.chat#bsky_chat"
+    (Xrpc.proxy_to_string (Chat.effective_proxy ()));
+  let doc =
+    `Assoc
+      [
+        ("id", `String "did:plc:abc123xyz0001112223333");
+        ( "service",
+          `List
+            [
+              `Assoc
+                [
+                  ("id", `String "#atproto_pds");
+                  ("type", `String "AtprotoPersonalDataServer");
+                  ("serviceEndpoint", `String "https://pds.example");
+                ];
+              `Assoc
+                [
+                  ("id", `String "#bsky_chat");
+                  ("type", `String "BlueskyChatService");
+                  ("serviceEndpoint", `String "https://chat.example.com");
+                ];
+            ] );
+      ]
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:web:chat.example.com#bsky_chat"
+    (Xrpc.proxy_to_string (Chat.effective_proxy ~did_doc:doc ()));
+  let explicit =
+    { Xrpc.did = "did:web:override.chat"; service = "bsky_chat" }
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:web:override.chat#bsky_chat"
+    (Xrpc.proxy_to_string
+       (Chat.effective_proxy ~proxy:explicit ~did_doc:doc ()));
+  let headers = Chat.proxy_headers ~did_doc:doc () in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "atproto-proxy"
+    (fst (List.hd headers));
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:web:chat.example.com#bsky_chat"
+    (snd (List.hd headers))
+
+let test_effective_proxy_from_env _ =
+  let prev = Sys.getenv_opt "ATP_CHAT_DID" in
+  Unix.putenv "ATP_CHAT_DID" "did:web:custom.chat#bsky_chat";
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:web:custom.chat#bsky_chat"
+    (Xrpc.proxy_to_string (Chat.effective_proxy ()));
+  match prev with
+  | Some v -> Unix.putenv "ATP_CHAT_DID" v
+  | None -> Unix.putenv "ATP_CHAT_DID" ""
+
+let test_parse_member_profile_leftovers _ =
+  let member =
+    Chat.parse_member
+      (`Assoc
+        [
+          ("did", `String "did:plc:abc123xyz0001112223333");
+          ("handle", `String "alice.test");
+          ("displayName", `String "Alice");
+          ("avatar", `String "https://cdn.example/a.jpg");
+          ("createdAt", `String "2024-01-01T00:00:00.000Z");
+          ("chatDisabled", `Bool false);
+          ( "associated",
+            `Assoc
+              [
+                ( "chat",
+                  `Assoc
+                    [
+                      ("allowIncoming", `String "following");
+                      ("allowGroupInvites", `String "none");
+                    ] );
+              ] );
+          ("viewer", `Assoc [ ("muted", `Bool true) ]);
+          ( "verification",
+            `Assoc
+              [
+                ("verifications", `List []);
+                ("verifiedStatus", `String "valid");
+                ("trustedVerifierStatus", `String "none");
+              ] );
+          ( "labels",
+            `List
+              [
+                `Assoc
+                  [
+                    ("src", `String "did:plc:labeler000111222333444555");
+                    ("uri", `String "at://did:plc:abc123xyz0001112223333");
+                    ("val", `String "!hide");
+                    ("cts", `String "2024-01-01T00:00:00.000Z");
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal (Some "https://cdn.example/a.jpg") member.avatar;
+  OUnit2.assert_equal (Some "2024-01-01T00:00:00.000Z") member.created_at;
+  (match member.associated with
+  | Some a -> (
+      match a.chat with
+      | Some c ->
+          OUnit2.assert_equal ~printer:(fun x -> x) "following" c.allow_incoming
+      | None -> OUnit2.assert_failure "expected associated.chat")
+  | None -> OUnit2.assert_failure "expected associated");
+  (match member.viewer with
+  | Some v -> OUnit2.assert_equal true v.muted
+  | None -> OUnit2.assert_failure "expected viewer");
+  (match member.verification with
+  | Some v ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "valid" v.verified_status
+  | None -> OUnit2.assert_failure "expected verification");
+  OUnit2.assert_equal 1 (List.length member.labels)
+
+let test_parse_reply_to_union _ =
+  let before =
+    Chat.parse_message
+      (`Assoc
+        [
+          ("id", `String "m1");
+          ("rev", `String "r1");
+          ("text", `String "reply");
+          ("sentAt", `String "2024-01-01T00:00:00.000Z");
+          ( "replyTo",
+            `Assoc
+              [
+                ( "$type",
+                  `String
+                    "chat.bsky.convo.defs#messageBeforeUserJoinedGroupView" );
+              ] );
+        ])
+  in
+  (match before.reply_to with
+  | Some `Before_join -> ()
+  | _ -> OUnit2.assert_failure "expected messageBeforeUserJoinedGroupView");
+  OUnit2.assert_equal None before.reply_to_id;
+  let nested =
+    Chat.parse_message
+      (`Assoc
+        [
+          ("id", `String "m2");
+          ("rev", `String "r2");
+          ("text", `String "child");
+          ("sentAt", `String "2024-01-01T00:00:01.000Z");
+          ( "replyTo",
+            `Assoc
+              [
+                ("$type", `String "chat.bsky.convo.defs#messageView");
+                ("id", `String "m0");
+                ("rev", `String "r0");
+                ("text", `String "parent");
+                ("sentAt", `String "2024-01-01T00:00:00.000Z");
+              ] );
+        ])
+  in
+  (match nested.reply_to with
+  | Some (`Message m) ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "m0" m.id;
+      OUnit2.assert_equal ~printer:(fun x -> x) "parent" m.text
+  | _ -> OUnit2.assert_failure "expected embedded messageView");
+  OUnit2.assert_equal (Some "m0") nested.reply_to_id
+
 let test_list_convos_auth_skipped _ =
   skip_if
     (not Auth.has_live_credentials)
     "ATP_AUTH not configured; live Bluesky test skipped";
   let username, password = Auth.username_and_password_from_env in
   let s = Atproto.Session.Session.create_session username password in
+  skip_if
+    (not (Chat.session_has_chat_scope s))
+    "ATP_AUTH lacks privileged DM/chat scope; live chat.bsky test skipped";
   try
+    let headers = Chat.session_proxy_headers s in
+    OUnit2.assert_equal
+      ~printer:(fun x -> x)
+      "atproto-proxy"
+      (fst (List.hd headers));
     let page = Chat.list_convos s ~limit:5 () in
-    OUnit2.assert_bool "convos parsed" (List.length page.convos >= 0)
-  with exn -> skip_if true ("listConvos skipped: " ^ Printexc.to_string exn)
+    OUnit2.assert_bool "convos parsed" (List.length page.convos >= 0);
+    let status = Chat.get_actor_status s () in
+    OUnit2.assert_bool "getStatus parsed" (status.group_member_limit >= 0);
+    let _ = Chat.export_account_data s () in
+    ()
+  with exn -> skip_if true ("chat.bsky skipped: " ^ Printexc.to_string exn)
 
 let suite =
   "chat"
@@ -913,6 +1093,12 @@ let suite =
          >:: test_parse_group_convo_leftover_fields;
          "test_parse_log_and_convo_requests"
          >:: test_parse_log_and_convo_requests;
+         "test_effective_proxy_from_did_doc"
+         >:: test_effective_proxy_from_did_doc;
+         "test_effective_proxy_from_env" >:: test_effective_proxy_from_env;
+         "test_parse_member_profile_leftovers"
+         >:: test_parse_member_profile_leftovers;
+         "test_parse_reply_to_union" >:: test_parse_reply_to_union;
          "test_list_convos_auth_skipped" >:: test_list_convos_auth_skipped;
        ]
 

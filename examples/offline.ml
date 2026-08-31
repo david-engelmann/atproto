@@ -649,6 +649,53 @@ let () =
   | { preferences = [ { kind = `Muted_words _; _ } ]; _ } -> ()
   | _ -> assert false);
   assert (String.length (Chat.subscribe_mod_events_url ()) > 20);
+  assert (
+    Xrpc.proxy_to_string (Chat.effective_proxy ())
+    = "did:web:api.bsky.chat#bsky_chat");
+  let member_leftover =
+    Chat.parse_member
+      (`Assoc
+        [
+          ("did", `String "did:plc:abc123xyz0001112223333");
+          ("handle", `String "alice.test");
+          ("avatar", `String "https://cdn.example/a.jpg");
+          ("createdAt", `String "2024-01-01T00:00:00.000Z");
+        ])
+  in
+  assert (member_leftover.avatar <> None);
+  (match
+     (Chat.parse_message
+        (`Assoc
+          [
+            ("id", `String "m1");
+            ("rev", `String "r1");
+            ("text", `String "reply");
+            ("sentAt", `String "2024-01-01T00:00:00.000Z");
+            ( "replyTo",
+              `Assoc
+                [
+                  ( "$type",
+                    `String
+                      "chat.bsky.convo.defs#messageBeforeUserJoinedGroupView" );
+                ] );
+          ]))
+       .reply_to
+   with
+  | Some `Before_join -> ()
+  | _ -> assert false);
+  let ozone_cfg =
+    Ozone.parse_server_config
+      (`Assoc
+        [
+          ("appview", `Assoc [ ("url", `String "https://appview.example") ]);
+          ("blobDivert", `Assoc [ ("url", `String "https://divert.example") ]);
+          ("verifierDid", `String "did:plc:verifier000111222333444555");
+          ( "viewer",
+            `Assoc [ ("role", `String "tools.ozone.team.defs#roleAdmin") ] );
+        ])
+  in
+  assert (ozone_cfg.blob_divert <> None);
+  assert (ozone_cfg.verifier_did <> None);
   (match
      Ozone.parse_subject
        (`Assoc
