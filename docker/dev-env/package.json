@@ -5,6 +5,6 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@atproto/dev-env": "^0.6.4"
+    "@atproto/dev-env": "0.6.4"
   }
 }

@@ -310,7 +310,9 @@ module Feed = struct
     let open Yojson.Safe.Util in
     let uri = json |> member "uri" |> to_string in
     let cid = json |> member "cid" |> to_string in
-    let cursor = json |> member "cursor" |> to_string in
+    let cursor =
+      match json |> member "cursor" with `String s -> s | _ -> ""
+    in
     let likes = json |> member "likes" |> to_list |> List.map parse_like in
     { uri; cid; cursor; likes }
 
@@ -517,7 +519,9 @@ module Feed = struct
       json |> member "repostedBy" |> to_list
       |> List.map Actor.parse_short_profile_without_description
     in
-    let cursor = json |> member "cursor" |> to_string in
+    let cursor =
+      match json |> member "cursor" with `String s -> s | _ -> ""
+    in
     { uri; cid; reposted_by; cursor }
 
   let convert_body_to_json (body : string) : Yojson.Safe.t =

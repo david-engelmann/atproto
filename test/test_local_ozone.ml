@@ -112,7 +112,11 @@ let test_query_labels _ =
   | Some host -> (
       let json =
         Client.get_json ~host "com.atproto.label.queryLabels"
-          [ ("uriPatterns", "at://" ^ alice.auth.did); ("limit", "10") ]
+          [
+            ("uriPatterns", "at://" ^ alice.auth.did);
+            ("sources", ozone_did ());
+            ("limit", "10");
+          ]
       in
       no_xrpc_error json;
       match Yojson.Safe.Util.member "labels" json with

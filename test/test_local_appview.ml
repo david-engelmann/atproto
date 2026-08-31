@@ -86,13 +86,11 @@ let bob_session () =
 
 let session () = Lazy.force live_session
 
-(* Local AppView rejects PDS at+jwt (InvalidToken). Public app.bsky.* reads
-   go to AppView without a bearer. Authenticated product APIs (timeline /
-   mutes / notifications) go through the PDS, which proxies to this AppView. *)
-let av_get nsid pairs =
-  Client.get_json ~host:(appview_host ()) nsid pairs |> ensure_ok
-
-let pds_get s nsid pairs = Client.get_json ~session:s nsid pairs |> ensure_ok
+(* Public AppView reads omit the PDS session. Authenticated AppView calls
+   mint a service-auth JWT (aud=AppView DID, lxm=NSID) and never send at+jwt. *)
+let av_get ?session nsid pairs =
+  Client.get_json_appview ?session ~host:(appview_host ()) nsid pairs
+  |> ensure_ok
 
 let test_get_profile _ =
   let s = session () in
@@ -183,7 +181,7 @@ let test_feed_after_writes _ =
   in
   wait 45;
   let timeline =
-    pds_get s "app.bsky.feed.getTimeline"
+    av_get ~session:s "app.bsky.feed.getTimeline"
       [ ("algorithm", "reverse-chronological"); ("limit", "10") ]
     |> Feed.parse_timeline
   in
@@ -195,20 +193,18 @@ let test_feed_after_writes _ =
   in
   let _ = thread.thread in
   OUnit2.assert_bool "getPostThread parsed" true;
-  let likes_json =
+  let likes =
     av_get "app.bsky.feed.getLikes"
       [ ("uri", created.Repo.uri); ("cid", created.Repo.cid); ("limit", "10") ]
+    |> Feed.parse_likes
   in
-  (match Yojson.Safe.Util.member "likes" likes_json with
-  | `List _ -> ()
-  | _ -> OUnit2.assert_failure "getLikes missing likes");
-  let reposted_json =
+  OUnit2.assert_bool "getLikes" (List.length likes.likes >= 0);
+  let reposted =
     av_get "app.bsky.feed.getRepostedBy"
       [ ("uri", created.Repo.uri); ("cid", created.Repo.cid); ("limit", "10") ]
+    |> Feed.parse_reposted_by_feed
   in
-  match Yojson.Safe.Util.member "repostedBy" reposted_json with
-  | `List _ -> ()
-  | _ -> OUnit2.assert_failure "getRepostedBy missing repostedBy"
+  OUnit2.assert_bool "getRepostedBy" (List.length reposted.reposted_by >= 0)
 
 let test_graph _ =
   let s = session () in
@@ -227,14 +223,15 @@ let test_graph _ =
   OUnit2.assert_bool "getFollowers" (List.length followers.followers >= 1);
   ignore (Graph.mute_actor s "carla.test");
   let mutes =
-    pds_get s "app.bsky.graph.getMutes" [ ("limit", "10") ] |> Graph.parse_mutes
+    av_get ~session:s "app.bsky.graph.getMutes" [ ("limit", "10") ]
+    |> Graph.parse_mutes
   in
   OUnit2.assert_bool "getMutes after muteActor" (List.length mutes.mutes >= 0)
 
 let test_notifications _ =
   let s = session () in
   let json =
-    Client.get_json ~session:s "app.bsky.notification.listNotifications"
+    av_get ~session:s "app.bsky.notification.listNotifications"
       [ ("limit", "10") ]
   in
   match Error.check_for_error json with

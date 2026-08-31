@@ -14,6 +14,17 @@ module Client = struct
         if h = "" then public_appview_host else h
     | None -> public_appview_host
 
+  (* Production AppView DID. Local @atproto/dev-env writes ATP_APPVIEW_DID. *)
+  let appview_did_from_env : string =
+    match Sys.getenv_opt "ATP_APPVIEW_DID" with
+    | Some d ->
+        let d = String.trim d in
+        if d = "" then "did:web:api.bsky.app" else d
+    | None -> "did:web:api.bsky.app"
+
+  let bearer_jwt (token : string) : string * string =
+    ("Authorization", "Bearer " ^ token)
+
   let string_member json field =
     match Yojson.Safe.Util.member field json with `String s -> s | _ -> ""
 
@@ -50,13 +61,16 @@ module Client = struct
 
   let repeat_param key values = List.map (fun v -> (key, v)) values
 
-  let request_headers ?session ?(extra = []) () =
+  let request_headers ?session ?bearer ?(extra = []) () =
     let pairs =
       Cohttp_client.application_json_setting_tuple
       ::
-      (match session with
-      | Some s -> [ Session.bearer_token_from_session s ]
-      | None -> [])
+      (match bearer with
+      | Some token -> [ bearer_jwt token ]
+      | None -> (
+          match session with
+          | Some s -> [ Session.bearer_token_from_session s ]
+          | None -> []))
       @ extra
     in
     Cohttp_client.create_headers_from_pairs pairs
@@ -74,8 +88,8 @@ module Client = struct
       (App.create_public_base_url ~host:(host_of ?session ?host ()) ())
       nsid
 
-  let get_json ?session ?host ?(extra = []) nsid pairs =
-    let headers = request_headers ?session ~extra () in
+  let get_json ?session ?host ?bearer ?(extra = []) nsid pairs =
+    let headers = request_headers ?session ?bearer ~extra () in
     let url = nsid_url ?session ?host nsid in
     let body = Cohttp_client.create_body_from_pairs pairs in
     let resp =
@@ -84,18 +98,38 @@ module Client = struct
     in
     Yojson.Safe.from_string resp
 
-  let get_text ?session ?host ?(extra = []) nsid pairs =
-    let headers = request_headers ?session ~extra () in
+  let get_text ?session ?host ?bearer ?(extra = []) nsid pairs =
+    let headers = request_headers ?session ?bearer ~extra () in
     let url = nsid_url ?session ?host nsid in
     let body = Cohttp_client.create_body_from_pairs pairs in
     Lwt_main.run
       (Cohttp_client.get_request_with_body_and_headers url body headers)
 
-  let post_json ?session ?host ?(extra = []) nsid data =
-    let headers = request_headers ?session ~extra () in
+  let post_json ?session ?host ?bearer ?(extra = []) nsid data =
+    let headers = request_headers ?session ?bearer ~extra () in
     let url = nsid_url ?session ?host nsid in
     let resp =
       Lwt_main.run (Cohttp_client.post_data_with_headers url data headers)
     in
     Yojson.Safe.from_string resp
+
+  (* PDS accessJwt is at+jwt. AppView requires a service-auth JWT
+     (com.atproto.server.getServiceAuth, aud=AppView DID, lxm=NSID). *)
+  let get_service_auth (s : Session.session) ~aud ~lxm () : string =
+    let json =
+      get_json ~session:s "com.atproto.server.getServiceAuth"
+        [ ("aud", aud); ("lxm", lxm) ]
+    in
+    match Yojson.Safe.Util.member "token" json with
+    | `String t when String.trim t <> "" -> t
+    | _ -> failwith ("getServiceAuth failed: " ^ Yojson.Safe.to_string json)
+
+  let get_json_appview ?session ?host ?aud ?(extra = []) nsid pairs =
+    let host = match host with Some h -> h | None -> appview_host_from_env in
+    match session with
+    | None -> get_json ~host ~extra nsid pairs
+    | Some s ->
+        let aud = match aud with Some a -> a | None -> appview_did_from_env in
+        let token = get_service_auth s ~aud ~lxm:nsid () in
+        get_json ~host ~bearer:token ~extra nsid pairs
 end

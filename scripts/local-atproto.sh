@@ -67,12 +67,15 @@ wait_http() {
 
 write_env() {
   local ozone_did="${1:-}"
+  local appview_did
+  appview_did="$(parse_appview_did)"
   cat > "${ENV_FILE}" <<EOF
 ATP_SCHEME=${PDS_SCHEME}
 ATP_HOST=${PDS_HOST}
 ATP_APPVIEW_HOST=${APPVIEW_HOST}
 ATP_OZONE_HOST=${OZONE_HOST}
 ATP_OZONE_DID=${ozone_did}
+ATP_APPVIEW_DID=${appview_did}
 PLC_ORIGIN=${PLC_ORIGIN}
 ATP_AUTH=${ACCOUNT_HANDLE}:${ACCOUNT_PASSWORD}
 ATP_AUTH_BOB=${BOB_HANDLE}:${BOB_PASSWORD}
@@ -85,6 +88,14 @@ parse_ozone_did() {
   local did=""
   if [[ -f "${LOG_FILE}" ]]; then
     did="$(grep -E 'Ozone service DID' "${LOG_FILE}" | tail -n1 | grep -oE 'did:[a-z0-9]+:[a-zA-Z0-9._:-]+' | tail -n1 || true)"
+  fi
+  printf '%s' "${did}"
+}
+
+parse_appview_did() {
+  local did=""
+  if [[ -f "${LOG_FILE}" ]]; then
+    did="$(grep -E 'Bsky Appview DID' "${LOG_FILE}" | tail -n1 | grep -oE 'did:[a-z0-9]+:[a-zA-Z0-9._:-]+' | tail -n1 || true)"
   fi
   printf '%s' "${did}"
 }
