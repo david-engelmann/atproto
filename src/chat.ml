@@ -3,6 +3,10 @@ open Client
 open Xrpc
 open Facet
 open Embed
+open Cid
+open Firehose
+open Dag_cbor
+open Websocket
 
 (** chat.bsky.convo — DMs. Requests must include atproto-proxy for the chat service. *)
 module Chat = struct
@@ -776,4 +780,378 @@ module Chat = struct
          "chat.bsky.moderation.updateActorAccess"
          (Yojson.Safe.to_string
             (update_actor_access_body ~actor ~allow_access ?ref ())))
+
+  (* chat.bsky.moderation.subscribeModEvents — private operator firehose. *)
+
+  type mod_event_convo_first_message = {
+    convo_id : string;
+    created_at : string;
+    rev : string;
+    user : string;
+    recipients : string list;
+    message_id : string option;
+  }
+
+  type mod_event_group_created = {
+    actor_did : string;
+    convo_created_at : string;
+    convo_id : string;
+    created_at : string;
+    group_member_count : int;
+    group_name : string;
+    initial_member_dids : string list;
+    owner_did : string;
+    rev : string;
+  }
+
+  type mod_event_member_added = {
+    actor_did : string;
+    convo_created_at : string;
+    convo_id : string;
+    created_at : string;
+    group_member_count : int;
+    group_name : string;
+    owner_did : string;
+    request_members_count : int;
+    rev : string;
+    subject_did : string;
+    subject_follows_owner : bool;
+  }
+
+  type mod_event_member_joined = {
+    actor_did : string;
+    convo_created_at : string;
+    convo_id : string;
+    created_at : string;
+    group_member_count : int;
+    group_name : string;
+    join_link_code : string;
+    owner_did : string;
+    rev : string;
+    subject_follows_owner : bool;
+  }
+
+  type mod_event_join_request = mod_event_member_joined
+
+  type mod_event_join_decision = {
+    actor_did : string;
+    convo_created_at : string;
+    convo_id : string;
+    created_at : string;
+    group_member_count : int;
+    group_name : string;
+    owner_did : string;
+    rev : string;
+    subject_did : string;
+  }
+
+  type mod_event_chat_accepted = {
+    actor_did : string;
+    convo_created_at : string;
+    convo_id : string;
+    created_at : string;
+    method_ : string;
+    rev : string;
+    group_member_count : int option;
+    group_name : string option;
+    owner_did : string option;
+  }
+
+  type mod_event_member_left = {
+    actor_did : string;
+    convo_created_at : string;
+    convo_id : string;
+    created_at : string;
+    group_member_count : int;
+    group_name : string;
+    leave_method : string;
+    owner_did : string;
+    rev : string;
+    subject_did : string;
+  }
+
+  type mod_event_group_updated = {
+    actor_did : string;
+    convo_created_at : string;
+    convo_id : string;
+    created_at : string;
+    group_member_count : int;
+    group_name : string;
+    owner_did : string;
+    rev : string;
+    update_type : string;
+    join_link_code : string option;
+    join_link_followers_only : bool option;
+    join_link_requires_approval : bool option;
+    lock_reason : string option;
+    new_name : string option;
+    old_name : string option;
+  }
+
+  type mod_event_rate_limit = {
+    actor_did : string;
+    created_at : string;
+    endpoint : string;
+    rev : string;
+  }
+
+  type mod_event =
+    [ `Convo_first_message of mod_event_convo_first_message
+    | `Group_chat_created of mod_event_group_created
+    | `Group_chat_member_added of mod_event_member_added
+    | `Group_chat_member_joined of mod_event_member_joined
+    | `Group_chat_join_request of mod_event_join_request
+    | `Group_chat_join_request_approved of mod_event_join_decision
+    | `Group_chat_join_request_rejected of mod_event_join_decision
+    | `Chat_accepted of mod_event_chat_accepted
+    | `Group_chat_member_left of mod_event_member_left
+    | `Group_chat_updated of mod_event_group_updated
+    | `Rate_limit_exceeded of mod_event_rate_limit
+    | `Error of string * string option
+    | `Unknown of string * Yojson.Safe.t ]
+
+  let default_mod_events_host = "api.bsky.chat"
+
+  let subscribe_mod_events_url ?(host = default_mod_events_host) ?cursor () =
+    let base =
+      Printf.sprintf "wss://%s/xrpc/chat.bsky.moderation.subscribeModEvents"
+        host
+    in
+    match cursor with
+    | None -> base
+    | Some c -> base ^ "?cursor=" ^ Uri.pct_encode c
+
+  let string_list json field =
+    List.filter_map
+      (function `String s -> Some s | _ -> None)
+      (Client.list_member json field)
+
+  let ends_with_event suffix ty =
+    let n = String.length ty and m = String.length suffix in
+    n >= m && String.sub ty (n - m) m = suffix
+
+  let parse_convo_first_message json : mod_event_convo_first_message =
+    {
+      convo_id = Client.string_member json "convoId";
+      created_at = Client.string_member json "createdAt";
+      rev = Client.string_member json "rev";
+      user = Client.string_member json "user";
+      recipients = string_list json "recipients";
+      message_id = Client.string_opt json "messageId";
+    }
+
+  let parse_group_created json : mod_event_group_created =
+    {
+      actor_did = Client.string_member json "actorDid";
+      convo_created_at = Client.string_member json "convoCreatedAt";
+      convo_id = Client.string_member json "convoId";
+      created_at = Client.string_member json "createdAt";
+      group_member_count = Client.int_member json "groupMemberCount";
+      group_name = Client.string_member json "groupName";
+      initial_member_dids = string_list json "initialMemberDids";
+      owner_did = Client.string_member json "ownerDid";
+      rev = Client.string_member json "rev";
+    }
+
+  let parse_member_added json : mod_event_member_added =
+    {
+      actor_did = Client.string_member json "actorDid";
+      convo_created_at = Client.string_member json "convoCreatedAt";
+      convo_id = Client.string_member json "convoId";
+      created_at = Client.string_member json "createdAt";
+      group_member_count = Client.int_member json "groupMemberCount";
+      group_name = Client.string_member json "groupName";
+      owner_did = Client.string_member json "ownerDid";
+      request_members_count = Client.int_member json "requestMembersCount";
+      rev = Client.string_member json "rev";
+      subject_did = Client.string_member json "subjectDid";
+      subject_follows_owner = Client.bool_member json "subjectFollowsOwner";
+    }
+
+  let parse_member_joined json : mod_event_member_joined =
+    {
+      actor_did = Client.string_member json "actorDid";
+      convo_created_at = Client.string_member json "convoCreatedAt";
+      convo_id = Client.string_member json "convoId";
+      created_at = Client.string_member json "createdAt";
+      group_member_count = Client.int_member json "groupMemberCount";
+      group_name = Client.string_member json "groupName";
+      join_link_code = Client.string_member json "joinLinkCode";
+      owner_did = Client.string_member json "ownerDid";
+      rev = Client.string_member json "rev";
+      subject_follows_owner = Client.bool_member json "subjectFollowsOwner";
+    }
+
+  let parse_join_decision json : mod_event_join_decision =
+    {
+      actor_did = Client.string_member json "actorDid";
+      convo_created_at = Client.string_member json "convoCreatedAt";
+      convo_id = Client.string_member json "convoId";
+      created_at = Client.string_member json "createdAt";
+      group_member_count = Client.int_member json "groupMemberCount";
+      group_name = Client.string_member json "groupName";
+      owner_did = Client.string_member json "ownerDid";
+      rev = Client.string_member json "rev";
+      subject_did = Client.string_member json "subjectDid";
+    }
+
+  let parse_chat_accepted json : mod_event_chat_accepted =
+    {
+      actor_did = Client.string_member json "actorDid";
+      convo_created_at = Client.string_member json "convoCreatedAt";
+      convo_id = Client.string_member json "convoId";
+      created_at = Client.string_member json "createdAt";
+      method_ = Client.string_member json "method";
+      rev = Client.string_member json "rev";
+      group_member_count = Client.int_opt json "groupMemberCount";
+      group_name = Client.string_opt json "groupName";
+      owner_did = Client.string_opt json "ownerDid";
+    }
+
+  let parse_member_left json : mod_event_member_left =
+    {
+      actor_did = Client.string_member json "actorDid";
+      convo_created_at = Client.string_member json "convoCreatedAt";
+      convo_id = Client.string_member json "convoId";
+      created_at = Client.string_member json "createdAt";
+      group_member_count = Client.int_member json "groupMemberCount";
+      group_name = Client.string_member json "groupName";
+      leave_method = Client.string_member json "leaveMethod";
+      owner_did = Client.string_member json "ownerDid";
+      rev = Client.string_member json "rev";
+      subject_did = Client.string_member json "subjectDid";
+    }
+
+  let parse_group_updated json : mod_event_group_updated =
+    {
+      actor_did = Client.string_member json "actorDid";
+      convo_created_at = Client.string_member json "convoCreatedAt";
+      convo_id = Client.string_member json "convoId";
+      created_at = Client.string_member json "createdAt";
+      group_member_count = Client.int_member json "groupMemberCount";
+      group_name = Client.string_member json "groupName";
+      owner_did = Client.string_member json "ownerDid";
+      rev = Client.string_member json "rev";
+      update_type = Client.string_member json "updateType";
+      join_link_code = Client.string_opt json "joinLinkCode";
+      join_link_followers_only = Client.bool_opt json "joinLinkFollowersOnly";
+      join_link_requires_approval =
+        Client.bool_opt json "joinLinkRequiresApproval";
+      lock_reason = Client.string_opt json "lockReason";
+      new_name = Client.string_opt json "newName";
+      old_name = Client.string_opt json "oldName";
+    }
+
+  let parse_rate_limit json : mod_event_rate_limit =
+    {
+      actor_did = Client.string_member json "actorDid";
+      created_at = Client.string_member json "createdAt";
+      endpoint = Client.string_member json "endpoint";
+      rev = Client.string_member json "rev";
+    }
+
+  let parse_mod_event_type ~type_ json : mod_event =
+    if ends_with_event "eventConvoFirstMessage" type_ then
+      `Convo_first_message (parse_convo_first_message json)
+    else if ends_with_event "eventGroupChatCreated" type_ then
+      `Group_chat_created (parse_group_created json)
+    else if ends_with_event "eventGroupChatMemberAdded" type_ then
+      `Group_chat_member_added (parse_member_added json)
+    else if ends_with_event "eventGroupChatMemberJoined" type_ then
+      `Group_chat_member_joined (parse_member_joined json)
+    else if ends_with_event "eventGroupChatJoinRequestApproved" type_ then
+      `Group_chat_join_request_approved (parse_join_decision json)
+    else if ends_with_event "eventGroupChatJoinRequestRejected" type_ then
+      `Group_chat_join_request_rejected (parse_join_decision json)
+    else if ends_with_event "eventGroupChatJoinRequest" type_ then
+      `Group_chat_join_request (parse_member_joined json)
+    else if ends_with_event "eventChatAccepted" type_ then
+      `Chat_accepted (parse_chat_accepted json)
+    else if ends_with_event "eventGroupChatMemberLeft" type_ then
+      `Group_chat_member_left (parse_member_left json)
+    else if ends_with_event "eventGroupChatUpdated" type_ then
+      `Group_chat_updated (parse_group_updated json)
+    else if ends_with_event "eventRateLimitExceeded" type_ then
+      `Rate_limit_exceeded (parse_rate_limit json)
+    else `Unknown (type_, json)
+
+  let parse_mod_event json : mod_event =
+    let type_ =
+      match Client.string_opt json "$type" with
+      | Some s -> s
+      | None -> Option.value ~default:"" (Client.string_opt json "t")
+    in
+    parse_mod_event_type ~type_ json
+
+  let rec cbor_to_json (v : Dag_cbor.value) : Yojson.Safe.t =
+    match v with
+    | Dag_cbor.Null -> `Null
+    | Dag_cbor.Bool b -> `Bool b
+    | Dag_cbor.Int n -> `Int n
+    | Dag_cbor.Int64 n -> `Intlit (Int64.to_string n)
+    | Dag_cbor.Text s -> `String s
+    | Dag_cbor.Bytes b -> `String b
+    | Dag_cbor.Array xs -> `List (List.map cbor_to_json xs)
+    | Dag_cbor.Map fields ->
+        `Assoc (List.map (fun (k, x) -> (k, cbor_to_json x)) fields)
+    | Dag_cbor.Tag (_, inner) -> cbor_to_json inner
+    | Dag_cbor.Cid c -> `String (Cid.to_string c)
+
+  let decode_mod_event_frame (bytes : string) : Firehose.header * mod_event =
+    match Dag_cbor.decode_sequence bytes with
+    | header_v :: body :: _ ->
+        let header = Firehose.parse_header header_v in
+        let json = cbor_to_json body in
+        let event =
+          if header.op = -1 then
+            let err =
+              match Yojson.Safe.Util.member "error" json with
+              | `String s -> s
+              | _ -> "error"
+            in
+            let msg =
+              match Yojson.Safe.Util.member "message" json with
+              | `String s -> Some s
+              | _ -> None
+            in
+            `Error (err, msg)
+          else
+            let type_ =
+              match header.t with
+              | Some t ->
+                  if String.length t > 0 && t.[0] = '#' then
+                    String.sub t 1 (String.length t - 1)
+                  else t
+              | None -> ""
+            in
+            parse_mod_event_type ~type_ json
+        in
+        (header, event)
+    | _ ->
+        failwith
+          "Chat.decode_mod_event_frame: expected header and body CBOR values"
+
+  let subscribe_mod_events ?session ?proxy ?(host = default_mod_events_host)
+      ?cursor ?max_messages f =
+    let extra =
+      proxy_headers ?proxy ()
+      @
+      match session with
+      | Some s -> [ Session.bearer_token_from_session s ]
+      | None -> []
+    in
+    let url = subscribe_mod_events_url ~host ?cursor () in
+    Websocket.with_connection ~extra_headers:extra url (fun ws ->
+        let rec loop n =
+          match max_messages with
+          | Some m when n >= m -> ()
+          | _ -> (
+              match Websocket.recv_message ws with
+              | Websocket.Binary payload | Websocket.Text payload ->
+                  f (decode_mod_event_frame payload);
+                  loop (n + 1)
+              | Websocket.Close _ -> ()
+              | Websocket.Ping _ | Websocket.Pong _ -> loop n)
+        in
+        loop 0)
 end

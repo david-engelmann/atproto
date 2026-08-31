@@ -316,6 +316,18 @@ module Lexicon = struct
   let official_get_post_thread =
     {|{"lexicon":1,"id":"app.bsky.feed.getPostThread","defs":{"main":{"type":"query","description":"Get posts in a thread.","parameters":{"type":"params","required":["uri"],"properties":{"uri":{"type":"string","format":"at-uri"},"depth":{"type":"integer"},"parentHeight":{"type":"integer"}}},"output":{"encoding":"application/json","schema":{"type":"object","required":["thread"],"properties":{"thread":{"type":"union","refs":["app.bsky.feed.defs#threadViewPost","app.bsky.feed.defs#notFoundPost","app.bsky.feed.defs#blockedPost"]},"threadgate":{"type":"ref","ref":"app.bsky.feed.defs#threadgateView"}}}}}}}|}
 
+  let official_get_post_thread_v2 =
+    {|{"lexicon":1,"id":"app.bsky.unspecced.getPostThreadV2","defs":{"main":{"type":"query","description":"Get posts in a thread (unspecced v2).","parameters":{"type":"params","required":["anchor"],"properties":{"anchor":{"type":"string","format":"at-uri"},"above":{"type":"boolean"},"below":{"type":"integer"},"branchingFactor":{"type":"integer"},"sort":{"type":"string"}}},"output":{"encoding":"application/json","schema":{"type":"object","required":["thread","hasOtherReplies"],"properties":{"thread":{"type":"array"},"threadgate":{"type":"ref","ref":"app.bsky.feed.defs#threadgateView"},"hasOtherReplies":{"type":"boolean"}}}}}}}|}
+
+  let official_subscribe_mod_events =
+    {|{"lexicon":1,"id":"chat.bsky.moderation.subscribeModEvents","defs":{"main":{"type":"subscription","description":"Subscribe to stream of chat events targeted to moderation.","parameters":{"type":"params","properties":{"cursor":{"type":"string"}}},"message":{"schema":{"type":"union","refs":["#eventConvoFirstMessage","#eventGroupChatCreated","#eventGroupChatMemberAdded","#eventGroupChatMemberJoined","#eventGroupChatJoinRequest","#eventGroupChatJoinRequestApproved","#eventGroupChatJoinRequestRejected","#eventChatAccepted","#eventGroupChatMemberLeft","#eventGroupChatUpdated","#eventRateLimitExceeded"]}}},"eventConvoFirstMessage":{"type":"object","required":["createdAt","rev","convoId","user","recipients"],"properties":{"convoId":{"type":"string"},"createdAt":{"type":"string"},"rev":{"type":"string"},"user":{"type":"string"},"recipients":{"type":"array"}}}}}|}
+
+  let official_ageassurance_get_state =
+    {|{"lexicon":1,"id":"app.bsky.ageassurance.getState","defs":{"main":{"type":"query","description":"Returns server-computed Age Assurance state.","parameters":{"type":"params","required":["countryCode"],"properties":{"countryCode":{"type":"string"},"regionCode":{"type":"string"}}},"output":{"encoding":"application/json","schema":{"type":"object","required":["state","metadata"],"properties":{"state":{"type":"ref","ref":"app.bsky.ageassurance.defs#state"},"metadata":{"type":"ref","ref":"app.bsky.ageassurance.defs#stateMetadata"}}}}}}}|}
+
+  let official_draft_create =
+    {|{"lexicon":1,"id":"app.bsky.draft.createDraft","defs":{"main":{"type":"procedure","description":"Inserts a draft using private storage.","input":{"encoding":"application/json","schema":{"type":"object","required":["draft"],"properties":{"draft":{"type":"ref","ref":"app.bsky.draft.defs#draft"}}}},"output":{"encoding":"application/json","schema":{"type":"object","required":["id"],"properties":{"id":{"type":"string","format":"tid"}}}}}}}|}
+
   let official_lexicons : (string * string) list =
     [
       ("app.bsky.graph.listitem", official_listitem);
@@ -323,6 +335,10 @@ module Lexicon = struct
       ("app.bsky.graph.list", official_list);
       ("chat.bsky.notification.defs", official_chat_notification_defs);
       ("app.bsky.feed.getPostThread", official_get_post_thread);
+      ("app.bsky.unspecced.getPostThreadV2", official_get_post_thread_v2);
+      ("chat.bsky.moderation.subscribeModEvents", official_subscribe_mod_events);
+      ("app.bsky.ageassurance.getState", official_ageassurance_get_state);
+      ("app.bsky.draft.createDraft", official_draft_create);
     ]
 
   let official_documents () : document list =

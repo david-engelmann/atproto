@@ -3,6 +3,7 @@
   test_app
   test_actor
   test_admin
+  test_ageassurance
   test_at_uri
   test_auth
   test_base32
@@ -12,9 +13,11 @@
   test_chat
   test_cid
   test_cohttp_client
+  test_contact
   test_did_key
   test_did_plc
   test_did_web
+  test_draft
   test_embed
   test_error
   test_facet
@@ -80,6 +83,7 @@
   test_app
   test_actor
   test_admin
+  test_ageassurance
   test_at_uri
   test_auth
   test_base32
@@ -89,9 +93,11 @@
   test_chat
   test_cid
   test_cohttp_client
+  test_contact
   test_did_key
   test_did_plc
   test_did_web
+  test_draft
   test_embed
   test_error
   test_facet

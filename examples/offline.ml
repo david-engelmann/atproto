@@ -17,6 +17,10 @@ open Atproto.Oauth
 open Atproto.Xrpc
 open Atproto.Jetstream
 open Atproto.Unspecced
+open Atproto.Draft
+open Atproto.Contact
+open Atproto.Ageassurance
+open Atproto.Actor
 open Atproto.Oauth_scope
 open Atproto.Repo_sync
 open Atproto.Cid
@@ -224,6 +228,78 @@ let () =
         ])
   in
   assert (List.length tagged.suggestions = 1);
+  let thread_v2 =
+    Unspecced.parse_thread_v2
+      (`Assoc
+        [
+          ("hasOtherReplies", `Bool false);
+          ( "thread",
+            `List
+              [
+                `Assoc
+                  [
+                    ( "uri",
+                      `String
+                        "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k"
+                    );
+                    ("depth", `Int 0);
+                    ( "value",
+                      `Assoc
+                        [
+                          ( "$type",
+                            `String "app.bsky.unspecced.defs#threadItemNotFound"
+                          );
+                        ] );
+                  ];
+              ] );
+        ])
+  in
+  assert (List.length thread_v2.thread = 1);
+  let draft_body =
+    Draft.draft_json
+      ~posts:
+        [
+          {
+            text = "draft";
+            labels = None;
+            embed_images = [];
+            embed_gallery = None;
+            embed_videos = [];
+            embed_externals = [];
+            embed_records = [];
+          };
+        ]
+      ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "posts" draft_body with
+    | `List xs -> List.length xs = 1
+    | _ -> false);
+  let aa =
+    Ageassurance.parse_state
+      (`Assoc [ ("status", `String "unknown"); ("access", `String "unknown") ])
+  in
+  assert (aa.status = "unknown");
+  let contact_status = Contact.parse_sync_status_opt (`Assoc []) in
+  assert (contact_status.sync_status = None);
+  (match
+     Actor.parse_preferences
+       (`Assoc
+         [
+           ( "preferences",
+             `List
+               [
+                 `Assoc
+                   [
+                     ("$type", `String "app.bsky.actor.defs#mutedWordsPref");
+                     ("items", `List []);
+                   ];
+               ] );
+         ])
+   with
+  | { preferences = [ { kind = `Muted_words _; _ } ]; _ } -> ()
+  | _ -> assert false);
+  assert (String.length (Chat.subscribe_mod_events_url ()) > 20);
   (match
      Ozone.parse_subject
        (`Assoc

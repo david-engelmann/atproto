@@ -336,15 +336,98 @@ module Actor = struct
   }
 
   type saved_feeds_v2_pref = { items : saved_feed list }
+
+  type saved_feeds_pref = {
+    pinned : string list;
+    saved : string list;
+    timeline_index : int option;
+  }
+
+  type personal_details_pref = { birth_date : string option }
+
+  type declared_age_pref = {
+    is_over_age_13 : bool option;
+    is_over_age_16 : bool option;
+    is_over_age_18 : bool option;
+  }
+
+  type feed_view_pref = {
+    feed : string;
+    hide_replies : bool option;
+    hide_replies_by_unfollowed : bool option;
+    hide_replies_by_like_count : int option;
+    hide_reposts : bool option;
+    hide_quote_posts : bool option;
+  }
+
+  type thread_view_pref = { sort : string option }
   type interests_pref = { tags : string list }
+
+  type muted_word = {
+    id : string option;
+    value : string;
+    targets : string list;
+    actor_target : string option;
+    expires_at : string option;
+  }
+
+  type muted_words_pref = { items : muted_word list }
   type hidden_posts_pref = { items : string list }
+  type labeler_pref_item = { did : string }
+  type labelers_pref = { labelers : labeler_pref_item list }
+
+  type nux = {
+    id : string;
+    completed : bool;
+    data : string option;
+    expires_at : string option;
+  }
+
+  type bsky_app_state_pref = {
+    active_progress_guide : string option;
+    is_beta_user : bool option;
+    queued_nudges : string list;
+    nuxs : nux list;
+  }
+
+  type threadgate_rule =
+    [ `Mention
+    | `Follower
+    | `Following
+    | `List of string
+    | `Unknown of Yojson.Safe.t ]
+
+  type postgate_rule = [ `Disable | `Unknown of Yojson.Safe.t ]
+
+  type post_interaction_pref = {
+    threadgate_allow_rules : threadgate_rule list option;
+    postgate_embedding_rules : postgate_rule list option;
+  }
+
+  type verification_pref = { hide_badges : bool }
+
+  type live_event_pref = {
+    hidden_feed_ids : string list;
+    hide_all_feeds : bool;
+  }
 
   type preference_kind =
     [ `Adult_content of adult_content_pref
     | `Content_label of content_label_pref
+    | `Saved_feeds of saved_feeds_pref
     | `Saved_feeds_v2 of saved_feeds_v2_pref
+    | `Personal_details of personal_details_pref
+    | `Declared_age of declared_age_pref
+    | `Feed_view of feed_view_pref
+    | `Thread_view of thread_view_pref
     | `Interests of interests_pref
+    | `Muted_words of muted_words_pref
     | `Hidden_posts of hidden_posts_pref
+    | `Bsky_app_state of bsky_app_state_pref
+    | `Labelers of labelers_pref
+    | `Post_interaction of post_interaction_pref
+    | `Verification of verification_pref
+    | `Live_event of live_event_pref
     | `Other ]
 
   type preference = {
@@ -367,6 +450,45 @@ module Actor = struct
       pinned = Client.Client.bool_member json "pinned";
     }
 
+  let string_list json field =
+    List.filter_map
+      (function `String s -> Some s | _ -> None)
+      (Client.Client.list_member json field)
+
+  let parse_muted_word json : muted_word =
+    {
+      id = Client.Client.string_opt json "id";
+      value = Client.Client.string_member json "value";
+      targets = string_list json "targets";
+      actor_target = Client.Client.string_opt json "actorTarget";
+      expires_at = Client.Client.string_opt json "expiresAt";
+    }
+
+  let parse_nux json : nux =
+    {
+      id = Client.Client.string_member json "id";
+      completed = Client.Client.bool_member json "completed";
+      data = Client.Client.string_opt json "data";
+      expires_at = Client.Client.string_opt json "expiresAt";
+    }
+
+  let parse_threadgate_rule json : threadgate_rule =
+    let ty =
+      match Yojson.Safe.Util.member "$type" json with `String s -> s | _ -> ""
+    in
+    if ends_with "mentionRule" ty then `Mention
+    else if ends_with "followerRule" ty then `Follower
+    else if ends_with "followingRule" ty then `Following
+    else if ends_with "listRule" ty then
+      `List (Client.Client.string_member json "list")
+    else `Unknown json
+
+  let parse_postgate_rule json : postgate_rule =
+    let ty =
+      match Yojson.Safe.Util.member "$type" json with `String s -> s | _ -> ""
+    in
+    if ends_with "disableRule" ty then `Disable else `Unknown json
+
   let parse_preference_kind ~type_ json : preference_kind =
     if ends_with "adultContentPref" type_ then
       `Adult_content { enabled = Client.Client.bool_member json "enabled" }
@@ -383,21 +505,87 @@ module Actor = struct
           items =
             List.map parse_saved_feed (Client.Client.list_member json "items");
         }
-    else if ends_with "interestsPref" type_ then
-      `Interests
+    else if ends_with "savedFeedsPref" type_ then
+      `Saved_feeds
         {
-          tags =
-            List.filter_map
-              (function `String s -> Some s | _ -> None)
-              (Client.Client.list_member json "tags");
+          pinned = string_list json "pinned";
+          saved = string_list json "saved";
+          timeline_index = Client.Client.int_opt json "timelineIndex";
         }
-    else if ends_with "hiddenPostsPref" type_ then
-      `Hidden_posts
+    else if ends_with "personalDetailsPref" type_ then
+      `Personal_details
+        { birth_date = Client.Client.string_opt json "birthDate" }
+    else if ends_with "declaredAgePref" type_ then
+      `Declared_age
+        {
+          is_over_age_13 = Client.Client.bool_opt json "isOverAge13";
+          is_over_age_16 = Client.Client.bool_opt json "isOverAge16";
+          is_over_age_18 = Client.Client.bool_opt json "isOverAge18";
+        }
+    else if ends_with "feedViewPref" type_ then
+      `Feed_view
+        {
+          feed = Client.Client.string_member json "feed";
+          hide_replies = Client.Client.bool_opt json "hideReplies";
+          hide_replies_by_unfollowed =
+            Client.Client.bool_opt json "hideRepliesByUnfollowed";
+          hide_replies_by_like_count =
+            Client.Client.int_opt json "hideRepliesByLikeCount";
+          hide_reposts = Client.Client.bool_opt json "hideReposts";
+          hide_quote_posts = Client.Client.bool_opt json "hideQuotePosts";
+        }
+    else if ends_with "threadViewPref" type_ then
+      `Thread_view { sort = Client.Client.string_opt json "sort" }
+    else if ends_with "interestsPref" type_ then
+      `Interests { tags = string_list json "tags" }
+    else if ends_with "mutedWordsPref" type_ then
+      `Muted_words
         {
           items =
-            List.filter_map
-              (function `String s -> Some s | _ -> None)
-              (Client.Client.list_member json "items");
+            List.map parse_muted_word (Client.Client.list_member json "items");
+        }
+    else if ends_with "hiddenPostsPref" type_ then
+      `Hidden_posts { items = string_list json "items" }
+    else if ends_with "bskyAppStatePref" type_ then
+      `Bsky_app_state
+        {
+          active_progress_guide =
+            (match Yojson.Safe.Util.member "activeProgressGuide" json with
+            | `Assoc _ as g -> Client.Client.string_opt g "guide"
+            | `String s -> Some s
+            | _ -> None);
+          is_beta_user = Client.Client.bool_opt json "isBetaUser";
+          queued_nudges = string_list json "queuedNudges";
+          nuxs = List.map parse_nux (Client.Client.list_member json "nuxs");
+        }
+    else if ends_with "labelersPref" type_ then
+      `Labelers
+        {
+          labelers =
+            List.map
+              (fun item -> { did = Client.Client.string_member item "did" })
+              (Client.Client.list_member json "labelers");
+        }
+    else if ends_with "postInteractionSettingsPref" type_ then
+      `Post_interaction
+        {
+          threadgate_allow_rules =
+            (match Yojson.Safe.Util.member "threadgateAllowRules" json with
+            | `List xs -> Some (List.map parse_threadgate_rule xs)
+            | _ -> None);
+          postgate_embedding_rules =
+            (match Yojson.Safe.Util.member "postgateEmbeddingRules" json with
+            | `List xs -> Some (List.map parse_postgate_rule xs)
+            | _ -> None);
+        }
+    else if ends_with "verificationPrefs" type_ then
+      `Verification
+        { hide_badges = Client.Client.bool_member json "hideBadges" }
+    else if ends_with "liveEventPreferences" type_ then
+      `Live_event
+        {
+          hidden_feed_ids = string_list json "hiddenFeedIds";
+          hide_all_feeds = Client.Client.bool_member json "hideAllFeeds";
         }
     else `Other
 

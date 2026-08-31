@@ -315,6 +315,105 @@ let test_moderation_parsers _ =
     "ticket-1"
     (body |> member "ref" |> to_string)
 
+let test_subscribe_mod_events _ =
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "wss://api.bsky.chat/xrpc/chat.bsky.moderation.subscribeModEvents"
+    (Chat.subscribe_mod_events_url ());
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "wss://chat.example/xrpc/chat.bsky.moderation.subscribeModEvents?cursor=2222222222222"
+    (Chat.subscribe_mod_events_url ~host:"chat.example" ~cursor:"2222222222222"
+       ());
+  let first =
+    Chat.parse_mod_event
+      (`Assoc
+        [
+          ( "$type",
+            `String
+              "chat.bsky.moderation.subscribeModEvents#eventConvoFirstMessage"
+          );
+          ("convoId", `String "c1");
+          ("createdAt", `String "2024-01-01T00:00:00.000Z");
+          ("rev", `String "r1");
+          ("user", `String "did:plc:abc123xyz0001112223333");
+          ("recipients", `List [ `String "did:plc:def456xyz0001112223333" ]);
+          ("messageId", `String "m1");
+        ])
+  in
+  (match first with
+  | `Convo_first_message e ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "c1" e.convo_id;
+      OUnit2.assert_equal 1 (List.length e.recipients)
+  | _ -> OUnit2.assert_failure "expected first-message event");
+  let created =
+    Chat.parse_mod_event
+      (`Assoc
+        [
+          ( "$type",
+            `String
+              "chat.bsky.moderation.subscribeModEvents#eventGroupChatCreated" );
+          ("actorDid", `String "did:plc:abc123xyz0001112223333");
+          ("convoCreatedAt", `String "2024-01-01T00:00:00.000Z");
+          ("convoId", `String "g1");
+          ("createdAt", `String "2024-01-01T00:00:01.000Z");
+          ("groupMemberCount", `Int 3);
+          ("groupName", `String "mods");
+          ( "initialMemberDids",
+            `List [ `String "did:plc:def456xyz0001112223333" ] );
+          ("ownerDid", `String "did:plc:abc123xyz0001112223333");
+          ("rev", `String "r2");
+        ])
+  in
+  (match created with
+  | `Group_chat_created e ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "mods" e.group_name
+  | _ -> OUnit2.assert_failure "expected group created");
+  let approved =
+    Chat.parse_mod_event
+      (`Assoc
+        [
+          ( "$type",
+            `String
+              "chat.bsky.moderation.subscribeModEvents#eventGroupChatJoinRequestApproved"
+          );
+          ("actorDid", `String "did:plc:abc123xyz0001112223333");
+          ("convoCreatedAt", `String "2024-01-01T00:00:00.000Z");
+          ("convoId", `String "g1");
+          ("createdAt", `String "2024-01-01T00:00:02.000Z");
+          ("groupMemberCount", `Int 4);
+          ("groupName", `String "mods");
+          ("ownerDid", `String "did:plc:abc123xyz0001112223333");
+          ("rev", `String "r3");
+          ("subjectDid", `String "did:plc:ghi789xyz0001112223333");
+        ])
+  in
+  (match approved with
+  | `Group_chat_join_request_approved e ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "g1" e.convo_id
+  | _ -> OUnit2.assert_failure "expected join approved, not bare join request");
+  let header =
+    Atproto.Firehose.Firehose.encode_header
+      { op = 1; t = Some "#eventRateLimitExceeded" }
+  in
+  let body =
+    Atproto.Dag_cbor.Dag_cbor.encode
+      (Atproto.Dag_cbor.Dag_cbor.Map
+         [
+           ( "actorDid",
+             Atproto.Dag_cbor.Dag_cbor.Text "did:plc:abc123xyz0001112223333" );
+           ( "createdAt",
+             Atproto.Dag_cbor.Dag_cbor.Text "2024-01-01T00:00:00.000Z" );
+           ( "endpoint",
+             Atproto.Dag_cbor.Dag_cbor.Text "chat.bsky.convo.sendMessage" );
+           ("rev", Atproto.Dag_cbor.Dag_cbor.Text "r9");
+         ])
+  in
+  match Chat.decode_mod_event_frame (header ^ body) with
+  | _, `Rate_limit_exceeded e ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "r9" e.rev
+  | _ -> OUnit2.assert_failure "expected rate-limit CBOR frame"
+
 let test_list_convos_auth_skipped _ =
   skip_if
     (not Auth.has_live_credentials)
@@ -340,6 +439,7 @@ let suite =
          "test_actor_status_and_declaration"
          >:: test_actor_status_and_declaration;
          "test_moderation_parsers" >:: test_moderation_parsers;
+         "test_subscribe_mod_events" >:: test_subscribe_mod_events;
          "test_list_convos_auth_skipped" >:: test_list_convos_auth_skipped;
        ]
 

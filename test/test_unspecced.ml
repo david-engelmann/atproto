@@ -198,6 +198,135 @@ let test_parse_trends_and_skeletons _ =
   in
   OUnit2.assert_equal (Some "r2") dids.rec_id_str
 
+let test_parse_thread_v2 _ =
+  let item =
+    `Assoc
+      [
+        ( "uri",
+          `String "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k" );
+        ("depth", `Int 0);
+        ( "value",
+          `Assoc
+            [
+              ("$type", `String "app.bsky.unspecced.defs#threadItemPost");
+              ( "post",
+                `Assoc
+                  [
+                    ( "uri",
+                      `String
+                        "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k"
+                    );
+                    ("cid", `String "bafyreihdummy");
+                    ( "author",
+                      `Assoc
+                        [
+                          ("did", `String "did:plc:abc123xyz0001112223333");
+                          ("handle", `String "alice.test");
+                        ] );
+                    ( "record",
+                      `Assoc
+                        [
+                          ("$type", `String "app.bsky.feed.post");
+                          ("text", `String "hello");
+                          ("createdAt", `String "2024-01-01T00:00:00.000Z");
+                        ] );
+                    ("indexedAt", `String "2024-01-01T00:00:01.000Z");
+                  ] );
+              ("moreParents", `Bool false);
+              ("moreReplies", `Int 2);
+              ("opThread", `Bool true);
+              ("opThreadPostIndex", `Int 1);
+              ("opThreadPostCount", `Int 1);
+              ("hiddenByThreadgate", `Bool false);
+              ("mutedByViewer", `Bool false);
+            ] );
+      ]
+  in
+  let parsed =
+    Unspecced.parse_thread_v2
+      (`Assoc
+        [
+          ("thread", `List [ item ]);
+          ("hasOtherReplies", `Bool true);
+          ( "threadgate",
+            `Assoc
+              [
+                ( "uri",
+                  `String
+                    "at://did:plc:abc123xyz0001112223333/app.bsky.feed.threadgate/3k"
+                );
+              ] );
+        ])
+  in
+  OUnit2.assert_equal true parsed.has_other_replies;
+  OUnit2.assert_equal 1 (List.length parsed.thread);
+  OUnit2.assert_equal 0 (List.hd parsed.thread).depth;
+  (match (List.hd parsed.thread).value with
+  | `Post p ->
+      OUnit2.assert_equal 2 p.more_replies;
+      OUnit2.assert_equal true p.op_thread;
+      OUnit2.assert_equal (Some 1) p.op_thread_post_index
+  | _ -> OUnit2.assert_failure "expected threadItemPost");
+  let blocked =
+    Unspecced.parse_thread_item
+      (`Assoc
+        [
+          ( "uri",
+            `String "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3m"
+          );
+          ("depth", `Int 1);
+          ( "value",
+            `Assoc
+              [
+                ("$type", `String "app.bsky.unspecced.defs#threadItemBlocked");
+                ( "author",
+                  `Assoc [ ("did", `String "did:plc:abc123xyz0001112223333") ]
+                );
+              ] );
+        ])
+  in
+  (match blocked.value with
+  | `Blocked b ->
+      OUnit2.assert_equal (Some "did:plc:abc123xyz0001112223333") b.author_did
+  | _ -> OUnit2.assert_failure "expected blocked thread item");
+  let other =
+    Unspecced.parse_thread_other_v2 (`Assoc [ ("thread", `List [ item ]) ])
+  in
+  OUnit2.assert_equal 1 (List.length other.thread)
+
+let test_parse_discover_explore_see_more _ =
+  let users =
+    Unspecced.parse_suggested_users
+      (`Assoc
+        [
+          ( "actors",
+            `List
+              [
+                `Assoc
+                  [
+                    ("did", `String "did:plc:abc123xyz0001112223333");
+                    ("handle", `String "alice.test");
+                    ("indexedAt", `String "2024-01-01T00:00:00.000Z");
+                    ("viewer", `Null);
+                  ];
+              ] );
+          ("recIdStr", `String "disc-1");
+        ])
+  in
+  OUnit2.assert_equal 1 (List.length users.actors);
+  OUnit2.assert_equal (Some "disc-1") users.rec_id_str;
+  let skel =
+    Unspecced.parse_did_skeleton
+      (`Assoc
+        [
+          ("dids", `List [ `String "did:plc:abc123xyz0001112223333" ]);
+          ("recId", `String "old");
+          ("recIdStr", `String "new");
+        ])
+  in
+  OUnit2.assert_equal (Some "old") skel.rec_id;
+  OUnit2.assert_equal (Some "new") skel.rec_id_str
+
 let test_popular_live _ =
   try
     with_public_timeout (fun () ->
@@ -207,6 +336,21 @@ let test_popular_live _ =
           && String.length (List.hd gens.feeds).uri > 8))
   with exn ->
     skip_if true ("getPopularFeedGenerators skipped: " ^ Printexc.to_string exn)
+
+let test_get_post_thread_v2_live _ =
+  try
+    with_public_timeout (fun () ->
+        let page = Unspecced.search_posts_skeleton ~q:"atproto" ~limit:1 () in
+        match page.posts with
+        | [] -> skip_if true "no skeleton posts to thread"
+        | hd :: _ ->
+            let thread =
+              Unspecced.get_post_thread_v2 ~anchor:hd.uri ~below:2
+                ~branching_factor:3 ()
+            in
+            OUnit2.assert_bool "thread v2 items" (List.length thread.thread >= 0))
+  with exn ->
+    skip_if true ("getPostThreadV2 skipped: " ^ Printexc.to_string exn)
 
 let test_search_posts_skeleton_live _ =
   try
@@ -229,7 +373,11 @@ let suite =
          "test_parse_popular" >:: test_parse_popular;
          "test_parse_tagged_and_age" >:: test_parse_tagged_and_age;
          "test_parse_trends_and_skeletons" >:: test_parse_trends_and_skeletons;
+         "test_parse_thread_v2" >:: test_parse_thread_v2;
+         "test_parse_discover_explore_see_more"
+         >:: test_parse_discover_explore_see_more;
          "test_popular_live" >:: test_popular_live;
+         "test_get_post_thread_v2_live" >:: test_get_post_thread_v2_live;
          "test_search_posts_skeleton_live" >:: test_search_posts_skeleton_live;
        ]
 

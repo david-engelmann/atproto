@@ -2,6 +2,7 @@ open Session
 open Client
 open Actor
 open Graph
+open Feed
 
 (** app.bsky.unspecced — public search skeletons, popular feeds, trends. *)
 module Unspecced = struct
@@ -258,7 +259,42 @@ module Unspecced = struct
 
   type suggested_feeds = { feeds : generator_view list }
   type uri_skeleton = { uris : string list }
-  type did_skeleton = { dids : string list; rec_id_str : string option }
+
+  type did_skeleton = {
+    dids : string list;
+    rec_id : string option;
+    rec_id_str : string option;
+  }
+
+  type thread_item_post = {
+    post : Feed.post;
+    more_parents : bool;
+    more_replies : int;
+    op_thread : bool;
+    op_thread_post_index : int option;
+    op_thread_post_count : int option;
+    hidden_by_threadgate : bool;
+    muted_by_viewer : bool;
+  }
+
+  type thread_item_blocked = { author_did : string option }
+
+  type thread_item_value =
+    [ `Post of thread_item_post
+    | `No_unauthenticated
+    | `Not_found
+    | `Blocked of thread_item_blocked
+    | `Unknown of Yojson.Safe.t ]
+
+  type thread_item = { uri : string; depth : int; value : thread_item_value }
+
+  type thread_v2 = {
+    thread : thread_item list;
+    threadgate : Yojson.Safe.t option;
+    has_other_replies : bool;
+  }
+
+  type thread_other_v2 = { thread : thread_item list }
 
   let parse_tagged_suggestion json : tagged_suggestion =
     {
@@ -360,8 +396,76 @@ module Unspecced = struct
   let parse_did_skeleton json : did_skeleton =
     {
       dids = string_list json "dids";
+      rec_id =
+        (match Yojson.Safe.Util.member "recId" json with
+        | `String s -> Some s
+        | `Int n -> Some (string_of_int n)
+        | _ -> None);
       rec_id_str = Client.string_opt json "recIdStr";
     }
+
+  let ends_with suffix s =
+    let n = String.length s and m = String.length suffix in
+    n >= m && String.sub s (n - m) m = suffix
+
+  let parse_thread_item_post json : thread_item_post =
+    let post =
+      match Yojson.Safe.Util.member "post" json with
+      | `Assoc _ as p -> Feed.parse_post p
+      | _ -> Feed.parse_post json
+    in
+    {
+      post;
+      more_parents = Client.bool_member json "moreParents";
+      more_replies = Client.int_member json "moreReplies";
+      op_thread = Client.bool_member json "opThread";
+      op_thread_post_index = Client.int_opt json "opThreadPostIndex";
+      op_thread_post_count = Client.int_opt json "opThreadPostCount";
+      hidden_by_threadgate = Client.bool_member json "hiddenByThreadgate";
+      muted_by_viewer = Client.bool_member json "mutedByViewer";
+    }
+
+  let parse_thread_item_value json : thread_item_value =
+    let ty = Client.string_opt json "$type" |> Option.value ~default:"" in
+    if ends_with "threadItemPost" ty then `Post (parse_thread_item_post json)
+    else if ends_with "threadItemNoUnauthenticated" ty then `No_unauthenticated
+    else if ends_with "threadItemNotFound" ty then `Not_found
+    else if ends_with "threadItemBlocked" ty then
+      let author_did =
+        match Yojson.Safe.Util.member "author" json with
+        | `Assoc _ as a -> Client.string_opt a "did"
+        | _ -> None
+      in
+      `Blocked { author_did }
+    else if
+      match Yojson.Safe.Util.member "post" json with
+      | `Assoc _ -> true
+      | _ -> false
+    then `Post (parse_thread_item_post json)
+    else `Unknown json
+
+  let parse_thread_item json : thread_item =
+    {
+      uri = Client.string_member json "uri";
+      depth = Client.int_member json "depth";
+      value =
+        (match Yojson.Safe.Util.member "value" json with
+        | `Assoc _ as v -> parse_thread_item_value v
+        | _ -> parse_thread_item_value json);
+    }
+
+  let parse_thread_v2 json : thread_v2 =
+    {
+      thread = List.map parse_thread_item (Client.list_member json "thread");
+      threadgate =
+        (match Yojson.Safe.Util.member "threadgate" json with
+        | `Assoc _ as g -> Some g
+        | _ -> None);
+      has_other_replies = Client.bool_member json "hasOtherReplies";
+    }
+
+  let parse_thread_other_v2 json : thread_other_v2 =
+    { thread = List.map parse_thread_item (Client.list_member json "thread") }
 
   let get_tagged_suggestions ?session ?host () : tagged_suggestions =
     Client.get_json ?session ?host "app.bsky.unspecced.getTaggedSuggestions" []
@@ -459,4 +563,81 @@ module Unspecced = struct
       "app.bsky.unspecced.getOnboardingSuggestedStarterPacksSkeleton"
       (Client.opt_pair "viewer" viewer @ Client.opt_int "limit" limit)
     |> fun json -> parse_uri_list json "starterPacks"
+
+  let get_suggested_onboarding_users ?session ?host ?category ?limit () :
+      suggested_users =
+    Client.get_json ?session ?host
+      "app.bsky.unspecced.getSuggestedOnboardingUsers"
+      (Client.opt_pair "category" category @ Client.opt_int "limit" limit)
+    |> parse_suggested_users
+
+  let get_onboarding_suggested_users_skeleton ?session ?host ?viewer ?category
+      ?limit () : did_skeleton =
+    Client.get_json ?session ?host
+      "app.bsky.unspecced.getOnboardingSuggestedUsersSkeleton"
+      (Client.opt_pair "viewer" viewer
+      @ Client.opt_pair "category" category
+      @ Client.opt_int "limit" limit)
+    |> parse_did_skeleton
+
+  let get_suggested_users_for_discover ?session ?host ?limit () :
+      suggested_users =
+    Client.get_json ?session ?host
+      "app.bsky.unspecced.getSuggestedUsersForDiscover"
+      (Client.opt_int "limit" limit)
+    |> parse_suggested_users
+
+  let get_suggested_users_for_discover_skeleton ?session ?host ?viewer ?limit ()
+      : did_skeleton =
+    Client.get_json ?session ?host
+      "app.bsky.unspecced.getSuggestedUsersForDiscoverSkeleton"
+      (Client.opt_pair "viewer" viewer @ Client.opt_int "limit" limit)
+    |> parse_did_skeleton
+
+  let get_suggested_users_for_explore ?session ?host ?category ?limit () :
+      suggested_users =
+    Client.get_json ?session ?host
+      "app.bsky.unspecced.getSuggestedUsersForExplore"
+      (Client.opt_pair "category" category @ Client.opt_int "limit" limit)
+    |> parse_suggested_users
+
+  let get_suggested_users_for_explore_skeleton ?session ?host ?viewer ?category
+      ?limit () : did_skeleton =
+    Client.get_json ?session ?host
+      "app.bsky.unspecced.getSuggestedUsersForExploreSkeleton"
+      (Client.opt_pair "viewer" viewer
+      @ Client.opt_pair "category" category
+      @ Client.opt_int "limit" limit)
+    |> parse_did_skeleton
+
+  let get_suggested_users_for_see_more ?session ?host ?category ?limit () :
+      suggested_users =
+    Client.get_json ?session ?host
+      "app.bsky.unspecced.getSuggestedUsersForSeeMore"
+      (Client.opt_pair "category" category @ Client.opt_int "limit" limit)
+    |> parse_suggested_users
+
+  let get_suggested_users_for_see_more_skeleton ?session ?host ?viewer ?category
+      ?limit () : did_skeleton =
+    Client.get_json ?session ?host
+      "app.bsky.unspecced.getSuggestedUsersForSeeMoreSkeleton"
+      (Client.opt_pair "viewer" viewer
+      @ Client.opt_pair "category" category
+      @ Client.opt_int "limit" limit)
+    |> parse_did_skeleton
+
+  let get_post_thread_v2 ?session ?host ~anchor ?above ?below ?branching_factor
+      ?sort () : thread_v2 =
+    Client.get_json ?session ?host "app.bsky.unspecced.getPostThreadV2"
+      ([ ("anchor", anchor) ]
+      @ Client.opt_bool "above" above
+      @ Client.opt_int "below" below
+      @ Client.opt_int "branchingFactor" branching_factor
+      @ Client.opt_pair "sort" sort)
+    |> parse_thread_v2
+
+  let get_post_thread_other_v2 ?session ?host ~anchor () : thread_other_v2 =
+    Client.get_json ?session ?host "app.bsky.unspecced.getPostThreadOtherV2"
+      [ ("anchor", anchor) ]
+    |> parse_thread_other_v2
 end

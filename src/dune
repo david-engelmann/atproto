@@ -27,6 +27,7 @@
   (pps ppx_jane))
  (modules
   Admin
+  Ageassurance
   App
   Actor
   At_uri
@@ -40,10 +41,12 @@
   Cid
   Client
   Cohttp_client
+  Contact
   Dag_cbor
   Did_key
   Did_plc
   Did_web
+  Draft
   Embed
   Error
   Facet
