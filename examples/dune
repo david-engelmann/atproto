@@ -1,0 +1,4 @@
+(executable
+ (name offline)
+ (libraries atproto yojson)
+ (modules offline))

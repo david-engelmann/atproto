@@ -54,6 +54,7 @@
   Http_client
   Http_method
   Identity
+  Jetstream
   K256
   Label
   Labeler
@@ -62,6 +63,7 @@
   Mst
   Notification
   Oauth
+  Oauth_scope
   Ozone
   Repo
   Request

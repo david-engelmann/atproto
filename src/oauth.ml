@@ -482,6 +482,7 @@ module Oauth = struct
       failwith "Oauth: response_types must include code";
     if not (contains_scope ~scope:m.scope "atproto") then
       failwith "Oauth: scope must include atproto";
+    ignore (Oauth_scope.Oauth_scope.parse_and_require m.scope);
     if m.redirect_uris = [] then
       failwith "Oauth: redirect_uris must contain at least one URI";
     if m.token_endpoint_auth_signing_alg = Some "none" then

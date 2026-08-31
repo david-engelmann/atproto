@@ -1,30 +1,35 @@
 opam-version: "2.0"
+version: "0.1.0"
 maintainer: "david-engelmann david.engelmann44@gmail.com"
 authors: "david-engelmann david.engelmann44@gmail.com"
 homepage: "https://github.com/david-engelmann/atproto"
-
 bug-reports: "https://github.com/david-engelmann/atproto/issues"
 dev-repo: "git+https://github.com/david-engelmann/atproto.git"
+doc: "https://github.com/david-engelmann/atproto#readme"
 license: "MIT"
+tags: ["atproto" "bluesky" "xrpc" "lexicon"]
 build: [
     ["dune" "build" "-p" name "-j" jobs]
 ]
+run-test: [
+    ["dune" "runtest" "-p" name "-j" jobs]
+]
 depends: [
     "ocaml" {>= "4.14.0"}
+    "dune" {>= "2.9.0"}
     "core"
     "async"
-    "dune" {>= "2.0.0"}
-    "h2" {>= "0.10.0"}
     "uri" {>= "4.2.0"}
     "yojson"
     "ptime"
     "lwt" {>= "5.6.1"}
+    "h2" {>= "0.10.0"}
     "h2-lwt-unix" {>= "0.10.0"}
     "httpaf" {>= "0.7.1"}
+    "httpaf-lwt-unix"
     "cohttp" {>= "5.1.0"}
     "cohttp-lwt-unix"
     "cohttp-async"
-    "httpaf-lwt-unix"
     "ssl"
     "lwt_ssl"
     "jose"
@@ -34,17 +39,28 @@ depends: [
     "zarith"
     "ppx_jane"
     "ounit2" {with-test}
+    "ocamlformat" {with-test & = "0.25.1"}
     ]
 available: arch != "arm32" & arch != "x86_32"
-synopsis: "OCaml-based tools for AT Protocol"
-description: "
-OCaml-based tools for AT Protocol
+synopsis: "OCaml toolkit for the AT Protocol"
+description: """
+OCaml client and protocol library for the AT Protocol (XRPC, lexicons,
+repo sync, identity, AppView, Ozone, and chat).
 
-You can create a .env file with the minimum two variables
-- ATP_AUTH : EmailAddress:AppPassword
-    - Add your [App Password](https://bsky.app/settings/app-passwords)
-      credentials (using your normal email address as the username)
+Public modules include Auth, Session, Actor, Feed, Graph, Bookmark, Video,
+Unspecced, Labeler, Chat, Ozone, Admin, Repo, Server, Identity, Did_plc,
+Did_web, Did_key, Sync, Cid, Car, Dag_cbor, Mst, Tid, At_uri, Lexicon,
+Firehose, Websocket, Jetstream, Oauth, Oauth_scope, Label, Xrpc, Error,
+Syntax, Embed, Facet, Notification, and Moderation.
 
-- ATP_HOST : bsky.social
-    - Add your atp host url without schema
-"
+Video support is a client for the hosted video service (byte upload +
+job-status poll). This package does not host a PDS, OAuth client-metadata
+document, browser login, or video transcoder.
+
+Configure a .env (see sample.env) with:
+- ATP_AUTH : EmailAddress:AppPassword (app password, not the account password)
+- ATP_HOST : bsky.social (PDS / entryway host without a scheme)
+
+Authenticated helpers skip live tests unless ATP_AUTH is a real credential
+pair. Public identity, PLC, firehose, and AppView reads do not require it.
+"""

@@ -69,6 +69,64 @@ let test_nested_parameters_and_codegen _ =
       | Ok () -> ()
       | Error e -> OUnit2.assert_failure e)
 
+let procedure_sample =
+  {|
+{
+  "lexicon": 1,
+  "id": "app.bsky.video.uploadVideo",
+  "defs": {
+    "main": {
+      "type": "procedure",
+      "description": "Upload a video as raw bytes.",
+      "parameters": {
+        "type": "params",
+        "required": ["did"],
+        "properties": {
+          "did": { "type": "string", "format": "did" },
+          "name": { "type": "string" }
+        }
+      },
+      "input": {
+        "encoding": "video/*"
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["jobId"],
+          "properties": {
+            "jobId": { "type": "string" },
+            "blob": { "type": "blob" }
+          }
+        }
+      }
+    }
+  }
+}
+|}
+
+let test_procedure_input_output _ =
+  let doc = Lexicon.of_string procedure_sample in
+  match Lexicon.main doc with
+  | None -> OUnit2.assert_failure "missing main"
+  | Some main ->
+      OUnit2.assert_equal Lexicon.Procedure main.kind;
+      OUnit2.assert_equal [ "did" ] main.required;
+      OUnit2.assert_equal (Some "video/*") main.input.encoding;
+      OUnit2.assert_equal (Some "application/json") main.output.encoding;
+      OUnit2.assert_equal [ "jobId" ] main.output.required;
+      OUnit2.assert_equal (Some Lexicon.Bytes)
+        (List.assoc_opt "blob" main.output.properties);
+      let ocaml = Lexicon.to_ocaml doc in
+      OUnit2.assert_bool "codegen mentions input encoding"
+        (let needle = "video/*" in
+         let rec contains i =
+           i + String.length needle <= String.length ocaml
+           && (String.sub ocaml i (String.length needle) = needle
+              || contains (i + 1))
+         in
+         contains 0)
+
 let test_validate_errors _ =
   let doc = Lexicon.of_string sample in
   match Lexicon.main doc with
@@ -88,6 +146,7 @@ let suite =
          "test_lookup_helpers" >:: test_lookup_helpers;
          "test_nested_parameters_and_codegen"
          >:: test_nested_parameters_and_codegen;
+         "test_procedure_input_output" >:: test_procedure_input_output;
          "test_validate_errors" >:: test_validate_errors;
        ]
 

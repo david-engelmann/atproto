@@ -24,12 +24,20 @@ module Lexicon = struct
     | String_def
     | Unknown_def of string
 
+  type schema_shape = {
+    encoding : string option;
+    required : string list;
+    properties : (string * primitive) list;
+  }
+
   type def = {
     name : string;
     kind : definition;
     description : string option;
     required : string list;
     properties : (string * primitive) list;
+    input : schema_shape;
+    output : schema_shape;
   }
 
   type document = {
@@ -76,6 +84,16 @@ module Lexicon = struct
     match json |> member "type" with
     | `String "ref" -> Ref
     | `String "union" -> Union
+    | `String "array" -> (
+        match json |> member "items" with
+        | `Assoc _ as items -> (
+            match items |> member "type" with
+            | `String "ref" -> Ref
+            | `String "union" -> Union
+            | `String t -> lookup_primitive t
+            | _ -> Unknown)
+        | _ -> Unknown)
+    | `String "blob" -> Bytes
     | `String t -> lookup_primitive t
     | _ -> Unknown
 
@@ -90,6 +108,25 @@ module Lexicon = struct
     | `List items ->
         List.filter_map (function `String s -> Some s | _ -> None) items
     | _ -> []
+
+  let empty_shape : schema_shape =
+    { encoding = None; required = []; properties = [] }
+
+  let unwrap_schema json =
+    match Yojson.Safe.Util.member "schema" json with
+    | `Assoc _ as schema -> schema
+    | _ -> json
+
+  let parse_io_schema json field : schema_shape =
+    match Yojson.Safe.Util.member field json with
+    | `Assoc _ as obj ->
+        let body = unwrap_schema obj in
+        {
+          encoding = string_opt obj "encoding";
+          required = parse_required body;
+          properties = parse_properties body;
+        }
+    | _ -> empty_shape
 
   let shape_json json =
     let open Yojson.Safe.Util in
@@ -116,6 +153,8 @@ module Lexicon = struct
       description = string_opt json "description";
       required = parse_required body;
       properties = parse_properties body;
+      input = parse_io_schema json "input";
+      output = parse_io_schema json "output";
     }
 
   let of_json json : document =
@@ -179,24 +218,39 @@ module Lexicon = struct
     Printf.bprintf buf "module %s = struct\n" modname;
     Printf.bprintf buf "  let id = %S\n" doc.id;
     Printf.bprintf buf "  let lexicon = %d\n\n" doc.lexicon;
+    let emit_record buf indent name required props =
+      match props with
+      | [] -> Printf.bprintf buf "%stype %s = unit\n" indent name
+      | props ->
+          Printf.bprintf buf "%stype %s = {\n" indent name;
+          List.iter
+            (fun (n, prim) ->
+              let optional = not (List.mem n required) in
+              Printf.bprintf buf "%s  %s : %s%s;\n" indent (ocaml_ident n)
+                (primitive_to_ocaml prim)
+                (if optional then " option" else ""))
+            props;
+          Printf.bprintf buf "%s}\n" indent
+    in
     List.iter
       (fun (d : def) ->
         let inner = String.capitalize_ascii (ocaml_ident d.name) in
         Printf.bprintf buf "  (** %s *)\n" (kind_label d.kind);
         Printf.bprintf buf "  module %s = struct\n" inner;
         Printf.bprintf buf "    let name = %S\n" d.name;
-        (match d.properties with
-        | [] -> Printf.bprintf buf "    type t = unit\n"
-        | props ->
-            Printf.bprintf buf "    type t = {\n";
-            List.iter
-              (fun (n, prim) ->
-                let optional = not (List.mem n d.required) in
-                Printf.bprintf buf "      %s : %s%s;\n" (ocaml_ident n)
-                  (primitive_to_ocaml prim)
-                  (if optional then " option" else ""))
-              props;
-            Printf.bprintf buf "    }\n");
+        emit_record buf "    " "t" d.required d.properties;
+        (match d.input.encoding with
+        | Some enc -> Printf.bprintf buf "    let input_encoding = %S\n" enc
+        | None -> ());
+        (match d.input.properties with
+        | [] -> ()
+        | props -> emit_record buf "    " "input" d.input.required props);
+        (match d.output.encoding with
+        | Some enc -> Printf.bprintf buf "    let output_encoding = %S\n" enc
+        | None -> ());
+        (match d.output.properties with
+        | [] -> ()
+        | props -> emit_record buf "    " "output" d.output.required props);
         Printf.bprintf buf "  end\n\n")
       doc.defs;
     Printf.bprintf buf "end\n";

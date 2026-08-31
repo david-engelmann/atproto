@@ -102,6 +102,19 @@ let test_parse_describe_server _ =
   OUnit2.assert_bool "domains"
     (List.mem ".bsky.social" desc.available_user_domains)
 
+let test_parse_describe_server_missing_contact _ =
+  let desc =
+    Server.parse_describe_server
+      (`Assoc
+        [
+          ("did", `String "did:web:pds.example");
+          ("availableUserDomains", `List [ `String ".example" ]);
+        ])
+  in
+  OUnit2.assert_equal ~printer:(fun x -> x) "did:web:pds.example" desc.did;
+  OUnit2.assert_equal None desc.contact_email;
+  OUnit2.assert_equal None desc.links.privacy_policy
+
 let test_reserve_signing_key_body _ =
   let body =
     Server.reserve_signing_key_body ~did:"did:plc:abc123xyz0001112223333" ()
@@ -132,6 +145,8 @@ let suite =
          "test_parse_account_status" >:: test_parse_account_status;
          "test_account_urls" >:: test_account_urls;
          "test_parse_describe_server" >:: test_parse_describe_server;
+         "test_parse_describe_server_missing_contact"
+         >:: test_parse_describe_server_missing_contact;
          "test_reserve_signing_key_body" >:: test_reserve_signing_key_body;
          "test_describe_server_public" >:: test_describe_server_public;
        ]
