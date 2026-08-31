@@ -141,7 +141,16 @@ let test_validate_errors _ =
 
 let test_union_codegen_and_official_bundle _ =
   let docs = Lexicon.official_documents () in
-  OUnit2.assert_bool "bundled lexicons" (List.length docs >= 9);
+  OUnit2.assert_bool "bundled lexicons" (List.length docs >= 14);
+  OUnit2.assert_bool "searchPostsV2 bundled"
+    (List.exists
+       (fun (d : Lexicon.document) -> d.id = "app.bsky.feed.searchPostsV2")
+       docs);
+  OUnit2.assert_bool "resolveLexicon bundled"
+    (List.exists
+       (fun (d : Lexicon.document) ->
+         d.id = "com.atproto.lexicon.resolveLexicon")
+       docs);
   OUnit2.assert_bool "getPostThreadV2 bundled"
     (List.exists
        (fun (d : Lexicon.document) ->
@@ -197,6 +206,48 @@ let test_union_codegen_and_official_bundle _ =
               OUnit2.assert_equal [ "com.atproto.label.defs#selfLabels" ] refs
           | _ -> OUnit2.assert_failure "list labels should be a union"))
 
+let test_parse_resolved_lexicon _ =
+  let json =
+    `Assoc
+      [
+        ( "uri",
+          `String
+            "at://did:plc:abc123xyz0001112223333/com.atproto.lexicon.schema/app.bsky.feed.post"
+        );
+        ("cid", `String "bafyreischema");
+        ( "schema",
+          `Assoc
+            [
+              ("lexicon", `Int 1);
+              ("id", `String "app.bsky.feed.post");
+              ( "defs",
+                `Assoc
+                  [
+                    ( "main",
+                      `Assoc
+                        [
+                          ("type", `String "record");
+                          ( "record",
+                            `Assoc
+                              [
+                                ("type", `String "object");
+                                ("required", `List [ `String "text" ]);
+                                ( "properties",
+                                  `Assoc [ ("text", `Assoc [ ("type", `String "string") ]) ]
+                                );
+                              ] );
+                        ] );
+                  ] );
+            ] );
+      ]
+  in
+  let resolved = Lexicon.parse_resolved_lexicon json in
+  OUnit2.assert_equal ~printer:(fun x -> x) "bafyreischema" resolved.cid;
+  (match resolved.document with
+  | Some doc ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "app.bsky.feed.post" doc.id
+  | None -> OUnit2.assert_failure "expected parsed schema document")
+
 let suite =
   "lexicon"
   >::: [
@@ -208,6 +259,7 @@ let suite =
          "test_validate_errors" >:: test_validate_errors;
          "test_union_codegen_and_official_bundle"
          >:: test_union_codegen_and_official_bundle;
+         "test_parse_resolved_lexicon" >:: test_parse_resolved_lexicon;
        ]
 
 let () = run_test_tt_main suite

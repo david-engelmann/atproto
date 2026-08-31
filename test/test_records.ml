@@ -168,6 +168,82 @@ let test_parse_like_and_follow _ =
     ~printer:(fun x -> x)
     "did:plc:alice000111222333444555666" follow.subject
 
+let test_remaining_record_builders _ =
+  let open Yojson.Safe.Util in
+  let status =
+    Records.status ~status:Records.status_live
+      ~created_at:"2024-01-01T00:00:00.000Z" ~duration_minutes:30 ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "app.bsky.actor.status"
+    (status |> member "$type" |> to_string);
+  OUnit2.assert_equal 30 (status |> member "durationMinutes" |> to_int);
+  let parsed_status = Records.parse_status status in
+  OUnit2.assert_equal ~printer:(fun x -> x) Records.status_live
+    parsed_status.status;
+  let vis =
+    Records.content_visibility_declaration
+      ~hide_from_algorithmic_recommendations:true ()
+  in
+  OUnit2.assert_equal true
+    (vis |> member "hideFromAlgorithmicRecommendations" |> to_bool);
+  let ver =
+    Records.verification ~subject:"did:plc:alice000111222333444555666"
+      ~handle:"alice.test" ~display_name:"Alice"
+      ~created_at:"2024-01-01T00:00:00.000Z" ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "app.bsky.graph.verification"
+    (ver |> member "$type" |> to_string);
+  let gate =
+    Records.threadgate
+      ~post:"at://did:plc:alice/app.bsky.feed.post/3jzfcijpj2z2a"
+      ~created_at:"2024-01-01T00:00:00.000Z"
+      ~allow:[ `Mention; `List "at://did:plc:alice/app.bsky.graph.list/3k" ]
+      ~hidden_replies:
+        [ "at://did:plc:alice/app.bsky.feed.post/hidden" ]
+      ()
+  in
+  let parsed_gate = Records.parse_threadgate gate in
+  OUnit2.assert_equal 1 (List.length parsed_gate.hidden_replies);
+  (match parsed_gate.allow with
+  | Some [ `Mention; `List _ ] -> ()
+  | _ -> OUnit2.assert_failure "expected mention + list rules");
+  let postgate =
+    Records.postgate
+      ~post:"at://did:plc:alice/app.bsky.feed.post/3jzfcijpj2z2a"
+      ~created_at:"2024-01-01T00:00:00.000Z" ~embedding_rules:[ `Disable ] ()
+  in
+  let parsed_pg = Records.parse_postgate postgate in
+  OUnit2.assert_equal [ `Disable ] parsed_pg.embedding_rules;
+  let gen =
+    Records.generator ~did:"did:plc:feed000111222333444555666777"
+      ~display_name:"Hot" ~created_at:"2024-01-01T00:00:00.000Z"
+      ~accepts_interactions:true ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "app.bsky.feed.generator"
+    (gen |> member "$type" |> to_string);
+  let decl = Records.notification_declaration ~allow_subscriptions:"mutuals" () in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "mutuals"
+    (Records.parse_notification_declaration decl).allow_subscriptions;
+  let labeler =
+    Records.labeler_service
+      ~policies:
+        (`Assoc [ ("labelValues", `List [ `String "!hide" ]) ])
+      ~created_at:"2024-01-01T00:00:00.000Z"
+      ~reason_types:[ "com.atproto.moderation.defs#reasonSpam" ] ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "app.bsky.labeler.service"
+    (labeler |> member "$type" |> to_string)
+
 let suite =
   "records"
   >::: [
@@ -176,6 +252,7 @@ let suite =
          "test_list_and_starterpack_builders"
          >:: test_list_and_starterpack_builders;
          "test_parse_like_and_follow" >:: test_parse_like_and_follow;
+         "test_remaining_record_builders" >:: test_remaining_record_builders;
        ]
 
 let () = run_test_tt_main suite

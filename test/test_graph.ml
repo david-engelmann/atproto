@@ -221,6 +221,82 @@ let test_search_starter_packs_live _ =
   with exn ->
     skip_if true ("searchStarterPacks skipped: " ^ Printexc.to_string exn)
 
+let test_parse_membership_and_v2 _ =
+  let list_json =
+    `Assoc
+      [
+        ( "uri",
+          `String "at://did:plc:abc123xyz0001112223333/app.bsky.graph.list/3k"
+        );
+        ("cid", `String "bafyreilist");
+        ("name", `String "Friends");
+        ("purpose", `String "app.bsky.graph.defs#curatelist");
+        ("indexedAt", `String "2024-01-01T00:00:00.000Z");
+      ]
+  in
+  let item_json =
+    `Assoc
+      [
+        ( "uri",
+          `String
+            "at://did:plc:abc123xyz0001112223333/app.bsky.graph.listitem/3k" );
+        ( "subject",
+          `Assoc
+            [
+              ("did", `String "did:plc:xyz789aaa0001112223333");
+              ("handle", `String "bob.test");
+            ] );
+      ]
+  in
+  let page =
+    Graph.parse_lists_with_membership
+      (`Assoc
+        [
+          ( "listsWithMembership",
+            `List
+              [ `Assoc [ ("list", list_json); ("listItem", item_json) ] ] );
+        ])
+  in
+  OUnit2.assert_equal 1 (List.length page.lists);
+  OUnit2.assert_equal ~printer:(fun x -> x) "Friends"
+    (List.hd page.lists).list.name;
+  (match (List.hd page.lists).list_item with
+  | Some item ->
+      OUnit2.assert_equal ~printer:(fun x -> x)
+        "did:plc:xyz789aaa0001112223333" item.subject.did
+  | None -> OUnit2.assert_failure "expected list item");
+  let packs =
+    Graph.parse_starter_packs
+      (`Assoc
+        [
+          ( "starterPacks",
+            `List
+              [
+                `Assoc
+                  [
+                    ( "uri",
+                      `String
+                        "at://did:plc:abc123xyz0001112223333/app.bsky.graph.starterpack/3k"
+                    );
+                    ("cid", `String "bafyreipack");
+                    ("record", `Assoc [ ("name", `String "Start") ]);
+                    ("indexedAt", `String "2024-01-01T00:00:00.000Z");
+                  ];
+              ] );
+          ("hitsTotal", `Int 4);
+        ])
+  in
+  OUnit2.assert_equal (Some 4) packs.hits_total
+
+let test_search_starter_packs_v2_live _ =
+  try
+    with_public_timeout (fun () ->
+        let packs = Graph.search_starter_packs_v2 ~q:"bluesky" ~limit:3 () in
+        OUnit2.assert_bool "starter packs v2"
+          (List.length packs.starter_packs >= 0))
+  with exn ->
+    skip_if true ("searchStarterPacksV2 skipped: " ^ Printexc.to_string exn)
+
 let suite =
   "suite"
   >::: [
@@ -235,6 +311,9 @@ let suite =
          "test_parse_relationships" >:: test_parse_relationships;
          "test_relationships_live" >:: test_relationships_live;
          "test_search_starter_packs_live" >:: test_search_starter_packs_live;
+         "test_parse_membership_and_v2" >:: test_parse_membership_and_v2;
+         "test_search_starter_packs_v2_live"
+         >:: test_search_starter_packs_v2_live;
        ]
 
 let () = run_test_tt_main suite

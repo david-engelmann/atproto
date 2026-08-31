@@ -675,6 +675,13 @@ module Feed = struct
     posts : post_view list;
   }
 
+  type search_posts_v2 = {
+    cursor : string option;
+    hits_total : int option;
+    posts : post_view list;
+    detected_query_languages : string list;
+  }
+
   type quotes = {
     uri : string;
     cid : string option;
@@ -868,6 +875,20 @@ module Feed = struct
           | _ -> []);
     }
 
+  let parse_search_posts_v2 json : search_posts_v2 =
+    let base = parse_search_posts json in
+    {
+      cursor = base.cursor;
+      hits_total = base.hits_total;
+      posts = base.posts;
+      detected_query_languages =
+        List.filter_map
+          (function `String s -> Some s | _ -> None)
+          (match Yojson.Safe.Util.member "detectedQueryLanguages" json with
+          | `List xs -> xs
+          | _ -> []);
+    }
+
   let parse_quotes json : quotes =
     {
       uri =
@@ -968,6 +989,48 @@ module Feed = struct
       @ Client.Client.opt_int "limit" limit
       @ Client.Client.opt_pair "cursor" cursor)
     |> parse_search_posts
+
+  let search_posts_v2 ?session ?host ?query ?sort ?(authors = [])
+      ?(mentions = []) ?(domains = []) ?(urls = []) ?(embedded_at_uris = [])
+      ?(hashtags = []) ?(exclude_authors = []) ?(exclude_mentions = [])
+      ?(exclude_domains = []) ?(exclude_urls = [])
+      ?(exclude_embedded_at_uris = []) ?(exclude_hashtags = []) ?since ?until
+      ?all_time ?(languages = []) ?(exclude_languages = []) ?has_media
+      ?has_video ?reply_parent_uri ?thread_root_uri ?exclude_replies
+      ?replies_only ?following ?query_language ?limit ?cursor () :
+      search_posts_v2 =
+    Client.Client.get_json ?session ?host "app.bsky.feed.searchPostsV2"
+      (Client.Client.opt_pair "query" query
+      @ Client.Client.opt_pair "sort" sort
+      @ Client.Client.repeat_param "authors" authors
+      @ Client.Client.repeat_param "mentions" mentions
+      @ Client.Client.repeat_param "domains" domains
+      @ Client.Client.repeat_param "urls" urls
+      @ Client.Client.repeat_param "embeddedAtUris" embedded_at_uris
+      @ Client.Client.repeat_param "hashtags" hashtags
+      @ Client.Client.repeat_param "excludeAuthors" exclude_authors
+      @ Client.Client.repeat_param "excludeMentions" exclude_mentions
+      @ Client.Client.repeat_param "excludeDomains" exclude_domains
+      @ Client.Client.repeat_param "excludeUrls" exclude_urls
+      @ Client.Client.repeat_param "excludeEmbeddedAtUris"
+          exclude_embedded_at_uris
+      @ Client.Client.repeat_param "excludeHashtags" exclude_hashtags
+      @ Client.Client.opt_pair "since" since
+      @ Client.Client.opt_pair "until" until
+      @ Client.Client.opt_bool "allTime" all_time
+      @ Client.Client.repeat_param "languages" languages
+      @ Client.Client.repeat_param "excludeLanguages" exclude_languages
+      @ Client.Client.opt_bool "hasMedia" has_media
+      @ Client.Client.opt_bool "hasVideo" has_video
+      @ Client.Client.opt_pair "replyParentUri" reply_parent_uri
+      @ Client.Client.opt_pair "threadRootUri" thread_root_uri
+      @ Client.Client.opt_bool "excludeReplies" exclude_replies
+      @ Client.Client.opt_bool "repliesOnly" replies_only
+      @ Client.Client.opt_bool "following" following
+      @ Client.Client.opt_pair "queryLanguage" query_language
+      @ Client.Client.opt_int "limit" limit
+      @ Client.Client.opt_pair "cursor" cursor)
+    |> parse_search_posts_v2
 
   let get_quotes ?session ?host ~uri ?cid ?limit ?cursor () : quotes =
     Client.Client.get_json ?session ?host "app.bsky.feed.getQuotes"

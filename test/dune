@@ -47,6 +47,7 @@
   test_session
   test_sync
   test_syntax
+  test_temp
   test_tid
   test_unspecced
   test_user
@@ -56,7 +57,7 @@
   test_download_image
   test_video
   test_xrpc)
- (libraries
+ (libraries)
   async
   core
   uri
@@ -127,6 +128,7 @@
   test_session
   test_sync
   test_syntax
+  test_temp
   test_tid
   test_unspecced
   test_user
@@ -135,4 +137,4 @@
   test_blocks
   test_download_image
   test_video
-  test_xrpc))
+  test_xrpc)))

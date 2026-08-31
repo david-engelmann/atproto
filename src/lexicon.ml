@@ -328,6 +328,47 @@ module Lexicon = struct
   let official_draft_create =
     {|{"lexicon":1,"id":"app.bsky.draft.createDraft","defs":{"main":{"type":"procedure","description":"Inserts a draft using private storage.","input":{"encoding":"application/json","schema":{"type":"object","required":["draft"],"properties":{"draft":{"type":"ref","ref":"app.bsky.draft.defs#draft"}}}},"output":{"encoding":"application/json","schema":{"type":"object","required":["id"],"properties":{"id":{"type":"string","format":"tid"}}}}}}}|}
 
+  type resolved_lexicon = {
+    uri : string;
+    cid : string;
+    schema : Yojson.Safe.t;
+    document : document option;
+  }
+
+  let parse_resolved_lexicon json : resolved_lexicon =
+    let schema =
+      match Yojson.Safe.Util.member "schema" json with
+      | `Assoc _ as s -> s
+      | _ -> json
+    in
+    let document = try Some (of_json schema) with _ -> None in
+    {
+      uri = string_opt json "uri" |> Option.value ~default:"";
+      cid = string_opt json "cid" |> Option.value ~default:"";
+      schema;
+      document;
+    }
+
+  let resolve_lexicon ?session ?host ~nsid () : resolved_lexicon =
+    Client.Client.get_json ?session ?host "com.atproto.lexicon.resolveLexicon"
+      [ ("nsid", nsid) ]
+    |> parse_resolved_lexicon
+
+  let official_search_posts_v2 =
+    {|{"lexicon":1,"id":"app.bsky.feed.searchPostsV2","defs":{"main":{"type":"query","description":"Find posts matching a search query or filters.","parameters":{"type":"params","properties":{"query":{"type":"string"},"sort":{"type":"string"},"limit":{"type":"integer"},"cursor":{"type":"string"}}},"output":{"encoding":"application/json","schema":{"type":"object","required":["posts"],"properties":{"posts":{"type":"array"},"cursor":{"type":"string"},"hitsTotal":{"type":"integer"},"detectedQueryLanguages":{"type":"array"}}}}}}}|}
+
+  let official_search_starter_packs_v2 =
+    {|{"lexicon":1,"id":"app.bsky.graph.searchStarterPacksV2","defs":{"main":{"type":"query","description":"Find starter packs matching search criteria.","parameters":{"type":"params","required":["q"],"properties":{"q":{"type":"string"},"limit":{"type":"integer"},"cursor":{"type":"string"}}},"output":{"encoding":"application/json","schema":{"type":"object","required":["starterPacks"],"properties":{"starterPacks":{"type":"array"},"cursor":{"type":"string"},"hitsTotal":{"type":"integer"}}}}}}}|}
+
+  let official_resolve_lexicon =
+    {|{"lexicon":1,"id":"com.atproto.lexicon.resolveLexicon","defs":{"main":{"type":"query","description":"Resolves an atproto lexicon (NSID) to a schema.","parameters":{"type":"params","required":["nsid"],"properties":{"nsid":{"type":"string","format":"nsid"}}},"output":{"encoding":"application/json","schema":{"type":"object","required":["uri","cid","schema"],"properties":{"uri":{"type":"string"},"cid":{"type":"string"},"schema":{"type":"ref","ref":"com.atproto.lexicon.schema#main"}}}}}}}|}
+
+  let official_check_handle =
+    {|{"lexicon":1,"id":"com.atproto.temp.checkHandleAvailability","defs":{"main":{"type":"query","description":"Checks whether the provided handle is available.","parameters":{"type":"params","required":["handle"],"properties":{"handle":{"type":"string"},"email":{"type":"string"},"birthDate":{"type":"string"}}},"output":{"encoding":"application/json","schema":{"type":"object","required":["handle","result"],"properties":{"handle":{"type":"string"},"result":{"type":"union","refs":["#resultAvailable","#resultUnavailable"]}}}}}}|}
+
+  let official_create_group =
+    {|{"lexicon":1,"id":"chat.bsky.group.createGroup","defs":{"main":{"type":"procedure","description":"Creates a group convo.","input":{"encoding":"application/json","schema":{"type":"object","required":["members","name"],"properties":{"members":{"type":"array"},"name":{"type":"string"}}}},"output":{"encoding":"application/json","schema":{"type":"object","required":["convo"],"properties":{"convo":{"type":"ref","ref":"chat.bsky.convo.defs#convoView"}}}}}}}|}
+
   let official_lexicons : (string * string) list =
     [
       ("app.bsky.graph.listitem", official_listitem);
@@ -339,6 +380,11 @@ module Lexicon = struct
       ("chat.bsky.moderation.subscribeModEvents", official_subscribe_mod_events);
       ("app.bsky.ageassurance.getState", official_ageassurance_get_state);
       ("app.bsky.draft.createDraft", official_draft_create);
+      ("app.bsky.feed.searchPostsV2", official_search_posts_v2);
+      ("app.bsky.graph.searchStarterPacksV2", official_search_starter_packs_v2);
+      ("com.atproto.lexicon.resolveLexicon", official_resolve_lexicon);
+      ("com.atproto.temp.checkHandleAvailability", official_check_handle);
+      ("chat.bsky.group.createGroup", official_create_group);
     ]
 
   let official_documents () : document list =

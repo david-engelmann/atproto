@@ -228,6 +228,27 @@ module Graph = struct
   type starter_packs = {
     cursor : string option;
     starter_packs : starter_pack list;
+    hits_total : int option;
+  }
+
+  type list_with_membership = {
+    list : list_view;
+    list_item : list_item option;
+  }
+
+  type lists_with_membership = {
+    cursor : string option;
+    lists : list_with_membership list;
+  }
+
+  type starter_pack_with_membership = {
+    starter_pack : starter_pack;
+    list_item : list_item option;
+  }
+
+  type starter_packs_with_membership = {
+    cursor : string option;
+    starter_packs : starter_pack_with_membership list;
   }
 
   type relationship = {
@@ -426,6 +447,60 @@ module Graph = struct
           (match Yojson.Safe.Util.member "starterPacks" json with
           | `List xs -> xs
           | _ -> []);
+      hits_total =
+        (match Yojson.Safe.Util.member "hitsTotal" json with
+        | `Int n -> Some n
+        | `Intlit s -> ( try Some (int_of_string s) with _ -> None)
+        | _ -> None);
+    }
+
+  let parse_list_item_opt json : list_item option =
+    match Yojson.Safe.Util.member "listItem" json with
+    | `Assoc _ as item -> Some (parse_list_item item)
+    | _ -> None
+
+  let parse_list_with_membership json : list_with_membership =
+    {
+      list =
+        (match Yojson.Safe.Util.member "list" json with
+        | `Assoc _ as l -> parse_list_view l
+        | _ -> parse_list_view json);
+      list_item = parse_list_item_opt json;
+    }
+
+  let parse_lists_with_membership json : lists_with_membership =
+    {
+      cursor =
+        (match Yojson.Safe.Util.member "cursor" json with
+        | `String s -> Some s
+        | _ -> None);
+      lists =
+        List.map parse_list_with_membership
+          (match Yojson.Safe.Util.member "listsWithMembership" json with
+          | `List xs -> xs
+          | _ -> []);
+    }
+
+  let parse_starter_pack_with_membership json : starter_pack_with_membership =
+    {
+      starter_pack =
+        (match Yojson.Safe.Util.member "starterPack" json with
+        | `Assoc _ as sp -> parse_starter_pack sp
+        | _ -> parse_starter_pack json);
+      list_item = parse_list_item_opt json;
+    }
+
+  let parse_starter_packs_with_membership json : starter_packs_with_membership =
+    {
+      cursor =
+        (match Yojson.Safe.Util.member "cursor" json with
+        | `String s -> Some s
+        | _ -> None);
+      starter_packs =
+        List.map parse_starter_pack_with_membership
+          (match Yojson.Safe.Util.member "starterPacksWithMembership" json with
+          | `List xs -> xs
+          | _ -> []);
     }
 
   let parse_relationship json : relationship =
@@ -545,6 +620,29 @@ module Graph = struct
       ((("q", q) :: Client.Client.opt_int "limit" limit)
       @ Client.Client.opt_pair "cursor" cursor)
     |> parse_starter_packs
+
+  let search_starter_packs_v2 ?session ?host ~q ?limit ?cursor () :
+      starter_packs =
+    Client.Client.get_json ?session ?host "app.bsky.graph.searchStarterPacksV2"
+      ((("q", q) :: Client.Client.opt_int "limit" limit)
+      @ Client.Client.opt_pair "cursor" cursor)
+    |> parse_starter_packs
+
+  let get_lists_with_membership (s : Session.session) ~actor ?limit ?cursor
+      ?(purposes = []) () : lists_with_membership =
+    Client.Client.get_json ~session:s "app.bsky.graph.getListsWithMembership"
+      ((("actor", actor) :: Client.Client.opt_int "limit" limit)
+      @ Client.Client.opt_pair "cursor" cursor
+      @ Client.Client.repeat_param "purposes" purposes)
+    |> parse_lists_with_membership
+
+  let get_starter_packs_with_membership (s : Session.session) ~actor ?limit
+      ?cursor () : starter_packs_with_membership =
+    Client.Client.get_json ~session:s
+      "app.bsky.graph.getStarterPacksWithMembership"
+      ((("actor", actor) :: Client.Client.opt_int "limit" limit)
+      @ Client.Client.opt_pair "cursor" cursor)
+    |> parse_starter_packs_with_membership
 
   let get_relationships ?session ?host ~actor ?others () : relationships =
     Client.Client.get_json ?session ?host "app.bsky.graph.getRelationships"

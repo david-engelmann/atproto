@@ -696,4 +696,569 @@ module Ozone = struct
       "tools.ozone.moderation.cancelScheduledActions"
       (Yojson.Safe.to_string (`Assoc fields))
     |> parse_batch_result
+
+  (* Remaining operator namespaces: communication, set, setting, team,
+     safelink, signature, verification, hosting. *)
+
+  type template = {
+    id : string;
+    name : string;
+    content_markdown : string;
+    subject : string option;
+    lang : string option;
+    disabled : bool option;
+    original : Yojson.Safe.t;
+  }
+
+  type templates = { templates : template list }
+
+  let parse_template json : template =
+    {
+      id = Client.string_member json "id";
+      name = Client.string_member json "name";
+      content_markdown = Client.string_member json "contentMarkdown";
+      subject = Client.string_opt json "subject";
+      lang = Client.string_opt json "lang";
+      disabled = Client.bool_opt json "disabled";
+      original = json;
+    }
+
+  let parse_templates json : templates =
+    {
+      templates =
+        List.map parse_template
+          (match Client.list_member json "communicationTemplates" with
+          | [] -> Client.list_member json "templates"
+          | xs -> xs);
+    }
+
+  let list_templates (s : Session.session) ~proxy () : templates =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.communication.listTemplates" []
+    |> parse_templates
+
+  let create_template_body ~name ~content_markdown ?subject ?lang () :
+      Yojson.Safe.t =
+    `Assoc
+      ([
+         ("name", `String name);
+         ("contentMarkdown", `String content_markdown);
+       ]
+      @ (match subject with Some s -> [ ("subject", `String s) ] | None -> [])
+      @ match lang with Some s -> [ ("lang", `String s) ] | None -> [])
+
+  let create_template (s : Session.session) ~proxy ~name ~content_markdown
+      ?subject ?lang () : template =
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.communication.createTemplate"
+      (Yojson.Safe.to_string
+         (create_template_body ~name ~content_markdown ?subject ?lang ()))
+    |> parse_template
+
+  let update_template (s : Session.session) ~proxy ~id ?name ?content_markdown
+      ?subject ?disabled () : template =
+    let fields =
+      ("id", `String id)
+      :: (match name with Some n -> [ ("name", `String n) ] | None -> [])
+      @ (match content_markdown with
+        | Some c -> [ ("contentMarkdown", `String c) ]
+        | None -> [])
+      @ (match subject with Some s -> [ ("subject", `String s) ] | None -> [])
+      @
+      match disabled with Some b -> [ ("disabled", `Bool b) ] | None -> []
+    in
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.communication.updateTemplate"
+      (Yojson.Safe.to_string (`Assoc fields))
+    |> parse_template
+
+  let delete_template (s : Session.session) ~proxy ~id () : unit =
+    ignore
+      (Client.post_json ~session:s ~extra:(proxy_headers proxy)
+         "tools.ozone.communication.deleteTemplate"
+         (Yojson.Safe.to_string (`Assoc [ ("id", `String id) ])))
+
+  type set_view = {
+    name : string;
+    description : string option;
+    set_size : int option;
+    original : Yojson.Safe.t;
+  }
+
+  type sets = { cursor : string option; sets : set_view list }
+
+  type set_values = {
+    name : string;
+    values : string list;
+    cursor : string option;
+  }
+
+  let parse_set_view json : set_view =
+    {
+      name = Client.string_member json "name";
+      description = Client.string_opt json "description";
+      set_size = Client.int_opt json "setSize";
+      original = json;
+    }
+
+  let parse_sets json : sets =
+    {
+      cursor = Client.string_opt json "cursor";
+      sets = List.map parse_set_view (Client.list_member json "sets");
+    }
+
+  let parse_set_values json : set_values =
+    {
+      name = Client.string_member json "name";
+      values =
+        List.filter_map
+          (function `String s -> Some s | _ -> None)
+          (Client.list_member json "values");
+      cursor = Client.string_opt json "cursor";
+    }
+
+  let query_sets (s : Session.session) ~proxy ?limit ?cursor ?name_prefix
+      ?sort_by ?sort_direction () : sets =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.set.querySets"
+      (Client.opt_int "limit" limit
+      @ Client.opt_pair "cursor" cursor
+      @ Client.opt_pair "namePrefix" name_prefix
+      @ Client.opt_pair "sortBy" sort_by
+      @ Client.opt_pair "sortDirection" sort_direction)
+    |> parse_sets
+
+  let upsert_set (s : Session.session) ~proxy ~name ?description () : set_view
+      =
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.set.upsertSet"
+      (Yojson.Safe.to_string
+         (`Assoc
+           (("name", `String name)
+           ::
+           (match description with
+           | Some d -> [ ("description", `String d) ]
+           | None -> []))))
+    |> parse_set_view
+
+  let get_set_values (s : Session.session) ~proxy ~name ?limit ?cursor () :
+      set_values =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.set.getValues"
+      (("name", name)
+      :: Client.opt_int "limit" limit
+      @ Client.opt_pair "cursor" cursor)
+    |> parse_set_values
+
+  let add_set_values (s : Session.session) ~proxy ~name ~values () : unit =
+    ignore
+      (Client.post_json ~session:s ~extra:(proxy_headers proxy)
+         "tools.ozone.set.addValues"
+         (Yojson.Safe.to_string
+            (`Assoc
+              [
+                ("name", `String name);
+                ("values", `List (List.map (fun v -> `String v) values));
+              ])))
+
+  let delete_set_values (s : Session.session) ~proxy ~name ~values () : unit =
+    ignore
+      (Client.post_json ~session:s ~extra:(proxy_headers proxy)
+         "tools.ozone.set.deleteValues"
+         (Yojson.Safe.to_string
+            (`Assoc
+              [
+                ("name", `String name);
+                ("values", `List (List.map (fun v -> `String v) values));
+              ])))
+
+  let delete_set (s : Session.session) ~proxy ~name () : unit =
+    ignore
+      (Client.post_json ~session:s ~extra:(proxy_headers proxy)
+         "tools.ozone.set.deleteSet"
+         (Yojson.Safe.to_string (`Assoc [ ("name", `String name) ])))
+
+  type setting_option = {
+    key : string;
+    scope : string option;
+    value : Yojson.Safe.t;
+    description : string option;
+    original : Yojson.Safe.t;
+  }
+
+  type setting_options = { options : setting_option list }
+
+  let parse_setting_option json : setting_option =
+    {
+      key = Client.string_member json "key";
+      scope = Client.string_opt json "scope";
+      value = Yojson.Safe.Util.member "value" json;
+      description = Client.string_opt json "description";
+      original = json;
+    }
+
+  let parse_setting_options json : setting_options =
+    {
+      options =
+        List.map parse_setting_option
+          (match Client.list_member json "options" with
+          | [] -> Client.list_member json "settings"
+          | xs -> xs);
+    }
+
+  let list_options (s : Session.session) ~proxy ?prefix ?scope ?limit ?cursor
+      () : setting_options =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.setting.listOptions"
+      (Client.opt_pair "prefix" prefix
+      @ Client.opt_pair "scope" scope
+      @ Client.opt_int "limit" limit
+      @ Client.opt_pair "cursor" cursor)
+    |> parse_setting_options
+
+  let upsert_option (s : Session.session) ~proxy ~key ~scope ~value
+      ?description () : setting_option =
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.setting.upsertOption"
+      (Yojson.Safe.to_string
+         (`Assoc
+           ([
+              ("key", `String key);
+              ("scope", `String scope);
+              ("value", value);
+            ]
+           @
+           match description with
+           | Some d -> [ ("description", `String d) ]
+           | None -> [])))
+    |> parse_setting_option
+
+  let remove_options (s : Session.session) ~proxy ~keys ~scope () : unit =
+    ignore
+      (Client.post_json ~session:s ~extra:(proxy_headers proxy)
+         "tools.ozone.setting.removeOptions"
+         (Yojson.Safe.to_string
+            (`Assoc
+              [
+                ("keys", `List (List.map (fun k -> `String k) keys));
+                ("scope", `String scope);
+              ])))
+
+  type team_member = {
+    did : string;
+    role : string option;
+    disabled : bool option;
+    original : Yojson.Safe.t;
+  }
+
+  type team_members = { cursor : string option; members : team_member list }
+
+  let parse_team_member json : team_member =
+    {
+      did = Client.string_member json "did";
+      role = Client.string_opt json "role";
+      disabled = Client.bool_opt json "disabled";
+      original = json;
+    }
+
+  let parse_team_members json : team_members =
+    {
+      cursor = Client.string_opt json "cursor";
+      members = List.map parse_team_member (Client.list_member json "members");
+    }
+
+  let list_members (s : Session.session) ~proxy ?q ?disabled ?(roles = [])
+      ?limit ?cursor () : team_members =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.team.listMembers"
+      (Client.opt_pair "q" q
+      @ Client.opt_bool "disabled" disabled
+      @ Client.repeat_param "roles" roles
+      @ Client.opt_int "limit" limit
+      @ Client.opt_pair "cursor" cursor)
+    |> parse_team_members
+
+  let add_member (s : Session.session) ~proxy ~did ~role () : team_member =
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.team.addMember"
+      (Yojson.Safe.to_string
+         (`Assoc [ ("did", `String did); ("role", `String role) ]))
+    |> parse_team_member
+
+  let update_member (s : Session.session) ~proxy ~did ?role ?disabled () :
+      team_member =
+    let fields =
+      ("did", `String did)
+      :: (match role with Some r -> [ ("role", `String r) ] | None -> [])
+      @ match disabled with Some b -> [ ("disabled", `Bool b) ] | None -> []
+    in
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.team.updateMember"
+      (Yojson.Safe.to_string (`Assoc fields))
+    |> parse_team_member
+
+  let delete_member (s : Session.session) ~proxy ~did () : unit =
+    ignore
+      (Client.post_json ~session:s ~extra:(proxy_headers proxy)
+         "tools.ozone.team.deleteMember"
+         (Yojson.Safe.to_string (`Assoc [ ("did", `String did) ])))
+
+  type url_rule = {
+    url : string;
+    pattern_type : string option;
+    action : string option;
+    reason : string option;
+    created_by : string option;
+    original : Yojson.Safe.t;
+  }
+
+  type url_rules = { cursor : string option; rules : url_rule list }
+
+  let parse_url_rule json : url_rule =
+    {
+      url =
+        (match Client.string_opt json "url" with
+        | Some s -> s
+        | None -> Client.string_member json "pattern");
+      pattern_type = Client.string_opt json "patternType";
+      action = Client.string_opt json "action";
+      reason = Client.string_opt json "reason";
+      created_by = Client.string_opt json "createdBy";
+      original = json;
+    }
+
+  let parse_url_rules json : url_rules =
+    {
+      cursor = Client.string_opt json "cursor";
+      rules =
+        List.map parse_url_rule
+          (match Client.list_member json "rules" with
+          | [] -> Client.list_member json "events"
+          | xs -> xs);
+    }
+
+  let query_safelink_rules (s : Session.session) ~proxy ?cursor ?limit
+      ?(urls = []) ?pattern_type ?(actions = []) ?reason ?created_by
+      ?sort_direction () : url_rules =
+    let body =
+      `Assoc
+        ((match cursor with Some c -> [ ("cursor", `String c) ] | None -> [])
+        @ (match limit with Some n -> [ ("limit", `Int n) ] | None -> [])
+        @ (match urls with
+          | [] -> []
+          | xs -> [ ("urls", `List (List.map (fun u -> `String u) xs)) ])
+        @ (match pattern_type with
+          | Some p -> [ ("patternType", `String p) ]
+          | None -> [])
+        @ (match actions with
+          | [] -> []
+          | xs -> [ ("actions", `List (List.map (fun a -> `String a) xs)) ])
+        @ (match reason with Some r -> [ ("reason", `String r) ] | None -> [])
+        @ (match created_by with
+          | Some d -> [ ("createdBy", `String d) ]
+          | None -> [])
+        @
+        match sort_direction with
+        | Some d -> [ ("sortDirection", `String d) ]
+        | None -> [])
+    in
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.safelink.queryRules"
+      (Yojson.Safe.to_string body)
+    |> parse_url_rules
+
+  let add_safelink_rule (s : Session.session) ~proxy ~url ~pattern_type ~action
+      ?reason ?comment () : url_rule =
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.safelink.addRule"
+      (Yojson.Safe.to_string
+         (`Assoc
+           ([
+              ("url", `String url);
+              ("patternType", `String pattern_type);
+              ("action", `String action);
+            ]
+           @ (match reason with
+             | Some r -> [ ("reason", `String r) ]
+             | None -> [])
+           @ match comment with Some c -> [ ("comment", `String c) ] | None -> [])))
+    |> parse_url_rule
+
+  let update_safelink_rule (s : Session.session) ~proxy ~url ~pattern_type
+      ?action ?reason ?comment () : url_rule =
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.safelink.updateRule"
+      (Yojson.Safe.to_string
+         (`Assoc
+           (("url", `String url)
+           :: ("patternType", `String pattern_type)
+           :: (match action with
+              | Some a -> [ ("action", `String a) ]
+              | None -> [])
+           @ (match reason with
+             | Some r -> [ ("reason", `String r) ]
+             | None -> [])
+           @ match comment with Some c -> [ ("comment", `String c) ] | None -> [])))
+    |> parse_url_rule
+
+  let remove_safelink_rule (s : Session.session) ~proxy ~url ~pattern_type
+      ?comment () : url_rule =
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.safelink.removeRule"
+      (Yojson.Safe.to_string
+         (`Assoc
+           (("url", `String url)
+           :: ("patternType", `String pattern_type)
+           ::
+           (match comment with
+           | Some c -> [ ("comment", `String c) ]
+           | None -> []))))
+    |> parse_url_rule
+
+  type related_account = { did : string; original : Yojson.Safe.t }
+
+  type related_accounts = {
+    cursor : string option;
+    accounts : related_account list;
+  }
+
+  let parse_related_account json : related_account =
+    {
+      did =
+        (match Client.string_opt json "did" with
+        | Some s -> s
+        | None -> Client.string_member json "account");
+      original = json;
+    }
+
+  let parse_related_accounts json : related_accounts =
+    {
+      cursor = Client.string_opt json "cursor";
+      accounts =
+        List.map parse_related_account
+          (match Client.list_member json "accounts" with
+          | [] -> Client.list_member json "relatedAccounts"
+          | xs -> xs);
+    }
+
+  let find_correlation (s : Session.session) ~proxy ~dids () : Yojson.Safe.t =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.signature.findCorrelation"
+      (Client.repeat_param "dids" dids)
+
+  let find_related_accounts (s : Session.session) ~proxy ~did ?limit ?cursor ()
+      : related_accounts =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.signature.findRelatedAccounts"
+      (("did", did)
+      :: Client.opt_int "limit" limit
+      @ Client.opt_pair "cursor" cursor)
+    |> parse_related_accounts
+
+  let search_accounts_by_signature (s : Session.session) ~proxy
+      ?(values = []) ?limit ?cursor () : related_accounts =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.signature.searchAccounts"
+      (Client.repeat_param "values" values
+      @ Client.opt_int "limit" limit
+      @ Client.opt_pair "cursor" cursor)
+    |> parse_related_accounts
+
+  type verification_view = {
+    uri : string;
+    issuer : string option;
+    subject : string option;
+    handle : string option;
+    revoked_at : string option;
+    original : Yojson.Safe.t;
+  }
+
+  type verifications = {
+    cursor : string option;
+    verifications : verification_view list;
+  }
+
+  let parse_verification_view json : verification_view =
+    {
+      uri = Client.string_member json "uri";
+      issuer = Client.string_opt json "issuer";
+      subject = Client.string_opt json "subject";
+      handle = Client.string_opt json "handle";
+      revoked_at = Client.string_opt json "revokedAt";
+      original = json;
+    }
+
+  let parse_verifications json : verifications =
+    {
+      cursor = Client.string_opt json "cursor";
+      verifications =
+        List.map parse_verification_view
+          (Client.list_member json "verifications");
+    }
+
+  let list_verifications (s : Session.session) ~proxy ?cursor ?limit
+      ?(issuers = []) ?(subjects = []) () : verifications =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.verification.listVerifications"
+      (Client.opt_pair "cursor" cursor
+      @ Client.opt_int "limit" limit
+      @ Client.repeat_param "issuers" issuers
+      @ Client.repeat_param "subjects" subjects)
+    |> parse_verifications
+
+  let grant_verifications (s : Session.session) ~proxy ~verifications () :
+      verifications =
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.verification.grantVerifications"
+      (Yojson.Safe.to_string (`Assoc [ ("verifications", `List verifications) ]))
+    |> parse_verifications
+
+  let revoke_verifications (s : Session.session) ~proxy ~uris ?revoke_reason ()
+      : verifications =
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.verification.revokeVerifications"
+      (Yojson.Safe.to_string
+         (`Assoc
+           ([ ("uris", `List (List.map (fun u -> `String u) uris)) ]
+           @
+           match revoke_reason with
+           | Some r -> [ ("revokeReason", `String r) ]
+           | None -> [])))
+    |> parse_verifications
+
+  type account_history_event = {
+    created_at : string option;
+    event : Yojson.Safe.t;
+  }
+
+  type account_history = {
+    cursor : string option;
+    events : account_history_event list;
+  }
+
+  let parse_account_history_event json : account_history_event =
+    {
+      created_at = Client.string_opt json "createdAt";
+      event =
+        (match Yojson.Safe.Util.member "event" json with
+        | `Null -> json
+        | other -> other);
+    }
+
+  let parse_account_history json : account_history =
+    {
+      cursor = Client.string_opt json "cursor";
+      events =
+        List.map parse_account_history_event (Client.list_member json "events");
+    }
+
+  let get_account_history (s : Session.session) ~proxy ~did ?events ?cursor
+      ?limit () : account_history =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.hosting.getAccountHistory"
+      (("did", did)
+      :: Client.repeat_param "events" (Option.value events ~default:[])
+      @ Client.opt_pair "cursor" cursor
+      @ Client.opt_int "limit" limit)
+    |> parse_account_history
 end
