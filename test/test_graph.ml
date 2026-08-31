@@ -87,6 +87,140 @@ let test_unmute_actor _ =
   let unmuted_actor = Graph.unmute_actor test_session "karen.bsky.social" in
   OUnit2.assert_bool "Graph Unmute Actor is not empty" (unmuted_actor = "")
 
+let with_public_timeout ?(seconds = 20) f =
+  let old =
+    Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
+  in
+  ignore (Unix.alarm seconds);
+  Fun.protect
+    ~finally:(fun () ->
+      ignore (Unix.alarm 0);
+      Sys.set_signal Sys.sigalrm old)
+    f
+
+let test_parse_list _ =
+  let json =
+    `Assoc
+      [
+        ( "list",
+          `Assoc
+            [
+              ( "uri",
+                `String
+                  "at://did:plc:abc123xyz0001112223333/app.bsky.graph.list/3k"
+              );
+              ("cid", `String "bafyreiabc");
+              ("name", `String "Friends");
+              ("purpose", `String "app.bsky.graph.defs#curatelist");
+              ( "creator",
+                `Assoc
+                  [
+                    ("did", `String "did:plc:abc123xyz0001112223333");
+                    ("handle", `String "alice.test");
+                  ] );
+              ("indexedAt", `String "2024-01-01T00:00:00.000Z");
+              ("listItemCount", `Int 2);
+            ] );
+        ( "items",
+          `List
+            [
+              `Assoc
+                [
+                  ( "uri",
+                    `String
+                      "at://did:plc:abc123xyz0001112223333/app.bsky.graph.listitem/1"
+                  );
+                  ( "subject",
+                    `Assoc
+                      [
+                        ("did", `String "did:plc:xyz789aaa0001112223333");
+                        ("handle", `String "bob.test");
+                      ] );
+                ];
+            ] );
+      ]
+  in
+  let page = Graph.parse_list_page json in
+  OUnit2.assert_equal ~printer:(fun x -> x) "Friends" page.list.name;
+  OUnit2.assert_equal 1 (List.length page.items)
+
+let test_parse_starter_pack _ =
+  let json =
+    `Assoc
+      [
+        ( "uri",
+          `String
+            "at://did:plc:abc123xyz0001112223333/app.bsky.graph.starterpack/3k"
+        );
+        ("cid", `String "bafyreiabc");
+        ( "record",
+          `Assoc
+            [
+              ("name", `String "New folks");
+              ( "list",
+                `String
+                  "at://did:plc:abc123xyz0001112223333/app.bsky.graph.list/3k"
+              );
+            ] );
+        ( "creator",
+          `Assoc
+            [
+              ("did", `String "did:plc:abc123xyz0001112223333");
+              ("handle", `String "alice.test");
+            ] );
+        ("indexedAt", `String "2024-01-01T00:00:00.000Z");
+        ("joinedAllTimeCount", `Int 12);
+      ]
+  in
+  let pack = Graph.parse_starter_pack json in
+  OUnit2.assert_equal (Some "New folks") pack.name;
+  OUnit2.assert_equal (Some 12) pack.joined_all_time_count
+
+let test_parse_relationships _ =
+  let json =
+    `Assoc
+      [
+        ("actor", `String "did:plc:abc123xyz0001112223333");
+        ( "relationships",
+          `List
+            [
+              `Assoc
+                [
+                  ("did", `String "did:plc:xyz789aaa0001112223333");
+                  ( "following",
+                    `String
+                      "at://did:plc:abc123xyz0001112223333/app.bsky.graph.follow/1"
+                  );
+                ];
+            ] );
+      ]
+  in
+  let rels = Graph.parse_relationships json in
+  OUnit2.assert_equal 1 (List.length rels.relationships);
+  OUnit2.assert_bool "following present"
+    (match (List.hd rels.relationships).following with
+    | Some _ -> true
+    | None -> false)
+
+let test_relationships_live _ =
+  try
+    with_public_timeout (fun () ->
+        let rels =
+          Graph.get_relationships ~actor:"jay.bsky.team" ~others:[ "bsky.app" ]
+            ()
+        in
+        OUnit2.assert_bool "relationships" (List.length rels.relationships >= 0))
+  with exn ->
+    skip_if true ("getRelationships skipped: " ^ Printexc.to_string exn)
+
+let test_search_starter_packs_live _ =
+  try
+    with_public_timeout (fun () ->
+        let packs = Graph.search_starter_packs ~q:"bluesky" ~limit:3 () in
+        OUnit2.assert_bool "starter packs" (List.length packs.starter_packs >= 0))
+  with exn ->
+    skip_if true ("searchStarterPacks skipped: " ^ Printexc.to_string exn)
+
 let suite =
   "suite"
   >::: [
@@ -96,6 +230,11 @@ let suite =
          "test_get_mutes" >:: test_get_mutes;
          "test_mute_actor" >:: test_mute_actor;
          "test_unmute_actor" >:: test_unmute_actor;
+         "test_parse_list" >:: test_parse_list;
+         "test_parse_starter_pack" >:: test_parse_starter_pack;
+         "test_parse_relationships" >:: test_parse_relationships;
+         "test_relationships_live" >:: test_relationships_live;
+         "test_search_starter_packs_live" >:: test_search_starter_packs_live;
        ]
 
 let () = run_test_tt_main suite

@@ -337,4 +337,96 @@ module Server = struct
   let check_account_status_url (s : Session.session) : string =
     App.create_endpoint_url (App.create_base_url s)
       (create_server_endpoint "checkAccountStatus")
+
+  type server_links = {
+    privacy_policy : string option;
+    terms_of_service : string option;
+  }
+
+  type server_description = {
+    did : string;
+    available_user_domains : string list;
+    invite_code_required : bool option;
+    phone_verification_required : bool option;
+    blob_upload_limit : int option;
+    links : server_links;
+    contact_email : string option;
+  }
+
+  let parse_describe_server json : server_description =
+    let open Yojson.Safe.Util in
+    let links = json |> member "links" in
+    let contact = json |> member "contact" in
+    {
+      did = (match json |> member "did" with `String s -> s | _ -> "");
+      available_user_domains =
+        (match json |> member "availableUserDomains" with
+        | `List items ->
+            List.filter_map (function `String s -> Some s | _ -> None) items
+        | _ -> []);
+      invite_code_required =
+        (match json |> member "inviteCodeRequired" with
+        | `Bool b -> Some b
+        | _ -> None);
+      phone_verification_required =
+        (match json |> member "phoneVerificationRequired" with
+        | `Bool b -> Some b
+        | _ -> None);
+      blob_upload_limit =
+        (match json |> member "blobUploadLimit" with
+        | `Int n -> Some n
+        | _ -> None);
+      links =
+        {
+          privacy_policy =
+            (match links |> member "privacyPolicy" with
+            | `String s -> Some s
+            | _ -> None);
+          terms_of_service =
+            (match links |> member "termsOfService" with
+            | `String s -> Some s
+            | _ -> None);
+        };
+      contact_email =
+        (match contact |> member "email" with `String s -> Some s | _ -> None);
+    }
+
+  let describe_server_parsed ?session ?host () : server_description =
+    Client.Client.get_json ?session ?host "com.atproto.server.describeServer" []
+    |> parse_describe_server
+
+  let reserve_signing_key_body ?did () : Yojson.Safe.t =
+    match did with Some d -> `Assoc [ ("did", `String d) ] | None -> `Assoc []
+
+  type reserved_signing_key = { signing_key : string }
+
+  let parse_reserved_signing_key json : reserved_signing_key =
+    {
+      signing_key =
+        (match Yojson.Safe.Util.member "signingKey" json with
+        | `String s -> s
+        | _ -> "");
+    }
+
+  let reserve_signing_key ?session ?host ?did () : reserved_signing_key =
+    Client.Client.post_json ?session ?host
+      "com.atproto.server.reserveSigningKey"
+      (Yojson.Safe.to_string (reserve_signing_key_body ?did ()))
+    |> parse_reserved_signing_key
+
+  let confirm_email_body ~email ~token : Yojson.Safe.t =
+    `Assoc [ ("email", `String email); ("token", `String token) ]
+
+  let update_email_body ~email ?token ?email_auth_factor () : Yojson.Safe.t =
+    let fields =
+      ("email", `String email)
+      :: (match token with Some t -> [ ("token", `String t) ] | None -> [])
+      @
+      match email_auth_factor with
+      | Some b -> [ ("emailAuthFactor", `Bool b) ]
+      | None -> []
+    in
+    `Assoc fields
+
+  let request_email_update_body () : Yojson.Safe.t = `Assoc []
 end

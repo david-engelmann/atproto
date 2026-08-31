@@ -319,4 +319,37 @@ module Actor = struct
            search_actors_typeahead_url body headers)
     in
     profiles |> convert_body_to_json |> parse_typeahead_profiles
+
+  type preference = { type_ : string; original : Yojson.Safe.t }
+  type preferences = { preferences : preference list }
+
+  let parse_preference json : preference =
+    {
+      type_ =
+        (match Yojson.Safe.Util.member "$type" json with
+        | `String s -> s
+        | _ -> "");
+      original = json;
+    }
+
+  let parse_preferences json : preferences =
+    {
+      preferences =
+        List.map parse_preference
+          (match Yojson.Safe.Util.member "preferences" json with
+          | `List xs -> xs
+          | _ -> []);
+    }
+
+  let put_preferences_body preferences : Yojson.Safe.t =
+    `Assoc [ ("preferences", `List preferences) ]
+
+  let get_preferences (s : Session.session) : preferences =
+    Client.Client.get_json ~session:s "app.bsky.actor.getPreferences" []
+    |> parse_preferences
+
+  let put_preferences (s : Session.session) preferences : unit =
+    ignore
+      (Client.Client.post_json ~session:s "app.bsky.actor.putPreferences"
+         (Yojson.Safe.to_string (put_preferences_body preferences)))
 end

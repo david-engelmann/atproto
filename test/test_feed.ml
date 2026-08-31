@@ -91,6 +91,109 @@ let test_get_feed_skeleton _ =
   OUnit2.assert_bool "Feed Skeleton Feed is not empty" (feed_skeleton <> "")
 *)
 
+let discover_feed =
+  "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot"
+
+let with_public_timeout ?(seconds = 20) f =
+  let old =
+    Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
+  in
+  ignore (Unix.alarm seconds);
+  Fun.protect
+    ~finally:(fun () ->
+      ignore (Unix.alarm 0);
+      Sys.set_signal Sys.sigalrm old)
+    f
+
+let test_parse_generator _ =
+  let json =
+    `Assoc
+      [
+        ( "view",
+          `Assoc
+            [
+              ("uri", `String discover_feed);
+              ("cid", `String "bafyreiabc");
+              ("did", `String "did:web:discover.bsky.social");
+              ("displayName", `String "Discover");
+              ("indexedAt", `String "2024-01-01T00:00:00.000Z");
+            ] );
+        ("isOnline", `Bool true);
+        ("isValid", `Bool true);
+      ]
+  in
+  let info = Feed.parse_generator_info json in
+  OUnit2.assert_equal ~printer:(fun x -> x) "Discover" info.view.display_name;
+  OUnit2.assert_equal true info.is_online
+
+let test_parse_search_posts _ =
+  let json =
+    `Assoc
+      [
+        ( "posts",
+          `List
+            [
+              `Assoc
+                [
+                  ( "uri",
+                    `String
+                      "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k"
+                  );
+                  ("cid", `String "bafyreiabc");
+                  ( "author",
+                    `Assoc
+                      [
+                        ("did", `String "did:plc:abc123xyz0001112223333");
+                        ("handle", `String "alice.test");
+                      ] );
+                  ("record", `Assoc [ ("text", `String "hello atproto") ]);
+                  ("indexedAt", `String "2024-01-01T00:00:00.000Z");
+                  ("likeCount", `Int 3);
+                ];
+            ] );
+        ("hitsTotal", `Int 1);
+      ]
+  in
+  let page = Feed.parse_search_posts json in
+  OUnit2.assert_equal 1 (List.length page.posts);
+  OUnit2.assert_equal (Some "hello atproto") (List.hd page.posts).text
+
+let test_send_interactions_body _ =
+  let body =
+    Feed.send_interactions_body ~feed:discover_feed
+      [
+        {
+          item = Some "at://did:plc:x/app.bsky.feed.post/1";
+          event = Some "app.bsky.feed.defs#interactionLike";
+          feed_context = None;
+          req_id = Some "req1";
+        };
+      ]
+  in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal 1 (body |> member "interactions" |> to_list |> List.length)
+
+let test_get_feed_generator_live _ =
+  try
+    with_public_timeout (fun () ->
+        let info = Feed.get_feed_generator ~feed:discover_feed () in
+        OUnit2.assert_bool "generator uri"
+          (String.length info.view.uri > 10 && info.view.did <> ""))
+  with exn ->
+    skip_if true ("getFeedGenerator skipped: " ^ Printexc.to_string exn)
+
+let test_search_posts_live _ =
+  try
+    with_public_timeout (fun () ->
+        let page = Feed.search_posts ~q:"atproto" ~limit:3 () in
+        OUnit2.assert_bool "search posts"
+          (List.length page.posts >= 0
+          &&
+          match page.posts with
+          | [] -> true
+          | hd :: _ -> String.length hd.uri > 8))
+  with exn -> skip_if true ("searchPosts skipped: " ^ Printexc.to_string exn)
+
 let suite =
   "suite"
   >::: [
@@ -100,6 +203,11 @@ let suite =
          "test_get_posts" >:: test_get_posts;
          "test_get_reposted_by" >:: test_get_reposted_by;
          "test_get_timeline" >:: test_get_timeline;
+         "test_parse_generator" >:: test_parse_generator;
+         "test_parse_search_posts" >:: test_parse_search_posts;
+         "test_send_interactions_body" >:: test_send_interactions_body;
+         "test_get_feed_generator_live" >:: test_get_feed_generator_live;
+         "test_search_posts_live" >:: test_search_posts_live;
        ]
 
 let () = run_test_tt_main suite

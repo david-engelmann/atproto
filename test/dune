@@ -2,9 +2,12 @@
  (names
   test_app
   test_actor
+  test_admin
   test_at_uri
   test_auth
+  test_bookmark
   test_car
+  test_chat
   test_cid
   test_cohttp_client
   test_did_key
@@ -18,11 +21,13 @@
   test_http_method
   test_identity
   test_label
+  test_labeler
   test_lexicon
   test_moderation
   test_mst
   test_notification
   test_oauth
+  test_ozone
   test_request
   test_repo
   test_response
@@ -31,10 +36,12 @@
   test_sync
   test_syntax
   test_tid
+  test_unspecced
   test_user
   test_blob
   test_blocks
   test_download_image
+  test_video
   test_xrpc)
  (libraries
   async
@@ -62,9 +69,12 @@
  (modules
   test_app
   test_actor
+  test_admin
   test_at_uri
   test_auth
+  test_bookmark
   test_car
+  test_chat
   test_cid
   test_cohttp_client
   test_did_key
@@ -78,11 +88,13 @@
   test_http_method
   test_identity
   test_label
+  test_labeler
   test_lexicon
   test_moderation
   test_mst
   test_notification
   test_oauth
+  test_ozone
   test_request
   test_repo
   test_response
@@ -91,8 +103,10 @@
   test_sync
   test_syntax
   test_tid
+  test_unspecced
   test_user
   test_blob
   test_blocks
   test_download_image
+  test_video
   test_xrpc))

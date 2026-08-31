@@ -55,6 +55,12 @@ module Xrpc = struct
   let labeler_proxy (did : string) : proxy =
     { did; service = "atproto_labeler" }
 
+  let chat_proxy : proxy =
+    { did = "did:web:api.bsky.chat"; service = "bsky_chat" }
+
+  let appview_proxy : proxy =
+    { did = "did:web:api.bsky.app"; service = "bsky_appview" }
+
   (* ---- atproto-accept-labelers / atproto-content-labelers -------------- *)
 
   type labeler = { did : string; redact : bool }

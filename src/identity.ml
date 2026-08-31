@@ -196,4 +196,33 @@ module Identity = struct
   let parse_txt_did = Syntax.Syntax.parse_txt_did
   let handle_well_known_url = Syntax.Syntax.handle_well_known_url
   let parse_well_known_did = Syntax.Syntax.parse_well_known_did
+
+  let update_handle (s : Session.session) ~handle () : unit =
+    ignore
+      (Client.Client.post_json ~session:s "com.atproto.identity.updateHandle"
+         (Yojson.Safe.to_string (update_handle_body handle)))
+
+  let get_recommended_did_credentials (s : Session.session) :
+      recommended_did_credentials =
+    Client.Client.get_json ~session:s
+      "com.atproto.identity.getRecommendedDidCredentials" []
+    |> parse_recommended_did_credentials
+
+  let sign_plc_operation (s : Session.session) ?token ?rotation_keys
+      ?also_known_as ?verification_methods ?services () : Yojson.Safe.t =
+    Client.Client.post_json ~session:s "com.atproto.identity.signPlcOperation"
+      (Yojson.Safe.to_string
+         (sign_plc_operation_body ?token ?rotation_keys ?also_known_as
+            ?verification_methods ?services ()))
+
+  let submit_plc_operation (s : Session.session) ~operation () : unit =
+    ignore
+      (Client.Client.post_json ~session:s
+         "com.atproto.identity.submitPlcOperation"
+         (Yojson.Safe.to_string (submit_plc_operation_body operation)))
+
+  let request_plc_operation_signature (s : Session.session) : unit =
+    ignore
+      (Client.Client.post_json ~session:s
+         "com.atproto.identity.requestPlcOperationSignature" "{}")
 end
