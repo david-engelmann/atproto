@@ -155,10 +155,23 @@ let test_json_sig_roundtrip _ =
   let again = Label.parse_label back in
   OUnit2.assert_equal again.sig_ l.sig_
 
+let test_self_labels _ =
+  let json =
+    `Assoc
+      [
+        ("$type", `String "com.atproto.label.defs#selfLabels");
+        ("values", `List [ `Assoc [ ("val", `String "porn") ] ]);
+      ]
+  in
+  OUnit2.assert_equal (Some [ "porn" ]) (Label.parse_self_labels json);
+  let encoded = Label.self_labels_to_json [ "nudity" ] in
+  OUnit2.assert_equal (Some [ "nudity" ]) (Label.parse_self_labels encoded)
+
 let suite =
   "suite"
   >::: [
          "test_query_labels" >:: test_query_labels;
+         "test_self_labels" >:: test_self_labels;
          "test_parse_query_labels" >:: test_parse_query_labels;
          "test_label_sign_verify_p256" >:: test_label_sign_verify_p256;
          "test_label_sign_verify_k256" >:: test_label_sign_verify_k256;

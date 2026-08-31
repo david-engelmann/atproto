@@ -236,4 +236,269 @@ module Ozone = struct
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.server.getConfig" []
     |> parse_server_config
+
+  type subject_view = { subject : string; original : Yojson.Safe.t }
+
+  type subjects = { subjects : subject_view list }
+
+  type reporter_stat = {
+    did : string;
+    account_report_count : int option;
+    record_report_count : int option;
+    reported_account_count : int option;
+    original : Yojson.Safe.t;
+  }
+
+  type reporter_stats = { stats : reporter_stat list }
+
+  type timeline_summary = {
+    event_subject_type : string;
+    event_type : string;
+    count : int;
+  }
+
+  type timeline_item = { day : string; summary : timeline_summary list }
+
+  type account_timeline = { timeline : timeline_item list }
+
+  type scheduled_action = {
+    id : string option;
+    subject : string option;
+    status : string option;
+    original : Yojson.Safe.t;
+  }
+
+  type scheduled_actions = {
+    cursor : string option;
+    actions : scheduled_action list;
+  }
+
+  type failed_item = {
+    subject : string;
+    error : string;
+    error_code : string option;
+  }
+
+  type batch_result = { succeeded : string list; failed : failed_item list }
+
+  type scheduling = {
+    execute_at : string option;
+    execute_after : string option;
+    execute_until : string option;
+  }
+
+  let parse_subject_view json : subject_view =
+    {
+      subject =
+        (match Client.string_opt json "subject" with
+        | Some s -> s
+        | None -> Client.string_member json "did");
+      original = json;
+    }
+
+  let parse_subjects json : subjects =
+    { subjects = List.map parse_subject_view (Client.list_member json "subjects") }
+
+  let parse_reporter_stat json : reporter_stat =
+    {
+      did = Client.string_member json "did";
+      account_report_count = Client.int_opt json "accountReportCount";
+      record_report_count = Client.int_opt json "recordReportCount";
+      reported_account_count = Client.int_opt json "reportedAccountCount";
+      original = json;
+    }
+
+  let parse_reporter_stats json : reporter_stats =
+    { stats = List.map parse_reporter_stat (Client.list_member json "stats") }
+
+  let parse_timeline_summary json : timeline_summary =
+    {
+      event_subject_type = Client.string_member json "eventSubjectType";
+      event_type = Client.string_member json "eventType";
+      count = Client.int_member json "count";
+    }
+
+  let parse_timeline_item json : timeline_item =
+    {
+      day = Client.string_member json "day";
+      summary =
+        List.map parse_timeline_summary (Client.list_member json "summary");
+    }
+
+  let parse_account_timeline json : account_timeline =
+    {
+      timeline =
+        List.map parse_timeline_item (Client.list_member json "timeline");
+    }
+
+  let parse_scheduled_action json : scheduled_action =
+    {
+      id = Client.string_opt json "id";
+      subject =
+        (match Client.string_opt json "subject" with
+        | Some s -> Some s
+        | None -> Client.string_opt json "did");
+      status = Client.string_opt json "status";
+      original = json;
+    }
+
+  let parse_scheduled_actions json : scheduled_actions =
+    {
+      cursor = Client.string_opt json "cursor";
+      actions =
+        List.map parse_scheduled_action (Client.list_member json "actions");
+    }
+
+  let parse_failed_item json : failed_item =
+    {
+      subject =
+        (match Client.string_opt json "subject" with
+        | Some s -> s
+        | None -> Client.string_member json "did");
+      error = Client.string_member json "error";
+      error_code = Client.string_opt json "errorCode";
+    }
+
+  let parse_batch_result json : batch_result =
+    {
+      succeeded =
+        List.filter_map
+          (function `String s -> Some s | _ -> None)
+          (Client.list_member json "succeeded");
+      failed = List.map parse_failed_item (Client.list_member json "failed");
+    }
+
+  let get_records (s : Session.session) ~proxy ~uris () : record_view list =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.moderation.getRecords"
+      (Client.repeat_param "uris" uris)
+    |> fun json -> List.map parse_record (Client.list_member json "records")
+
+  let get_repos (s : Session.session) ~proxy ~dids () : repo_view list =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.moderation.getRepos"
+      (Client.repeat_param "dids" dids)
+    |> fun json -> List.map parse_repo (Client.list_member json "repos")
+
+  let get_subjects (s : Session.session) ~proxy ~subjects () : subjects =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.moderation.getSubjects"
+      (Client.repeat_param "subjects" subjects)
+    |> parse_subjects
+
+  let search_repos (s : Session.session) ~proxy ?q ?term ?limit ?cursor () :
+      repo_view list * string option =
+    let json =
+      Client.get_json ~session:s ~extra:(proxy_headers proxy)
+        "tools.ozone.moderation.searchRepos"
+        (Client.opt_pair "q" q
+        @ Client.opt_pair "term" term
+        @ Client.opt_int "limit" limit
+        @ Client.opt_pair "cursor" cursor)
+    in
+    ( List.map parse_repo (Client.list_member json "repos"),
+      Client.string_opt json "cursor" )
+
+  let get_account_timeline (s : Session.session) ~proxy ~did () :
+      account_timeline =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.moderation.getAccountTimeline"
+      [ ("did", did) ]
+    |> parse_account_timeline
+
+  let get_reporter_stats (s : Session.session) ~proxy ~dids () : reporter_stats
+      =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.moderation.getReporterStats"
+      (Client.repeat_param "dids" dids)
+    |> parse_reporter_stats
+
+  let scheduling_to_json (c : scheduling) : Yojson.Safe.t =
+    `Assoc
+      ((match c.execute_at with
+       | Some s -> [ ("executeAt", `String s) ]
+       | None -> [])
+      @ (match c.execute_after with
+        | Some s -> [ ("executeAfter", `String s) ]
+        | None -> [])
+      @
+      match c.execute_until with
+      | Some s -> [ ("executeUntil", `String s) ]
+      | None -> [])
+
+  let takedown_action ?comment ?duration_in_hours
+      ?(acknowledge_account_subjects = false) () : Yojson.Safe.t =
+    let fields =
+      [
+        ("$type", `String "tools.ozone.moderation.scheduleAction#takedown");
+        ("acknowledgeAccountSubjects", `Bool acknowledge_account_subjects);
+      ]
+      @ (match comment with Some c -> [ ("comment", `String c) ] | None -> [])
+      @
+      match duration_in_hours with
+      | Some n -> [ ("durationInHours", `Int n) ]
+      | None -> []
+    in
+    `Assoc fields
+
+  let schedule_action_body ~action ~subjects ~created_by ~scheduling ?mod_tool
+      () : Yojson.Safe.t =
+    let fields =
+      [
+        ("action", action);
+        ("subjects", `List (List.map (fun s -> `String s) subjects));
+        ("createdBy", `String created_by);
+        ("scheduling", scheduling_to_json scheduling);
+      ]
+      @ match mod_tool with Some t -> [ ("modTool", t) ] | None -> []
+    in
+    `Assoc fields
+
+  let schedule_action (s : Session.session) ~proxy ~action ~subjects ~created_by
+      ~scheduling ?mod_tool () : batch_result =
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.moderation.scheduleAction"
+      (Yojson.Safe.to_string
+         (schedule_action_body ~action ~subjects ~created_by ~scheduling
+            ?mod_tool ()))
+    |> parse_batch_result
+
+  let list_scheduled_actions (s : Session.session) ~proxy ~statuses
+      ?starts_after ?ends_before ?subjects ?limit ?cursor () : scheduled_actions
+      =
+    let body =
+      `Assoc
+        ([
+           ("statuses", `List (List.map (fun s -> `String s) statuses));
+         ]
+        @ (match starts_after with
+          | Some t -> [ ("startsAfter", `String t) ]
+          | None -> [])
+        @ (match ends_before with
+          | Some t -> [ ("endsBefore", `String t) ]
+          | None -> [])
+        @ (match subjects with
+          | Some xs ->
+              [ ("subjects", `List (List.map (fun s -> `String s) xs)) ]
+          | None -> [])
+        @ (match limit with Some n -> [ ("limit", `Int n) ] | None -> [])
+        @ match cursor with Some c -> [ ("cursor", `String c) ] | None -> [])
+    in
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.moderation.listScheduledActions"
+      (Yojson.Safe.to_string body)
+    |> parse_scheduled_actions
+
+  let cancel_scheduled_actions (s : Session.session) ~proxy ~subjects ?comment
+      () : batch_result =
+    let fields =
+      [
+        ("subjects", `List (List.map (fun s -> `String s) subjects));
+      ]
+      @ match comment with Some c -> [ ("comment", `String c) ] | None -> []
+    in
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.moderation.cancelScheduledActions"
+      (Yojson.Safe.to_string (`Assoc fields))
+    |> parse_batch_result
 end

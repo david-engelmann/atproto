@@ -139,6 +139,90 @@ let test_parse_list_missing_blobs _ =
     "bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku"
     (List.hd missing.blobs).cid
 
+let test_parse_record_get_and_describe _ =
+  let rec_ =
+    Repo.parse_record_get
+      (`Assoc
+        [
+          ( "uri",
+            `String "at://did:plc:alice/app.bsky.feed.post/3jzfcijpj2z2a" );
+          ("cid", `String "bafyreihdummy000000000000000000000000000000000");
+          ( "value",
+            `Assoc
+              [
+                ("$type", `String "app.bsky.feed.post");
+                ("text", `String "hello");
+                ("createdAt", `String "2024-01-01T00:00:00.000Z");
+                ("tags", `List [ `String "atp" ]);
+                ( "labels",
+                  `Assoc
+                    [
+                      ("$type", `String "com.atproto.label.defs#selfLabels");
+                      ( "values",
+                        `List [ `Assoc [ ("val", `String "nudity") ] ] );
+                    ] );
+              ] );
+        ])
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "at://did:plc:alice/app.bsky.feed.post/3jzfcijpj2z2a" rec_.uri;
+  let post = Repo.parse_post_record rec_.value in
+  OUnit2.assert_equal (Some [ "atp" ]) post.tags;
+  OUnit2.assert_equal (Some [ "nudity" ]) post.self_labels;
+  let desc =
+    Repo.parse_repo_description
+      (`Assoc
+        [
+          ("handle", `String "alice.test");
+          ("did", `String "did:plc:alice000111222333444555666");
+          ("didDoc", `Assoc [ ("id", `String "did:plc:alice000111222333444555666") ]);
+          ("collections", `List [ `String "app.bsky.feed.post" ]);
+          ("handleIsCorrect", `Bool true);
+        ])
+  in
+  OUnit2.assert_equal ~printer:(fun x -> x) "alice.test" desc.handle;
+  OUnit2.assert_equal true desc.handle_is_correct;
+  let listed =
+    Repo.parse_listed_records
+      (`Assoc
+        [
+          ("cursor", `String "next");
+          ( "records",
+            `List
+              [
+                `Assoc
+                  [
+                    ( "uri",
+                      `String
+                        "at://did:plc:alice/app.bsky.feed.post/3jzfcijpj2z2a" );
+                    ( "cid",
+                      `String "bafyreihdummy000000000000000000000000000000000"
+                    );
+                    ("value", `Assoc [ ("text", `String "hello") ]);
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal 1 (List.length listed.records);
+  let write =
+    Repo.parse_write_result
+      (`Assoc
+        [
+          ( "uri",
+            `String "at://did:plc:alice/app.bsky.feed.post/3jzfcijpj2z2a" );
+          ("cid", `String "bafyreihdummy000000000000000000000000000000000");
+          ( "commit",
+            `Assoc
+              [
+                ("cid", `String "bafyreihdummy000000000000000000000000000000000");
+                ("rev", `String "3jzfcijpj2z2a");
+              ] );
+          ("validationStatus", `String "valid");
+        ])
+  in
+  OUnit2.assert_equal (Some "valid") write.validation_status
+
 let test_import_repo_url _ =
   skip_if
     (not Auth.has_live_credentials)
@@ -156,6 +240,7 @@ let suite =
          "test_apply_writes_body" >:: test_apply_writes_body;
          "test_parse_blob_ref" >:: test_parse_blob_ref;
          "test_parse_list_missing_blobs" >:: test_parse_list_missing_blobs;
+         "test_parse_record_get_and_describe" >:: test_parse_record_get_and_describe;
          "test_import_repo_url" >:: test_import_repo_url;
        ]
 

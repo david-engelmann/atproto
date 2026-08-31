@@ -62,6 +62,69 @@ let test_takedown_event _ =
     "tools.ozone.moderation.defs#modEventTakedown"
     (ev |> member "$type" |> to_string)
 
+let test_parse_timeline_and_schedule _ =
+  let timeline =
+    Ozone.parse_account_timeline
+      (`Assoc
+        [
+          ( "timeline",
+            `List
+              [
+                `Assoc
+                  [
+                    ("day", `String "2024-01-01");
+                    ( "summary",
+                      `List
+                        [
+                          `Assoc
+                            [
+                              ("eventSubjectType", `String "account");
+                              ( "eventType",
+                                `String
+                                  "tools.ozone.moderation.defs#modEventTakedown"
+                              );
+                              ("count", `Int 2);
+                            ];
+                        ] );
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal 1 (List.length timeline.timeline);
+  OUnit2.assert_equal 2 (List.hd (List.hd timeline.timeline).summary).count;
+  let result =
+    Ozone.parse_batch_result
+      (`Assoc
+        [
+          ("succeeded", `List [ `String "did:plc:abc123xyz0001112223333" ]);
+          ( "failed",
+            `List
+              [
+                `Assoc
+                  [
+                    ("did", `String "did:plc:fail000111222333444555666");
+                    ("error", `String "busy");
+                    ("errorCode", `String "Conflict");
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal 1 (List.length result.succeeded);
+  OUnit2.assert_equal ~printer:(fun x -> x) "busy" (List.hd result.failed).error;
+  let body =
+    Ozone.schedule_action_body
+      ~action:(Ozone.takedown_action ~comment:"spam" ())
+      ~subjects:[ "did:plc:abc123xyz0001112223333" ]
+      ~created_by:"did:plc:mod000111222333444555666"
+      ~scheduling:{ execute_at = Some "2024-02-01T00:00:00.000Z"; execute_after = None; execute_until = None }
+      ()
+  in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "tools.ozone.moderation.scheduleAction#takedown"
+    (body |> member "action" |> member "$type" |> to_string)
+
 let test_query_statuses_auth_skipped _ =
   skip_if
     (not Auth.has_live_credentials)
@@ -81,6 +144,7 @@ let suite =
          "test_parse_statuses" >:: test_parse_statuses;
          "test_emit_event_body" >:: test_emit_event_body;
          "test_takedown_event" >:: test_takedown_event;
+         "test_parse_timeline_and_schedule" >:: test_parse_timeline_and_schedule;
          "test_query_statuses_auth_skipped" >:: test_query_statuses_auth_skipped;
        ]
 

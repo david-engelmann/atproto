@@ -14,6 +14,8 @@ module Repo = struct
     facets : Facet.facet list option;
     langs : string list option;
     reply : Notification.reply option;
+    tags : string list option;
+    self_labels : string list option;
     created_at : string;
   }
 
@@ -25,8 +27,163 @@ module Repo = struct
     let facets = Feed.extract_facets_option json in
     let langs = Feed.extract_langs_option json in
     let reply = Notification.parse_reply_option json in
+    let tags = Feed.extract_tags_option json in
+    let self_labels = Feed.extract_self_labels_option json in
     let created_at = json |> member "createdAt" |> to_string in
-    { text; record_type; embed; facets; langs; reply; created_at }
+    {
+      text;
+      record_type;
+      embed;
+      facets;
+      langs;
+      reply;
+      tags;
+      self_labels;
+      created_at;
+    }
+
+  type commit_meta = { cid : string; rev : string }
+
+  type record_get = {
+    uri : string;
+    cid : string option;
+    value : Yojson.Safe.t;
+  }
+
+  type listed_record = {
+    uri : string;
+    cid : string;
+    value : Yojson.Safe.t;
+  }
+
+  type listed_records = {
+    cursor : string option;
+    records : listed_record list;
+  }
+
+  type repo_description = {
+    handle : string;
+    did : string;
+    did_doc : Yojson.Safe.t option;
+    collections : string list;
+    handle_is_correct : bool;
+  }
+
+  type write_result = {
+    uri : string;
+    cid : string;
+    commit : commit_meta option;
+    validation_status : string option;
+  }
+
+  type apply_writes_result = {
+    commit : commit_meta option;
+    results : Yojson.Safe.t list;
+  }
+
+  let parse_commit_meta json : commit_meta option =
+    match json with
+    | `Assoc _ ->
+        Some
+          {
+            cid =
+              (match Yojson.Safe.Util.member "cid" json with
+              | `String s -> s
+              | _ -> "");
+            rev =
+              (match Yojson.Safe.Util.member "rev" json with
+              | `String s -> s
+              | _ -> "");
+          }
+    | _ -> None
+
+  let parse_record_get json : record_get =
+    let open Yojson.Safe.Util in
+    {
+      uri = (match json |> member "uri" with `String s -> s | _ -> "");
+      cid = (match json |> member "cid" with `String s -> Some s | _ -> None);
+      value = json |> member "value";
+    }
+
+  let parse_listed_record json : listed_record =
+    let open Yojson.Safe.Util in
+    {
+      uri = (match json |> member "uri" with `String s -> s | _ -> "");
+      cid = (match json |> member "cid" with `String s -> s | _ -> "");
+      value = json |> member "value";
+    }
+
+  let parse_listed_records json : listed_records =
+    let open Yojson.Safe.Util in
+    {
+      cursor =
+        (match json |> member "cursor" with `String s -> Some s | _ -> None);
+      records =
+        (match json |> member "records" with
+        | `List xs -> List.map parse_listed_record xs
+        | _ -> []);
+    }
+
+  let parse_repo_description json : repo_description =
+    let open Yojson.Safe.Util in
+    {
+      handle = (match json |> member "handle" with `String s -> s | _ -> "");
+      did = (match json |> member "did" with `String s -> s | _ -> "");
+      did_doc =
+        (match json |> member "didDoc" with
+        | `Null -> None
+        | other -> Some other);
+      collections =
+        (match json |> member "collections" with
+        | `List xs ->
+            List.filter_map (function `String s -> Some s | _ -> None) xs
+        | _ -> []);
+      handle_is_correct =
+        (match json |> member "handleIsCorrect" with
+        | `Bool b -> b
+        | _ -> false);
+    }
+
+  let parse_write_result json : write_result =
+    let open Yojson.Safe.Util in
+    {
+      uri = (match json |> member "uri" with `String s -> s | _ -> "");
+      cid = (match json |> member "cid" with `String s -> s | _ -> "");
+      commit = parse_commit_meta (json |> member "commit");
+      validation_status =
+        (match json |> member "validationStatus" with
+        | `String s -> Some s
+        | _ -> None);
+    }
+
+  let parse_apply_writes_result json : apply_writes_result =
+    let open Yojson.Safe.Util in
+    {
+      commit = parse_commit_meta (json |> member "commit");
+      results =
+        (match json |> member "results" with `List xs -> xs | _ -> []);
+    }
+
+  let describe_repo_parsed ?session ?host ~repo () : repo_description =
+    Client.Client.get_json ?session ?host "com.atproto.repo.describeRepo"
+      [ ("repo", repo) ]
+    |> parse_repo_description
+
+  let get_record_parsed ?session ?host ~repo ~collection ~rkey ?cid () :
+      record_get =
+    Client.Client.get_json ?session ?host "com.atproto.repo.getRecord"
+      ([ ("repo", repo); ("collection", collection); ("rkey", rkey) ]
+      @ Client.Client.opt_pair "cid" cid)
+    |> parse_record_get
+
+  let list_records_parsed ?session ?host ~repo ~collection ?limit ?cursor
+      ?reverse () : listed_records =
+    Client.Client.get_json ?session ?host "com.atproto.repo.listRecords"
+      ([ ("repo", repo); ("collection", collection) ]
+      @ Client.Client.opt_int "limit" limit
+      @ Client.Client.opt_pair "cursor" cursor
+      @ Client.Client.opt_bool "reverse" reverse)
+    |> parse_listed_records
 
   let create_repo_endpoint (query_name : string) : string =
     "com.atproto.repo" ^ "." ^ query_name

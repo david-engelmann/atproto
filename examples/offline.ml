@@ -4,6 +4,9 @@
 open Atproto.Video
 open Atproto.Embed
 open Atproto.Facet
+open Atproto.Records
+open Atproto.Notification
+open Atproto.Identity
 open Atproto.Lexicon
 open Atproto.Tid
 open Atproto.Mst
@@ -83,6 +86,82 @@ let () =
         ])
   in
   (match facet with `Tag _ -> () | _ -> assert false);
+  let built = Facet.tag ~byte_start:0 ~byte_end:4 "atp" in
+  (match Facet.parse_facet (Facet.facet_to_json built) with
+  | `Tag t -> assert ((List.hd t.features).tag = "atp")
+  | _ -> assert false);
+  (match
+     Embed.parse_embed
+       (`Assoc
+         [
+           ("$type", `String "app.bsky.embed.gallery");
+           ( "items",
+             `List
+               [
+                 `Assoc
+                   [
+                     ("alt", `String "pic");
+                     ( "image",
+                       `Assoc
+                         [
+                           ("$type", `String "blob");
+                           ("ref", `Assoc [ ("$link", `String "bafyimage") ]);
+                           ("mimeType", `String "image/png");
+                           ("size", `Int 4);
+                         ] );
+                   ];
+               ] );
+         ])
+   with
+  | `Gallery g -> assert (List.length g.items = 1)
+  | _ -> assert false);
+  let post =
+    Records.post ~text:"hello" ~created_at:"2024-01-01T00:00:00.000Z"
+      ~tags:[ "atp" ] ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "$type" post with
+    | `String "app.bsky.feed.post" -> true
+    | _ -> false);
+  (match
+     Notification.parse_record
+       (`Assoc
+         [
+           ("$type", `String "app.bsky.feed.post");
+           ("text", `String "quote");
+           ("createdAt", `String "2024-01-01T00:00:00.000Z");
+         ])
+       "quote"
+   with
+  | `Quote q -> assert (q.text = "quote")
+  | _ -> assert false);
+  let did_res =
+    Identity.parse_did_resolution
+      (`Assoc
+        [
+          ( "didDoc",
+            `Assoc
+              [
+                ("id", `String "did:plc:abc123xyz0001112223333");
+                ("alsoKnownAs", `List []);
+                ("verificationMethod", `List []);
+                ("service", `List []);
+              ] );
+        ])
+  in
+  (match did_res.document with
+  | Some doc -> assert (doc.id = "did:plc:abc123xyz0001112223333")
+  | None -> assert false);
+  let rec_get =
+    Repo.parse_record_get
+      (`Assoc
+        [
+          ("uri", `String "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3jzfcijpj2z2a");
+          ("cid", `String "bafyreihdummy");
+          ("value", post);
+        ])
+  in
+  assert (String.length rec_get.uri > 8);
   let lex =
     Lexicon.of_string
       {|{"lexicon":1,"id":"com.example.ping","defs":{"main":{"type":"query","parameters":{"type":"params","properties":{}}}}}|}

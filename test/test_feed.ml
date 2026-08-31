@@ -158,6 +158,96 @@ let test_parse_search_posts _ =
   OUnit2.assert_equal 1 (List.length page.posts);
   OUnit2.assert_equal (Some "hello atproto") (List.hd page.posts).text
 
+let test_parse_post_record_embed_and_tags _ =
+  let json =
+    `Assoc
+      [
+        ("$type", `String "app.bsky.feed.post");
+        ("text", `String "gallery post");
+        ("createdAt", `String "2024-01-01T00:00:00.000Z");
+        ("langs", `List [ `String "en" ]);
+        ("tags", `List [ `String "art" ]);
+        ( "labels",
+          `Assoc
+            [
+              ("$type", `String "com.atproto.label.defs#selfLabels");
+              ("values", `List [ `Assoc [ ("val", `String "nudity") ] ]);
+            ] );
+        ( "embed",
+          `Assoc
+            [
+              ("$type", `String "app.bsky.embed.gallery");
+              ( "items",
+                `List
+                  [
+                    `Assoc
+                      [
+                        ("alt", `String "pic");
+                        ( "image",
+                          `Assoc
+                            [
+                              ("$type", `String "blob");
+                              ( "ref",
+                                `Assoc
+                                  [
+                                    ( "$link",
+                                      `String
+                                        "bafyimage0000000000000000000000000000000000"
+                                    );
+                                  ] );
+                              ("mimeType", `String "image/png");
+                              ("size", `Int 4);
+                            ] );
+                      ];
+                  ] );
+            ] );
+      ]
+  in
+  let rec_ = Feed.parse_post_record json in
+  OUnit2.assert_equal (Some [ "art" ]) rec_.tags;
+  OUnit2.assert_equal (Some [ "nudity" ]) rec_.self_labels;
+  match rec_.embed with
+  | Some (`Gallery g) -> OUnit2.assert_equal 1 (List.length g.items)
+  | _ -> OUnit2.assert_failure "expected gallery embed on post record"
+
+let test_parse_post_view_embed _ =
+  let json =
+    `Assoc
+      [
+        ("uri", `String "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k");
+        ("cid", `String "bafyreiabc");
+        ( "author",
+          `Assoc
+            [
+              ("did", `String "did:plc:abc123xyz0001112223333");
+              ("handle", `String "alice.test");
+            ] );
+        ("record", `Assoc [ ("text", `String "hello atproto") ]);
+        ("indexedAt", `String "2024-01-01T00:00:00.000Z");
+        ("likeCount", `Int 3);
+        ("quoteCount", `Int 1);
+        ( "embed",
+          `Assoc
+            [
+              ("$type", `String "app.bsky.embed.external#view");
+              ( "external",
+                `Assoc
+                  [
+                    ("uri", `String "https://atproto.com");
+                    ("title", `String "AT Protocol");
+                    ("description", `String "docs");
+                    ("thumb", `String "https://cdn.example/t.jpg");
+                  ] );
+            ] );
+      ]
+  in
+  let view = Feed.parse_post_view json in
+  OUnit2.assert_equal (Some 1) view.quote_count;
+  match view.embed with
+  | Some (`ExternalView e) ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "https://atproto.com" e.ext.uri
+  | _ -> OUnit2.assert_failure "expected external view embed"
+
 let test_send_interactions_body _ =
   let body =
     Feed.send_interactions_body ~feed:discover_feed
@@ -205,6 +295,9 @@ let suite =
          "test_get_timeline" >:: test_get_timeline;
          "test_parse_generator" >:: test_parse_generator;
          "test_parse_search_posts" >:: test_parse_search_posts;
+         "test_parse_post_record_embed_and_tags"
+         >:: test_parse_post_record_embed_and_tags;
+         "test_parse_post_view_embed" >:: test_parse_post_view_embed;
          "test_send_interactions_body" >:: test_send_interactions_body;
          "test_get_feed_generator_live" >:: test_get_feed_generator_live;
          "test_search_posts_live" >:: test_search_posts_live;
