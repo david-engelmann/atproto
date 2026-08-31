@@ -141,7 +141,17 @@ let test_validate_errors _ =
 
 let test_union_codegen_and_official_bundle _ =
   let docs = Lexicon.official_documents () in
-  OUnit2.assert_bool "bundled lexicons" (List.length docs >= 5);
+  OUnit2.assert_bool "bundled lexicons" (List.length docs >= 9);
+  OUnit2.assert_bool "getPostThreadV2 bundled"
+    (List.exists
+       (fun (d : Lexicon.document) ->
+         d.id = "app.bsky.unspecced.getPostThreadV2")
+       docs);
+  OUnit2.assert_bool "subscribeModEvents bundled"
+    (List.exists
+       (fun (d : Lexicon.document) ->
+         d.id = "chat.bsky.moderation.subscribeModEvents")
+       docs);
   List.iter
     (fun (doc : Lexicon.document) ->
       OUnit2.assert_equal 1 doc.lexicon;

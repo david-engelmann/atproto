@@ -34,15 +34,15 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | Area | Module | Notes |
 | --- | --- | --- |
 | Session / JWT | `Auth`, `Session` | `createSession` URL uses `ATP_HOST` + `BASE_ENDPOINT` |
-| AppView actor | `Actor` | Profiles, search, suggestions, get/put preferences |
+| AppView actor | `Actor` | Profiles, search, suggestions, get/put preferences (all current `app.bsky.actor.defs#preferences` kinds) |
 | AppView feed | `Feed` | Timeline, `getPostThread` (`threadViewPost` / `notFoundPost` / `blockedPost`, optional parent, top-level embed + quote/bookmark counts), generators, `searchPosts`, quotes, list feed, interactions |
 | AppView graph | `Graph` | Follows/blocks/mutes, lists, starter packs, relationships, known followers |
 | Bookmarks | `Bookmark` | `createBookmark` / `deleteBookmark` / `getBookmarks`; bookmark `item` is the feed `#postView` / `#notFoundPost` / `#blockedPost` union |
 | Jetstream | `Jetstream` | v2 live tail, collection/DID/kind filters, seq + unix-µs cursors, reconnect/dedupe, v1 `/subscribe` compat; Network Replay planner + skippable unauthenticated HTTP (no invented archive token); `.jss` v1 header / block-index / columnar decode (zstd via injected callback) |
 | Video | `Video` | `getJobStatus`, `getUploadLimits`, byte upload (`uploadVideo` URL + POST), multipart `startUpload` / `uploadPart` / `finishUpload` / `abortUpload` / `getUploadStatus`, service-auth audience (`did:web:<pds>` + `uploadBlob` lxm), injectable job poll, `video_embed_json`. Client only — no hosted transcoder |
-| Unspecced | `Unspecced` | Popular generators, search skeletons, trending topics + `getTrends` / `getTrendsSkeleton`, tagged suggestions, age-assurance state, suggestion / feed / starter-pack skeletons, config |
+| Unspecced | `Unspecced` | Popular generators, search skeletons, trending topics + `getTrends` / `getTrendsSkeleton`, tagged suggestions, unspecced age-assurance state, suggestion / feed / starter-pack / onboarding / discover / explore / seeMore skeletons, `getPostThreadV2` / `getPostThreadOtherV2`, config |
 | Labeler | `Labeler` | `app.bsky.labeler.getServices` |
-| Chat / DMs | `Chat` | `chat.bsky.convo.*` including typed message facets/reactions/embeds, lock/unlock, `chat.bsky.group` add/remove/edit, `chat.bsky.notification.getPreferences` / `putPreferences`, `chat.bsky.actor.getStatus` / declaration / export / delete, `chat.bsky.moderation.*` actor metadata + convo/message-context views (not `subscribeModEvents`); `atproto-proxy: did:web:api.bsky.chat#bsky_chat` |
+| Chat / DMs | `Chat` | `chat.bsky.convo.*` including typed message facets/reactions/embeds, lock/unlock, `chat.bsky.group` add/remove/edit, `chat.bsky.notification.getPreferences` / `putPreferences`, `chat.bsky.actor.getStatus` / declaration / export / delete, `chat.bsky.moderation.*` actor metadata + convo/message-context views + `subscribeModEvents` frame decode (private operator firehose); `atproto-proxy: did:web:api.bsky.chat#bsky_chat` |
 | Ozone | `Ozone` | `tools.ozone.moderation.*` including typed event/subject unions (repoRef / strongRef / messageRef / convoRef), subjects/repos/records, account timeline, reporter stats, scheduled actions + `getConfig`; requires `atproto-proxy` |
 | Admin | `Admin` | `com.atproto.admin` subject status, account info, invites, email |
 | Repo writes | `Repo`, `Records` | `createRecord` / `putRecord` / `deleteRecord` / `applyWrites` bodies; typed `describeRepo` / `getRecord` / `listRecords` parsers; builders for post/like/repost/follow/block/listblock/list/listitem/starterpack/profile |
@@ -62,6 +62,9 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | XRPC headers | `Xrpc` | `atproto-proxy`, accept-labelers, rate-limit; service-auth JWT mint/verify (ES256/ES256K, `kid`/`jti`/`iat`/`lxm`, `did#service` aud, replay cache) |
 | Errors | `Error` | XRPC `{error, message}` including rate limits |
 | Syntax | `Syntax` | Handle, DID, NSID, record-key, datetime, language validators |
+| Drafts | `Draft` | `app.bsky.draft` create/get/update/delete + typed draft / embed / threadgate / postgate builders |
+| Contacts | `Contact` | `app.bsky.contact` phone verify, import, matches, dismiss, sync status, remove data |
+| Age assurance | `Ageassurance` | `app.bsky.ageassurance` begin / getConfig / getState + region-rule union |
 | Embeds / facets | `Embed`, `Facet` | Images, external, record, recordWithMedia, video, **gallery**, record `#view` union; `getEmbedExternalView`; mention / link / tag parse **and serialize** |
 | Notifications | `Notification` | All `listNotifications` known reasons; prefs / prefs-v2 / activity subscriptions / register+unregister push |
 | User reports | `Moderation` | `com.atproto.moderation.createReport` (strongRef / repoRef, optional `modTool`, reason-type constants) |
@@ -82,10 +85,6 @@ Service-auth JWT mint/verify, TAP-like `Repo_sync`, Sync 1.1 pre-order CAR encod
 
 Still thin vs current lexicons (library leftovers, not product work):
 
-- `app.bsky.unspecced.getPostThreadV2` / `getPostThreadOtherV2` and the many onboarding/discover/explore/seeMore suggestion variants
-- `chat.bsky.moderation.subscribeModEvents` (operator firehose)
-- `app.bsky.draft` / `app.bsky.contact` / `app.bsky.ageassurance` namespaces
-- Actor preference kinds beyond adult-content / content-label / saved-feeds-v2 / interests / hidden-posts (`original` JSON is kept)
 - `Http_client` H2 stub and unused `Request`/`Response` types
 
 Open PR `#69` (`de-sync-types`) is superseded by this work: it still targeted the removed `getCheckout` API and left CAR/CBOR unfinished.

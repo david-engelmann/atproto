@@ -220,7 +220,11 @@ module Websocket = struct
     in
     find headers
 
-  let connect ?(tls_verify = false) (url : string) : t =
+  let extra_header_lines (extra : (string * string) list) : string =
+    String.concat ""
+      (List.map (fun (k, v) -> Printf.sprintf "%s: %s\r\n" k v) extra)
+
+  let connect ?(tls_verify = false) ?(extra_headers = []) (url : string) : t =
     Random.self_init ();
     let host, port, path = parse_wss_url url in
     Ssl.init ();
@@ -245,8 +249,8 @@ module Websocket = struct
          Connection: Upgrade\r\n\
          Sec-WebSocket-Key: %s\r\n\
          Sec-WebSocket-Version: 13\r\n\
-         \r\n"
-        path host key
+         %s\r\n"
+        path host key (extra_header_lines extra_headers)
     in
     write_all ssl req;
     let resp = read_handshake_response ssl in
@@ -267,7 +271,7 @@ module Websocket = struct
     (try send_close ws with _ -> ());
     try Ssl.shutdown ws.ssl with _ -> ()
 
-  let with_connection ?tls_verify url f =
-    let ws = connect ?tls_verify url in
+  let with_connection ?tls_verify ?(extra_headers = []) url f =
+    let ws = connect ?tls_verify ~extra_headers url in
     Fun.protect ~finally:(fun () -> close ws) (fun () -> f ws)
 end
