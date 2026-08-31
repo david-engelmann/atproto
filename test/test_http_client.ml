@@ -87,7 +87,7 @@ let test_live_h2_xrpc _ =
         (Http_client.xrpc_get ~host:"public.api.bsky.app"
            ~nsid:"com.atproto.identity.resolveHandle"
            ~query:[ ("handle", "bsky.app") ]
-           ~timeout:12.0 ())
+           ~timeout:5.0 ())
     in
     OUnit2.assert_bool "HTTP/2 XRPC returned a status"
       (resp.status_code >= 200 && resp.status_code < 600);
@@ -101,13 +101,17 @@ let test_live_h2_xrpc _ =
 let suite =
   "http_client"
   >::: [
+         "test_live_h2_xrpc" >:: test_live_h2_xrpc;
          "test_parse_https_url" >:: test_parse_https_url;
          "test_parse_url_requires_https" >:: test_parse_url_requires_https;
          "test_xrpc_url" >:: test_xrpc_url;
          "test_request_builders" >:: test_request_builders;
          "test_response_helpers" >:: test_response_helpers;
          "test_getaddrinfo" >:: test_getaddrinfo;
-         "test_live_h2_xrpc" >:: test_live_h2_xrpc;
        ]
 
-let () = run_test_tt_main suite
+(* oUnit2's default process runner forks; Lwt + OpenSSL after fork cannot
+   complete an HTTP/2 handshake. Sequential keeps the live XRPC check in-process. *)
+let () =
+  Unix.putenv "OUNIT_RUNNER" "sequential";
+  run_test_tt_main suite

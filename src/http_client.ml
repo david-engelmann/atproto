@@ -109,84 +109,82 @@ module Http_client = struct
           (H2.Error_code.to_string code)
           msg
 
-  let perform ~timeout (req : Request.request) : Response.response Lwt.t =
+  let close_socket socket =
+    Lwt.catch (fun () -> Lwt_unix.close socket) (fun _ -> Lwt.return_unit)
+
+  let ssl_connect ~host socket =
+    let ctx = Ssl.create_context Ssl.TLSv1_2 Ssl.Client_context in
+    Ssl.set_context_alpn_protos ctx [ "h2" ];
+    let uninit = Lwt_ssl.embed_uninitialized_socket socket ctx in
+    let ssl = Lwt_ssl.ssl_socket_of_uninitialized_socket uninit in
+    Ssl.set_client_SNI_hostname ssl host;
+    Lwt_ssl.ssl_perform_handshake uninit
+
+  let exchange ~host ~port (req : Request.request) parsed socket :
+      Response.response Lwt.t =
+    let error_p, error_w = Lwt.wait () in
+    let error_handler err =
+      if Lwt.is_sleeping error_p then
+        Lwt.wakeup_exn error_w (Error (error_message err))
+    in
+    ssl_connect ~host socket >>= fun ssl_socket ->
+    H2_lwt_unix.Client.SSL.create_connection ~error_handler ssl_socket
+    >>= fun connection ->
+    let response_p, response_w = Lwt.wait () in
+    let response_handler (response : H2.Response.t) body =
+      let buf = Buffer.create 4096 in
+      let rec read_response () =
+        H2.Body.Reader.schedule_read body
+          ~on_read:(fun bigstr ~off ~len ->
+            Buffer.add_string buf (Bigstringaf.substring bigstr ~off ~len);
+            read_response ())
+          ~on_eof:(fun () ->
+            if Lwt.is_sleeping response_p then
+              let status = H2.Status.to_code response.H2.Response.status in
+              Lwt.wakeup_later response_w
+                (Response.of_string ~status_code:status
+                   ~headers:(headers_to_list response.H2.Response.headers)
+                   (Buffer.contents buf)))
+      in
+      read_response ()
+    in
+    let h2_req =
+      H2.Request.create (h2_meth req.method_) parsed.path ~scheme:"https"
+        ~headers:(request_headers ~host ~port req.headers)
+    in
+    let writer =
+      H2_lwt_unix.Client.SSL.request connection h2_req ~error_handler
+        ~response_handler
+    in
+    (match req.body with
+    | Some data when data <> "" -> H2.Body.Writer.write_string writer data
+    | _ -> ());
+    H2.Body.Writer.close writer;
+    (* Do not wait on HTTP/2 GOAWAY — persistent connections never shut down
+       promptly and would block Lwt_main.run. *)
+    let _ = connection in
+    Lwt.pick [ response_p; error_p ]
+
+  let perform (req : Request.request) : Response.response Lwt.t =
     let parsed = parse_url req.url in
     get_addr_info parsed.host parsed.port >>= fun addrs ->
-    if addrs = [] then Lwt.fail (Error ("DNS lookup failed for " ^ parsed.host))
-    else
-      let rec try_addrs = function
-        | [] -> Lwt.fail (Error ("HTTP/2 connect failed for " ^ parsed.host))
-        | addr_info :: rest ->
-            let socket = Lwt_unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
-            Lwt.catch
-              (fun () ->
-                Lwt.pick
-                  [
-                    ( Lwt_unix.sleep timeout >>= fun () ->
-                      Lwt.fail (Error "HTTP/2 connect timed out") );
-                    ( Lwt_unix.connect socket addr_info.Unix.ai_addr
-                    >>= fun () ->
-                      let error_p, error_w = Lwt.wait () in
-                      let error_handler err =
-                        if Lwt.is_sleeping error_p then
-                          Lwt.wakeup_exn error_w (Error (error_message err))
-                      in
-                      H2_lwt_unix.Client.TLS.create_connection_with_default
-                        ~error_handler socket
-                      >>= fun connection ->
-                      let response_p, response_w = Lwt.wait () in
-                      let response_handler (response : H2.Response.t) body =
-                        let buf = Buffer.create 4096 in
-                        let rec read_response () =
-                          H2.Body.Reader.schedule_read body
-                            ~on_read:(fun bigstr ~off ~len ->
-                              Buffer.add_string buf
-                                (Bigstringaf.substring bigstr ~off ~len);
-                              read_response ())
-                            ~on_eof:(fun () ->
-                              if Lwt.is_sleeping response_p then
-                                let status =
-                                  H2.Status.to_code response.H2.Response.status
-                                in
-                                Lwt.wakeup_later response_w
-                                  (Response.of_string ~status_code:status
-                                     ~headers:
-                                       (headers_to_list
-                                          response.H2.Response.headers)
-                                     (Buffer.contents buf)))
-                        in
-                        read_response ()
-                      in
-                      let h2_req =
-                        H2.Request.create (h2_meth req.method_) parsed.path
-                          ~scheme:"https"
-                          ~headers:
-                            (request_headers ~host:parsed.host ~port:parsed.port
-                               req.headers)
-                      in
-                      let writer =
-                        H2_lwt_unix.Client.TLS.request connection h2_req
-                          ~error_handler ~response_handler
-                      in
-                      (match req.body with
-                      | Some data when data <> "" ->
-                          H2.Body.Writer.write_string writer data
-                      | _ -> ());
-                      H2.Body.Writer.close writer;
-                      Lwt.pick [ response_p; error_p ] );
-                  ])
-              (fun exn ->
-                Lwt.catch
-                  (fun () -> Lwt_unix.close socket)
-                  (fun _ -> Lwt.return_unit)
-                >>= fun () ->
-                match rest with [] -> Lwt.fail exn | _ -> try_addrs rest)
-      in
-      try_addrs addrs
+    match addrs with
+    | [] -> Lwt.fail (Error ("DNS lookup failed for " ^ parsed.host))
+    | addr_info :: _ ->
+        let socket = Lwt_unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
+        Lwt.finalize
+          (fun () ->
+            Lwt_unix.connect socket addr_info.Unix.ai_addr >>= fun () ->
+            exchange ~host:parsed.host ~port:parsed.port req parsed socket)
+          (fun () -> close_socket socket)
 
   let request ?(timeout = default_timeout) (req : Request.request) :
       Response.response Lwt.t =
-    perform ~timeout req
+    Lwt.catch
+      (fun () -> Lwt_unix.with_timeout timeout (fun () -> perform req))
+      (function
+        | Lwt_unix.Timeout -> Lwt.fail (Error "HTTP/2 request timed out")
+        | exn -> Lwt.fail exn)
 
   let get url ?(headers = []) ?timeout () : Response.response Lwt.t =
     request ?timeout (Request.get url ~headers ())
