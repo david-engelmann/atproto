@@ -493,6 +493,254 @@ module Chat = struct
          (`Assoc [ ("convoId", `String convo_id); ("name", `String name) ]))
     |> unwrap_convo
 
+  type members_page = { cursor : string option; members : member list }
+
+  type join_link = {
+    code : string;
+    enabled_status : string;
+    require_approval : bool;
+    join_rule : string;
+    created_at : string;
+    original : Yojson.Safe.t;
+  }
+
+  type join_request = {
+    convo_id : string;
+    requested_by : member;
+    requested_at : string;
+  }
+
+  type join_requests = { cursor : string option; requests : join_request list }
+
+  type join_link_preview = {
+    convo_id : string;
+    code : string;
+    name : string;
+    owner : member;
+    member_count : int;
+    member_limit : int;
+    require_approval : bool;
+    join_rule : string;
+    convo : convo option;
+  }
+
+  type join_preview =
+    [ `Preview of join_link_preview
+    | `Disabled of string
+    | `Invalid of string
+    | `Unknown of Yojson.Safe.t ]
+
+  type request_join_result = { status : string; convo : convo option }
+
+  let parse_members_page json : members_page =
+    {
+      cursor = Client.string_opt json "cursor";
+      members = List.map parse_member (Client.list_member json "members");
+    }
+
+  let parse_join_link json : join_link =
+    {
+      code = Client.string_member json "code";
+      enabled_status = Client.string_member json "enabledStatus";
+      require_approval = Client.bool_member json "requireApproval";
+      join_rule = Client.string_member json "joinRule";
+      created_at = Client.string_member json "createdAt";
+      original = json;
+    }
+
+  let unwrap_join_link json : join_link =
+    match Yojson.Safe.Util.member "joinLink" json with
+    | `Assoc _ as j -> parse_join_link j
+    | _ -> parse_join_link json
+
+  let parse_join_request json : join_request =
+    {
+      convo_id = Client.string_member json "convoId";
+      requested_by =
+        (match Yojson.Safe.Util.member "requestedBy" json with
+        | `Assoc _ as m -> parse_member m
+        | _ ->
+            {
+              did = Client.string_member json "requestedBy";
+              handle = None;
+              display_name = None;
+            });
+      requested_at = Client.string_member json "requestedAt";
+    }
+
+  let parse_join_requests json : join_requests =
+    {
+      cursor = Client.string_opt json "cursor";
+      requests =
+        List.map parse_join_request (Client.list_member json "requests");
+    }
+
+  let parse_join_preview json : join_preview =
+    let ty = Option.value ~default:"" (Client.string_opt json "$type") in
+    let ends_with suffix =
+      let n = String.length ty and m = String.length suffix in
+      n >= m && String.sub ty (n - m) m = suffix
+    in
+    if ends_with "disabledJoinLinkPreviewView" then
+      `Disabled (Client.string_member json "code")
+    else if ends_with "invalidJoinLinkPreviewView" then
+      `Invalid (Client.string_member json "code")
+    else if
+      ends_with "joinLinkPreviewView"
+      || Client.string_member json "convoId" <> ""
+    then
+      `Preview
+        {
+          convo_id = Client.string_member json "convoId";
+          code = Client.string_member json "code";
+          name = Client.string_member json "name";
+          owner =
+            (match Yojson.Safe.Util.member "owner" json with
+            | `Assoc _ as o -> parse_member o
+            | _ -> { did = ""; handle = None; display_name = None });
+          member_count = Client.int_member json "memberCount";
+          member_limit = Client.int_member json "memberLimit";
+          require_approval = Client.bool_member json "requireApproval";
+          join_rule = Client.string_member json "joinRule";
+          convo =
+            (match Yojson.Safe.Util.member "convo" json with
+            | `Assoc _ as c -> Some (parse_convo c)
+            | _ -> None);
+        }
+    else `Unknown json
+
+  let get_convo_members (s : Session.session) ?proxy ~convo_id ?limit ?cursor ()
+      : members_page =
+    Client.get_json ~session:s ~extra:(proxy_headers ?proxy ())
+      "chat.bsky.convo.getConvoMembers"
+      ((("convoId", convo_id) :: Client.opt_int "limit" limit)
+      @ Client.opt_pair "cursor" cursor)
+    |> parse_members_page
+
+  let create_group (s : Session.session) ?proxy ~members ~name () : convo =
+    Client.post_json ~session:s ~extra:(proxy_headers ?proxy ())
+      "chat.bsky.group.createGroup"
+      (Yojson.Safe.to_string
+         (`Assoc
+           [
+             ("members", `List (List.map (fun d -> `String d) members));
+             ("name", `String name);
+           ]))
+    |> unwrap_convo
+
+  let create_join_link (s : Session.session) ?proxy ~convo_id ~join_rule
+      ?(require_approval = false) () : join_link =
+    Client.post_json ~session:s ~extra:(proxy_headers ?proxy ())
+      "chat.bsky.group.createJoinLink"
+      (Yojson.Safe.to_string
+         (`Assoc
+           [
+             ("convoId", `String convo_id);
+             ("joinRule", `String join_rule);
+             ("requireApproval", `Bool require_approval);
+           ]))
+    |> unwrap_join_link
+
+  let edit_join_link (s : Session.session) ?proxy ~convo_id ?join_rule
+      ?require_approval () : join_link =
+    let fields =
+      ("convoId", `String convo_id)
+      ::
+      (match join_rule with
+      | Some r -> [ ("joinRule", `String r) ]
+      | None -> [])
+      @
+      match require_approval with
+      | Some b -> [ ("requireApproval", `Bool b) ]
+      | None -> []
+    in
+    Client.post_json ~session:s ~extra:(proxy_headers ?proxy ())
+      "chat.bsky.group.editJoinLink"
+      (Yojson.Safe.to_string (`Assoc fields))
+    |> unwrap_join_link
+
+  let enable_join_link (s : Session.session) ?proxy ~convo_id () : join_link =
+    Client.post_json ~session:s ~extra:(proxy_headers ?proxy ())
+      "chat.bsky.group.enableJoinLink"
+      (Yojson.Safe.to_string (convo_id_body convo_id))
+    |> unwrap_join_link
+
+  let disable_join_link (s : Session.session) ?proxy ~convo_id () : join_link =
+    Client.post_json ~session:s ~extra:(proxy_headers ?proxy ())
+      "chat.bsky.group.disableJoinLink"
+      (Yojson.Safe.to_string (convo_id_body convo_id))
+    |> unwrap_join_link
+
+  let get_join_link_previews ?session ?proxy ?host ~codes () : join_preview list
+      =
+    Client.get_json ?session ?host
+      ~extra:
+        (match session with Some _ -> proxy_headers ?proxy () | None -> [])
+      "chat.bsky.group.getJoinLinkPreviews"
+      (Client.repeat_param "codes" codes)
+    |> fun json ->
+    List.map parse_join_preview (Client.list_member json "joinLinkPreviews")
+
+  let list_join_requests (s : Session.session) ?proxy ~convo_id ?limit ?cursor
+      () : join_requests =
+    Client.get_json ~session:s ~extra:(proxy_headers ?proxy ())
+      "chat.bsky.group.listJoinRequests"
+      ((("convoId", convo_id) :: Client.opt_int "limit" limit)
+      @ Client.opt_pair "cursor" cursor)
+    |> parse_join_requests
+
+  let list_mutual_groups (s : Session.session) ?proxy ~subject ?limit ?cursor ()
+      : convos =
+    Client.get_json ~session:s ~extra:(proxy_headers ?proxy ())
+      "chat.bsky.group.listMutualGroups"
+      ((("subject", subject) :: Client.opt_int "limit" limit)
+      @ Client.opt_pair "cursor" cursor)
+    |> parse_convos
+
+  let approve_join_request (s : Session.session) ?proxy ~convo_id ~member () :
+      convo =
+    Client.post_json ~session:s ~extra:(proxy_headers ?proxy ())
+      "chat.bsky.group.approveJoinRequest"
+      (Yojson.Safe.to_string
+         (`Assoc [ ("convoId", `String convo_id); ("member", `String member) ]))
+    |> unwrap_convo
+
+  let reject_join_request (s : Session.session) ?proxy ~convo_id ~member () :
+      unit =
+    ignore
+      (Client.post_json ~session:s ~extra:(proxy_headers ?proxy ())
+         "chat.bsky.group.rejectJoinRequest"
+         (Yojson.Safe.to_string
+            (`Assoc
+              [ ("convoId", `String convo_id); ("member", `String member) ])))
+
+  let request_join (s : Session.session) ?proxy ~code () : request_join_result =
+    let json =
+      Client.post_json ~session:s ~extra:(proxy_headers ?proxy ())
+        "chat.bsky.group.requestJoin"
+        (Yojson.Safe.to_string (`Assoc [ ("code", `String code) ]))
+    in
+    {
+      status = Client.string_member json "status";
+      convo =
+        (match Yojson.Safe.Util.member "convo" json with
+        | `Assoc _ as c -> Some (parse_convo c)
+        | _ -> None);
+    }
+
+  let withdraw_join_request (s : Session.session) ?proxy ~convo_id () : unit =
+    ignore
+      (Client.post_json ~session:s ~extra:(proxy_headers ?proxy ())
+         "chat.bsky.group.withdrawJoinRequest"
+         (Yojson.Safe.to_string (convo_id_body convo_id)))
+
+  let update_join_requests_read (s : Session.session) ?proxy ~convo_id () : unit
+      =
+    ignore
+      (Client.post_json ~session:s ~extra:(proxy_headers ?proxy ())
+         "chat.bsky.group.updateJoinRequestsRead"
+         (Yojson.Safe.to_string (convo_id_body convo_id)))
+
   type chat_pref = { include_ : string; push : bool }
 
   type notification_preferences = {

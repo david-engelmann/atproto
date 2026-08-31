@@ -30,6 +30,8 @@ open Atproto.Http_method
 open Atproto.Hash
 open Atproto.Varint
 open Atproto.Syntax
+open Atproto.Temp
+open Atproto.Graph
 
 let () =
   (* TID used as record keys and commit revs *)
@@ -148,6 +150,63 @@ let () =
     Records.post ~text:"hello" ~created_at:"2024-01-01T00:00:00.000Z"
       ~tags:[ "atp" ] ()
   in
+  let status =
+    Records.status ~status:Records.status_live
+      ~created_at:"2024-01-01T00:00:00.000Z" ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "$type" status with
+    | `String "app.bsky.actor.status" -> true
+    | _ -> false);
+  let v2 =
+    Feed.parse_search_posts_v2
+      (`Assoc
+        [
+          ("posts", `List []);
+          ("hitsTotal", `Int 0);
+          ("detectedQueryLanguages", `List [ `String "ja" ]);
+        ])
+  in
+  assert (v2.detected_query_languages = [ "ja" ]);
+  let membership =
+    Graph.parse_lists_with_membership
+      (`Assoc [ ("listsWithMembership", `List []) ])
+  in
+  assert (membership.lists = []);
+  let handle_check =
+    Temp.parse_handle_check
+      (`Assoc
+        [
+          ("handle", `String "available.test");
+          ( "result",
+            `Assoc
+              [
+                ( "$type",
+                  `String
+                    "com.atproto.temp.checkHandleAvailability#resultAvailable"
+                );
+              ] );
+        ])
+  in
+  (match handle_check.result with `Available -> () | _ -> assert false);
+  let resolved =
+    Lexicon.parse_resolved_lexicon
+      (`Assoc
+        [
+          ( "uri",
+            `String
+              "at://did:plc:x/com.atproto.lexicon.schema/app.bsky.feed.post" );
+          ("cid", `String "bafy");
+          ( "schema",
+            `Assoc
+              [
+                ("lexicon", `Int 1);
+                ("id", `String "app.bsky.feed.post");
+                ("defs", `Assoc []);
+              ] );
+        ])
+  in
+  assert (resolved.cid = "bafy");
   let list =
     Records.list ~name:"Friends" ~purpose:Records.purpose_curatelist
       ~created_at:"2024-01-01T00:00:00.000Z" ()

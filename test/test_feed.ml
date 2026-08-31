@@ -156,7 +156,18 @@ let test_parse_search_posts _ =
   in
   let page = Feed.parse_search_posts json in
   OUnit2.assert_equal 1 (List.length page.posts);
-  OUnit2.assert_equal (Some "hello atproto") (List.hd page.posts).text
+  OUnit2.assert_equal (Some "hello atproto") (List.hd page.posts).text;
+  let v2 =
+    Feed.parse_search_posts_v2
+      (`Assoc
+        [
+          ("posts", json |> Yojson.Safe.Util.member "posts");
+          ("hitsTotal", `Int 2);
+          ("detectedQueryLanguages", `List [ `String "ja" ]);
+        ])
+  in
+  OUnit2.assert_equal [ "ja" ] v2.detected_query_languages;
+  OUnit2.assert_equal (Some 2) v2.hits_total
 
 let test_parse_post_record_embed_and_tags _ =
   let json =
@@ -444,6 +455,16 @@ let test_search_posts_live _ =
           | hd :: _ -> String.length hd.uri > 8))
   with exn -> skip_if true ("searchPosts skipped: " ^ Printexc.to_string exn)
 
+let test_search_posts_v2_live _ =
+  try
+    with_public_timeout (fun () ->
+        let page =
+          Feed.search_posts_v2 ~query:"atproto" ~sort:"recent" ~limit:3
+            ~hashtags:[ "atproto" ] ()
+        in
+        OUnit2.assert_bool "search posts v2" (List.length page.posts >= 0))
+  with exn -> skip_if true ("searchPostsV2 skipped: " ^ Printexc.to_string exn)
+
 let suite =
   "suite"
   >::: [
@@ -465,6 +486,7 @@ let suite =
          "test_send_interactions_body" >:: test_send_interactions_body;
          "test_get_feed_generator_live" >:: test_get_feed_generator_live;
          "test_search_posts_live" >:: test_search_posts_live;
+         "test_search_posts_v2_live" >:: test_search_posts_v2_live;
        ]
 
 let () = run_test_tt_main suite

@@ -192,6 +192,91 @@ let test_parse_typed_event_and_subject _ =
   | `Label l -> OUnit2.assert_equal [ "spam" ] l.create_label_vals
   | _ -> OUnit2.assert_failure "expected label event"
 
+let test_operator_namespace_parsers _ =
+  let templates =
+    Ozone.parse_templates
+      (`Assoc
+        [
+          ( "communicationTemplates",
+            `List
+              [
+                `Assoc
+                  [
+                    ("id", `String "t1");
+                    ("name", `String "Hello");
+                    ("contentMarkdown", `String "hi");
+                    ("subject", `String "welcome");
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "Hello" (List.hd templates.templates).name;
+  let sets =
+    Ozone.parse_sets
+      (`Assoc
+        [
+          ( "sets",
+            `List
+              [
+                `Assoc
+                  [
+                    ("name", `String "spam-dids");
+                    ("setSize", `Int 2);
+                    ("description", `String "known spam");
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal (Some 2) (List.hd sets.sets).set_size;
+  let members =
+    Ozone.parse_team_members
+      (`Assoc
+        [
+          ( "members",
+            `List
+              [
+                `Assoc
+                  [
+                    ("did", `String "did:plc:mod000111222333444555666");
+                    ("role", `String "tools.ozone.team.defs#roleAdmin");
+                    ("disabled", `Bool false);
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal (Some "tools.ozone.team.defs#roleAdmin")
+    (List.hd members.members).role;
+  let rules =
+    Ozone.parse_url_rules
+      (`Assoc
+        [
+          ( "rules",
+            `List
+              [
+                `Assoc
+                  [
+                    ("url", `String "https://evil.example");
+                    ("action", `String "block");
+                    ("patternType", `String "domain");
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "https://evil.example" (List.hd rules.rules).url;
+  let body =
+    Ozone.create_template_body ~name:"Hello" ~content_markdown:"hi"
+      ~subject:"welcome" ()
+  in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "Hello"
+    (body |> member "name" |> to_string)
+
 let test_query_statuses_auth_skipped _ =
   skip_if
     (not Auth.has_live_credentials)
@@ -215,6 +300,7 @@ let suite =
          "test_parse_typed_event_and_subject"
          >:: test_parse_typed_event_and_subject;
          "test_query_statuses_auth_skipped" >:: test_query_statuses_auth_skipped;
+         "test_operator_namespace_parsers" >:: test_operator_namespace_parsers;
        ]
 
 let () = run_test_tt_main suite

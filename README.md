@@ -35,19 +35,19 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | --- | --- | --- |
 | Session / JWT | `Auth`, `Session` | `createSession` URL uses `ATP_HOST` + `BASE_ENDPOINT` |
 | AppView actor | `Actor` | Profiles, search, suggestions, get/put preferences (all current `app.bsky.actor.defs#preferences` kinds) |
-| AppView feed | `Feed` | Timeline, `getPostThread` (`threadViewPost` / `notFoundPost` / `blockedPost`, optional parent, top-level embed + quote/bookmark counts), generators, `searchPosts`, quotes, list feed, interactions |
-| AppView graph | `Graph` | Follows/blocks/mutes, lists, starter packs, relationships, known followers |
+| AppView feed | `Feed` | Timeline, `getPostThread` (`threadViewPost` / `notFoundPost` / `blockedPost`, optional parent, top-level embed + quote/bookmark counts), generators, `searchPosts` + `searchPostsV2` (array filters, `detectedQueryLanguages`), quotes, list feed, interactions |
+| AppView graph | `Graph` | Follows/blocks/mutes, lists, starter packs, `searchStarterPacks` + `searchStarterPacksV2`, `getListsWithMembership` / `getStarterPacksWithMembership`, relationships, known followers |
 | Bookmarks | `Bookmark` | `createBookmark` / `deleteBookmark` / `getBookmarks`; bookmark `item` is the feed `#postView` / `#notFoundPost` / `#blockedPost` union |
 | Jetstream | `Jetstream` | v2 live tail, collection/DID/kind filters, seq + unix-µs cursors, reconnect/dedupe, v1 `/subscribe` compat; Network Replay planner + skippable unauthenticated HTTP (no invented archive token); `.jss` v1 header / block-index / columnar decode (zstd via injected callback) |
 | Video | `Video` | `getJobStatus`, `getUploadLimits`, byte upload (`uploadVideo` URL + POST), multipart `startUpload` / `uploadPart` / `finishUpload` / `abortUpload` / `getUploadStatus`, service-auth audience (`did:web:<pds>` + `uploadBlob` lxm), injectable job poll, `video_embed_json`. Client only — no hosted transcoder |
 | Unspecced | `Unspecced` | Popular generators, search skeletons, trending topics + `getTrends` / `getTrendsSkeleton`, tagged suggestions, unspecced age-assurance state, suggestion / feed / starter-pack / onboarding / discover / explore / seeMore skeletons, `getPostThreadV2` / `getPostThreadOtherV2`, config |
 | Labeler | `Labeler` | `app.bsky.labeler.getServices` |
-| Chat / DMs | `Chat` | `chat.bsky.convo.*` including typed message facets/reactions/embeds, lock/unlock, `chat.bsky.group` add/remove/edit, `chat.bsky.notification.getPreferences` / `putPreferences`, `chat.bsky.actor.getStatus` / declaration / export / delete, `chat.bsky.moderation.*` actor metadata + convo/message-context views + `subscribeModEvents` frame decode (private operator firehose); `atproto-proxy: did:web:api.bsky.chat#bsky_chat` |
-| Ozone | `Ozone` | `tools.ozone.moderation.*` including typed event/subject unions (repoRef / strongRef / messageRef / convoRef), subjects/repos/records, account timeline, reporter stats, scheduled actions + `getConfig`; requires `atproto-proxy` |
+| Chat / DMs | `Chat` | `chat.bsky.convo.*` including typed message facets/reactions/embeds, lock/unlock, `getConvoMembers`; `chat.bsky.group` create/add/remove/edit + join links / join requests / mutual groups; notification prefs; actor status / declaration / export / delete; moderation views + `subscribeModEvents`; `atproto-proxy: did:web:api.bsky.chat#bsky_chat` |
+| Ozone | `Ozone` | `tools.ozone.moderation.*` including typed event/subject unions, subjects/repos/records, timeline, reporter stats, scheduled actions; plus communication templates, sets, settings, team, safelink, signature, verification, hosting history + `getConfig`; requires `atproto-proxy` |
 | Admin | `Admin` | `com.atproto.admin` subject status, account info, invites, email |
-| Repo writes | `Repo`, `Records` | `createRecord` / `putRecord` / `deleteRecord` / `applyWrites` bodies; typed `describeRepo` / `getRecord` / `listRecords` parsers; builders for post/like/repost/follow/block/listblock/list/listitem/starterpack/profile |
+| Repo writes | `Repo`, `Records` | `createRecord` / `putRecord` / `deleteRecord` / `applyWrites` bodies; typed `describeRepo` / `getRecord` / `listRecords` parsers; builders for post/like/repost/follow/block/listblock/list/listitem/starterpack/profile/status/contentVisibility/verification/threadgate/postgate/generator/labeler/notification declaration |
 | Server | `Server` | describe server (typed), app passwords, invites, `reserveSigningKey`, account activate/status, `getServiceAuth` (aud may be `did#service`) |
-| Identity | `Identity`, `Did_plc`, `Did_web`, `Did_key` | resolve + typed `resolveDid` DID document + updateHandle / PLC operation helpers |
+| Identity | `Identity`, `Did_plc`, `Did_web`, `Did_key` | resolve + typed `resolveDid` DID document + updateHandle / PLC operation helpers + `refreshIdentity` |
 | PLC chain | `Did_plc` | Genesis DID, prev CID links, p256 **and k256** ECDSA (low-S, IEEE P1363) |
 | Sync | `Sync` | `getLatestCommit`, `getRepo` (CAR), public `getBlocks` (bytes/CAR), `listBlobs`, `listRepos`, host/repo status |
 | CID / CAR | `Cid`, `Car`, `Dag_cbor` | CIDv1 (including SHA-256 `Cid.create`) + CARv1, blessed CID check, Sync 1.1 streamable pre-order |
@@ -55,7 +55,8 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | Repo sync (TAP-like) | `Repo_sync` | Library-shaped backfill: open/verify repo CAR, walk records, `getRecord` inclusion proof (partial CAR), record-table apply of firehose ops, `#sync` desync, MST-level `apply_commit_tree`, Sync 1.1 pre-order export + collection-subset CAR. Not a hosted Tap service |
 | TID | `Tid` | Record-key / commit-rev identifiers (base32-sortable, official syntax) |
 | AT URI | `At_uri` | `at://` parse / serialize |
-| Lexicon | `Lexicon` | Parse lexicon-1 JSON (parameters + procedure input/output schemas), `to_ocaml` codegen (unions emit polymorphic variants), JSON validate, small bundled official lexicon documents |
+| Lexicon | `Lexicon` | Parse lexicon-1 JSON (parameters + procedure input/output schemas), `to_ocaml` codegen (unions emit polymorphic variants), JSON validate, `resolveLexicon` client, small bundled official lexicon documents |
+| Temp | `Temp` | `com.atproto.temp.checkHandleAvailability` (available / suggestions union) |
 | Firehose | `Firehose`, `Websocket` | RFC 6455 client + `subscribeRepos` frame decode (`#commit`/`#sync`/`#identity`/`#account`/`#info`) |
 | OAuth / DPoP | `Oauth`, `Oauth_scope` | PKCE S256, DPoP ES256 + nonce, client metadata, PAR/token loop; granular scope grammar (`repo:`/`rpc:`/`blob:`/`include:`/`transition:`) |
 | Labels | `Label` | `queryLabels` + label / query parse (`ver`, `exp`) + `#selfLabels` |
@@ -81,10 +82,15 @@ These are product-level, not missing protocol cores:
 - Permissioned data / spaces / LtHash (no stable public spec to implement yet)
 - Official `com.atproto.sync.getRepo` **lexicon** still has no `collection` parameter (client-side subset export from a full CAR is implemented; servers that reject unknown query params are unchanged)
 
-Service-auth JWT mint/verify, TAP-like `Repo_sync`, Sync 1.1 pre-order CAR encode/verify + collection-subset proofs, `.jss` v1 columnar decode, blessed CID / repo-path / firehose size+future-rev checks landed in #70–#77. Lexicon-accurate AppView record/embed parsers, typed repo reads, Bluesky record builders, notification prefs/push, and remaining chat/ozone XRPC clients landed in #78–#79.
+#70–#81 covered protocol core, AppView/chat/ozone, Jetstream, video, OAuth scopes, and thread v2 / drafts / contacts / remaining preference kinds.
 
-Still thin vs current lexicons (library leftovers, not product work):
+This PR fills remaining *library* gaps vs current public lexicons: `searchPostsV2` / `searchStarterPacksV2`, list/starter-pack membership queries, remaining `chat.bsky.group` join-link APIs + `getConvoMembers`, leftover record builders, `refreshIdentity`, `resolveLexicon`, `checkHandleAvailability`, and remaining Ozone operator namespaces (communication / set / setting / team / safelink / signature / verification / hosting).
 
+Still leftover vs current lexicons (not invented here):
+
+- `tools.ozone.queue.*` and `tools.ozone.report.*` operator workflows
+- `com.atproto.temp.*` besides `checkHandleAvailability` (reserved handles, signup queue, dereferenceScope, phone verification, revoke credentials)
+- `app.bsky.auth*` / `chat.bsky.authFullChatClient` permission documents (OAuth scope tokens, not XRPC clients)
 - `Http_client` H2 stub and unused `Request`/`Response` types
 
 Open PR `#69` (`de-sync-types`) is superseded by this work: it still targeted the removed `getCheckout` API and left CAR/CBOR unfinished.
@@ -100,6 +106,8 @@ let discover =
     ~feed:"at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot"
     ()
 let posts = Feed.search_posts ~q:"atproto" ~limit:5 ()
+let posts_v2 = Feed.search_posts_v2 ~query:"atproto" ~hashtags:[ "atproto" ] ~limit:5 ()
+let packs = Graph.search_starter_packs_v2 ~q:"bluesky" ~limit:5 ()
 let popular = Unspecced.get_popular_feed_generators ~limit:5 ()
 let trends = Unspecced.get_trends ~limit:5 ()
 let services =

@@ -140,6 +140,14 @@ let test_handle_txt_helpers _ =
     "https://jay.bsky.team/.well-known/atproto-did"
     (Identity.handle_well_known_url "jay.bsky.team")
 
+let test_refresh_identity_body _ =
+  let body = Identity.refresh_identity_body ~identifier:"jay.bsky.team" in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "jay.bsky.team"
+    (body |> member "identifier" |> to_string)
+
 let suite =
   "identity"
   >::: [
@@ -154,6 +162,7 @@ let suite =
          "test_recommended_did_credentials" >:: test_recommended_did_credentials;
          "test_handle_txt_helpers" >:: test_handle_txt_helpers;
          "test_update_handle_body" >:: test_update_handle_body;
+         "test_refresh_identity_body" >:: test_refresh_identity_body;
        ]
 
 let () = run_test_tt_main suite

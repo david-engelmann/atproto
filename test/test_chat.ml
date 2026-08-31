@@ -414,6 +414,92 @@ let test_subscribe_mod_events _ =
       OUnit2.assert_equal ~printer:(fun x -> x) "r9" e.rev
   | _ -> OUnit2.assert_failure "expected rate-limit CBOR frame"
 
+let test_group_join_parsers _ =
+  let link =
+    Chat.parse_join_link
+      (`Assoc
+        [
+          ("code", `String "abc123");
+          ("enabledStatus", `String "enabled");
+          ("requireApproval", `Bool true);
+          ("joinRule", `String "followedByOwner");
+          ("createdAt", `String "2024-01-01T00:00:00.000Z");
+        ])
+  in
+  OUnit2.assert_equal ~printer:(fun x -> x) "abc123" link.code;
+  OUnit2.assert_equal true link.require_approval;
+  let reqs =
+    Chat.parse_join_requests
+      (`Assoc
+        [
+          ( "requests",
+            `List
+              [
+                `Assoc
+                  [
+                    ("convoId", `String "g1");
+                    ( "requestedBy",
+                      `Assoc
+                        [
+                          ("did", `String "did:plc:abc123xyz0001112223333");
+                          ("handle", `String "alice.test");
+                        ] );
+                    ("requestedAt", `String "2024-01-01T00:00:00.000Z");
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal 1 (List.length reqs.requests);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "g1" (List.hd reqs.requests).convo_id;
+  (match
+     Chat.parse_join_preview
+       (`Assoc
+         [
+           ("$type", `String "chat.bsky.group.defs#joinLinkPreviewView");
+           ("convoId", `String "g1");
+           ("code", `String "abc123");
+           ("name", `String "Friends");
+           ( "owner",
+             `Assoc [ ("did", `String "did:plc:abc123xyz0001112223333") ] );
+           ("memberCount", `Int 3);
+           ("memberLimit", `Int 100);
+           ("requireApproval", `Bool false);
+           ("joinRule", `String "anyone");
+         ])
+   with
+  | `Preview p ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "Friends" p.name;
+      OUnit2.assert_equal 3 p.member_count
+  | _ -> OUnit2.assert_failure "expected join preview");
+  (match
+     Chat.parse_join_preview
+       (`Assoc
+         [
+           ("$type", `String "chat.bsky.group.defs#disabledJoinLinkPreviewView");
+           ("code", `String "dead");
+         ])
+   with
+  | `Disabled code -> OUnit2.assert_equal ~printer:(fun x -> x) "dead" code
+  | _ -> OUnit2.assert_failure "expected disabled preview");
+  let members =
+    Chat.parse_members_page
+      (`Assoc
+        [
+          ( "members",
+            `List
+              [
+                `Assoc
+                  [
+                    ("did", `String "did:plc:abc123xyz0001112223333");
+                    ("handle", `String "alice.test");
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal 1 (List.length members.members)
+
 let test_list_convos_auth_skipped _ =
   skip_if
     (not Auth.has_live_credentials)
@@ -440,6 +526,7 @@ let suite =
          >:: test_actor_status_and_declaration;
          "test_moderation_parsers" >:: test_moderation_parsers;
          "test_subscribe_mod_events" >:: test_subscribe_mod_events;
+         "test_group_join_parsers" >:: test_group_join_parsers;
          "test_list_convos_auth_skipped" >:: test_list_convos_auth_skipped;
        ]
 
