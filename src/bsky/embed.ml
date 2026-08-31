@@ -22,11 +22,37 @@ module Embed = struct
     size : int;
   }
 
+  type strong_ref = { uri : string; cid : string }
+
+  type color_rgb = { r : int; g : int; b : int }
+
+  type ext_view_source_theme = {
+    background_rgb : color_rgb option;
+    foreground_rgb : color_rgb option;
+    accent_rgb : color_rgb option;
+    accent_foreground_rgb : color_rgb option;
+  }
+
+  type ext_view_source = {
+    uri : string;
+    title : string;
+    icon : string option;
+    description : string option;
+    theme : ext_view_source_theme option;
+  }
+
+  type associated_profile = {
+    did : string;
+    handle : string;
+    display_name : string option;
+  }
+
   type ext = {
     uri : string;
     thumb : thumb;
     title : string;
     description : string;
+    associated_refs : strong_ref list;
   }
 
   type ext_view = {
@@ -34,6 +60,13 @@ module Embed = struct
     title : string;
     description : string;
     thumb : string;
+    created_at : string option;
+    updated_at : string option;
+    reading_time : int option;
+    labels : string list option;
+    associated_refs : strong_ref list;
+    associated_profiles : associated_profile list;
+    source : ext_view_source option;
   }
 
   type image_data = { alt : string; image : image }
@@ -42,7 +75,6 @@ module Embed = struct
   type image_view_embed = { embed_type : string; images : image_view list }
   type ext_embed = { embed_type : string; ext : ext }
   type ext_view_embed = { embed_type : string; ext : ext_view }
-  type strong_ref = { uri : string; cid : string }
   type record_embed = { embed_type : string; record : strong_ref }
   type aspect_ratio = { width : int; height : int }
 
@@ -191,6 +223,12 @@ module Embed = struct
   let int_member json field =
     match Yojson.Safe.Util.member field json with `Int n -> n | _ -> 0
 
+  let int_opt json field =
+    match Yojson.Safe.Util.member field json with `Int n -> Some n | _ -> None
+
+  let parse_strong_ref json : strong_ref =
+    { uri = string_member json "uri"; cid = string_member json "cid" }
+
   let parse_ref json : ref =
     let open Yojson.Safe.Util in
     let ref_link =
@@ -215,13 +253,69 @@ module Embed = struct
     let size = int_member json "size" in
     { thumb_type = image_type; ref; mime_type; size }
 
+  let parse_strong_ref_list json : strong_ref list =
+    match Yojson.Safe.Util.member "associatedRefs" json with
+    | `List xs -> List.map parse_strong_ref xs
+    | _ -> []
+
+  let parse_color_rgb json : color_rgb option =
+    match json with
+    | `Assoc _ -> (
+        match
+          ( Yojson.Safe.Util.member "r" json,
+            Yojson.Safe.Util.member "g" json,
+            Yojson.Safe.Util.member "b" json )
+        with
+        | `Int r, `Int g, `Int b -> Some { r; g; b }
+        | _ -> None)
+    | _ -> None
+
+  let parse_ext_view_source_theme json : ext_view_source_theme option =
+    match json with
+    | `Assoc _ ->
+        Some
+          {
+            background_rgb =
+              parse_color_rgb (Yojson.Safe.Util.member "backgroundRGB" json);
+            foreground_rgb =
+              parse_color_rgb (Yojson.Safe.Util.member "foregroundRGB" json);
+            accent_rgb =
+              parse_color_rgb (Yojson.Safe.Util.member "accentRGB" json);
+            accent_foreground_rgb =
+              parse_color_rgb
+                (Yojson.Safe.Util.member "accentForegroundRGB" json);
+          }
+    | _ -> None
+
+  let parse_ext_view_source json : ext_view_source option =
+    match json with
+    | `Assoc _ ->
+        Some
+          {
+            uri = string_member json "uri";
+            title = string_member json "title";
+            icon = string_opt json "icon";
+            description = string_opt json "description";
+            theme =
+              parse_ext_view_source_theme
+                (Yojson.Safe.Util.member "theme" json);
+          }
+    | _ -> None
+
+  let parse_associated_profile json : associated_profile =
+    {
+      did = string_member json "did";
+      handle = string_member json "handle";
+      display_name = string_opt json "displayName";
+    }
+
   let parse_ext json : ext =
     let open Yojson.Safe.Util in
     let uri = string_member json "uri" in
     let thumb = json |> member "thumb" |> parse_thumb in
     let title = string_member json "title" in
     let description = string_member json "description" in
-    { uri; thumb; title; description }
+    { uri; thumb; title; description; associated_refs = parse_strong_ref_list json }
 
   let parse_ext_view json : ext_view =
     {
@@ -229,6 +323,16 @@ module Embed = struct
       title = string_member json "title";
       description = string_member json "description";
       thumb = string_member json "thumb";
+      created_at = string_opt json "createdAt";
+      updated_at = string_opt json "updatedAt";
+      reading_time = int_opt json "readingTime";
+      labels = Label.Label.parse_label_values (Yojson.Safe.Util.member "labels" json);
+      associated_refs = parse_strong_ref_list json;
+      associated_profiles =
+        (match Yojson.Safe.Util.member "associatedProfiles" json with
+        | `List xs -> List.map parse_associated_profile xs
+        | _ -> []);
+      source = parse_ext_view_source (Yojson.Safe.Util.member "source" json);
     }
 
   let parse_ext_embed json : ext_embed =
@@ -280,9 +384,6 @@ module Embed = struct
     match json with
     | `Assoc fields -> List.exists (fun (key, _) -> key = field) fields
     | _ -> false
-
-  let parse_strong_ref json : strong_ref =
-    { uri = string_member json "uri"; cid = string_member json "cid" }
 
   let parse_record_embed json : record_embed =
     let open Yojson.Safe.Util in
@@ -651,40 +752,126 @@ module Embed = struct
                    e.images) );
           ]
     | `External (e : ext_embed) ->
+        let ext_fields =
+          [
+            ("uri", `String e.ext.uri);
+            ("title", `String e.ext.title);
+            ("description", `String e.ext.description);
+            ( "thumb",
+              blob_to_json
+                ~type_:
+                  (if e.ext.thumb.thumb_type = "" then "blob"
+                   else e.ext.thumb.thumb_type)
+                ~cid:e.ext.thumb.ref.ref_link ~mime_type:e.ext.thumb.mime_type
+                ~size:e.ext.thumb.size () );
+          ]
+          @
+          match e.ext.associated_refs with
+          | [] -> []
+          | refs ->
+              [
+                ( "associatedRefs",
+                  `List (List.map strong_ref_to_json refs) );
+              ]
+        in
         `Assoc
           [
             ( "$type",
               `String
                 (if e.embed_type = "" then "app.bsky.embed.external"
                  else e.embed_type) );
-            ( "external",
-              `Assoc
-                [
-                  ("uri", `String e.ext.uri);
-                  ("title", `String e.ext.title);
-                  ("description", `String e.ext.description);
-                  ( "thumb",
-                    blob_to_json
-                      ~type_:
-                        (if e.ext.thumb.thumb_type = "" then "blob"
-                         else e.ext.thumb.thumb_type)
-                      ~cid:e.ext.thumb.ref.ref_link
-                      ~mime_type:e.ext.thumb.mime_type ~size:e.ext.thumb.size ()
-                  );
-                ] );
+            ("external", `Assoc ext_fields);
           ]
     | `ExternalView (e : ext_view_embed) ->
+        let color_rgb_json (c : color_rgb) =
+          `Assoc [ ("r", `Int c.r); ("g", `Int c.g); ("b", `Int c.b) ]
+        in
+        let theme_json (t : ext_view_source_theme) =
+          `Assoc
+            ((match t.background_rgb with
+             | Some c -> [ ("backgroundRGB", color_rgb_json c) ]
+             | None -> [])
+            @ (match t.foreground_rgb with
+              | Some c -> [ ("foregroundRGB", color_rgb_json c) ]
+              | None -> [])
+            @ (match t.accent_rgb with
+              | Some c -> [ ("accentRGB", color_rgb_json c) ]
+              | None -> [])
+            @
+            match t.accent_foreground_rgb with
+            | Some c -> [ ("accentForegroundRGB", color_rgb_json c) ]
+            | None -> [])
+        in
+        let source_json (s : ext_view_source) =
+          `Assoc
+            ([ ("uri", `String s.uri); ("title", `String s.title) ]
+            @ (match s.icon with
+              | Some i -> [ ("icon", `String i) ]
+              | None -> [])
+            @ (match s.description with
+              | Some d -> [ ("description", `String d) ]
+              | None -> [])
+            @
+            match s.theme with
+            | Some t -> [ ("theme", theme_json t) ]
+            | None -> [])
+        in
+        let ext_fields =
+          [
+            ("uri", `String e.ext.uri);
+            ("title", `String e.ext.title);
+            ("description", `String e.ext.description);
+            ("thumb", `String e.ext.thumb);
+          ]
+          @ (match e.ext.created_at with
+            | Some t -> [ ("createdAt", `String t) ]
+            | None -> [])
+          @ (match e.ext.updated_at with
+            | Some t -> [ ("updatedAt", `String t) ]
+            | None -> [])
+          @ (match e.ext.reading_time with
+            | Some n -> [ ("readingTime", `Int n) ]
+            | None -> [])
+          @ (match e.ext.labels with
+            | Some vs ->
+                [
+                  ( "labels",
+                    `List (List.map (fun v -> `Assoc [ ("val", `String v) ]) vs)
+                  );
+                ]
+            | None -> [])
+          @ (match e.ext.associated_refs with
+            | [] -> []
+            | refs ->
+                [ ("associatedRefs", `List (List.map strong_ref_to_json refs)) ])
+          @ (match e.ext.associated_profiles with
+            | [] -> []
+            | ps ->
+                [
+                  ( "associatedProfiles",
+                    `List
+                      (List.map
+                         (fun (p : associated_profile) ->
+                           `Assoc
+                             ([
+                                ("did", `String p.did);
+                                ("handle", `String p.handle);
+                              ]
+                             @
+                             match p.display_name with
+                             | Some n -> [ ("displayName", `String n) ]
+                             | None -> []))
+                         ps) );
+                ])
+          @
+          match e.ext.source with
+          | Some s -> [ ("source", source_json s) ]
+          | None -> []
+        in
         `Assoc
           [
             ("$type", `String "app.bsky.embed.external#view");
-            ( "external",
-              `Assoc
-                [
-                  ("uri", `String e.ext.uri);
-                  ("title", `String e.ext.title);
-                  ("description", `String e.ext.description);
-                  ("thumb", `String e.ext.thumb);
-                ] );
+            ("external", `Assoc ext_fields);
           ]
     | `Record (e : record_embed) ->
         `Assoc

@@ -4,7 +4,7 @@ open Client
 module Labeler = struct
   type policies = {
     label_values : string list;
-    label_value_definitions : Yojson.Safe.t list;
+    label_value_definitions : Label.Label.label_value_definition list;
   }
 
   type service = {
@@ -26,7 +26,9 @@ module Labeler = struct
         List.filter_map
           (function `String s -> Some s | _ -> None)
           (Client.list_member json "labelValues");
-      label_value_definitions = Client.list_member json "labelValueDefinitions";
+      label_value_definitions =
+        List.map Label.Label.parse_label_value_definition
+          (Client.list_member json "labelValueDefinitions");
     }
 
   let parse_service json : service =

@@ -50,11 +50,21 @@ let test_parse_account_status _ =
         ("validDid", `Bool true);
         ("expectedBlobs", `Int 3);
         ("importedBlobs", `Int 3);
+        ("repoCommit", `String "bafyreicommit");
+        ("repoRev", `String "3jzfcijpj2z2a");
+        ("repoBlocks", `Int 40);
+        ("indexedRecords", `Int 12);
+        ("privateStateValues", `Int 1);
       ]
   in
   let st = Server.parse_account_status json in
   OUnit2.assert_equal (Some true) st.activated;
-  OUnit2.assert_equal (Some 3) st.expected_blobs
+  OUnit2.assert_equal (Some 3) st.expected_blobs;
+  OUnit2.assert_equal (Some "bafyreicommit") st.repo_commit;
+  OUnit2.assert_equal (Some "3jzfcijpj2z2a") st.repo_rev;
+  OUnit2.assert_equal (Some 40) st.repo_blocks;
+  OUnit2.assert_equal (Some 12) st.indexed_records;
+  OUnit2.assert_equal (Some 1) st.private_state_values
 
 let test_account_urls _ =
   skip_if
@@ -175,7 +185,17 @@ let test_email_and_account_bodies _ =
     "2026-01-01T00:00:00.000Z"
     (deact |> member "deleteAfter" |> to_string);
   let empty = Server.deactivate_account_body () in
-  OUnit2.assert_equal (`Assoc []) empty
+  OUnit2.assert_equal (`Assoc []) empty;
+  let invites =
+    Server.create_invite_codes_body ~code_count:2 ~use_count:5
+      ~for_accounts:[ "did:plc:abc123xyz0001112223333" ] ()
+  in
+  OUnit2.assert_equal 2 (invites |> member "codeCount" |> to_int);
+  match invites |> member "forAccounts" with
+  | `List [ `String did ] ->
+      OUnit2.assert_equal ~printer:(fun x -> x)
+        "did:plc:abc123xyz0001112223333" did
+  | _ -> OUnit2.assert_failure "expected forAccounts"
 
 let test_describe_server_public _ =
   try

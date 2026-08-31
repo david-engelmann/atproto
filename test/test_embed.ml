@@ -354,6 +354,34 @@ let test_parse_embed_external_view _ =
                     ("title", `String "AT Protocol");
                     ("description", `String "specs");
                     ("thumb", `String "https://cdn.example/t.jpg");
+                    ("readingTime", `Int 8);
+                    ("createdAt", `String "2024-01-01T00:00:00.000Z");
+                    ( "associatedProfiles",
+                      `List
+                        [
+                          `Assoc
+                            [
+                              ("did", `String "did:plc:abc123xyz0001112223333");
+                              ("handle", `String "alice.test");
+                            ];
+                        ] );
+                    ( "source",
+                      `Assoc
+                        [
+                          ("uri", `String "https://standard.site");
+                          ("title", `String "Standard");
+                          ( "theme",
+                            `Assoc
+                              [
+                                ( "backgroundRGB",
+                                  `Assoc
+                                    [
+                                      ("r", `Int 10);
+                                      ("g", `Int 20);
+                                      ("b", `Int 30);
+                                    ] );
+                              ] );
+                        ] );
                   ] );
             ] );
         ( "associatedRefs",
@@ -372,8 +400,67 @@ let test_parse_embed_external_view _ =
   OUnit2.assert_equal 1 (List.length v.associated_refs);
   match v.view with
   | Some e ->
-      OUnit2.assert_equal ~printer:(fun x -> x) "https://atproto.com" e.ext.uri
+      OUnit2.assert_equal ~printer:(fun x -> x) "https://atproto.com" e.ext.uri;
+      OUnit2.assert_equal (Some 8) e.ext.reading_time;
+      OUnit2.assert_equal 1 (List.length e.ext.associated_profiles);
+      (match e.ext.source with
+      | Some s ->
+          OUnit2.assert_equal ~printer:(fun x -> x) "Standard" s.title;
+          (match s.theme with
+          | Some t -> (
+              match t.background_rgb with
+              | Some c -> OUnit2.assert_equal 10 c.r
+              | None -> OUnit2.assert_failure "expected backgroundRGB")
+          | None -> OUnit2.assert_failure "expected theme")
+      | None -> OUnit2.assert_failure "expected source")
   | None -> OUnit2.assert_failure "expected view"
+
+let test_parse_external_associated_refs _ =
+  let json =
+    `Assoc
+      [
+        ("$type", `String "app.bsky.embed.external");
+        ( "external",
+          `Assoc
+            [
+              ("uri", `String "https://atproto.com");
+              ("title", `String "AT Protocol");
+              ("description", `String "specs");
+              ( "thumb",
+                `Assoc
+                  [
+                    ("$type", `String "blob");
+                    ( "ref",
+                      `Assoc
+                        [
+                          ( "$link",
+                            `String
+                              "bafyimage0000000000000000000000000000000000" );
+                        ] );
+                    ("mimeType", `String "image/jpeg");
+                    ("size", `Int 12);
+                  ] );
+              ( "associatedRefs",
+                `List
+                  [
+                    `Assoc
+                      [
+                        ( "uri",
+                          `String
+                            "at://did:plc:alice/site.standard.document/1" );
+                        ("cid", `String "bafyreihdummy000000000000000000000");
+                      ];
+                  ] );
+            ] );
+      ]
+  in
+  match Embed.parse_embed json with
+  | `External e ->
+      OUnit2.assert_equal 1 (List.length e.ext.associated_refs);
+      OUnit2.assert_equal ~printer:(fun x -> x)
+        "at://did:plc:alice/site.standard.document/1"
+        (List.hd e.ext.associated_refs).uri
+  | _ -> OUnit2.assert_failure "expected external embed"
 
 let test_join_link_embed _ =
   let built = Embed.join_link ~code:"abc123xyz" () in
@@ -399,6 +486,8 @@ let suite =
          "test_parse_record_view_not_found" >:: test_parse_record_view_not_found;
          "test_embed_to_json_roundtrip" >:: test_embed_to_json_roundtrip;
          "test_parse_embed_external_view" >:: test_parse_embed_external_view;
+         "test_parse_external_associated_refs"
+         >:: test_parse_external_associated_refs;
          "test_join_link_embed" >:: test_join_link_embed;
        ]
 

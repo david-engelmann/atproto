@@ -40,6 +40,7 @@ open Atproto.Response
 open Atproto.Http_client
 open Atproto.Auth
 open Atproto.Session
+open Atproto.Label
 
 let () =
   (* TID used as record keys and commit revs *)
@@ -217,6 +218,84 @@ let () =
     match Yojson.Safe.Util.member "onlyReposts" mute with
     | `Bool true -> true
     | _ -> false);
+  let reply =
+    Feed.parse_reply
+      (`Assoc
+        [
+          ( "root",
+            `Assoc
+              [
+                ("uri", `String "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/r");
+                ("cid", `String "bafyreiroot");
+                ( "author",
+                  `Assoc
+                    [
+                      ("did", `String "did:plc:abc123xyz0001112223333");
+                      ("handle", `String "alice.test");
+                    ] );
+                ("record", `Assoc [ ("text", `String "root") ]);
+                ("indexedAt", `String "2024-01-01T00:00:00.000Z");
+              ] );
+          ( "parent",
+            `Assoc
+              [
+                ("uri", `String "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/p");
+                ("cid", `String "bafyreiparent");
+                ( "author",
+                  `Assoc
+                    [
+                      ("did", `String "did:plc:abc123xyz0001112223333");
+                      ("handle", `String "alice.test");
+                    ] );
+                ("record", `Assoc [ ("text", `String "parent") ]);
+                ("indexedAt", `String "2024-01-01T00:00:00.000Z");
+              ] );
+          ( "grandparentAuthor",
+            `Assoc
+              [
+                ("did", `String "did:plc:abc123xyz0001112223333");
+                ("handle", `String "alice.test");
+              ] );
+        ])
+  in
+  (match reply.grandparent_author with
+  | Some a -> assert (a.handle = "alice.test")
+  | None -> assert false);
+  let status =
+    Server.parse_account_status
+      (`Assoc
+        [
+          ("activated", `Bool true);
+          ("validDid", `Bool true);
+          ("repoCommit", `String "bafyreicommit");
+          ("repoRev", `String "3jzfcijpj2z2a");
+          ("repoBlocks", `Int 1);
+          ("indexedRecords", `Int 1);
+          ("privateStateValues", `Int 0);
+          ("expectedBlobs", `Int 0);
+          ("importedBlobs", `Int 0);
+        ])
+  in
+  assert (status.repo_rev = Some "3jzfcijpj2z2a");
+  let invites =
+    Server.create_invite_codes_body ~code_count:1 ~use_count:1
+      ~for_accounts:[ "did:plc:abc123xyz0001112223333" ] ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "codeCount" invites with
+    | `Int 1 -> true
+    | _ -> false);
+  let lvd =
+    Label.parse_label_value_definition
+      (`Assoc
+        [
+          ("identifier", `String "spam");
+          ("severity", `String "inform");
+          ("blurs", `String "none");
+          ("locales", `List []);
+        ])
+  in
+  assert (lvd.identifier = "spam");
   let session_body =
     Auth.create_session_body ~identifier:"alice.test" ~password:"x"
       ~allow_takendown:true ()

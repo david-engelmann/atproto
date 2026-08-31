@@ -237,6 +237,12 @@ let test_union_codegen_and_official_bundle _ =
               "com.atproto.server.createAccount";
               "com.atproto.server.getSession";
               "com.atproto.server.createAppPassword";
+              "app.bsky.embed.external";
+              "app.bsky.feed.getAuthorFeed";
+              "app.bsky.graph.defs";
+              "com.atproto.server.checkAccountStatus";
+              "com.atproto.label.defs";
+              "chat.bsky.convo.getMessages";
             ];
           let defs =
             List.find
@@ -249,6 +255,13 @@ let test_union_codegen_and_official_bundle _ =
               defs.defs
           in
           OUnit2.assert_equal [ "count"; "actors" ] known.required;
+          let reply_ref =
+            List.find (fun (d : Lexicon.def) -> d.name = "replyRef") defs.defs
+          in
+          OUnit2.assert_bool "grandparentAuthor"
+            (List.exists
+               (fun (name, _) -> name = "grandparentAuthor")
+               reply_ref.properties);
           let actor_defs =
             List.find
               (fun (d : Lexicon.document) -> d.id = "app.bsky.actor.defs")

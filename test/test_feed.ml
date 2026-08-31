@@ -380,6 +380,34 @@ let test_parse_reply_ref_not_found _ =
   | `Post p -> OUnit2.assert_equal ~printer:(fun x -> x) "parent" p.record.text
   | _ -> OUnit2.assert_failure "expected parent post"
 
+let test_parse_grandparent_author _ =
+  let json =
+    `Assoc
+      [
+        ( "root",
+          post_view_json
+            ~uri:"at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/root"
+            ~text:"root" () );
+        ( "parent",
+          post_view_json
+            ~uri:"at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/p"
+            ~text:"parent" () );
+        ( "grandparentAuthor",
+          `Assoc
+            [
+              ("did", `String "did:plc:abc123xyz0001112223333");
+              ("handle", `String "alice.test");
+              ("displayName", `String "Alice");
+            ] );
+      ]
+  in
+  let reply = Feed.parse_reply json in
+  match reply.grandparent_author with
+  | Some a ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "alice.test" a.handle;
+      OUnit2.assert_equal (Some "Alice") a.display_name
+  | None -> OUnit2.assert_failure "expected grandparentAuthor"
+
 let test_parse_known_likers _ =
   let json =
     post_view_json
@@ -548,6 +576,17 @@ let test_search_posts_v2_live _ =
         OUnit2.assert_bool "search posts v2" (List.length page.posts >= 0))
   with exn -> skip_if true ("searchPostsV2 skipped: " ^ Printexc.to_string exn)
 
+let test_get_author_feed_page_live _ =
+  try
+    with_public_timeout (fun () ->
+        let page =
+          Feed.get_author_feed_page ~actor:"jay.bsky.team" ~limit:3
+            ~filter:"posts_no_replies" ~include_pins:true ()
+        in
+        OUnit2.assert_bool "author feed page" (List.length page.feed >= 0))
+  with exn ->
+    skip_if true ("getAuthorFeed skipped: " ^ Printexc.to_string exn)
+
 let suite =
   "suite"
   >::: [
@@ -565,12 +604,14 @@ let suite =
          >:: test_parse_thread_view_with_embed;
          "test_parse_blocked_thread" >:: test_parse_blocked_thread;
          "test_parse_reply_ref_not_found" >:: test_parse_reply_ref_not_found;
+         "test_parse_grandparent_author" >:: test_parse_grandparent_author;
          "test_parse_known_likers" >:: test_parse_known_likers;
          "test_parse_post_view_embed" >:: test_parse_post_view_embed;
          "test_send_interactions_body" >:: test_send_interactions_body;
          "test_get_feed_generator_live" >:: test_get_feed_generator_live;
          "test_search_posts_live" >:: test_search_posts_live;
          "test_search_posts_v2_live" >:: test_search_posts_v2_live;
+         "test_get_author_feed_page_live" >:: test_get_author_feed_page_live;
        ]
 
 let () = run_test_tt_main suite

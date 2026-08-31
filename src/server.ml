@@ -327,26 +327,48 @@ module Server = struct
   type account_status = {
     activated : bool option;
     valid_did : bool option;
+    repo_commit : string option;
+    repo_rev : string option;
+    repo_blocks : int option;
+    indexed_records : int option;
+    private_state_values : int option;
     expected_blobs : int option;
     imported_blobs : int option;
   }
 
   let parse_account_status json : account_status =
     let open Yojson.Safe.Util in
+    let int_opt field =
+      match json |> member field with `Int n -> Some n | _ -> None
+    in
     {
       activated =
         (match json |> member "activated" with `Bool b -> Some b | _ -> None);
       valid_did =
         (match json |> member "validDid" with `Bool b -> Some b | _ -> None);
-      expected_blobs =
-        (match json |> member "expectedBlobs" with
-        | `Int n -> Some n
+      repo_commit =
+        (match json |> member "repoCommit" with
+        | `String s -> Some s
         | _ -> None);
-      imported_blobs =
-        (match json |> member "importedBlobs" with
-        | `Int n -> Some n
-        | _ -> None);
+      repo_rev =
+        (match json |> member "repoRev" with `String s -> Some s | _ -> None);
+      repo_blocks = int_opt "repoBlocks";
+      indexed_records = int_opt "indexedRecords";
+      private_state_values = int_opt "privateStateValues";
+      expected_blobs = int_opt "expectedBlobs";
+      imported_blobs = int_opt "importedBlobs";
     }
+
+  let create_invite_codes_body ~code_count ~use_count ?(for_accounts = []) () :
+      Yojson.Safe.t =
+    let fields =
+      [ ("codeCount", `Int code_count); ("useCount", `Int use_count) ]
+      @
+      match for_accounts with
+      | [] -> []
+      | xs -> [ ("forAccounts", `List (List.map (fun s -> `String s) xs)) ]
+    in
+    `Assoc fields
 
   let deactivate_account_url (s : Session.session) : string =
     App.create_endpoint_url (App.create_base_url s)

@@ -136,6 +136,51 @@ module Label = struct
         if vals = [] then None else Some vals
     | _ -> None
 
+  type label_value_definition_strings = {
+    lang : string;
+    name : string;
+    description : string;
+  }
+
+  type label_value_definition = {
+    identifier : string;
+    severity : string;
+    blurs : string;
+    default_setting : string option;
+    adult_only : bool option;
+    locales : label_value_definition_strings list;
+  }
+
+  let parse_label_value_definition_strings json : label_value_definition_strings
+      =
+    let open Yojson.Safe.Util in
+    {
+      lang = (match json |> member "lang" with `String s -> s | _ -> "");
+      name = (match json |> member "name" with `String s -> s | _ -> "");
+      description =
+        (match json |> member "description" with `String s -> s | _ -> "");
+    }
+
+  let parse_label_value_definition json : label_value_definition =
+    let open Yojson.Safe.Util in
+    {
+      identifier =
+        (match json |> member "identifier" with `String s -> s | _ -> "");
+      severity =
+        (match json |> member "severity" with `String s -> s | _ -> "");
+      blurs = (match json |> member "blurs" with `String s -> s | _ -> "");
+      default_setting =
+        (match json |> member "defaultSetting" with
+        | `String s -> Some s
+        | _ -> None);
+      adult_only =
+        (match json |> member "adultOnly" with `Bool b -> Some b | _ -> None);
+      locales =
+        (match json |> member "locales" with
+        | `List xs -> List.map parse_label_value_definition_strings xs
+        | _ -> []);
+    }
+
   let self_labels_to_json (vals : string list) : Yojson.Safe.t =
     `Assoc
       [
