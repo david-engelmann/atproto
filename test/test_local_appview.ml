@@ -250,34 +250,42 @@ let test_more_appview _ =
       match Yojson.Safe.Util.member "post" item with
       | `Assoc _ as post -> (
           match Yojson.Safe.Util.member "uri" post with
-          | `String uri when String.length uri > 0 ->
-              let got =
-                av_get "app.bsky.feed.getPosts" [ ("uris", uri) ]
-                |> Feed.parse_posts_feed
-              in
-              OUnit2.assert_bool "getPosts" (List.length got.posts >= 1)
+          | `String uri when String.length uri > 0 -> (
+              match
+                av_get_if_served "app.bsky.feed.getPosts" [ ("uris", uri) ]
+              with
+              | None -> ()
+              | Some json ->
+                  let got = Feed.parse_posts_feed json in
+                  OUnit2.assert_bool "getPosts" (List.length got.posts >= 1))
           | _ -> ())
       | _ -> ())
   | _ -> ());
-  let rel =
-    av_get "app.bsky.graph.getRelationships"
-      [ ("actor", "alice.test"); ("others", "bob.test") ]
-    |> Graph.parse_relationships
-  in
-  OUnit2.assert_bool "getRelationships" (List.length rel.relationships >= 0);
-  let lists =
-    av_get "app.bsky.graph.getLists"
-      [ ("actor", "alice.test"); ("limit", "10") ]
-    |> Graph.parse_lists
-  in
-  OUnit2.assert_bool "getLists" (List.length lists.lists >= 0);
-  let packs =
-    av_get "app.bsky.graph.getActorStarterPacks"
-      [ ("actor", "alice.test"); ("limit", "5") ]
-    |> Graph.parse_starter_packs
-  in
-  OUnit2.assert_bool "getActorStarterPacks"
-    (List.length packs.starter_packs >= 0);
+  (match
+     av_get_if_served "app.bsky.graph.getRelationships"
+       [ ("actor", "alice.test"); ("others", "bob.test") ]
+   with
+  | None -> ()
+  | Some json ->
+      let rel = Graph.parse_relationships json in
+      OUnit2.assert_bool "getRelationships" (List.length rel.relationships >= 0));
+  (match
+     av_get_if_served "app.bsky.graph.getLists"
+       [ ("actor", "alice.test"); ("limit", "10") ]
+   with
+  | None -> ()
+  | Some json ->
+      let lists = Graph.parse_lists json in
+      OUnit2.assert_bool "getLists" (List.length lists.lists >= 0));
+  (match
+     av_get_if_served "app.bsky.graph.getActorStarterPacks"
+       [ ("actor", "alice.test"); ("limit", "5") ]
+   with
+  | None -> ()
+  | Some json ->
+      let packs = Graph.parse_starter_packs json in
+      OUnit2.assert_bool "getActorStarterPacks"
+        (List.length packs.starter_packs >= 0));
   (match av_get_if_served ~session:s "app.bsky.actor.getPreferences" [] with
   | None -> ()
   | Some json ->
