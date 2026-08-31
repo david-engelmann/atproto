@@ -5,6 +5,7 @@
   test_admin
   test_at_uri
   test_auth
+  test_base64url
   test_bookmark
   test_car
   test_chat
@@ -13,13 +14,17 @@
   test_did_key
   test_did_plc
   test_did_web
+  test_embed
   test_error
+  test_facet
   test_feed
   test_firehose
   test_graph
+  test_hash
   test_http_client
   test_http_method
   test_identity
+  test_jetstream
   test_label
   test_labeler
   test_lexicon
@@ -27,6 +32,7 @@
   test_mst
   test_notification
   test_oauth
+  test_oauth_scope
   test_ozone
   test_request
   test_repo
@@ -38,6 +44,7 @@
   test_tid
   test_unspecced
   test_user
+  test_varint
   test_blob
   test_blocks
   test_download_image
@@ -72,6 +79,7 @@
   test_admin
   test_at_uri
   test_auth
+  test_base64url
   test_bookmark
   test_car
   test_chat
@@ -80,13 +88,17 @@
   test_did_key
   test_did_plc
   test_did_web
+  test_embed
   test_error
+  test_facet
   test_feed
   test_firehose
   test_graph
+  test_hash
   test_http_client
   test_http_method
   test_identity
+  test_jetstream
   test_label
   test_labeler
   test_lexicon
@@ -94,6 +106,7 @@
   test_mst
   test_notification
   test_oauth
+  test_oauth_scope
   test_ozone
   test_request
   test_repo
@@ -105,6 +118,7 @@
   test_tid
   test_unspecced
   test_user
+  test_varint
   test_blob
   test_blocks
   test_download_image

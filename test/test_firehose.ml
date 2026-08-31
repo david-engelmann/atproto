@@ -207,6 +207,53 @@ let test_invert_synthetic_commit _ =
         (Cid.equal inverted expected)
   | None -> OUnit2.assert_failure "fixture missing prevData"
 
+let test_verify_live_shaped_cbor_frame _ =
+  let commit = synthetic_inverted_commit () in
+  let header = Firehose.encode_header { op = 1; t = Some "#commit" } in
+  let op0 = List.hd commit.ops in
+  let body =
+    Dag_cbor.encode
+      (Dag_cbor.Map
+         [
+           ("seq", Dag_cbor.Int 1);
+           ("rebase", Dag_cbor.Bool false);
+           ("tooBig", Dag_cbor.Bool false);
+           ("repo", Dag_cbor.Text commit.repo);
+           ("commit", Dag_cbor.Cid commit.commit);
+           ("rev", Dag_cbor.Text commit.rev);
+           ("since", Dag_cbor.Null);
+           ( "prevData",
+             match commit.prev_data with
+             | Some c -> Dag_cbor.Cid c
+             | None -> Dag_cbor.Null );
+           ("blocks", Dag_cbor.Bytes commit.raw_blocks);
+           ( "ops",
+             Dag_cbor.Array
+               [
+                 Dag_cbor.Map
+                   ([
+                      ("action", Dag_cbor.Text op0.action);
+                      ("path", Dag_cbor.Text op0.path);
+                    ]
+                   @
+                   match op0.cid with
+                   | Some c -> [ ("cid", Dag_cbor.Cid c) ]
+                   | None -> [ ("cid", Dag_cbor.Null) ]);
+               ] );
+           ("blobs", Dag_cbor.Array []);
+           ("time", Dag_cbor.Text commit.time);
+         ])
+  in
+  match Firehose.decode_frame (header ^ body) with
+  | _, `Commit decoded ->
+      Firehose.verify_commit decoded;
+      let inverted = Firehose.invert_commit decoded in
+      OUnit2.assert_bool "live-shaped prevData"
+        (match decoded.prev_data with
+        | Some expected -> Cid.equal inverted expected
+        | None -> false)
+  | _ -> OUnit2.assert_failure "expected #commit frame"
+
 let test_invert_rejects_wrong_op _ =
   let commit = synthetic_inverted_commit () in
   let bad =
@@ -380,6 +427,8 @@ let suite =
          "test_decode_update_and_delete_ops"
          >:: test_decode_update_and_delete_ops;
          "test_invert_synthetic_commit" >:: test_invert_synthetic_commit;
+         "test_verify_live_shaped_cbor_frame"
+         >:: test_verify_live_shaped_cbor_frame;
          "test_invert_rejects_wrong_op" >:: test_invert_rejects_wrong_op;
          "test_websocket_accept_rfc6455" >:: test_websocket_accept_rfc6455;
          "test_websocket_unmasked_roundtrip"

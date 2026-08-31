@@ -35,12 +35,14 @@ module Notification = struct
   }
 
   type unread_count = { count : int }
+  type other_record = { reason : string; raw : Yojson.Safe.t }
 
   type record =
     [ `Like of like_record
     | `Follow of follow_record
     | `Repost of repost_record
-    | `Reply of reply_record ]
+    | `Reply of reply_record
+    | `Other of other_record ]
 
   type notification = {
     uri : string;
@@ -112,11 +114,15 @@ module Notification = struct
     | "reply" ->
         let text = json |> member "text" |> to_string in
         let record_type = json |> member "$type" |> to_string in
-        let langs = json |> member "langs" |> to_list |> List.map to_string in
+        let langs =
+          match json |> member "langs" with
+          | `List items -> List.map to_string items
+          | _ -> []
+        in
         let reply = json |> member "reply" |> parse_reply in
         let created_at = json |> member "createdAt" |> to_string in
         `Reply { text; record_type; langs; reply; created_at }
-    | _ -> failwith ("Unknown Record Type: " ^ reason)
+    | _ -> `Other { reason; raw = json }
 
   let parse_notification json : notification =
     let open Yojson.Safe.Util in

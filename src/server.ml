@@ -355,6 +355,9 @@ module Server = struct
 
   let parse_describe_server json : server_description =
     let open Yojson.Safe.Util in
+    let safe_member obj field =
+      match obj with `Assoc _ -> obj |> member field | _ -> `Null
+    in
     let links = json |> member "links" in
     let contact = json |> member "contact" in
     {
@@ -379,16 +382,18 @@ module Server = struct
       links =
         {
           privacy_policy =
-            (match links |> member "privacyPolicy" with
+            (match safe_member links "privacyPolicy" with
             | `String s -> Some s
             | _ -> None);
           terms_of_service =
-            (match links |> member "termsOfService" with
+            (match safe_member links "termsOfService" with
             | `String s -> Some s
             | _ -> None);
         };
       contact_email =
-        (match contact |> member "email" with `String s -> Some s | _ -> None);
+        (match safe_member contact "email" with
+        | `String s -> Some s
+        | _ -> None);
     }
 
   let describe_server_parsed ?session ?host () : server_description =

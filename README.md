@@ -25,6 +25,8 @@ dune build
 dune runtest
 ```
 
+`dune build` also typechecks `examples/offline.ml` against the current public API (no network, no credentials).
+
 Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to a real `email:app-password` pair (placeholder values in `sample.env` do not count). Public-network tests (handle resolve, PLC directory, `getLatestCommit`, `subscribeRepos`, AppView feed/search/labeler reads) run without auth and skip only if the request itself fails.
 
 ## What this library covers
@@ -36,36 +38,45 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | AppView feed | `Feed` | Timeline, threads, generators (`getFeed` / `getFeedGenerator` / `getActorFeeds`), `searchPosts`, quotes, list feed, interactions |
 | AppView graph | `Graph` | Follows/blocks/mutes, lists, starter packs, relationships, known followers |
 | Bookmarks | `Bookmark` | `createBookmark` / `deleteBookmark` / `getBookmarks` |
-| Video | `Video` | `getJobStatus`, `getUploadLimits` |
+| Jetstream | `Jetstream` | v2 live tail (`wss://jetstream.us-west/east.bsky.network/xrpc/network.bsky.jetstream.subscribeEvents`), collection/DID/kind filters, seq + unix-µs cursors, reconnect/dedupe, v1 `/subscribe` compat, snapshot/replay URL+plan types (no archive token) |
+| Video | `Video` | `getJobStatus`, `getUploadLimits`, byte upload (`uploadVideo` URL + POST), service-auth audience (`did:web:<pds>` + `uploadBlob` lxm), injectable job poll, `video_embed_json`. Client only — no hosted transcoder |
 | Unspecced | `Unspecced` | Popular generators, search skeletons, trending topics, config |
 | Labeler | `Labeler` | `app.bsky.labeler.getServices` |
 | Chat / DMs | `Chat` | `chat.bsky.convo.*` with `atproto-proxy: did:web:api.bsky.chat#bsky_chat` |
 | Ozone | `Ozone` | `tools.ozone.moderation.*` + `getConfig`; requires `atproto-proxy` |
 | Admin | `Admin` | `com.atproto.admin` subject status, account info, invites, email |
 | Repo writes | `Repo` | `createRecord` / `putRecord` / `deleteRecord` / `applyWrites` bodies; `uploadBlob` parse |
-| Server | `Server` | describe server (typed), app passwords, invites, `reserveSigningKey`, account activate/status |
+| Server | `Server` | describe server (typed), app passwords, invites, `reserveSigningKey`, account activate/status, `getServiceAuth` |
 | Identity | `Identity`, `Did_plc`, `Did_web`, `Did_key` | resolve + updateHandle / PLC operation helpers |
 | PLC chain | `Did_plc` | Genesis DID, prev CID links, p256 **and k256** ECDSA (low-S, IEEE P1363) |
-| Sync | `Sync` | Current `getLatestCommit`, `getRepo` (CAR), `listBlobs`, `listRepos` |
+| Sync | `Sync` | `getLatestCommit`, `getRepo` (CAR), public `getBlocks` (bytes/CAR), `listBlobs`, `listRepos`, host/repo status |
 | CID / CAR | `Cid`, `Car`, `Dag_cbor` | CIDv1 (including SHA-256 `Cid.create`) + CARv1 |
 | MST | `Mst` | Layer/prefix rules, node parse, CID verify, lookup, insert/delete, firehose-diff inversion, p256/k256 commit sign+verify |
 | TID | `Tid` | Record-key / commit-rev identifiers (base32-sortable, official syntax) |
 | AT URI | `At_uri` | `at://` parse / serialize |
-| Lexicon | `Lexicon` | Parse lexicon-1 JSON, `to_ocaml` codegen, JSON validate |
+| Lexicon | `Lexicon` | Parse lexicon-1 JSON (parameters + procedure input/output schemas), `to_ocaml` codegen, JSON validate |
 | Firehose | `Firehose`, `Websocket` | RFC 6455 client + `subscribeRepos` frame decode (`#commit`/`#sync`/`#identity`/`#account`/`#info`) |
-| OAuth / DPoP | `Oauth` | PKCE S256, DPoP ES256 + nonce, client metadata, AS/resource metadata, redirect callback, PAR/token loop (injectable HTTP) |
+| OAuth / DPoP | `Oauth`, `Oauth_scope` | PKCE S256, DPoP ES256 + nonce, client metadata, PAR/token loop; granular scope grammar (`repo:`/`rpc:`/`blob:`/`include:`/`transition:`) |
 | Labels | `Label` | `queryLabels` + label / query parse (`ver`, `exp`) |
 | XRPC headers | `Xrpc` | `atproto-proxy`, accept-labelers, rate-limit, service-auth JWT; chat + appview proxies |
 | Errors | `Error` | XRPC `{error, message}` including rate limits |
+| Syntax | `Syntax` | Handle, DID, NSID, record-key, datetime, language validators |
+| Embeds / facets | `Embed`, `Facet` | Images, external, record, recordWithMedia, video; mention / link / tag |
+| Notifications | `Notification` | Unread count, list, updateSeen; unknown reasons parse as `` `Other `` |
+| User reports | `Moderation` | `com.atproto.moderation.createReport` (strongRef / repoRef) |
+| Crypto / codecs | `K256`, `Base32`, `Base58`, `Base64url`, `Hash`, `Varint` | secp256k1, multibase, CID/CAR varints |
+| HTTP helpers | `App`, `Client`, `Cohttp_client`, `Http_client`, `Http_method`, `Request`, `Response`, `User` | Endpoint URLs, shared XRPC GET/POST, method enum |
 
 ## Remaining gaps
 
 These are product-level, not missing protocol cores:
 
 - Hosting a public **client-metadata document** and completing a **live browser login** against a PDS (the protocol core — metadata, PAR + DPoP-nonce retry, authorize URL, redirect `code`/`state`/`iss`, token parse — is implemented and tested with fixtures)
-- A hosted PDS, video byte upload, or live Ozone operator session (client request/response types and proxy headers are implemented)
+- A hosted PDS, hosted video transcoder, or live Ozone operator session (client request/response types, video byte-upload + job poll, and proxy headers are implemented)
+- Jetstream Network Replay / HTTP snapshot download against Bluesky's gated archive (plan/segment/block URLs and JSON types are implemented; live download needs an operator token this library does not invent)
+- Permissioned data / spaces / LtHash (no stable public spec to implement yet)
 
-PLC k256 verify, MST firehose-diff inversion, signed-commit verify, OAuth client-metadata / PAR+token loop, and the AppView/Ozone/chat client surface are implemented in this stack (#70–#73 / this slice).
+Jetstream v2, granular OAuth scopes, Sync v1.1 `getBlocks` (public), live-shaped firehose MST verify, and the video byte-upload pipeline are in this slice. #70–#74 already landed identity/MST/OAuth-core/AppView/Ozone.
 
 Open PR `#69` (`de-sync-types`) is superseded by this work: it still targeted the removed `getCheckout` API and left CAR/CBOR unfinished.
 
@@ -96,6 +107,14 @@ let meta =
     ~client_id:"https://client.example/client-metadata.json"
     ~redirect_uris:[ "https://client.example/cb" ] ()
 let _ = Oauth.validate_metadata meta
+
+(* video byte-upload pipeline — construct URL + embed; POST needs a service token *)
+let upload =
+  Video.upload_video_url ~did:"did:plc:abc123xyz0001112223333" ~name:"clip.mp4" ()
+let embed =
+  Video.video_embed_json
+    ~video:(`Assoc [ ("$type", `String "blob"); ("mimeType", `String "video/mp4") ])
+    ~alt:"demo" ()
 
 (* firehose: one subscribeRepos frame from the public relay *)
 let _header, msg = Firehose.subscribe_one ()

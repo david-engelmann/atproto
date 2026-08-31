@@ -139,6 +139,28 @@ let test_parse_list_repos_by_collection _ =
   OUnit2.assert_equal 2 (List.length r.repos);
   OUnit2.assert_equal "did:plc:aaaa" (List.hd r.repos).did
 
+let test_get_blocks_url _ =
+  let url =
+    Sync.get_blocks_url ~host:"bsky.social"
+      ~did:"did:plc:abc123xyz0001112223333"
+      ~cids:[ "bafyreihdummy000000000000000000000000000000000" ]
+      ()
+  in
+  OUnit2.assert_bool "getBlocks"
+    (let needle = "getBlocks" in
+     let rec contains i =
+       i + String.length needle <= String.length url
+       && (String.sub url i (String.length needle) = needle || contains (i + 1))
+     in
+     contains 0);
+  OUnit2.assert_bool "cids"
+    (let needle = "cids=" in
+     let rec contains i =
+       i + String.length needle <= String.length url
+       && (String.sub url i (String.length needle) = needle || contains (i + 1))
+     in
+     contains 0)
+
 let test_get_repo_status_public _ =
   try
     with_public_timeout (fun () ->
@@ -160,6 +182,7 @@ let suite =
          "test_parse_list_hosts" >:: test_parse_list_hosts;
          "test_parse_list_repos_by_collection"
          >:: test_parse_list_repos_by_collection;
+         "test_get_blocks_url" >:: test_get_blocks_url;
          "test_get_repo_status_public" >:: test_get_repo_status_public;
        ]
 

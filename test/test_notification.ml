@@ -7,6 +7,38 @@ let create_test_session _ =
   let username, password = Auth.username_and_password_from_env in
   Session.create_session username password
 
+let test_parse_unread_and_like _ =
+  let count = Notification.parse_unread_count (`Assoc [ ("count", `Int 3) ]) in
+  OUnit2.assert_equal 3 count.count;
+  let like =
+    Notification.parse_record
+      (`Assoc
+        [
+          ("$type", `String "app.bsky.feed.like");
+          ( "subject",
+            `Assoc
+              [
+                ( "uri",
+                  `String "at://did:plc:alice/app.bsky.feed.post/3jzfcijpj2z2a"
+                );
+                ("cid", `String "bafyreihdummy000000000000000000000000000000000");
+              ] );
+          ("createdAt", `String "2024-01-01T00:00:00.000Z");
+        ])
+      "like"
+  in
+  (match like with
+  | `Like r ->
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "app.bsky.feed.like" r.record_type
+  | _ -> OUnit2.assert_failure "expected like");
+  match
+    Notification.parse_record (`Assoc [ ("text", `String "hi") ]) "quote"
+  with
+  | `Other o -> OUnit2.assert_equal ~printer:(fun x -> x) "quote" o.reason
+  | _ -> OUnit2.assert_failure "expected other record for quote"
+
 let test_get_unread_count _ =
   skip_if
     (not Auth.has_live_credentials)
@@ -45,6 +77,7 @@ let test_update_seen _ =
 let suite =
   "suite"
   >::: [
+         "test_parse_unread_and_like" >:: test_parse_unread_and_like;
          "test_get_unread_count" >:: test_get_unread_count;
          "test_list_notifications" >:: test_list_notifications;
          "test_update_seen" >:: test_update_seen;

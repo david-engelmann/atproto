@@ -170,9 +170,8 @@ module Sync = struct
             Lwt_io.write oc blob)
     | _ -> Lwt.return ()
 
-  let get_blocks (s : Session.session) (did : string) (cids : string list) :
-      string Lwt.t =
-    let host = s.atp_host in
+  let get_blocks_url ?host ?session ~did ~cids () : string =
+    let host = host_of ?host session in
     let base_url = App.create_public_base_url ~host () in
     let url =
       App.create_endpoint_url base_url (create_sync_endpoint "getBlocks")
@@ -182,8 +181,19 @@ module Sync = struct
       ^
       if cids = [] then "" else "&" ^ Cohttp_client.add_query_params "cids" cids
     in
-    let headers = headers_of (Some s) in
-    Cohttp_client.get_request_with_body_and_headers url body headers
+    if body = "" then url else url ^ "?" ^ body
+
+  let get_blocks_bytes ?host ?session ~did ~cids () : string =
+    let url = get_blocks_url ?host ?session ~did ~cids () in
+    let headers = headers_of session in
+    Lwt_main.run (Cohttp_client.get_request_with_headers url headers)
+
+  let get_blocks_car ?host ?session ~did ~cids () : Car.t =
+    Car.parse (get_blocks_bytes ?host ?session ~did ~cids ())
+
+  let get_blocks (s : Session.session) (did : string) (cids : string list) :
+      string Lwt.t =
+    Lwt.return (get_blocks_bytes ~session:s ~did ~cids ())
 
   let get_record ?host ?session ?commit (did : string) (collection : string)
       (rkey : string) : string =
