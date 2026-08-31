@@ -926,16 +926,19 @@ let test_effective_proxy_from_did_doc _ =
     "did:web:chat.example.com#bsky_chat"
     (snd (List.hd headers))
 
-let test_effective_proxy_from_env _ =
-  let prev = Sys.getenv_opt "ATP_CHAT_DID" in
-  Unix.putenv "ATP_CHAT_DID" "did:web:custom.chat#bsky_chat";
+let test_proxy_of_chat_did_string _ =
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "did:web:custom.chat#bsky_chat"
-    (Xrpc.proxy_to_string (Chat.effective_proxy ()));
-  match prev with
-  | Some v -> Unix.putenv "ATP_CHAT_DID" v
-  | None -> Unix.putenv "ATP_CHAT_DID" ""
+    (Xrpc.proxy_to_string
+       (Option.get
+          (Chat.proxy_of_chat_did_string "did:web:custom.chat#bsky_chat")));
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:web:api.bsky.chat#bsky_chat"
+    (Xrpc.proxy_to_string
+       (Option.get (Chat.proxy_of_chat_did_string "did:web:api.bsky.chat")));
+  OUnit2.assert_equal None (Chat.proxy_of_chat_did_string "  ")
 
 let test_parse_member_profile_leftovers _ =
   let member =
@@ -1095,7 +1098,7 @@ let suite =
          >:: test_parse_log_and_convo_requests;
          "test_effective_proxy_from_did_doc"
          >:: test_effective_proxy_from_did_doc;
-         "test_effective_proxy_from_env" >:: test_effective_proxy_from_env;
+         "test_proxy_of_chat_did_string" >:: test_proxy_of_chat_did_string;
          "test_parse_member_profile_leftovers"
          >:: test_parse_member_profile_leftovers;
          "test_parse_reply_to_union" >:: test_parse_reply_to_union;

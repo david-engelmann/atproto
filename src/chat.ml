@@ -14,13 +14,16 @@ module Chat = struct
   let default_proxy : Xrpc.proxy =
     { did = "did:web:api.bsky.chat"; service = "bsky_chat" }
 
+  let proxy_of_chat_did_string (d : string) : Xrpc.proxy option =
+    let d = String.trim d in
+    if d = "" then None
+    else if String.contains d '#' then Some (Xrpc.parse_proxy d)
+    else Some { did = d; service = "bsky_chat" }
+
   let chat_did_from_env () : Xrpc.proxy option =
     match Sys.getenv_opt "ATP_CHAT_DID" with
-    | Some d when String.trim d <> "" ->
-        let d = String.trim d in
-        if String.contains d '#' then Some (Xrpc.parse_proxy d)
-        else Some { did = d; service = "bsky_chat" }
-    | _ -> None
+    | Some d -> proxy_of_chat_did_string d
+    | None -> None
 
   let did_web_of_endpoint (endpoint : string) : string option =
     let e = String.trim endpoint in
