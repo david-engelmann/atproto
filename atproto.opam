@@ -55,10 +55,10 @@ Did_plc, Did_web, Did_key, Sync, Cid, Car, Dag_cbor, Mst, Tid, At_uri,
 Lexicon, Temp, Firehose, Websocket, Jetstream, Oauth, Oauth_scope, Label, Xrpc,
 Error, Syntax, Embed, Facet, Records, Notification, Draft, Contact,
 Ageassurance, Moderation, Site, Germnetwork, Http_client, Request, and
-Response. Feed views parse grandparentAuthor and getAuthorFeed includePins;
-external embeds parse readingTime / associatedProfiles / source theme;
-label policies parse labelValueDefinition; checkAccountStatus includes
-repoCommit/repoRev/repoBlocks.
+Response. Chat parses system-message actor refs (addedBy / removedBy / approvedBy /
+unlockedBy), group-member role/kind, leftover group-convo fields, and
+listConvoRequests joinRequestConvoView. Age-assurance events parse
+initIp/initUa/completeIp/completeUa.
 
 Video support is a client for the hosted video service (byte upload +
 job-status poll). This package does not host a PDS, OAuth client-metadata

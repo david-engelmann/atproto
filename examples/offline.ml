@@ -504,6 +504,53 @@ let () =
         ])
   in
   assert (actor_st.group_member_limit = 50);
+  let sys =
+    Chat.parse_message
+      (`Assoc
+        [
+          ("$type", `String "chat.bsky.convo.defs#systemMessageView");
+          ("id", `String "s1");
+          ("rev", `String "r1");
+          ("sentAt", `String "2026-01-01T00:00:00.000Z");
+          ( "data",
+            `Assoc
+              [
+                ( "$type",
+                  `String "chat.bsky.convo.defs#systemMessageDataUnlockConvo" );
+                ( "unlockedBy",
+                  `Assoc [ ("did", `String "did:plc:abc123xyz0001112223333") ] );
+              ] );
+        ])
+  in
+  assert sys.is_system;
+  (match sys.system with
+  | Some (`Unlock u) -> assert (String.length u.did > 0)
+  | _ -> assert false);
+  let reqs =
+    Chat.parse_convo_requests
+      (`Assoc
+        [
+          ( "requests",
+            `List
+              [
+                `Assoc
+                  [
+                    ( "$type",
+                      `String "chat.bsky.group.defs#joinRequestConvoView" );
+                    ("convoId", `String "g1");
+                    ("name", `String "Friends");
+                    ( "owner",
+                      `Assoc [ ("did", `String "did:plc:abc123xyz0001112223333") ]
+                    );
+                    ("memberCount", `Int 2);
+                    ("memberLimit", `Int 50);
+                  ];
+              ] );
+        ])
+  in
+  (match reqs.requests with
+  | [ `Join_request jr ] -> assert (jr.member_limit = 50)
+  | _ -> assert false);
   let decl = Records.chat_declaration ~allow_incoming:"following" () in
   assert (
     match Yojson.Safe.Util.member "$type" decl with
