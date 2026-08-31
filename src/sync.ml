@@ -212,6 +212,124 @@ module Sync = struct
          [ ("cursor", cursor); ("limit", Option.map string_of_int limit) ])
     |> parse_list_repos
 
+  type repo_status = {
+    did : string;
+    active : bool;
+    status : string option;
+    rev : string option;
+  }
+
+  type host = {
+    hostname : string;
+    seq : int64 option;
+    account_count : int option;
+    status : string option;
+  }
+
+  type list_hosts = { cursor : string option; hosts : host list }
+
+  type host_status = {
+    hostname : string;
+    status : string option;
+    seq : int64 option;
+    account_count : int option;
+  }
+
+  type collection_repo = { did : string }
+
+  type list_repos_by_collection = {
+    cursor : string option;
+    repos : collection_repo list;
+  }
+
+  let parse_repo_status json : repo_status =
+    let open Yojson.Safe.Util in
+    {
+      did = json |> member "did" |> to_string;
+      active =
+        (match json |> member "active" with `Bool b -> b | _ -> false);
+      status = string_opt json "status";
+      rev = string_opt json "rev";
+    }
+
+  let parse_host json : host =
+    let open Yojson.Safe.Util in
+    {
+      hostname =
+        (match json |> member "hostname" with `String s -> s | _ -> "");
+      seq =
+        (match json |> member "seq" with
+        | `Int n -> Some (Int64.of_int n)
+        | `Intlit s -> Some (Int64.of_string s)
+        | _ -> None);
+      account_count =
+        (match json |> member "accountCount" with `Int n -> Some n | _ -> None);
+      status = string_opt json "status";
+    }
+
+  let parse_list_hosts json : list_hosts =
+    let open Yojson.Safe.Util in
+    {
+      cursor = string_opt json "cursor";
+      hosts =
+        (match json |> member "hosts" with
+        | `List items -> List.map parse_host items
+        | _ -> []);
+    }
+
+  let parse_host_status json : host_status =
+    let h = parse_host json in
+    {
+      hostname = h.hostname;
+      status = h.status;
+      seq = h.seq;
+      account_count = h.account_count;
+    }
+
+  let parse_list_repos_by_collection json : list_repos_by_collection =
+    let open Yojson.Safe.Util in
+    {
+      cursor = string_opt json "cursor";
+      repos =
+        (match json |> member "repos" with
+        | `List items ->
+            List.filter_map
+              (fun item ->
+                match item |> member "did" with
+                | `String did -> Some { did }
+                | _ -> None)
+              items
+        | _ -> []);
+    }
+
+  let get_repo_status ?host ?session (did : string) : repo_status =
+    request_json ?host ?session
+      (create_sync_endpoint "getRepoStatus")
+      [ ("did", did) ]
+    |> parse_repo_status
+
+  let list_hosts ?host ?session ?cursor ?limit () : list_hosts =
+    request_json ?host ?session
+      (create_sync_endpoint "listHosts")
+      (optional_pairs
+         [ ("cursor", cursor); ("limit", Option.map string_of_int limit) ])
+    |> parse_list_hosts
+
+  let get_host_status ?host ?session (hostname : string) : host_status =
+    request_json ?host ?session
+      (create_sync_endpoint "getHostStatus")
+      [ ("hostname", hostname) ]
+    |> parse_host_status
+
+  let list_repos_by_collection ?host ?session ?cursor ?limit
+      (collection : string) : list_repos_by_collection =
+    request_json ?host ?session
+      (create_sync_endpoint "listReposByCollection")
+      (("collection", collection)
+      :: optional_pairs
+           [ ("cursor", cursor); ("limit", Option.map string_of_int limit) ])
+    |> parse_list_repos_by_collection
+
   let request_crawl ?host ?session (hostname : string) : string =
     let host = host_of ?host session in
     let base_url = App.create_public_base_url ~host () in

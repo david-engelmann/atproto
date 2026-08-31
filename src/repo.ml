@@ -312,4 +312,61 @@ module Repo = struct
       Lwt_main.run (Cohttp_client.post_data_with_headers url bytes headers)
     in
     parse_blob_ref (Yojson.Safe.from_string body)
+
+  type missing_blob = { cid : string; record_uri : string }
+  type list_missing_blobs = { cursor : string option; blobs : missing_blob list }
+
+  let parse_missing_blob json : missing_blob =
+    let open Yojson.Safe.Util in
+    {
+      cid = (match json |> member "cid" with `String s -> s | _ -> "");
+      record_uri =
+        (match json |> member "recordUri" with `String s -> s | _ -> "");
+    }
+
+  let parse_list_missing_blobs json : list_missing_blobs =
+    let open Yojson.Safe.Util in
+    {
+      cursor =
+        (match json |> member "cursor" with `String s -> Some s | _ -> None);
+      blobs =
+        (match json |> member "blobs" with
+        | `List items -> List.map parse_missing_blob items
+        | _ -> []);
+    }
+
+  let list_missing_blobs (s : Session.session) ?cursor ?limit () :
+      list_missing_blobs =
+    let bearer_token = Session.bearer_token_from_session s in
+    let application_json = Cohttp_client.application_json_setting_tuple in
+    let headers =
+      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
+    in
+    let url =
+      App.create_endpoint_url (App.create_base_url s)
+        (create_repo_endpoint "listMissingBlobs")
+    in
+    let pairs =
+      (match cursor with Some c -> [ ("cursor", c) ] | None -> [])
+      @ match limit with Some n -> [ ("limit", string_of_int n) ] | None -> []
+    in
+    let body = Cohttp_client.create_body_from_pairs pairs in
+    let resp =
+      Lwt_main.run
+        (Cohttp_client.get_request_with_body_and_headers url body headers)
+    in
+    parse_list_missing_blobs (Yojson.Safe.from_string resp)
+
+  let import_repo_url (s : Session.session) : string =
+    App.create_endpoint_url (App.create_base_url s)
+      (create_repo_endpoint "importRepo")
+
+  let import_repo (s : Session.session) (car_bytes : string) : string =
+    let bearer_token = Session.bearer_token_from_session s in
+    let headers =
+      Cohttp_client.create_headers_from_pairs
+        [ ("Content-Type", "application/vnd.ipld.car"); bearer_token ]
+    in
+    let url = import_repo_url s in
+    Lwt_main.run (Cohttp_client.post_data_with_headers url car_bytes headers)
 end
