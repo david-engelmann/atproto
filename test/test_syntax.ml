@@ -89,6 +89,24 @@ let test_did_spec_examples _ =
          (Syntax.is_blessed_did
             "did:key:zQ3shZc2QzApp2oymGvQbzP8eKheVshBHbU4ZYjeXqwSKEn6N"))
 
+let test_did_ref _ =
+  let bare = Syntax.parse_did_ref "did:web:video.bsky.app" in
+  OUnit2.assert_equal ~printer:(fun x -> x) "did:web:video.bsky.app" bare.did;
+  OUnit2.assert_equal None bare.fragment;
+  let labeled = Syntax.parse_did_ref "did:web:video.bsky.app#bsky_transcode" in
+  OUnit2.assert_equal ~printer:(fun x -> x) "did:web:video.bsky.app" labeled.did;
+  OUnit2.assert_equal (Some "bsky_transcode") labeled.fragment;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:web:video.bsky.app#bsky_transcode"
+    (Syntax.did_ref_to_string labeled);
+  OUnit2.assert_bool "fragment is not a DID"
+    (not (Syntax.is_valid_did "did:web:video.bsky.app#bsky_transcode"));
+  OUnit2.assert_bool "did-ref accepts service fragment"
+    (Syntax.is_valid_did_ref "did:web:video.bsky.app#bsky_transcode");
+  OUnit2.assert_bool "empty fragment rejected"
+    (not (Syntax.is_valid_did_ref "did:web:video.bsky.app#"))
+
 let test_nsid_spec_examples _ =
   List.iter
     (fun n -> assert_ok n Syntax.is_valid_nsid)
@@ -229,6 +247,7 @@ let suite =
          "test_handle_normalize" >:: test_handle_normalize;
          "test_handle_reserved_tld" >:: test_handle_reserved_tld;
          "test_did_spec_examples" >:: test_did_spec_examples;
+         "test_did_ref" >:: test_did_ref;
          "test_nsid_spec_examples" >:: test_nsid_spec_examples;
          "test_nsid_glob_and_ref" >:: test_nsid_glob_and_ref;
          "test_record_key" >:: test_record_key;

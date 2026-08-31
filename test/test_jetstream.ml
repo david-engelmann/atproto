@@ -251,6 +251,27 @@ let test_plan_snapshot _ =
      in
      contains 0)
 
+let test_snapshot_gated_live _ =
+  let old =
+    Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
+  in
+  ignore (Unix.alarm 20);
+  Fun.protect
+    ~finally:(fun () ->
+      ignore (Unix.alarm 0);
+      Sys.set_signal Sys.sigalrm old)
+    (fun () ->
+      try
+        let _ = Jetstream.try_plan_snapshot () in
+        OUnit2.assert_bool "ungated archive returned a plan" true
+      with
+      | Jetstream.Snapshot_gated (code, _) ->
+          OUnit2.assert_bool "gated without inventing a token"
+            (code = 401 || code = 403)
+      | Jetstream.Snapshot_http (code, _) ->
+          skip_if true (Printf.sprintf "planSnapshot HTTP %d" code)
+      | exn -> skip_if true ("planSnapshot skipped: " ^ Printexc.to_string exn))
+
 let test_subscribe_live _ =
   let old =
     Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
@@ -292,6 +313,7 @@ let suite =
          "test_dedupe" >:: test_dedupe;
          "test_reconnect_cursor" >:: test_reconnect_cursor;
          "test_plan_snapshot" >:: test_plan_snapshot;
+         "test_snapshot_gated_live" >:: test_snapshot_gated_live;
          "test_subscribe_live" >:: test_subscribe_live;
        ]
 

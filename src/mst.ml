@@ -718,6 +718,55 @@ module Mst = struct
   let invert_ops (t : tree) (ops : record_op list) : tree =
     List.fold_left invert_op t (normalize_ops ops)
 
+  let apply_op (t : tree) (op : record_op) : tree =
+    match op.action with
+    | "create" -> (
+        match op.cid with
+        | None -> fail "MST apply: create is missing cid"
+        | Some cid -> (
+            let t, prev = insert t op.path cid in
+            match prev with
+            | None -> t
+            | Some c ->
+                fail
+                  (Printf.sprintf "MST apply create: %s already present as %s"
+                     op.path (Cid.to_string c))))
+    | "update" -> (
+        match op.cid with
+        | None -> fail "MST apply: update is missing cid"
+        | Some cid -> (
+            let t, prev = insert t op.path cid in
+            match (prev, op.prev) with
+            | None, _ -> fail ("MST apply update: missing " ^ op.path)
+            | Some got, Some expected when not (Cid.equal got expected) ->
+                fail
+                  (Printf.sprintf "MST apply update: tree had %s, op.prev is %s"
+                     (Cid.to_string got) (Cid.to_string expected))
+            | Some _, _ -> t))
+    | "delete" -> (
+        let t, prev = remove t op.path in
+        match (prev, op.prev) with
+        | None, _ -> fail ("MST apply delete: missing " ^ op.path)
+        | Some got, Some expected when not (Cid.equal got expected) ->
+            fail
+              (Printf.sprintf "MST apply delete: tree had %s, op.prev is %s"
+                 (Cid.to_string got) (Cid.to_string expected))
+        | Some _, _ -> t)
+    | other -> fail ("MST apply: unknown action " ^ other)
+
+  let apply_ops (t : tree) (ops : record_op list) : tree =
+    List.fold_left apply_op t ops
+
+  let rec collect_entries (t : tree) acc =
+    List.fold_left
+      (fun acc e ->
+        match e with
+        | Value (path, cid) -> (path, cid) :: acc
+        | Child c -> collect_entries c acc)
+      acc (get_entries t)
+
+  let walk (t : tree) : (string * Cid.t) list = List.rev (collect_entries t [])
+
   let check_op (t : tree) (op : record_op) : unit =
     match op.action with
     | "create" | "update" -> (

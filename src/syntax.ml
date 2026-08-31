@@ -131,6 +131,50 @@ module Syntax = struct
 
   let ensure_did s = if not (is_valid_did s) then fail ("invalid DID " ^ s)
 
+  (* DID + optional service/key fragment (service-auth aud, atproto-proxy).
+     The fragment is not part of DID syntax; split it before validating. *)
+  type did_ref = { did : string; fragment : string option }
+
+  let split_did_ref (input : string) : string * string option =
+    match String.index_opt input '#' with
+    | None -> (input, None)
+    | Some i ->
+        ( String.sub input 0 i,
+          Some (String.sub input (i + 1) (String.length input - i - 1)) )
+
+  let is_valid_did_fragment (frag : string) : bool =
+    let n = String.length frag in
+    n > 0
+    &&
+    let rec loop i =
+      if i >= n then true
+      else
+        match frag.[i] with
+        | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' | '-' | '.' -> loop (i + 1)
+        | _ -> false
+    in
+    loop 0
+
+  let is_valid_did_ref (input : string) : bool =
+    let did, frag = split_did_ref input in
+    is_valid_did did
+    && match frag with None -> true | Some f -> is_valid_did_fragment f
+
+  let parse_did_ref (input : string) : did_ref =
+    let did, frag = split_did_ref input in
+    ensure_did did;
+    (match frag with
+    | Some f ->
+        if not (is_valid_did_fragment f) then fail ("invalid DID fragment " ^ f)
+    | None -> ());
+    { did; fragment = frag }
+
+  let did_ref_to_string (r : did_ref) : string =
+    match r.fragment with None -> r.did | Some f -> r.did ^ "#" ^ f
+
+  let ensure_did_ref s =
+    if not (is_valid_did_ref s) then fail ("invalid DID reference " ^ s)
+
   let did_method (input : string) : string option =
     if not (is_valid_did input) then None
     else

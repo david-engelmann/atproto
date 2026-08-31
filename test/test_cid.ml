@@ -49,6 +49,21 @@ let test_create_sha256 _ =
   OUnit2.assert_bool "different bytes must not collide"
     (not (Cid.equal cid (Cid.create ~codec:Cid.Raw "hello!")))
 
+let test_blob_cid _ =
+  let bytes = "video-bytes" in
+  let cid = Cid.of_blob bytes in
+  OUnit2.assert_equal Cid.Raw cid.codec;
+  OUnit2.assert_bool "verify_blob accepts matching CID"
+    (Cid.equal cid (Cid.verify_blob ~expected:cid bytes));
+  OUnit2.assert_bool "verify_blob rejects wrong CID"
+    (try
+       ignore (Cid.verify_blob ~expected:cid (bytes ^ "!"));
+       false
+     with Failure _ -> true);
+  let dag = Cid.create ~codec:Cid.Dag_cbor "{\"text\":\"hi\"}" in
+  OUnit2.assert_bool "verify_block dag-cbor"
+    (Cid.equal dag (Cid.verify_block ~expected:dag "{\"text\":\"hi\"}"))
+
 let suite =
   "cid"
   >::: [
@@ -59,6 +74,7 @@ let suite =
          "test_bytes_roundtrip" >:: test_bytes_roundtrip;
          "test_base32_roundtrip" >:: test_base32_roundtrip;
          "test_create_sha256" >:: test_create_sha256;
+         "test_blob_cid" >:: test_blob_cid;
        ]
 
 let () = run_test_tt_main suite

@@ -299,6 +299,34 @@ module Firehose = struct
                    (Cid.to_string inverted) (Cid.to_string expected))
         | None -> ())
 
+  let verify_commit_object (c : commit) : Mst.Mst.repo_commit =
+    let signed = repo_commit_of c in
+    if c.repo <> signed.did then
+      failwith
+        (Printf.sprintf "Firehose.verify_commit_object: did %s != repo %s"
+           signed.did c.repo);
+    if c.rev <> signed.rev then
+      failwith
+        (Printf.sprintf "Firehose.verify_commit_object: rev %s != %s" signed.rev
+           c.rev);
+    signed
+
+  let verify_commit_sig ~keys (c : commit) : Mst.Mst.sig_status =
+    Mst.Mst.verify_commit_sig ~keys (repo_commit_of c)
+
+  let apply_commit ~(prev_tree : Mst.Mst.tree) (c : commit) : Mst.Mst.tree =
+    let signed = verify_commit_object c in
+    verify_commit c;
+    let tree = Mst.Mst.apply_ops prev_tree (record_ops c.ops) in
+    let root = Mst.Mst.root_cid tree in
+    if not (Cid.equal root signed.data) then
+      failwith
+        (Printf.sprintf
+           "Firehose.apply_commit: applied MST %s != commit.data %s"
+           (Cid.to_string root)
+           (Cid.to_string signed.data));
+    tree
+
   let subscribe_one ?host ?cursor () : header * message =
     let cell = ref None in
     subscribe ?host ?cursor ~max_messages:1 (fun frame -> cell := Some frame);

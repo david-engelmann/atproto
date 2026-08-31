@@ -48,10 +48,10 @@ OCaml client and protocol library for the AT Protocol (XRPC, lexicons,
 repo sync, identity, AppView, Ozone, and chat).
 
 Public modules include Auth, Session, Actor, Feed, Graph, Bookmark, Video,
-Unspecced, Labeler, Chat, Ozone, Admin, Repo, Server, Identity, Did_plc,
-Did_web, Did_key, Sync, Cid, Car, Dag_cbor, Mst, Tid, At_uri, Lexicon,
-Firehose, Websocket, Jetstream, Oauth, Oauth_scope, Label, Xrpc, Error,
-Syntax, Embed, Facet, Notification, and Moderation.
+Unspecced, Labeler, Chat, Ozone, Admin, Repo, Repo_sync, Server, Identity,
+Did_plc, Did_web, Did_key, Sync, Cid, Car, Dag_cbor, Mst, Tid, At_uri,
+Lexicon, Firehose, Websocket, Jetstream, Oauth, Oauth_scope, Label, Xrpc,
+Error, Syntax, Embed, Facet, Notification, and Moderation.
 
 Video support is a client for the hosted video service (byte upload +
 job-status poll). This package does not host a PDS, OAuth client-metadata

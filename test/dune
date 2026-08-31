@@ -37,6 +37,7 @@
   test_ozone
   test_request
   test_repo
+  test_repo_sync
   test_response
   test_server
   test_session
@@ -112,6 +113,7 @@
   test_ozone
   test_request
   test_repo
+  test_repo_sync
   test_response
   test_server
   test_session

@@ -499,4 +499,59 @@ module Jetstream = struct
         | _ -> []);
       stats = parse_snapshot_stats (Yojson.Safe.Util.member "stats" json);
     }
+
+  (* Live archive HTTP. Public hosts gate this; pass [token] only if the
+     operator already has one. This library never invents a token. Live tail
+     ([subscribe]) stays unauthenticated. *)
+  exception Snapshot_gated of int * string
+  exception Snapshot_http of int * string
+
+  type snapshot_fetch =
+    [ `Plan of snapshot_plan | `Bytes of string | `Gated of int * string ]
+
+  let snapshot_headers ?token () =
+    let pairs =
+      Cohttp_client.Cohttp_client.application_json_setting_tuple
+      ::
+      (match token with
+      | Some t when t <> "" -> [ ("Authorization", "Bearer " ^ t) ]
+      | _ -> [])
+    in
+    Cohttp_client.Cohttp_client.create_headers_from_pairs pairs
+
+  let classify_snapshot_status code body =
+    if code = 401 || code = 403 then raise (Snapshot_gated (code, body))
+    else if code >= 400 then raise (Snapshot_http (code, body))
+    else body
+
+  let try_plan_snapshot ?host ?token ?kinds ?dids ?collections ?after_seq
+      ?before_seq () : snapshot_plan =
+    let url = plan_snapshot_url ?host () in
+    let headers = snapshot_headers ?token () in
+    let data =
+      Yojson.Safe.to_string
+        (plan_snapshot_body ?kinds ?dids ?collections ?after_seq ?before_seq ())
+    in
+    let code, body =
+      Lwt_main.run
+        (Cohttp_client.Cohttp_client.post_with_status url data headers)
+    in
+    parse_snapshot_plan
+      (Yojson.Safe.from_string (classify_snapshot_status code body))
+
+  let try_get_segment ?host ?token ~name () : string =
+    let url = get_segment_url ?host ~name () in
+    let headers = snapshot_headers ?token () in
+    let code, body =
+      Lwt_main.run (Cohttp_client.Cohttp_client.get_with_status url headers)
+    in
+    classify_snapshot_status code body
+
+  let try_get_block ?host ?token ~name ~index () : string =
+    let url = get_block_url ?host ~name ~index () in
+    let headers = snapshot_headers ?token () in
+    let code, body =
+      Lwt_main.run (Cohttp_client.Cohttp_client.get_with_status url headers)
+    in
+    classify_snapshot_status code body
 end

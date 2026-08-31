@@ -278,6 +278,9 @@ module Repo = struct
     original : Yojson.Safe.t;
   }
 
+  let verify_blob_bytes ?expected (bytes : string) : Cid.Cid.t =
+    Cid.Cid.verify_blob ?expected bytes
+
   let parse_blob_ref json : blob_ref =
     let open Yojson.Safe.Util in
     let blob = match json |> member "blob" with `Null -> json | b -> b in
