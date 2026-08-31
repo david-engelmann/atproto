@@ -207,13 +207,17 @@ module Video = struct
   let aspect_ratio_json (ar : aspect_ratio) : Yojson.Safe.t =
     `Assoc [ ("width", `Int ar.width); ("height", `Int ar.height) ]
 
-  let video_embed_json ~video ?alt ?aspect_ratio () : Yojson.Safe.t =
+  let video_embed_json ~video ?alt ?aspect_ratio ?presentation () :
+      Yojson.Safe.t =
     let fields =
       [ ("$type", `String "app.bsky.embed.video"); ("video", video) ]
       @ (match alt with Some a -> [ ("alt", `String a) ] | None -> [])
+      @ (match aspect_ratio with
+        | Some ar -> [ ("aspectRatio", aspect_ratio_json ar) ]
+        | None -> [])
       @
-      match aspect_ratio with
-      | Some ar -> [ ("aspectRatio", aspect_ratio_json ar) ]
+      match presentation with
+      | Some p -> [ ("presentation", `String p) ]
       | None -> []
     in
     `Assoc fields

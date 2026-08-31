@@ -408,6 +408,15 @@ module Lexicon = struct
   let official_confirm_email =
     {|{"lexicon":1,"id":"com.atproto.server.confirmEmail","defs":{"main":{"type":"procedure","description":"Confirm an email using a token from com.atproto.server.requestEmailConfirmation.","input":{"encoding":"application/json","schema":{"type":"object","required":["email","token"],"properties":{"email":{"type":"string"},"token":{"type":"string"}}}}}}}|}
 
+  let official_feed_known_likers =
+    {|{"lexicon":1,"id":"app.bsky.feed.defs","defs":{"knownLikers":{"type":"object","description":"The post's likers whom you also follow","required":["count","actors"],"properties":{"count":{"type":"integer"},"actors":{"type":"array","items":{"type":"ref","ref":"app.bsky.actor.defs#profileViewBasic"}}}},"viewerState":{"type":"object","properties":{"repost":{"type":"string"},"like":{"type":"string"},"bookmarked":{"type":"boolean"},"threadMuted":{"type":"boolean"},"replyDisabled":{"type":"boolean"},"embeddingDisabled":{"type":"boolean"},"pinned":{"type":"boolean"},"knownLikers":{"type":"ref","ref":"#knownLikers"}}}}}|}
+
+  let official_embed_video =
+    {|{"lexicon":1,"id":"app.bsky.embed.video","defs":{"main":{"type":"object","required":["video"],"properties":{"video":{"type":"blob"},"alt":{"type":"string"},"aspectRatio":{"type":"ref","ref":"app.bsky.embed.defs#aspectRatio"},"presentation":{"type":"string","knownValues":["default","gif"]}}},"view":{"type":"object","required":["cid","playlist"],"properties":{"cid":{"type":"string"},"playlist":{"type":"string"},"alt":{"type":"string"},"presentation":{"type":"string","knownValues":["default","gif"]}}}}}|}
+
+  let official_lexicon_schema =
+    {|{"lexicon":1,"id":"com.atproto.lexicon.schema","defs":{"main":{"type":"record","description":"Representation of Lexicon schemas themselves, when published as atproto records.","key":"nsid","record":{"type":"object","required":["lexicon"],"properties":{"lexicon":{"type":"integer"}}}}}}|}
+
   let official_lexicons : (string * string) list =
     [
       ("app.bsky.graph.listitem", official_listitem);
@@ -437,6 +446,9 @@ module Lexicon = struct
       ("com.atproto.admin.updateAccountSigningKey", official_admin_signing_key);
       ("chat.bsky.embed.joinLink", official_join_link);
       ("com.atproto.server.confirmEmail", official_confirm_email);
+      ("app.bsky.feed.defs", official_feed_known_likers);
+      ("app.bsky.embed.video", official_embed_video);
+      ("com.atproto.lexicon.schema", official_lexicon_schema);
     ]
 
   let official_documents () : document list =

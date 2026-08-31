@@ -228,7 +228,21 @@ let test_union_codegen_and_official_bundle _ =
               "chat.bsky.embed.joinLink";
               "com.atproto.admin.updateAccountSigningKey";
               "com.atproto.server.confirmEmail";
-            ])
+              "app.bsky.feed.defs";
+              "app.bsky.embed.video";
+              "com.atproto.lexicon.schema";
+            ];
+          let defs =
+            List.find
+              (fun (d : Lexicon.document) -> d.id = "app.bsky.feed.defs")
+              docs
+          in
+          let known =
+            List.find
+              (fun (d : Lexicon.def) -> d.name = "knownLikers")
+              defs.defs
+          in
+          OUnit2.assert_equal [ "count"; "actors" ] known.required)
 
 let test_parse_resolved_lexicon _ =
   let json =

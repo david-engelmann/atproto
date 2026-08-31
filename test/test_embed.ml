@@ -59,13 +59,20 @@ let test_parse_video _ =
             ] );
         ("alt", `String "clip");
         ("aspectRatio", `Assoc [ ("width", `Int 16); ("height", `Int 9) ]);
+        ("presentation", `String "gif");
       ]
   in
   match Embed.parse_embed json with
   | `Video e ->
       OUnit2.assert_equal ~printer:(fun x -> x) "video/mp4" e.video.mime_type;
       OUnit2.assert_equal (Some "clip") e.alt;
-      OUnit2.assert_equal (Some { Embed.width = 16; height = 9 }) e.aspect_ratio
+      OUnit2.assert_equal (Some { Embed.width = 16; height = 9 }) e.aspect_ratio;
+      OUnit2.assert_equal (Some Embed.video_presentation_gif) e.presentation;
+      (match Embed.embed_to_json (`Video e) with
+      | `Assoc fields ->
+          OUnit2.assert_equal (Some (`String "gif"))
+            (List.assoc_opt "presentation" fields)
+      | _ -> OUnit2.assert_failure "expected video json")
   | _ -> OUnit2.assert_failure "expected video embed"
 
 let test_parse_video_view _ =
@@ -76,10 +83,13 @@ let test_parse_video_view _ =
         ("cid", `String "bafyreihdummy000000000000000000000000000000000");
         ("playlist", `String "https://video.bsky.app/watch/playlist.m3u8");
         ("thumbnail", `String "https://video.bsky.app/watch/thumb.jpg");
+        ("presentation", `String "default");
       ]
   in
   match Embed.parse_embed json with
-  | `VideoView e -> OUnit2.assert_bool "playlist" (String.length e.playlist > 0)
+  | `VideoView e ->
+      OUnit2.assert_bool "playlist" (String.length e.playlist > 0);
+      OUnit2.assert_equal (Some Embed.video_presentation_default) e.presentation
   | _ -> OUnit2.assert_failure "expected video view"
 
 let test_parse_record _ =

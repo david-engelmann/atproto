@@ -23,6 +23,7 @@ module Records = struct
   let nsid_generator = "app.bsky.feed.generator"
   let nsid_labeler_service = "app.bsky.labeler.service"
   let nsid_notification_declaration = "app.bsky.notification.declaration"
+  let nsid_lexicon_schema = "com.atproto.lexicon.schema"
   let status_live = "app.bsky.actor.status#live"
   let purpose_modlist = "app.bsky.graph.defs#modlist"
   let purpose_curatelist = "app.bsky.graph.defs#curatelist"
@@ -368,6 +369,41 @@ module Records = struct
         ("$type", `String nsid_notification_declaration);
         ("allowSubscriptions", `String allow_subscriptions);
       ]
+
+  let lexicon_schema ~id ~defs ?description () : Yojson.Safe.t =
+    let fields =
+      [
+        ("$type", `String nsid_lexicon_schema);
+        ("lexicon", `Int 1);
+        ("id", `String id);
+        ("defs", defs);
+      ]
+      @
+      match description with
+      | Some d -> [ ("description", `String d) ]
+      | None -> []
+    in
+    `Assoc fields
+
+  type lexicon_schema_record = {
+    lexicon : int;
+    id : string option;
+    description : string option;
+    defs : Yojson.Safe.t;
+  }
+
+  let parse_lexicon_schema json : lexicon_schema_record =
+    let open Yojson.Safe.Util in
+    {
+      lexicon = (match json |> member "lexicon" with `Int n -> n | _ -> 1);
+      id =
+        (match json |> member "id" with `String s -> Some s | _ -> None);
+      description =
+        (match json |> member "description" with
+        | `String s -> Some s
+        | _ -> None);
+      defs = json |> member "defs";
+    }
 
   let chat_declaration ~allow_incoming ?allow_group_invites () : Yojson.Safe.t =
     let fields =

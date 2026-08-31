@@ -49,6 +49,15 @@ module Feed = struct
     likes : like list;
   }
 
+  (* app.bsky.feed.defs#knownLikers — likers the viewer also follows. *)
+  type known_liker = {
+    did : string;
+    handle : string;
+    display_name : string option;
+  }
+
+  type known_likers = { count : int; actors : known_liker list }
+
   type post = {
     uri : string;
     cid : string;
@@ -61,6 +70,7 @@ module Feed = struct
     bookmark_count : int option;
     indexed_at : string;
     viewer : feed_viewer;
+    known_likers : known_likers option;
     labels : string list option;
     embed : Embed.embed option;
   }
@@ -202,6 +212,33 @@ module Feed = struct
             | true -> `ViewerStatus (Actor.parse_viewer_status json)
             | false -> `EmptyViewer))
 
+  let parse_known_liker json : known_liker =
+    {
+      did = string_or_empty json "did";
+      handle = string_or_empty json "handle";
+      display_name =
+        (match Yojson.Safe.Util.member "displayName" json with
+        | `String s -> Some s
+        | _ -> None);
+    }
+
+  let parse_known_likers json : known_likers =
+    {
+      count = int_or_zero json "count";
+      actors =
+        (match Yojson.Safe.Util.member "actors" json with
+        | `List xs -> List.map parse_known_liker xs
+        | _ -> []);
+    }
+
+  let parse_known_likers_opt json : known_likers option =
+    match json with
+    | `Assoc _ -> (
+        match Yojson.Safe.Util.member "knownLikers" json with
+        | `Assoc _ as obj -> Some (parse_known_likers obj)
+        | _ -> None)
+    | _ -> None
+
   let parse_post json : post =
     let open Yojson.Safe.Util in
     let uri = string_or_empty json "uri" in
@@ -214,7 +251,9 @@ module Feed = struct
     let quote_count = int_opt json "quoteCount" in
     let bookmark_count = int_opt json "bookmarkCount" in
     let indexed_at = string_or_empty json "indexedAt" in
-    let viewer = json |> member "viewer" |> parse_feed_viewer in
+    let viewer_json = json |> member "viewer" in
+    let viewer = parse_feed_viewer viewer_json in
+    let known_likers = parse_known_likers_opt viewer_json in
     let labels = Label.Label.parse_label_values (json |> member "labels") in
     let embed = Embed.parse_embed_option json in
     {
@@ -229,6 +268,7 @@ module Feed = struct
       bookmark_count;
       indexed_at;
       viewer;
+      known_likers;
       labels;
       embed;
     }
@@ -666,6 +706,7 @@ module Feed = struct
     like_count : int option;
     quote_count : int option;
     bookmark_count : int option;
+    known_likers : known_likers option;
     original : Yojson.Safe.t;
   }
 
@@ -855,6 +896,7 @@ module Feed = struct
         (match json |> member "bookmarkCount" with
         | `Int n -> Some n
         | _ -> None);
+      known_likers = parse_known_likers_opt (json |> member "viewer");
       original = json;
     }
 

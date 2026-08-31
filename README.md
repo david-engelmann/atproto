@@ -35,7 +35,7 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | --- | --- | --- |
 | Session / JWT | `Auth`, `Session` | `createSession` URL uses `ATP_HOST` + `BASE_ENDPOINT` |
 | AppView actor | `Actor` | Profiles, search, suggestions, get/put preferences (all current `app.bsky.actor.defs#preferences` kinds) |
-| AppView feed | `Feed` | Timeline, `getPostThread` (`threadViewPost` / `notFoundPost` / `blockedPost`, optional parent, top-level embed + quote/bookmark counts), generators, `searchPosts` + `searchPostsV2` (array filters, `detectedQueryLanguages`), quotes, list feed, interactions |
+| AppView feed | `Feed` | Timeline, `getPostThread` (`threadViewPost` / `notFoundPost` / `blockedPost`, optional parent, top-level embed + quote/bookmark counts, `viewer.knownLikers`), generators, `searchPosts` + `searchPostsV2` (array filters, `detectedQueryLanguages`), quotes, list feed, interactions |
 | AppView graph | `Graph` | Follows/blocks/mutes, lists, starter packs, `searchStarterPacks` + `searchStarterPacksV2`, `getListsWithMembership` / `getStarterPacksWithMembership`, relationships, known followers |
 | Bookmarks | `Bookmark` | `createBookmark` / `deleteBookmark` / `getBookmarks`; bookmark `item` is the feed `#postView` / `#notFoundPost` / `#blockedPost` union |
 | Jetstream | `Jetstream` | v2 live tail, collection/DID/kind filters, seq + unix-µs cursors, reconnect/dedupe, v1 `/subscribe` compat; Network Replay planner + skippable unauthenticated HTTP (no invented archive token); `.jss` v1 header / block-index / columnar decode (zstd via injected callback) |
@@ -45,7 +45,7 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | Chat / DMs | `Chat` | `chat.bsky.convo.*` including typed message facets/reactions/embeds, lock/unlock, `getConvoMembers`; `chat.bsky.group` create/add/remove/edit + join links / join requests / mutual groups; notification prefs; actor status / declaration / export / delete; moderation views + `subscribeModEvents`; `atproto-proxy: did:web:api.bsky.chat#bsky_chat` |
 | Ozone | `Ozone` | `tools.ozone.moderation.*` including typed event/subject unions, subjects/repos/records, timeline, reporter stats, scheduled actions; plus communication templates, sets, settings, team, safelink, signature, verification, hosting history + `getConfig`; `tools.ozone.queue.*` (list/create/update/delete, moderator assign, `routeReports`) and `tools.ozone.report.*` (query/get, activities, assignments, stats, close/reassign); requires `atproto-proxy` |
 | Admin | `Admin` | `com.atproto.admin` subject status, account info, invites, email |
-| Repo writes | `Repo`, `Records` | `createRecord` / `putRecord` / `deleteRecord` / `applyWrites` bodies; typed `describeRepo` / `getRecord` / `listRecords` parsers; builders for post/like/repost/follow/block/listblock/list/listitem/starterpack/profile/status/contentVisibility/verification/threadgate/postgate/generator/labeler/notification declaration |
+| Repo writes | `Repo`, `Records` | `createRecord` / `putRecord` / `deleteRecord` / `applyWrites` bodies; typed `describeRepo` / `getRecord` / `listRecords` parsers; builders for post/like/repost/follow/block/listblock/list/listitem/starterpack/profile/status/contentVisibility/verification/threadgate/postgate/generator/labeler/notification declaration / `com.atproto.lexicon.schema` |
 | Server | `Server` | describe server (typed), app passwords, invites, `reserveSigningKey`, account activate/status (`activateAccount` / `deactivateAccount` / `checkAccountStatus` clients), `getServiceAuth` (aud may be `did#service`), email confirm/update (`confirmEmail`, `requestEmailConfirmation`, `requestEmailUpdate`, `updateEmail`) |
 | Identity | `Identity`, `Did_plc`, `Did_web`, `Did_key` | resolve + typed `resolveDid` DID document + updateHandle / PLC operation helpers + `refreshIdentity` |
 | PLC chain | `Did_plc` | Genesis DID, prev CID links, p256 **and k256** ECDSA (low-S, IEEE P1363) |
@@ -66,7 +66,7 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | Drafts | `Draft` | `app.bsky.draft` create/get/update/delete + typed draft / embed / threadgate / postgate builders |
 | Contacts | `Contact` | `app.bsky.contact` phone verify, import, matches, dismiss, sync status, remove data |
 | Age assurance | `Ageassurance` | `app.bsky.ageassurance` begin / getConfig / getState + region-rule union |
-| Embeds / facets | `Embed`, `Facet` | Images, external, record, recordWithMedia, video, **gallery**, record `#view` union; `getEmbedExternalView`; mention / link / tag parse **and serialize** |
+| Embeds / facets | `Embed`, `Facet` | Images, external, record, recordWithMedia, video (`presentation` `default`/`gif`), **gallery**, record `#view` union; `getEmbedExternalView`; mention / link / tag parse **and serialize** |
 | Notifications | `Notification` | All `listNotifications` known reasons; prefs / prefs-v2 / activity subscriptions / register+unregister push |
 | User reports | `Moderation` | `com.atproto.moderation.createReport` (strongRef / repoRef, optional `modTool`, reason-type constants) |
 | Crypto / codecs | `K256`, `Base32`, `Base58`, `Base64url`, `Hash`, `Varint` | secp256k1, multibase, CID/CAR varints |
@@ -84,9 +84,11 @@ These are product-level, not missing protocol cores:
 - Permissioned data / spaces / LtHash (no stable public spec to implement yet)
 - Official `com.atproto.sync.getRepo` **lexicon** still has no `collection` parameter (client-side subset export from a full CAR is implemented; servers that reject unknown query params are unchanged)
 
-#70–#84 covered protocol core, AppView/chat/ozone/temp, Jetstream, video, OAuth scopes, thread v2 / drafts / contacts, remaining preference kinds, ozone queue/report, `site.standard.*`, `com.germnetwork.declaration`, leftover admin, safelink `queryEvents`, `joinLink` embeds, and HTTP/2.
+#70–#85 covered protocol core, AppView/chat/ozone/temp, Jetstream, video, OAuth scopes, thread v2 / drafts / contacts, remaining preference kinds, ozone queue/report, `site.standard.*`, leftover admin, HTTP/2, server email/activate clients, and extra DAG-CBOR / HTTP/2 tests.
 
-This stack fills leftover `com.atproto.server` email / activate-deactivate / `checkAccountStatus` clients, extra DAG-CBOR / HTTP/2 tests (query encoding, custom port, PUT/DELETE, 204, live POST), and the bundled `confirmEmail` lexicon. Privileged admin/ozone writes still need a real operator session and are not invented here.
+This stack fills leftover *library* gaps vs current public lexicons: `app.bsky.feed.defs#knownLikers` (Aug 2026 viewer hydration), video embed `presentation` (`default`/`gif`), and a `com.atproto.lexicon.schema` record builder for publishing lexicon documents.
+
+Privileged admin/ozone writes still need a real operator session and are not invented here.
 
 Still leftover vs current lexicons (not invented here):
 
@@ -140,7 +142,11 @@ let upload =
 let embed =
   Video.video_embed_json
     ~video:(`Assoc [ ("$type", `String "blob"); ("mimeType", `String "video/mp4") ])
-    ~alt:"demo" ()
+    ~alt:"demo" ~presentation:"gif" ()
+let schema =
+  Records.lexicon_schema ~id:"com.example.ping"
+    ~defs:(`Assoc [ ("main", `Assoc [ ("type", `String "query") ]) ])
+    ()
 let start =
   Video.start_upload_body ~size_bytes:1_048_576 ~mime_type:"video/mp4"
     ~name:"clip.mp4" ()

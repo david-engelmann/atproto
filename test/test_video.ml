@@ -226,7 +226,7 @@ let test_ensure_blob_short_circuit _ =
 let test_video_embed_json _ =
   let embed =
     Video.video_embed_json ~video:sample_blob ~alt:"demo"
-      ~aspect_ratio:{ width = 16; height = 9 } ()
+      ~aspect_ratio:{ width = 16; height = 9 } ~presentation:"gif" ()
   in
   let open Yojson.Safe.Util in
   OUnit2.assert_equal
@@ -238,7 +238,11 @@ let test_video_embed_json _ =
     "demo"
     (embed |> member "alt" |> to_string);
   OUnit2.assert_equal 16
-    (embed |> member "aspectRatio" |> member "width" |> to_int)
+    (embed |> member "aspectRatio" |> member "width" |> to_int);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "gif"
+    (embed |> member "presentation" |> to_string)
 
 let test_upload_headers _ =
   let pairs =
