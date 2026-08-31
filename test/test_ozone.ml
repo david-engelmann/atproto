@@ -116,7 +116,12 @@ let test_parse_timeline_and_schedule _ =
       ~action:(Ozone.takedown_action ~comment:"spam" ())
       ~subjects:[ "did:plc:abc123xyz0001112223333" ]
       ~created_by:"did:plc:mod000111222333444555666"
-      ~scheduling:{ execute_at = Some "2024-02-01T00:00:00.000Z"; execute_after = None; execute_until = None }
+      ~scheduling:
+        {
+          execute_at = Some "2024-02-01T00:00:00.000Z";
+          execute_after = None;
+          execute_until = None;
+        }
       ()
   in
   let open Yojson.Safe.Util in

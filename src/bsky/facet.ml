@@ -103,8 +103,8 @@ module Facet = struct
       [
         ( "$type",
           `String
-            (if f.tag_type = "" then "app.bsky.richtext.facet#tag" else f.tag_type)
-        );
+            (if f.tag_type = "" then "app.bsky.richtext.facet#tag"
+             else f.tag_type) );
         ("tag", `String f.tag);
       ]
 
@@ -115,7 +115,9 @@ module Facet = struct
           [ ("index", index_to_json m.facet_index) ]
           @ (if m.facet_type = "" then []
              else [ ("$type", `String m.facet_type) ])
-          @ [ ("features", `List (List.map mention_feature_to_json m.features)) ]
+          @ [
+              ("features", `List (List.map mention_feature_to_json m.features));
+            ]
         in
         `Assoc fields
     | `Link l ->
@@ -139,8 +141,7 @@ module Facet = struct
       {
         facet_type = "";
         facet_index = { byte_start; byte_end };
-        features =
-          [ { did; mention_type = "app.bsky.richtext.facet#mention" } ];
+        features = [ { did; mention_type = "app.bsky.richtext.facet#mention" } ];
       }
 
   let link ~byte_start ~byte_end uri : facet =

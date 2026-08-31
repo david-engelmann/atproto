@@ -43,8 +43,7 @@ let test_parse_unread_and_like _ =
         ])
       "quote"
   with
-  | `Quote q ->
-      OUnit2.assert_equal ~printer:(fun x -> x) "hi" q.text
+  | `Quote q -> OUnit2.assert_equal ~printer:(fun x -> x) "hi" q.text
   | _ -> OUnit2.assert_failure "expected quote record"
 
 let test_parse_mention_and_via_repost _ =
@@ -72,7 +71,8 @@ let test_parse_mention_and_via_repost _ =
                  ( "uri",
                    `String "at://did:plc:alice/app.bsky.feed.post/3jzfcijpj2z2a"
                  );
-                 ("cid", `String "bafyreihdummy000000000000000000000000000000000");
+                 ( "cid",
+                   `String "bafyreihdummy000000000000000000000000000000000" );
                ] );
            ("createdAt", `String "2024-01-01T00:00:00.000Z");
          ])
@@ -156,8 +156,7 @@ let test_parse_preferences _ =
                 `Assoc [ ("list", `Bool true); ("push", `Bool true) ] );
               ( "unverified",
                 `Assoc [ ("list", `Bool true); ("push", `Bool false) ] );
-              ( "verified",
-                `Assoc [ ("list", `Bool true); ("push", `Bool true) ] );
+              ("verified", `Assoc [ ("list", `Bool true); ("push", `Bool true) ]);
             ] );
       ]
   in
@@ -210,7 +209,8 @@ let suite =
   "suite"
   >::: [
          "test_parse_unread_and_like" >:: test_parse_unread_and_like;
-         "test_parse_mention_and_via_repost" >:: test_parse_mention_and_via_repost;
+         "test_parse_mention_and_via_repost"
+         >:: test_parse_mention_and_via_repost;
          "test_parse_preferences" >:: test_parse_preferences;
          "test_get_unread_count" >:: test_get_unread_count;
          "test_list_notifications" >:: test_list_notifications;

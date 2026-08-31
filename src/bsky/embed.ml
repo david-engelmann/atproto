@@ -89,6 +89,39 @@ module Embed = struct
     items : gallery_view_image list;
   }
 
+  type view_not_found = { uri : string; not_found : bool }
+
+  type view_blocked = {
+    uri : string;
+    blocked : bool;
+    author_did : string option;
+  }
+
+  type view_detached = { uri : string; detached : bool }
+
+  type named_view = {
+    type_ : string;
+    uri : string;
+    cid : string;
+    original : Yojson.Safe.t;
+  }
+
+  type media =
+    [ `Image of image_embed
+    | `ImageView of image_view_embed
+    | `External of ext_embed
+    | `ExternalView of ext_view_embed
+    | `Video of video_embed
+    | `VideoView of video_view_embed
+    | `Gallery of gallery_embed
+    | `GalleryView of gallery_view_embed ]
+
+  type record_with_media = {
+    embed_type : string;
+    record : record_embed;
+    media : media;
+  }
+
   type view_record = {
     uri : string;
     cid : string;
@@ -106,41 +139,13 @@ module Embed = struct
 
   and record_view_union =
     [ `ViewRecord of view_record
-    | `ViewNotFound of { uri : string; not_found : bool }
-    | `ViewBlocked of {
-        uri : string;
-        blocked : bool;
-        author_did : string option;
-      }
-    | `ViewDetached of { uri : string; detached : bool }
-    | `NamedView of {
-        type_ : string;
-        uri : string;
-        cid : string;
-        original : Yojson.Safe.t;
-      }
+    | `ViewNotFound of view_not_found
+    | `ViewBlocked of view_blocked
+    | `ViewDetached of view_detached
+    | `NamedView of named_view
     | `Unknown of Yojson.Safe.t ]
 
-  and record_view_embed = {
-    embed_type : string;
-    record : record_view_union;
-  }
-
-  and media =
-    [ `Image of image_embed
-    | `ImageView of image_view_embed
-    | `External of ext_embed
-    | `ExternalView of ext_view_embed
-    | `Video of video_embed
-    | `VideoView of video_view_embed
-    | `Gallery of gallery_embed
-    | `GalleryView of gallery_view_embed ]
-
-  and record_with_media = {
-    embed_type : string;
-    record : record_embed;
-    media : media;
-  }
+  and record_view_embed = { embed_type : string; record : record_view_union }
 
   and embed =
     [ `Image of image_embed
@@ -451,15 +456,12 @@ module Embed = struct
 
   and parse_record_view_union json : record_view_union =
     let typ = string_member json "$type" in
-    if
-      typ = "app.bsky.embed.record#viewRecord" || type_suffix "#viewRecord" typ
+    if typ = "app.bsky.embed.record#viewRecord" || type_suffix "#viewRecord" typ
     then `ViewRecord (parse_view_record json)
     else if
       typ = "app.bsky.embed.record#viewNotFound"
       || type_suffix "#viewNotFound" typ
-    then
-      `ViewNotFound
-        { uri = string_member json "uri"; not_found = true }
+    then `ViewNotFound { uri = string_member json "uri"; not_found = true }
     else if
       typ = "app.bsky.embed.record#viewBlocked"
       || type_suffix "#viewBlocked" typ
@@ -474,8 +476,7 @@ module Embed = struct
     else if
       typ = "app.bsky.embed.record#viewDetached"
       || type_suffix "#viewDetached" typ
-    then
-      `ViewDetached { uri = string_member json "uri"; detached = true }
+    then `ViewDetached { uri = string_member json "uri"; detached = true }
     else if
       type_suffix "#generatorView" typ
       || type_suffix "#listView" typ
@@ -491,15 +492,10 @@ module Embed = struct
           original = json;
         }
     else if check_for_field "notFound" json then
-      `ViewNotFound
-        { uri = string_member json "uri"; not_found = true }
+      `ViewNotFound { uri = string_member json "uri"; not_found = true }
     else if check_for_field "blocked" json then
       `ViewBlocked
-        {
-          uri = string_member json "uri";
-          blocked = true;
-          author_did = None;
-        }
+        { uri = string_member json "uri"; blocked = true; author_did = None }
     else if check_for_field "detached" json then
       `ViewDetached { uri = string_member json "uri"; detached = true }
     else if check_for_field "value" json && check_for_field "uri" json then
@@ -589,7 +585,7 @@ module Embed = struct
       ~cid:i.ref.ref_link ~mime_type:i.mime_type ~size:i.size ()
 
   let rec embed_to_json = function
-    | `Image e ->
+    | `Image (e : image_embed) ->
         `Assoc
           [
             ( "$type",
@@ -602,12 +598,11 @@ module Embed = struct
                    (fun (d : image_data) ->
                      `Assoc
                        [
-                         ("alt", `String d.alt);
-                         ("image", image_to_json d.image);
+                         ("alt", `String d.alt); ("image", image_to_json d.image);
                        ])
                    e.images) );
           ]
-    | `ImageView e ->
+    | `ImageView (e : image_view_embed) ->
         `Assoc
           [
             ("$type", `String "app.bsky.embed.images#view");
@@ -623,7 +618,7 @@ module Embed = struct
                        ])
                    e.images) );
           ]
-    | `External e ->
+    | `External (e : ext_embed) ->
         `Assoc
           [
             ( "$type",
@@ -642,11 +637,11 @@ module Embed = struct
                         (if e.ext.thumb.thumb_type = "" then "blob"
                          else e.ext.thumb.thumb_type)
                       ~cid:e.ext.thumb.ref.ref_link
-                      ~mime_type:e.ext.thumb.mime_type ~size:e.ext.thumb.size
-                      () );
+                      ~mime_type:e.ext.thumb.mime_type ~size:e.ext.thumb.size ()
+                  );
                 ] );
           ]
-    | `ExternalView e ->
+    | `ExternalView (e : ext_view_embed) ->
         `Assoc
           [
             ("$type", `String "app.bsky.embed.external#view");
@@ -659,7 +654,7 @@ module Embed = struct
                   ("thumb", `String e.ext.thumb);
                 ] );
           ]
-    | `Record e ->
+    | `Record (e : record_embed) ->
         `Assoc
           [
             ( "$type",
@@ -668,13 +663,13 @@ module Embed = struct
                  else e.embed_type) );
             ("record", strong_ref_to_json e.record);
           ]
-    | `RecordView e ->
+    | `RecordView (e : record_view_embed) ->
         `Assoc
           [
             ("$type", `String "app.bsky.embed.record#view");
             ("record", record_view_union_to_json e.record);
           ]
-    | `RecordWithMedia e ->
+    | `RecordWithMedia (e : record_with_media) ->
         `Assoc
           [
             ( "$type",
@@ -689,7 +684,7 @@ module Embed = struct
                 ] );
             ("media", media_to_json e.media);
           ]
-    | `Video e ->
+    | `Video (e : video_embed) ->
         let fields =
           [
             ( "$type",
@@ -707,7 +702,7 @@ module Embed = struct
           | None -> []
         in
         `Assoc fields
-    | `VideoView e ->
+    | `VideoView (e : video_view_embed) ->
         let fields =
           [
             ("$type", `String "app.bsky.embed.video#view");
@@ -724,7 +719,7 @@ module Embed = struct
           | None -> []
         in
         `Assoc fields
-    | `Gallery e ->
+    | `Gallery (e : gallery_embed) ->
         `Assoc
           [
             ( "$type",
@@ -748,7 +743,7 @@ module Embed = struct
                      `Assoc fields)
                    e.items) );
           ]
-    | `GalleryView e ->
+    | `GalleryView (e : gallery_view_embed) ->
         `Assoc
           [
             ("$type", `String "app.bsky.embed.gallery#view");
@@ -827,8 +822,7 @@ module Embed = struct
           ]
           @
           match author_did with
-          | Some did ->
-              [ ("author", `Assoc [ ("did", `String did) ]) ]
+          | Some did -> [ ("author", `Assoc [ ("did", `String did) ]) ]
           | None -> []
         in
         `Assoc fields
@@ -859,8 +853,8 @@ module Embed = struct
         | _ -> []);
     }
 
-  let get_embed_external_view ?session ?host ~url ~uris () :
-      embed_external_view =
+  let get_embed_external_view ?session ?host ~url ~uris () : embed_external_view
+      =
     Client.Client.get_json ?session ?host "app.bsky.embed.getEmbedExternalView"
       (("url", url) :: Client.Client.repeat_param "uris" uris)
     |> parse_embed_external_view

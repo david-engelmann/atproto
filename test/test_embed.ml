@@ -199,7 +199,8 @@ let test_parse_gallery _ =
                         ("mimeType", `String "image/jpeg");
                         ("size", `Int 12);
                       ] );
-                  ("aspectRatio", `Assoc [ ("width", `Int 4); ("height", `Int 3) ]);
+                  ( "aspectRatio",
+                    `Assoc [ ("width", `Int 4); ("height", `Int 3) ] );
                 ];
             ] );
       ]
@@ -277,8 +278,7 @@ let test_parse_record_view_not_found _ =
           `Assoc
             [
               ("$type", `String "app.bsky.embed.record#viewNotFound");
-              ( "uri",
-                `String "at://did:plc:alice/app.bsky.feed.post/missing" );
+              ("uri", `String "at://did:plc:alice/app.bsky.feed.post/missing");
               ("notFound", `Bool true);
             ] );
       ]
@@ -313,9 +313,7 @@ let test_embed_to_json_roundtrip _ =
           OUnit2.assert_equal
             ~printer:(fun x -> x)
             "app.bsky.embed.record"
-            (match List.assoc "$type" fields with
-            | `String s -> s
-            | _ -> "");
+            (match List.assoc "$type" fields with `String s -> s | _ -> "");
           OUnit2.assert_equal
             ~printer:(fun x -> x)
             e.record.uri
@@ -353,7 +351,8 @@ let test_parse_embed_external_view _ =
               `Assoc
                 [
                   ("uri", `String "at://did:plc:alice/site.standard.document/1");
-                  ("cid", `String "bafyreihdummy000000000000000000000000000000000");
+                  ( "cid",
+                    `String "bafyreihdummy000000000000000000000000000000000" );
                 ];
             ] );
       ]

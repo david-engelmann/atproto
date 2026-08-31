@@ -16,9 +16,7 @@ module Records = struct
     `Assoc [ ("uri", `String uri); ("cid", `String cid) ]
 
   let parse_strong_ref json : Embed.strong_ref = Embed.parse_strong_ref json
-
-  let via_fields via =
-    match via with Some v -> [ ("via", v) ] | None -> []
+  let via_fields via = match via with Some v -> [ ("via", v) ] | None -> []
 
   let post ~text ~created_at ?langs ?facets ?embed ?reply ?tags ?self_labels ()
       : Yojson.Safe.t =
@@ -120,9 +118,7 @@ module Records = struct
       @ (match self_labels with
         | Some xs -> [ ("labels", Label.Label.self_labels_to_json xs) ]
         | None -> [])
-      @ (match pinned_post with
-        | Some r -> [ ("pinnedPost", r) ]
-        | None -> [])
+      @ (match pinned_post with Some r -> [ ("pinnedPost", r) ] | None -> [])
       @
       match created_at with
       | Some s -> [ ("createdAt", `String s) ]
@@ -163,8 +159,7 @@ module Records = struct
   let parse_follow json : follow_record =
     let open Yojson.Safe.Util in
     {
-      subject =
-        (match json |> member "subject" with `String s -> s | _ -> "");
+      subject = (match json |> member "subject" with `String s -> s | _ -> "");
       created_at =
         (match json |> member "createdAt" with `String s -> s | _ -> "");
       via = parse_via json;
@@ -173,8 +168,7 @@ module Records = struct
   let parse_block json : block_record =
     let open Yojson.Safe.Util in
     {
-      subject =
-        (match json |> member "subject" with `String s -> s | _ -> "");
+      subject = (match json |> member "subject" with `String s -> s | _ -> "");
       created_at =
         (match json |> member "createdAt" with `String s -> s | _ -> "");
     }

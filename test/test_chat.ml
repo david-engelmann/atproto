@@ -74,10 +74,7 @@ let test_parse_unread_and_logs _ =
   let counts =
     Chat.parse_unread_counts
       (`Assoc
-        [
-          ("unreadAcceptedConvos", `Int 3);
-          ("unreadRequestConvos", `Int 1);
-        ])
+        [ ("unreadAcceptedConvos", `Int 3); ("unreadRequestConvos", `Int 1) ])
   in
   OUnit2.assert_equal 3 counts.unread_accepted;
   OUnit2.assert_equal 1 counts.unread_request;

@@ -43,23 +43,9 @@ module Repo = struct
     }
 
   type commit_meta = { cid : string; rev : string }
-
-  type record_get = {
-    uri : string;
-    cid : string option;
-    value : Yojson.Safe.t;
-  }
-
-  type listed_record = {
-    uri : string;
-    cid : string;
-    value : Yojson.Safe.t;
-  }
-
-  type listed_records = {
-    cursor : string option;
-    records : listed_record list;
-  }
+  type record_get = { uri : string; cid : string option; value : Yojson.Safe.t }
+  type listed_record = { uri : string; cid : string; value : Yojson.Safe.t }
+  type listed_records = { cursor : string option; records : listed_record list }
 
   type repo_description = {
     handle : string;
@@ -160,8 +146,7 @@ module Repo = struct
     let open Yojson.Safe.Util in
     {
       commit = parse_commit_meta (json |> member "commit");
-      results =
-        (match json |> member "results" with `List xs -> xs | _ -> []);
+      results = (match json |> member "results" with `List xs -> xs | _ -> []);
     }
 
   let describe_repo_parsed ?session ?host ~repo () : repo_description =

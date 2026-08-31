@@ -226,11 +226,7 @@ module Chat = struct
   }
 
   type logs = { cursor : string option; logs : log_entry list }
-
-  type unread_counts = {
-    unread_accepted : int;
-    unread_request : int;
-  }
+  type unread_counts = { unread_accepted : int; unread_request : int }
 
   type batch_item = {
     convo_id : string;
@@ -274,8 +270,7 @@ module Chat = struct
       unread_request = Client.int_member json "unreadRequestConvos";
     }
 
-  let parse_accept json : accept_result =
-    { rev = Client.string_opt json "rev" }
+  let parse_accept json : accept_result = { rev = Client.string_opt json "rev" }
 
   let parse_requests json : convos =
     {
@@ -325,16 +320,13 @@ module Chat = struct
            ]))
     |> unwrap_message
 
-  let delete_message_for_self (s : Session.session) ?proxy ~convo_id
-      ~message_id () : message =
+  let delete_message_for_self (s : Session.session) ?proxy ~convo_id ~message_id
+      () : message =
     Client.post_json ~session:s ~extra:(proxy_headers ?proxy ())
       "chat.bsky.convo.deleteMessageForSelf"
       (Yojson.Safe.to_string
          (`Assoc
-           [
-             ("convoId", `String convo_id);
-             ("messageId", `String message_id);
-           ]))
+           [ ("convoId", `String convo_id); ("messageId", `String message_id) ]))
     |> unwrap_message
 
   let get_convo_availability (s : Session.session) ?proxy ~members () :
@@ -364,8 +356,7 @@ module Chat = struct
       (Client.opt_int "limit" limit @ Client.opt_pair "cursor" cursor)
     |> parse_requests
 
-  let send_message_batch (s : Session.session) ?proxy ~items () : message list
-      =
+  let send_message_batch (s : Session.session) ?proxy ~items () : message list =
     let payload =
       `Assoc
         [

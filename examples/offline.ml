@@ -156,7 +156,10 @@ let () =
     Repo.parse_record_get
       (`Assoc
         [
-          ("uri", `String "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3jzfcijpj2z2a");
+          ( "uri",
+            `String
+              "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3jzfcijpj2z2a"
+          );
           ("cid", `String "bafyreihdummy");
           ("value", post);
         ])

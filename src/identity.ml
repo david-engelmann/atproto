@@ -83,9 +83,7 @@ module Identity = struct
   let parse_did_resolution json : did_resolution =
     let open Yojson.Safe.Util in
     let did_doc =
-      match json |> member "didDoc" with
-      | `Null -> json
-      | other -> other
+      match json |> member "didDoc" with `Null -> json | other -> other
     in
     let document =
       try Some (Did_plc.Did_plc.parse_document did_doc) with _ -> None

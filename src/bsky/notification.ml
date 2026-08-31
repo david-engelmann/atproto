@@ -101,13 +101,7 @@ module Notification = struct
   }
 
   type chat_preference = { include_ : string; push : bool }
-
-  type filterable_preference = {
-    include_ : string;
-    list : bool;
-    push : bool;
-  }
-
+  type filterable_preference = { include_ : string; list : bool; push : bool }
   type preference = { list : bool; push : bool }
 
   type preferences = {
@@ -346,7 +340,8 @@ module Notification = struct
       ?seen_at (limit : int) : notification list =
     Client.Client.get_json ~session:s "app.bsky.notification.listNotifications"
       (("limit", string_of_int limit)
-      :: Client.Client.repeat_param "reasons" (Option.value reasons ~default:[])
+       :: Client.Client.repeat_param "reasons"
+            (Option.value reasons ~default:[])
       @ Client.Client.opt_bool "priority" priority
       @ Client.Client.opt_pair "cursor" cursor
       @ Client.Client.opt_pair "seenAt" seen_at)
@@ -610,8 +605,7 @@ module Notification = struct
   let unregister_push (s : Session.session) ~service_did ~token ~platform
       ~app_id () : unit =
     ignore
-      (Client.Client.post_json ~session:s
-         "app.bsky.notification.unregisterPush"
+      (Client.Client.post_json ~session:s "app.bsky.notification.unregisterPush"
          (Yojson.Safe.to_string
             (`Assoc
               [

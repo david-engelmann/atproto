@@ -144,8 +144,7 @@ let test_parse_record_get_and_describe _ =
     Repo.parse_record_get
       (`Assoc
         [
-          ( "uri",
-            `String "at://did:plc:alice/app.bsky.feed.post/3jzfcijpj2z2a" );
+          ("uri", `String "at://did:plc:alice/app.bsky.feed.post/3jzfcijpj2z2a");
           ("cid", `String "bafyreihdummy000000000000000000000000000000000");
           ( "value",
             `Assoc
@@ -158,8 +157,7 @@ let test_parse_record_get_and_describe _ =
                   `Assoc
                     [
                       ("$type", `String "com.atproto.label.defs#selfLabels");
-                      ( "values",
-                        `List [ `Assoc [ ("val", `String "nudity") ] ] );
+                      ("values", `List [ `Assoc [ ("val", `String "nudity") ] ]);
                     ] );
               ] );
         ])
@@ -176,7 +174,8 @@ let test_parse_record_get_and_describe _ =
         [
           ("handle", `String "alice.test");
           ("did", `String "did:plc:alice000111222333444555666");
-          ("didDoc", `Assoc [ ("id", `String "did:plc:alice000111222333444555666") ]);
+          ( "didDoc",
+            `Assoc [ ("id", `String "did:plc:alice000111222333444555666") ] );
           ("collections", `List [ `String "app.bsky.feed.post" ]);
           ("handleIsCorrect", `Bool true);
         ])
@@ -209,8 +208,7 @@ let test_parse_record_get_and_describe _ =
     Repo.parse_write_result
       (`Assoc
         [
-          ( "uri",
-            `String "at://did:plc:alice/app.bsky.feed.post/3jzfcijpj2z2a" );
+          ("uri", `String "at://did:plc:alice/app.bsky.feed.post/3jzfcijpj2z2a");
           ("cid", `String "bafyreihdummy000000000000000000000000000000000");
           ( "commit",
             `Assoc
@@ -240,7 +238,8 @@ let suite =
          "test_apply_writes_body" >:: test_apply_writes_body;
          "test_parse_blob_ref" >:: test_parse_blob_ref;
          "test_parse_list_missing_blobs" >:: test_parse_list_missing_blobs;
-         "test_parse_record_get_and_describe" >:: test_parse_record_get_and_describe;
+         "test_parse_record_get_and_describe"
+         >:: test_parse_record_get_and_describe;
          "test_import_repo_url" >:: test_import_repo_url;
        ]
 

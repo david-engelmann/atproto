@@ -214,7 +214,8 @@ let test_parse_post_view_embed _ =
   let json =
     `Assoc
       [
-        ("uri", `String "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k");
+        ( "uri",
+          `String "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k" );
         ("cid", `String "bafyreiabc");
         ( "author",
           `Assoc

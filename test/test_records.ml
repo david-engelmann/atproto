@@ -6,20 +6,24 @@ open Atproto.Embed
 let test_post_builder _ =
   let facets = [ Facet.tag ~byte_start:0 ~byte_end:8 "atproto" ] in
   let embed =
-    `Record
-      {
-        Embed.embed_type = "app.bsky.embed.record";
-        record =
-          {
-            uri = "at://did:plc:alice/app.bsky.feed.post/3jzfcijpj2z2a";
-            cid = "bafyreihdummy000000000000000000000000000000000";
-          };
-      }
+    Embed.parse_embed
+      (`Assoc
+        [
+          ("$type", `String "app.bsky.embed.record");
+          ( "record",
+            `Assoc
+              [
+                ( "uri",
+                  `String "at://did:plc:alice/app.bsky.feed.post/3jzfcijpj2z2a"
+                );
+                ("cid", `String "bafyreihdummy000000000000000000000000000000000");
+              ] );
+        ])
   in
   let json =
     Records.post ~text:"#atproto quote" ~created_at:"2024-01-01T00:00:00.000Z"
-      ~langs:[ "en" ] ~facets ~embed ~tags:[ "dev" ] ~self_labels:[ "graphic-media" ]
-      ()
+      ~langs:[ "en" ] ~facets ~embed ~tags:[ "dev" ]
+      ~self_labels:[ "graphic-media" ] ()
   in
   let open Yojson.Safe.Util in
   OUnit2.assert_equal
@@ -57,14 +61,16 @@ let test_graph_and_like_builders _ =
   let open Yojson.Safe.Util in
   OUnit2.assert_equal
     ~printer:(fun x -> x)
-    "app.bsky.feed.like" (like |> member "$type" |> to_string);
+    "app.bsky.feed.like"
+    (like |> member "$type" |> to_string);
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "did:plc:alice000111222333444555666"
     (follow |> member "subject" |> to_string);
   OUnit2.assert_equal
     ~printer:(fun x -> x)
-    "app.bsky.graph.block" (block |> member "$type" |> to_string);
+    "app.bsky.graph.block"
+    (block |> member "$type" |> to_string);
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "Ada"

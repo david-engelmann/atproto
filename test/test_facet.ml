@@ -72,7 +72,9 @@ let test_parse_tag _ =
   | _ -> OUnit2.assert_failure "expected tag"
 
 let test_builders_and_serialize _ =
-  let mention = Facet.mention ~byte_start:0 ~byte_end:5 "did:plc:abc123xyz0001112223333" in
+  let mention =
+    Facet.mention ~byte_start:0 ~byte_end:5 "did:plc:abc123xyz0001112223333"
+  in
   let link = Facet.link ~byte_start:6 ~byte_end:20 "https://atproto.com" in
   let tag = Facet.tag ~byte_start:21 ~byte_end:29 "atproto" in
   (match mention with
@@ -83,9 +85,9 @@ let test_builders_and_serialize _ =
   | _ -> OUnit2.assert_failure "expected mention builder");
   let json = Facet.facets_to_json [ mention; link; tag ] in
   match json with
-  | `List xs ->
+  | `List xs -> (
       OUnit2.assert_equal 3 (List.length xs);
-      (match Facet.parse_facet (List.hd xs) with
+      match Facet.parse_facet (List.hd xs) with
       | `Mention _ -> ()
       | _ -> OUnit2.assert_failure "roundtrip mention")
   | _ -> OUnit2.assert_failure "expected list"

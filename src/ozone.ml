@@ -238,7 +238,6 @@ module Ozone = struct
     |> parse_server_config
 
   type subject_view = { subject : string; original : Yojson.Safe.t }
-
   type subjects = { subjects : subject_view list }
 
   type reporter_stat = {
@@ -258,7 +257,6 @@ module Ozone = struct
   }
 
   type timeline_item = { day : string; summary : timeline_summary list }
-
   type account_timeline = { timeline : timeline_item list }
 
   type scheduled_action = {
@@ -297,7 +295,10 @@ module Ozone = struct
     }
 
   let parse_subjects json : subjects =
-    { subjects = List.map parse_subject_view (Client.list_member json "subjects") }
+    {
+      subjects =
+        List.map parse_subject_view (Client.list_member json "subjects");
+    }
 
   let parse_reporter_stat json : reporter_stat =
     {
@@ -468,9 +469,7 @@ module Ozone = struct
       =
     let body =
       `Assoc
-        ([
-           ("statuses", `List (List.map (fun s -> `String s) statuses));
-         ]
+        ([ ("statuses", `List (List.map (fun s -> `String s) statuses)) ]
         @ (match starts_after with
           | Some t -> [ ("startsAfter", `String t) ]
           | None -> [])
@@ -492,9 +491,7 @@ module Ozone = struct
   let cancel_scheduled_actions (s : Session.session) ~proxy ~subjects ?comment
       () : batch_result =
     let fields =
-      [
-        ("subjects", `List (List.map (fun s -> `String s) subjects));
-      ]
+      [ ("subjects", `List (List.map (fun s -> `String s) subjects)) ]
       @ match comment with Some c -> [ ("comment", `String c) ] | None -> []
     in
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
