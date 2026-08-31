@@ -40,10 +40,34 @@ module Error = struct
   let is_not_implemented (e : t) : bool =
     e.error = "MethodNotImplemented" || e.error = "MethodNotFound"
 
+  let contains_ci hay needle =
+    let h = String.lowercase_ascii hay and n = String.lowercase_ascii needle in
+    let rec aux i =
+      if i + String.length n > String.length h then false
+      else if String.sub h i (String.length n) = n then true
+      else aux (i + 1)
+    in
+    aux 0
+
+  (* Local AppView implements some NSIDs but keeps them flag-off
+     (e.g. InvalidRequest: Search v2 is not enabled). *)
+  let is_feature_disabled (e : t) : bool =
+    e.error = "InvalidRequest"
+    && (contains_ci e.message "not enabled"
+       || contains_ci e.message "not available")
+
+  let is_not_served (e : t) : bool =
+    is_not_implemented e || is_feature_disabled e
+
   let is_not_implemented_json json : bool =
     match check_for_error json with
     | Some "MethodNotImplemented" | Some "MethodNotFound" -> true
     | _ -> false
+
+  let is_not_served_json json : bool =
+    match check_for_error json with
+    | None -> false
+    | Some _ -> is_not_served (of_json json)
 
   let handle_error error_type =
     match error_type with

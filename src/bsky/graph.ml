@@ -2,6 +2,7 @@ open Session
 open Cohttp_client
 open App
 open Actor
+open Label
 
 module Graph = struct
   type followers = {
@@ -232,6 +233,12 @@ module Graph = struct
 
   type lists = { cursor : string option; lists : list_view list }
 
+  type starter_pack_feed = {
+    uri : string;
+    cid : string;
+    display_name : string option;
+  }
+
   type starter_pack = {
     uri : string;
     cid : string;
@@ -242,6 +249,8 @@ module Graph = struct
     joined_week_count : int option;
     joined_all_time_count : int option;
     list_items_sample : list_item list;
+    feeds : starter_pack_feed list;
+    labels : Label.label list;
     indexed_at : string;
     original : Yojson.Safe.t;
   }
@@ -452,6 +461,35 @@ module Graph = struct
       list_items_sample =
         List.map parse_list_item
           (match Yojson.Safe.Util.member "listItemsSample" json with
+          | `List xs -> xs
+          | _ -> []);
+      feeds =
+        List.filter_map
+          (function
+            | `Assoc _ as f ->
+                Some
+                  {
+                    uri =
+                      (match Yojson.Safe.Util.member "uri" f with
+                      | `String s -> s
+                      | _ -> "");
+                    cid =
+                      (match Yojson.Safe.Util.member "cid" f with
+                      | `String s -> s
+                      | _ -> "");
+                    display_name =
+                      (match Yojson.Safe.Util.member "displayName" f with
+                      | `String s -> Some s
+                      | _ -> None);
+                  }
+            | _ -> None)
+          (match Yojson.Safe.Util.member "feeds" json with
+          | `List xs -> xs
+          | _ -> []);
+      labels =
+        List.filter_map
+          (function `Assoc _ as l -> Some (Label.parse_label l) | _ -> None)
+          (match Yojson.Safe.Util.member "labels" json with
           | `List xs -> xs
           | _ -> []);
       indexed_at =

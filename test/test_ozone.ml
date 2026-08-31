@@ -192,6 +192,99 @@ let test_parse_typed_event_and_subject _ =
   | `Label l -> OUnit2.assert_equal [ "spam" ] l.create_label_vals
   | _ -> OUnit2.assert_failure "expected label event"
 
+let test_parse_leftover_event_and_status _ =
+  let mute_rep =
+    Ozone.parse_event
+      (`Assoc
+        [
+          ("$type", `String "tools.ozone.moderation.defs#modEventMuteReporter");
+          ("durationInHours", `Int 12);
+        ])
+  in
+  (match mute_rep with
+  | `Mute_reporter m -> OUnit2.assert_equal (Some 12) m.duration_in_hours
+  | _ -> OUnit2.assert_failure "expected muteReporter");
+  let age =
+    Ozone.parse_event
+      (`Assoc
+        [
+          ("$type", `String "tools.ozone.moderation.defs#ageAssuranceEvent");
+          ("createdAt", `String "2024-01-01T00:00:00.000Z");
+          ("attemptId", `String "attempt-1");
+          ("status", `String "pending");
+          ("initIp", `String "203.0.113.10");
+          ("initUa", `String "ocaml-test");
+        ])
+  in
+  (match age with
+  | `Age_assurance a ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "pending" a.status;
+      OUnit2.assert_equal (Some "203.0.113.10") a.init_ip
+  | _ -> OUnit2.assert_failure "expected ageAssuranceEvent");
+  let ev =
+    Ozone.parse_mod_event
+      (`Assoc
+        [
+          ("id", `Int 11);
+          ( "event",
+            `Assoc
+              [
+                ( "$type",
+                  `String "tools.ozone.moderation.defs#scheduleTakedownEvent" );
+                ("executeAt", `String "2024-02-01T00:00:00.000Z");
+              ] );
+          ( "subject",
+            `Assoc
+              [
+                ("$type", `String "com.atproto.admin.defs#repoRef");
+                ("did", `String "did:plc:abc123xyz0001112223333");
+              ] );
+          ("createdBy", `String "did:plc:mod000111222333444555666");
+          ("createdAt", `String "2024-01-01T00:00:00.000Z");
+          ("creatorHandle", `String "mod.test");
+          ("subjectHandle", `String "alice.test");
+          ("subjectBlobCids", `List [ `String "bafyreiblob" ]);
+          ( "modTool",
+            `Assoc [ ("name", `String "automod"); ("meta", `Assoc []) ] );
+        ])
+  in
+  OUnit2.assert_equal (Some "mod.test") ev.creator_handle;
+  OUnit2.assert_equal (Some "alice.test") ev.subject_handle;
+  OUnit2.assert_equal [ "bafyreiblob" ] ev.subject_blob_cids;
+  (match ev.mod_tool with
+  | Some t -> OUnit2.assert_equal ~printer:(fun x -> x) "automod" t.name
+  | None -> OUnit2.assert_failure "expected modTool");
+  (match ev.event with
+  | `Schedule_takedown s ->
+      OUnit2.assert_equal (Some "2024-02-01T00:00:00.000Z") s.execute_at
+  | _ -> OUnit2.assert_failure "expected scheduleTakedownEvent");
+  let status =
+    Ozone.parse_subject_status
+      (`Assoc
+        [
+          ("id", `Int 4);
+          ( "subject",
+            `Assoc
+              [
+                ("$type", `String "com.atproto.admin.defs#repoRef");
+                ("did", `String "did:plc:abc123xyz0001112223333");
+              ] );
+          ("createdAt", `String "2024-01-01T00:00:00.000Z");
+          ("updatedAt", `String "2024-01-02T00:00:00.000Z");
+          ("reviewState", `String "tools.ozone.moderation.defs#reviewOpen");
+          ("takendown", `Bool false);
+          ("appealed", `Bool true);
+          ("tags", `List [ `String "spam" ]);
+          ("ageAssuranceState", `String "pending");
+          ("muteUntil", `String "2024-03-01T00:00:00.000Z");
+        ])
+  in
+  OUnit2.assert_equal (Some 4) status.id;
+  OUnit2.assert_equal (Some false) status.takendown;
+  OUnit2.assert_equal (Some true) status.appealed;
+  OUnit2.assert_equal [ "spam" ] status.tags;
+  OUnit2.assert_equal (Some "pending") status.age_assurance_state
+
 let test_operator_namespace_parsers _ =
   let templates =
     Ozone.parse_templates
@@ -526,6 +619,8 @@ let suite =
          "test_parse_timeline_and_schedule" >:: test_parse_timeline_and_schedule;
          "test_parse_typed_event_and_subject"
          >:: test_parse_typed_event_and_subject;
+         "test_parse_leftover_event_and_status"
+         >:: test_parse_leftover_event_and_status;
          "test_query_statuses_auth_skipped" >:: test_query_statuses_auth_skipped;
          "test_list_queues_auth_skipped" >:: test_list_queues_auth_skipped;
          "test_operator_namespace_parsers" >:: test_operator_namespace_parsers;

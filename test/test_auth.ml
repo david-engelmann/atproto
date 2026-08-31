@@ -135,6 +135,13 @@ let test_create_session_url _ =
     ^ "/xrpc/com.atproto.server.createSession")
     (Auth.create_session_url "bsky.social")
 
+let test_refresh_session_url _ =
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    (Auth.origin_of_host "bsky.social"
+    ^ "/xrpc/com.atproto.server.refreshSession")
+    (Auth.refresh_session_url "bsky.social")
+
 let test_origin_of_host _ =
   let origin = Auth.origin_of_host "localhost:2583" in
   OUnit2.assert_bool "scheme prefix"
@@ -193,6 +200,7 @@ let suite =
          "test_get_base_endpoint" >:: test_get_base_endpoint;
          "test_create_session_body" >:: test_create_session_body;
          "test_create_session_url" >:: test_create_session_url;
+         "test_refresh_session_url" >:: test_refresh_session_url;
          "test_origin_of_host" >:: test_origin_of_host;
          "test_make_auth_token_request_valid_info"
          >:: test_make_auth_token_request_valid_info;

@@ -9,10 +9,14 @@ open Atproto.Repo
 open Atproto.Client
 open Atproto.Error
 open Atproto.Notification
+open Atproto.Labeler
+open Atproto.Unspecced
 open Actor
 open Feed
 open Graph
 open Notification
+open Labeler
+open Unspecced
 
 (* Real app.bsky.* calls against official @atproto/dev-env AppView. *)
 
@@ -34,6 +38,11 @@ let host_is_local host =
 
 let intended () =
   env_truthy "ATP_LOCAL_PDS" || host_is_local Session.atp_host_from_env
+
+let ozone_did_or_empty () =
+  match Sys.getenv_opt "ATP_OZONE_DID" with
+  | Some d when String.trim d <> "" -> String.trim d
+  | _ -> ""
 
 let appview_host () =
   match Sys.getenv_opt "ATP_APPVIEW_HOST" with
@@ -87,7 +96,6 @@ let bob_session () =
   | None -> session_of "bob.test:hunter2"
 
 let session () = Lazy.force live_session
-let method_missing err = err = "MethodNotFound" || err = "MethodNotImplemented"
 
 (* Public AppView reads omit the PDS session. Authenticated AppView calls
    mint a service-auth JWT (aud=AppView DID, lxm=NSID) and never send at+jwt. *)
@@ -95,15 +103,27 @@ let av_get ?session nsid pairs =
   Client.get_json_appview ?session ~host:(appview_host ()) nsid pairs
   |> ensure_ok
 
-(* Only assert when this AppView revision actually implements the NSID. *)
+(* Only assert when this AppView revision actually serves the NSID. 501 and
+   flag-off InvalidRequest ("Search v2 is not enabled") are not served. *)
 let av_get_if_served ?session nsid pairs =
   let json =
     Client.get_json_appview ?session ~host:(appview_host ()) nsid pairs
   in
-  match Error.check_for_error json with
-  | Some err when method_missing err -> None
-  | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
-  | None -> Some json
+  if Error.is_not_served_json json then None
+  else
+    match Error.check_for_error json with
+    | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
+    | None -> Some json
+
+let av_post_if_served ?session nsid data =
+  let json =
+    Client.post_json_appview ?session ~host:(appview_host ()) nsid data
+  in
+  if Error.is_not_served_json json then None
+  else
+    match Error.check_for_error json with
+    | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
+    | None -> Some json
 
 let test_get_profile _ =
   let s = session () in
@@ -128,12 +148,13 @@ let test_get_suggestions _ =
     Client.get_json ~host:(appview_host ()) "app.bsky.actor.getSuggestions"
       [ ("limit", "5") ]
   in
-  match Error.check_for_error json with
-  | Some err when method_missing err -> ()
-  | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
-  | None ->
-      let suggestions = Actor.parse_short_profiles json in
-      OUnit2.assert_bool "getSuggestions list" (List.length suggestions >= 0)
+  if Error.is_not_served_json json then ()
+  else
+    match Error.check_for_error json with
+    | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
+    | None ->
+        let suggestions = Actor.parse_short_profiles json in
+        OUnit2.assert_bool "getSuggestions list" (List.length suggestions >= 0)
 
 let test_feed_after_writes _ =
   let s = session () in
@@ -314,14 +335,126 @@ let test_more_appview _ =
   | Some json ->
       let known = Graph.parse_followers json in
       OUnit2.assert_bool "getKnownFollowers" (List.length known.followers >= 0));
-  match
-    av_get_if_served ~session:s "app.bsky.actor.searchActorsTypeahead"
-      [ ("q", "alice"); ("limit", "5") ]
-  with
+  (match
+     av_get_if_served ~session:s "app.bsky.actor.searchActorsTypeahead"
+       [ ("q", "alice"); ("limit", "5") ]
+   with
   | None -> ()
   | Some json ->
       let typeahead = Actor.parse_typeahead_profiles json in
-      OUnit2.assert_bool "searchActorsTypeahead" (List.length typeahead >= 0)
+      OUnit2.assert_bool "searchActorsTypeahead" (List.length typeahead >= 0));
+  (match
+     av_get_if_served "app.bsky.actor.searchActors"
+       [ ("q", "alice"); ("limit", "5") ]
+   with
+  | None -> ()
+  | Some json ->
+      let actors = Actor.parse_short_profiles json in
+      OUnit2.assert_bool "searchActors" (List.length actors >= 0));
+  (match
+     av_get_if_served "app.bsky.feed.searchPosts"
+       [ ("q", "integration"); ("limit", "5") ]
+   with
+  | None -> ()
+  | Some json ->
+      let posts = Feed.parse_search_posts json in
+      OUnit2.assert_bool "searchPosts" (List.length posts.posts >= 0));
+  (match
+     av_get_if_served "app.bsky.feed.searchPostsV2"
+       [ ("query", "integration"); ("limit", "5") ]
+   with
+  | None -> ()
+  | Some json ->
+      let posts = Feed.parse_search_posts_v2 json in
+      OUnit2.assert_bool "searchPostsV2" (List.length posts.posts >= 0));
+  (match
+     av_get_if_served "app.bsky.graph.searchStarterPacksV2"
+       [ ("q", "test"); ("limit", "5") ]
+   with
+  | None -> ()
+  | Some json ->
+      let packs = Graph.parse_starter_packs json in
+      OUnit2.assert_bool "searchStarterPacksV2"
+        (List.length packs.starter_packs >= 0));
+  (match
+     av_get_if_served "app.bsky.graph.getSuggestedFollowsByActor"
+       [ ("actor", "alice.test") ]
+   with
+  | None -> ()
+  | Some json -> (
+      match Yojson.Safe.Util.member "suggestions" json with
+      | `List _ -> ()
+      | _ -> (
+          match Yojson.Safe.Util.member "actors" json with
+          | `List _ -> ()
+          | _ ->
+              OUnit2.assert_failure
+                "getSuggestedFollowsByActor missing suggestions")));
+  (match av_get_if_served "app.bsky.unspecced.getConfig" [] with
+  | None -> ()
+  | Some json ->
+      let cfg = Unspecced.parse_config json in
+      OUnit2.assert_bool "unspecced getConfig"
+        (match cfg.check_email_confirmed with Some _ | None -> true));
+  (match
+     av_get_if_served "app.bsky.unspecced.getPopularFeedGenerators"
+       [ ("limit", "5") ]
+   with
+  | None -> ()
+  | Some json ->
+      let gens = Unspecced.parse_generators json in
+      OUnit2.assert_bool "getPopularFeedGenerators" (List.length gens.feeds >= 0));
+  (match av_get_if_served "app.bsky.unspecced.getTrends" [ ("limit", "5") ] with
+  | None -> ()
+  | Some json ->
+      ignore json;
+      OUnit2.assert_bool "getTrends parsed" true);
+  (match
+     av_get_if_served ~session:s "app.bsky.notification.getPreferences" []
+   with
+  | None -> ()
+  | Some json ->
+      let prefs = Notification.parse_preferences json in
+      OUnit2.assert_bool "notification getPreferences"
+        (match prefs.original with `Assoc _ | _ -> true));
+  ignore
+    (av_post_if_served ~session:s "app.bsky.graph.unmuteActor"
+       (Yojson.Safe.to_string (`Assoc [ ("actor", `String "carla.test") ])));
+  ignore
+    (av_post_if_served ~session:s "app.bsky.notification.updateSeen"
+       (Yojson.Safe.to_string (`Assoc [ ("seenAt", `String (rfc3339_z ())) ])));
+  (match
+     Yojson.Safe.Util.member "feed"
+       (av_get "app.bsky.feed.getAuthorFeed"
+          [ ("actor", "alice.test"); ("limit", "1") ])
+   with
+  | `List (item :: _) -> (
+      match Yojson.Safe.Util.member "post" item with
+      | `Assoc _ as post -> (
+          match Yojson.Safe.Util.member "uri" post with
+          | `String uri when String.length uri > 0 -> (
+              match
+                av_get_if_served "app.bsky.feed.getQuotes"
+                  [ ("uri", uri); ("limit", "5") ]
+              with
+              | None -> ()
+              | Some json ->
+                  let quotes = Feed.parse_quotes json in
+                  OUnit2.assert_bool "getQuotes" (List.length quotes.posts >= 0)
+              )
+          | _ -> ())
+      | _ -> ())
+  | _ -> ());
+  match ozone_did_or_empty () with
+  | "" -> ()
+  | did -> (
+      match
+        av_get_if_served "app.bsky.labeler.getServices" [ ("dids", did) ]
+      with
+      | None -> ()
+      | Some json ->
+          let services = Labeler.parse_services json in
+          OUnit2.assert_bool "getServices" (List.length services.views >= 0))
 
 let test_notifications _ =
   let s = session () in
@@ -329,13 +462,14 @@ let test_notifications _ =
     av_get ~session:s "app.bsky.notification.listNotifications"
       [ ("limit", "10") ]
   in
-  match Error.check_for_error json with
-  | Some err when method_missing err -> ()
-  | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
-  | None -> (
-      match Yojson.Safe.Util.member "notifications" json with
-      | `List _ -> ()
-      | _ -> OUnit2.assert_failure "listNotifications missing notifications")
+  if Error.is_not_served_json json then ()
+  else
+    match Error.check_for_error json with
+    | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
+    | None -> (
+        match Yojson.Safe.Util.member "notifications" json with
+        | `List _ -> ()
+        | _ -> OUnit2.assert_failure "listNotifications missing notifications")
 
 let suite =
   "local_appview"

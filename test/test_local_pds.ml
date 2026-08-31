@@ -379,6 +379,78 @@ let test_other_pds_xrpc _ =
   let report = Moderation.parse_report_response report_json in
   OUnit2.assert_bool "createReport id" (report.id >= 0)
 
+let test_session_refresh_and_delete _ =
+  skip_unless_local_pds ();
+  let handle = unique_handle "ref" in
+  let email = handle ^ "@test.local" in
+  let password = "local-pds-refresh-password" in
+  ignore
+    (Server.create_account_at ~host:(pds_host ()) ~handle ~email ~password ()
+    |> ensure_ok);
+  let s = Session.create_session handle password in
+  OUnit2.assert_bool "throwaway access token" (String.length s.auth.token > 0);
+  let refreshed = Session.refresh_session s in
+  OUnit2.assert_equal ~printer:(fun x -> x) s.auth.did refreshed.auth.did;
+  OUnit2.assert_bool "refreshSession accessJwt"
+    (String.length refreshed.auth.token > 0);
+  (match refreshed.auth.refresh_token with
+  | Some t ->
+      OUnit2.assert_bool "refreshSession refreshJwt" (String.length t > 0)
+  | None -> OUnit2.assert_failure "refreshSession missing refreshJwt");
+  let info = Session.get_session refreshed in
+  OUnit2.assert_equal ~printer:(fun x -> x) s.auth.did info.did;
+  let deleted = Session.delete_session refreshed in
+  ignore deleted
+
+let test_get_account_invite_codes _ =
+  let s = session () in
+  let body = Server.get_account_invite_codes s false false in
+  let json = json_of_body body in
+  match Yojson.Safe.Util.member "codes" json with
+  | `List _ -> ()
+  | _ -> OUnit2.assert_failure "getAccountInviteCodes missing codes"
+
+let local_plc_directory () =
+  match Sys.getenv_opt "PLC_ORIGIN" with
+  | Some o when String.trim o <> "" -> String.trim o
+  | _ -> "http://localhost:2582"
+
+let test_plc_directory_write _ =
+  skip_unless_local_pds ();
+  Mirage_crypto_rng_unix.use_default ();
+  let open Atproto.Did_plc.Did_plc in
+  let priv, pub = generate_k256 () in
+  let rotation = k256_did_key pub in
+  OUnit2.assert_bool "k256 did:key (zQ3s…)"
+    (String.length rotation > 12 && String.sub rotation 0 12 = "did:key:zQ3s");
+  let genesis =
+    format_atproto_op ~signing_key:rotation ~rotation_keys:[ rotation ]
+      ~handle:"plcwrite.test" ~pds:"http://localhost:2583" ()
+  in
+  let signed, did = sign_genesis_k256 ~priv genesis in
+  let op = parse_operation signed in
+  OUnit2.assert_equal `Valid (verify_with_rotation_keys [ rotation ] op);
+  let directory = local_plc_directory () in
+  ignore (submit_operation ~directory did signed);
+  let doc = resolve ~directory did in
+  OUnit2.assert_equal ~printer:(fun x -> x) did doc.id;
+  let data = resolve_data ~directory did in
+  OUnit2.assert_equal [ rotation ] data.rotation_keys;
+  let prev = Atproto.Cid.Cid.to_string (cid_of_operation op) in
+  let update =
+    format_atproto_op ~signing_key:rotation ~rotation_keys:[ rotation ]
+      ~handle:"plcwrite-updated.test" ~pds:"http://localhost:2583" ~prev ()
+  in
+  let signed_update = sign_k256 ~priv update in
+  OUnit2.assert_equal `Valid
+    (verify_with_rotation_keys [ rotation ] (parse_operation signed_update));
+  ignore (submit_operation ~directory did signed_update);
+  let audit = resolve_audit_log ~directory did in
+  OUnit2.assert_bool "audit log after update" (List.length audit >= 2);
+  let chain = verify_chain ~did (resolve_log ~directory did) in
+  OUnit2.assert_bool "PLC chain genesis" chain.genesis_ok;
+  OUnit2.assert_bool "PLC chain prev" chain.prev_links_ok
+
 let suite =
   "local_pds"
   >::: [
@@ -394,6 +466,9 @@ let suite =
          "test_upload_blob" >:: test_upload_blob;
          "test_sync_endpoints" >:: test_sync_endpoints;
          "test_other_pds_xrpc" >:: test_other_pds_xrpc;
+         "test_session_refresh_and_delete" >:: test_session_refresh_and_delete;
+         "test_get_account_invite_codes" >:: test_get_account_invite_codes;
+         "test_plc_directory_write" >:: test_plc_directory_write;
        ]
 
 let () =

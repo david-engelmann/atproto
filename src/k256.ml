@@ -157,6 +157,11 @@ module K256 = struct
     in
     loop ()
 
+  let generate () : priv * pub =
+    Random.self_init ();
+    let priv = { d = random_scalar () } in
+    (priv, pub_of_priv priv)
+
   let sign ~(key : priv) (digest : string) : string * string =
     if String.length digest <> 32 then
       failwith "K256.sign: digest must be 32 bytes";

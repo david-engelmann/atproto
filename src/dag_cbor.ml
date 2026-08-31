@@ -33,8 +33,13 @@ module Dag_cbor = struct
         List.iter (fun x -> Buffer.add_string buf (encode x)) items;
         Buffer.contents buf
     | Map fields ->
+        (* IPLD DAG-CBOR: keys sort by their encoded CBOR bytes, not
+           lexicographic string order. Shorter keys therefore come first. *)
+        let key_bytes k = encode_bytes 3 k in
         let sorted =
-          List.sort (fun (a, _) (b, _) -> String.compare a b) fields
+          List.sort
+            (fun (a, _) (b, _) -> String.compare (key_bytes a) (key_bytes b))
+            fields
         in
         let buf = Buffer.create 16 in
         Buffer.add_string buf (encode_head 5 (List.length sorted));

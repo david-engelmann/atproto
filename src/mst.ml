@@ -787,6 +787,33 @@ module Mst = struct
 
   let walk (t : tree) : (string * Cid.t) list = List.rev (collect_entries t [])
 
+  (* Derive firehose record ops from two MST roots (prev -> next). *)
+  let diff_ops (prev : tree) (next : tree) : record_op list =
+    let prev_map = Hashtbl.create 16 in
+    let next_map = Hashtbl.create 16 in
+    List.iter (fun (k, v) -> Hashtbl.replace prev_map k v) (walk prev);
+    List.iter (fun (k, v) -> Hashtbl.replace next_map k v) (walk next);
+    let ops = ref [] in
+    Hashtbl.iter
+      (fun path cid ->
+        match Hashtbl.find_opt next_map path with
+        | None ->
+            ops :=
+              { action = "delete"; path; cid = None; prev = Some cid } :: !ops
+        | Some next_cid when Cid.equal cid next_cid -> ()
+        | Some next_cid ->
+            ops :=
+              { action = "update"; path; cid = Some next_cid; prev = Some cid }
+              :: !ops)
+      prev_map;
+    Hashtbl.iter
+      (fun path cid ->
+        if not (Hashtbl.mem prev_map path) then
+          ops :=
+            { action = "create"; path; cid = Some cid; prev = None } :: !ops)
+      next_map;
+    List.sort (fun a b -> String.compare a.path b.path) !ops
+
   let rec collect_available (t : tree) acc =
     match store_get t.store t.pointer with
     | None when t.entries = None -> acc

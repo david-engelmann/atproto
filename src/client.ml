@@ -1,6 +1,8 @@
 open Session
 open Cohttp_client
 open App
+open Http_client
+open Response
 
 (** Shared XRPC GET/POST helpers for AppView, chat, ozone, and admin clients. *)
 module Client = struct
@@ -88,6 +90,11 @@ module Client = struct
       (App.create_public_base_url ~host:(host_of ?session ?host ()) ())
       nsid
 
+  (* XRPC procedures with no output lexicon return an empty body. *)
+  let json_of_body (body : string) : Yojson.Safe.t =
+    let body = String.trim body in
+    if body = "" then `Assoc [] else Yojson.Safe.from_string body
+
   let get_json ?session ?host ?bearer ?(extra = []) nsid pairs =
     let headers = request_headers ?session ?bearer ~extra () in
     let url = nsid_url ?session ?host nsid in
@@ -96,7 +103,7 @@ module Client = struct
       Lwt_main.run
         (Cohttp_client.get_request_with_body_and_headers url body headers)
     in
-    Yojson.Safe.from_string resp
+    json_of_body resp
 
   let get_text ?session ?host ?bearer ?(extra = []) nsid pairs =
     let headers = request_headers ?session ?bearer ~extra () in
@@ -111,7 +118,30 @@ module Client = struct
     let resp =
       Lwt_main.run (Cohttp_client.post_data_with_headers url data headers)
     in
-    Yojson.Safe.from_string resp
+    json_of_body resp
+
+  let header_pairs ?session ?bearer ?(extra = []) () =
+    Cohttp_client.application_json_setting_tuple
+    ::
+    (match bearer with
+    | Some token -> [ bearer_jwt token ]
+    | None -> (
+        match session with
+        | Some s -> [ Session.bearer_token_from_session s ]
+        | None -> []))
+    @ extra
+
+  (* HTTPS-only HTTP/2 GET that keeps status + response headers. Hosts with
+     an explicit port (local stacks) stay on Cohttp. *)
+  let get_json_h2 ?session ?host ?bearer ?(extra = []) nsid pairs =
+    let host = host_of ?session ?host () in
+    if String.contains host ':' then
+      get_json ?session ~host ?bearer ~extra nsid pairs
+    else
+      let headers = header_pairs ?session ?bearer ~extra () in
+      let url = Http_client.xrpc_url ~host nsid ~query:pairs () in
+      let resp = Http_client.run (Http_client.get url ~headers ()) in
+      json_of_body (Response.body_string resp)
 
   (* PDS accessJwt is at+jwt. AppView requires a service-auth JWT
      (com.atproto.server.getServiceAuth, aud=AppView DID, lxm=NSID). *)
@@ -132,4 +162,13 @@ module Client = struct
         let aud = match aud with Some a -> a | None -> appview_did_from_env in
         let token = get_service_auth s ~aud ~lxm:nsid () in
         get_json ~host ~bearer:token ~extra nsid pairs
+
+  let post_json_appview ?session ?host ?aud ?(extra = []) nsid data =
+    let host = match host with Some h -> h | None -> appview_host_from_env in
+    match session with
+    | None -> post_json ~host ~extra nsid data
+    | Some s ->
+        let aud = match aud with Some a -> a | None -> appview_did_from_env in
+        let token = get_service_auth s ~aud ~lxm:nsid () in
+        post_json ~host ~bearer:token ~extra nsid data
 end

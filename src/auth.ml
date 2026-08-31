@@ -151,24 +151,24 @@ module Auth = struct
     in
     Lwt_main.run (Cohttp_client.post_data url data)
 
-  let refresh_auth_token_request (access_jwt : string) (refresh_jwt : string)
-      (handle : string) (did : string) (personal_data_server : string) : string
-      =
+  let refresh_session_url (personal_data_server : string) : string =
     let base_endpoint = get_base_endpoint in
     let refresh_endpoint = create_server_endpoint "refreshSession" in
-    let url =
-      Printf.sprintf "%s/%s%s"
-        (origin_of_host personal_data_server)
-        base_endpoint refresh_endpoint
+    Printf.sprintf "%s/%s%s"
+      (origin_of_host personal_data_server)
+      base_endpoint refresh_endpoint
+
+  (* com.atproto.server.refreshSession is POST with no input lexicon.
+     Authorization is Bearer refreshJwt. Do not send a JSON body. *)
+  let refresh_auth_token_request (_access_jwt : string) (refresh_jwt : string)
+      (_handle : string) (_did : string) (personal_data_server : string) :
+      string =
+    let url = refresh_session_url personal_data_server in
+    let headers =
+      Cohttp_client.create_headers_from_pairs
+        [ ("Authorization", "Bearer " ^ refresh_jwt) ]
     in
-    let data =
-      Printf.sprintf
-        "{\"accessJwt\": \"%s\", \"refreshJwt\": \"%s\", \"handle\": \"%s\", \
-         \"did\": \"%s\"}"
-        access_jwt refresh_jwt handle did
-    in
-    let body = Lwt_main.run (Cohttp_client.post_data url data) in
-    body
+    Lwt_main.run (Cohttp_client.post_request_with_headers url headers)
 
   let is_token_expired (a : auth) : bool =
     let expired_at = Ptime.of_float_s (float_of_int a.exp) |> Option.get in
