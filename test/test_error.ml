@@ -42,6 +42,22 @@ let test_is_not_implemented _ =
     (Error.is_not_implemented_json
        (`Assoc [ ("error", `String "MethodNotImplemented") ]))
 
+let test_is_not_served _ =
+  OUnit2.assert_bool "search v2 flag-off"
+    (Error.is_not_served
+       { error = "InvalidRequest"; message = "Search v2 is not enabled" });
+  OUnit2.assert_bool "json flag-off"
+    (Error.is_not_served_json
+       (`Assoc
+         [
+           ("error", `String "InvalidRequest");
+           ("message", `String "Search v2 is not enabled");
+         ]));
+  OUnit2.assert_bool "other InvalidRequest still an error"
+    (not
+       (Error.is_not_served
+          { error = "InvalidRequest"; message = "bad query param" }))
+
 let suite =
   "error"
   >::: [
@@ -50,6 +66,7 @@ let suite =
          "test_of_body_error" >:: test_of_body_error;
          "test_to_string" >:: test_to_string;
          "test_is_not_implemented" >:: test_is_not_implemented;
+         "test_is_not_served" >:: test_is_not_served;
        ]
 
 let () = run_test_tt_main suite

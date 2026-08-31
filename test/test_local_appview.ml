@@ -96,7 +96,6 @@ let bob_session () =
   | None -> session_of "bob.test:hunter2"
 
 let session () = Lazy.force live_session
-let method_missing err = err = "MethodNotFound" || err = "MethodNotImplemented"
 
 (* Public AppView reads omit the PDS session. Authenticated AppView calls
    mint a service-auth JWT (aud=AppView DID, lxm=NSID) and never send at+jwt. *)
@@ -104,24 +103,27 @@ let av_get ?session nsid pairs =
   Client.get_json_appview ?session ~host:(appview_host ()) nsid pairs
   |> ensure_ok
 
-(* Only assert when this AppView revision actually implements the NSID. *)
+(* Only assert when this AppView revision actually serves the NSID. 501 and
+   flag-off InvalidRequest ("Search v2 is not enabled") are not served. *)
 let av_get_if_served ?session nsid pairs =
   let json =
     Client.get_json_appview ?session ~host:(appview_host ()) nsid pairs
   in
-  match Error.check_for_error json with
-  | Some err when method_missing err -> None
-  | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
-  | None -> Some json
+  if Error.is_not_served_json json then None
+  else
+    match Error.check_for_error json with
+    | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
+    | None -> Some json
 
 let av_post_if_served ?session nsid data =
   let json =
     Client.post_json_appview ?session ~host:(appview_host ()) nsid data
   in
-  match Error.check_for_error json with
-  | Some err when method_missing err -> None
-  | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
-  | None -> Some json
+  if Error.is_not_served_json json then None
+  else
+    match Error.check_for_error json with
+    | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
+    | None -> Some json
 
 let test_get_profile _ =
   let s = session () in
@@ -146,12 +148,13 @@ let test_get_suggestions _ =
     Client.get_json ~host:(appview_host ()) "app.bsky.actor.getSuggestions"
       [ ("limit", "5") ]
   in
-  match Error.check_for_error json with
-  | Some err when method_missing err -> ()
-  | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
-  | None ->
-      let suggestions = Actor.parse_short_profiles json in
-      OUnit2.assert_bool "getSuggestions list" (List.length suggestions >= 0)
+  if Error.is_not_served_json json then ()
+  else
+    match Error.check_for_error json with
+    | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
+    | None ->
+        let suggestions = Actor.parse_short_profiles json in
+        OUnit2.assert_bool "getSuggestions list" (List.length suggestions >= 0)
 
 let test_feed_after_writes _ =
   let s = session () in
@@ -459,13 +462,14 @@ let test_notifications _ =
     av_get ~session:s "app.bsky.notification.listNotifications"
       [ ("limit", "10") ]
   in
-  match Error.check_for_error json with
-  | Some err when method_missing err -> ()
-  | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
-  | None -> (
-      match Yojson.Safe.Util.member "notifications" json with
-      | `List _ -> ()
-      | _ -> OUnit2.assert_failure "listNotifications missing notifications")
+  if Error.is_not_served_json json then ()
+  else
+    match Error.check_for_error json with
+    | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
+    | None -> (
+        match Yojson.Safe.Util.member "notifications" json with
+        | `List _ -> ()
+        | _ -> OUnit2.assert_failure "listNotifications missing notifications")
 
 let suite =
   "local_appview"
