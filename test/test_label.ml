@@ -167,11 +167,43 @@ let test_self_labels _ =
   let encoded = Label.self_labels_to_json [ "nudity" ] in
   OUnit2.assert_equal (Some [ "nudity" ]) (Label.parse_self_labels encoded)
 
+let test_parse_label_value_definition _ =
+  let json =
+    `Assoc
+      [
+        ("identifier", `String "spam");
+        ("severity", `String "alert");
+        ("blurs", `String "content");
+        ("defaultSetting", `String "hide");
+        ("adultOnly", `Bool false);
+        ( "locales",
+          `List
+            [
+              `Assoc
+                [
+                  ("lang", `String "en");
+                  ("name", `String "Spam");
+                  ("description", `String "Unwanted commercial content");
+                ];
+            ] );
+      ]
+  in
+  let def = Label.parse_label_value_definition json in
+  OUnit2.assert_equal ~printer:(fun x -> x) "spam" def.identifier;
+  OUnit2.assert_equal ~printer:(fun x -> x) "alert" def.severity;
+  OUnit2.assert_equal ~printer:(fun x -> x) "content" def.blurs;
+  OUnit2.assert_equal (Some "hide") def.default_setting;
+  OUnit2.assert_equal (Some false) def.adult_only;
+  OUnit2.assert_equal 1 (List.length def.locales);
+  OUnit2.assert_equal ~printer:(fun x -> x) "en" (List.hd def.locales).lang
+
 let suite =
   "suite"
   >::: [
          "test_query_labels" >:: test_query_labels;
          "test_self_labels" >:: test_self_labels;
+         "test_parse_label_value_definition"
+         >:: test_parse_label_value_definition;
          "test_parse_query_labels" >:: test_parse_query_labels;
          "test_label_sign_verify_p256" >:: test_label_sign_verify_p256;
          "test_label_sign_verify_k256" >:: test_label_sign_verify_k256;

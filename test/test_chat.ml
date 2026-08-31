@@ -59,6 +59,95 @@ let test_parse_convos _ =
   OUnit2.assert_equal ~printer:(fun x -> x) "convo1" (List.hd page.convos).id;
   OUnit2.assert_equal 2 (List.hd page.convos).unread_count
 
+let test_parse_messages_related_profiles _ =
+  let json =
+    `Assoc
+      [
+        ( "messages",
+          `List
+            [
+              `Assoc
+                [
+                  ("id", `String "m1");
+                  ("rev", `String "r1");
+                  ("text", `String "hello");
+                  ("sentAt", `String "2024-01-01T00:00:00.000Z");
+                  ( "sender",
+                    `Assoc [ ("did", `String "did:plc:abc123xyz0001112223333") ]
+                  );
+                ];
+            ] );
+        ( "relatedProfiles",
+          `List
+            [
+              `Assoc
+                [
+                  ("did", `String "did:plc:abc123xyz0001112223333");
+                  ("handle", `String "alice.test");
+                ];
+            ] );
+      ]
+  in
+  let page = Chat.parse_messages json in
+  OUnit2.assert_equal 1 (List.length page.messages);
+  OUnit2.assert_equal 1 (List.length page.related_profiles);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "alice.test"
+    (match (List.hd page.related_profiles).handle with
+    | Some h -> h
+    | None -> "")
+
+let test_parse_group_convo_extras _ =
+  let json =
+    `Assoc
+      [
+        ("id", `String "g1");
+        ("rev", `String "r1");
+        ("muted", `Bool false);
+        ("unreadCount", `Int 0);
+        ( "lastReaction",
+          `Assoc
+            [
+              ( "message",
+                `Assoc
+                  [
+                    ("id", `String "m2");
+                    ("rev", `String "r2");
+                    ("text", `String "reacted");
+                    ("sentAt", `String "2024-01-01T00:00:00.000Z");
+                  ] );
+              ( "reaction",
+                `Assoc
+                  [
+                    ("value", `String "👍");
+                    ( "sender",
+                      `Assoc
+                        [ ("did", `String "did:plc:abc123xyz0001112223333") ] );
+                    ("createdAt", `String "2024-01-01T00:00:01.000Z");
+                  ] );
+            ] );
+        ( "kind",
+          `Assoc
+            [
+              ("$type", `String "chat.bsky.convo.defs#groupConvo");
+              ("name", `String "mods");
+              ("lockStatus", `String "unlocked");
+              ("lockStatusModerationOverride", `Bool false);
+              ("memberCount", `Int 4);
+              ("unreadJoinRequestCount", `Int 2);
+            ] );
+      ]
+  in
+  let convo = Chat.parse_convo json in
+  OUnit2.assert_equal (Some "mods") convo.group_name;
+  OUnit2.assert_equal (Some "unlocked") convo.lock_status;
+  OUnit2.assert_equal (Some 4) convo.member_count;
+  OUnit2.assert_equal (Some 2) convo.unread_join_request_count;
+  match convo.last_reaction with
+  | Some lr -> OUnit2.assert_equal ~printer:(fun x -> x) "👍" lr.reaction.value
+  | None -> OUnit2.assert_failure "expected lastReaction"
+
 let test_send_message_body _ =
   let body = Chat.send_message_body ~convo_id:"c1" ~text:"hi" () in
   let open Yojson.Safe.Util in
@@ -516,6 +605,9 @@ let suite =
   >::: [
          "test_default_proxy" >:: test_default_proxy;
          "test_parse_convos" >:: test_parse_convos;
+         "test_parse_messages_related_profiles"
+         >:: test_parse_messages_related_profiles;
+         "test_parse_group_convo_extras" >:: test_parse_group_convo_extras;
          "test_send_message_body" >:: test_send_message_body;
          "test_parse_unread_and_logs" >:: test_parse_unread_and_logs;
          "test_parse_message_facets_reactions_embed"

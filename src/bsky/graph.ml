@@ -241,6 +241,7 @@ module Graph = struct
     list_item_count : int option;
     joined_week_count : int option;
     joined_all_time_count : int option;
+    list_items_sample : list_item list;
     indexed_at : string;
     original : Yojson.Safe.t;
   }
@@ -274,6 +275,8 @@ module Graph = struct
     followed_by : string option;
     blocking : string option;
     blocked_by : string option;
+    blocking_by_list : string option;
+    blocked_by_list : string option;
     not_found : bool;
     original : Yojson.Safe.t;
   }
@@ -446,6 +449,11 @@ module Graph = struct
         (match Yojson.Safe.Util.member "joinedAllTimeCount" json with
         | `Int n -> Some n
         | _ -> None);
+      list_items_sample =
+        List.map parse_list_item
+          (match Yojson.Safe.Util.member "listItemsSample" json with
+          | `List xs -> xs
+          | _ -> []);
       indexed_at =
         (match Yojson.Safe.Util.member "indexedAt" json with
         | `String s -> s
@@ -548,6 +556,14 @@ module Graph = struct
         | _ -> None);
       blocked_by =
         (match Yojson.Safe.Util.member "blockedBy" json with
+        | `String s -> Some s
+        | _ -> None);
+      blocking_by_list =
+        (match Yojson.Safe.Util.member "blockingByList" json with
+        | `String s -> Some s
+        | _ -> None);
+      blocked_by_list =
+        (match Yojson.Safe.Util.member "blockedByList" json with
         | `String s -> Some s
         | _ -> None);
       not_found;

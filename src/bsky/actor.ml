@@ -93,6 +93,7 @@ module Actor = struct
     indexed_at : string;
     created_at : string option;
     pinned_post_uri : string option;
+    joined_via_starter_pack_uri : string option;
     associated : profile_associated option;
     verification : verification_state option;
     status : status_view option;
@@ -384,6 +385,12 @@ module Actor = struct
       | `Assoc _ as p -> extract_string_option p "uri"
       | _ -> None
     in
+    let joined_via_starter_pack_uri =
+      match json |> member "joinedViaStarterPack" with
+      | `Assoc _ as p -> extract_string_option p "uri"
+      | `String s -> Some s
+      | _ -> None
+    in
     {
       did;
       handle;
@@ -399,6 +406,7 @@ module Actor = struct
       indexed_at;
       created_at = extract_string_option json "createdAt";
       pinned_post_uri;
+      joined_via_starter_pack_uri;
       associated = parse_associated (json |> member "associated");
       verification = parse_verification_state (json |> member "verification");
       status = parse_status_view (json |> member "status");

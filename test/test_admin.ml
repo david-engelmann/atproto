@@ -45,11 +45,35 @@ let test_parse_account_info _ =
         ("handle", `String "alice.test");
         ("indexedAt", `String "2024-01-01T00:00:00.000Z");
         ("invitesDisabled", `Bool true);
+        ("inviteNote", `String "friend");
+        ( "invitedBy",
+          `Assoc
+            [
+              ("code", `String "bsky-invite-9");
+              ("available", `Int 1);
+              ("disabled", `Bool false);
+              ("forAccount", `String "did:plc:abc123xyz0001112223333");
+              ("createdBy", `String "admin");
+              ("createdAt", `String "2024-01-01T00:00:00.000Z");
+              ("uses", `List []);
+            ] );
+        ( "threatSignatures",
+          `List
+            [
+              `Assoc
+                [ ("property", `String "ip"); ("value", `String "203.0.113.1") ];
+            ] );
       ]
   in
   let info = Admin.parse_account_info json in
   OUnit2.assert_equal ~printer:(fun x -> x) "alice.test" info.handle;
-  OUnit2.assert_equal (Some true) info.invites_disabled
+  OUnit2.assert_equal (Some true) info.invites_disabled;
+  OUnit2.assert_equal (Some "friend") info.invite_note;
+  OUnit2.assert_equal (Some "bsky-invite-9") info.invited_by_code;
+  OUnit2.assert_equal 1 (List.length info.threat_signatures);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "ip" (List.hd info.threat_signatures).property
 
 let test_invite_codes_and_admin_bodies _ =
   let codes =

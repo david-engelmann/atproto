@@ -94,7 +94,12 @@ module Feed = struct
   type reply_ref_item =
     [ `Post of post | `NotFound of not_found_post | `Blocked of blocked_post ]
 
-  type reply = { root : reply_ref_item; parent : reply_ref_item }
+  type reply = {
+    root : reply_ref_item;
+    parent : reply_ref_item;
+    grandparent_author : Actor.typeahead_profile option;
+  }
+
   type reply_feed = { post : reply_post; reply : reply }
 
   type reason = {
@@ -366,7 +371,13 @@ module Feed = struct
     let open Yojson.Safe.Util in
     let root = json |> member "root" |> parse_reply_ref_item in
     let parent = json |> member "parent" |> parse_reply_ref_item in
-    { root; parent }
+    let grandparent_author =
+      match json |> member "grandparentAuthor" with
+      | `Assoc _ as a -> (
+          try Some (Actor.parse_typeahead_profile a) with _ -> None)
+      | _ -> None
+    in
+    { root; parent; grandparent_author }
 
   let parse_repost_feed json : repost_feed =
     let open Yojson.Safe.Util in
@@ -516,8 +527,8 @@ module Feed = struct
   let create_feed_endpoint (query_name : string) : string =
     "app.bsky.feed" ^ "." ^ query_name
 
-  let get_author_feed (s : Session.session) (actor : string) (limit : int) :
-      feed list =
+  let get_author_feed ?filter ?include_pins (s : Session.session)
+      (actor : string) (limit : int) : feed list =
     let open Yojson.Safe.Util in
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
@@ -530,7 +541,12 @@ module Feed = struct
     in
     let body =
       Cohttp_client.create_body_from_pairs
-        [ ("actor", actor); ("limit", string_of_int limit) ]
+        ([ ("actor", actor); ("limit", string_of_int limit) ]
+        @ (match filter with Some f -> [ ("filter", f) ] | None -> [])
+        @
+        match include_pins with
+        | Some b -> [ ("includePins", string_of_bool b) ]
+        | None -> [])
     in
     let author_feed =
       Lwt_main.run
@@ -1027,6 +1043,15 @@ module Feed = struct
       (Client.Client.opt_int "limit" limit
       @ Client.Client.opt_pair "cursor" cursor)
     |> parse_generators
+
+  let get_author_feed_page ?session ?host ~actor ?limit ?cursor ?filter
+      ?include_pins () : timeline =
+    Client.Client.get_json ?session ?host "app.bsky.feed.getAuthorFeed"
+      ((("actor", actor) :: Client.Client.opt_int "limit" limit)
+      @ Client.Client.opt_pair "cursor" cursor
+      @ Client.Client.opt_pair "filter" filter
+      @ Client.Client.opt_bool "includePins" include_pins)
+    |> parse_timeline
 
   let get_list_feed ?session ?host ~list ?limit ?cursor () : timeline =
     Client.Client.get_json ?session ?host "app.bsky.feed.getListFeed"

@@ -258,6 +258,15 @@ let test_parse_profile_and_scoped_mute_viewer _ =
                   "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k" );
               ("cid", `String "bafyreiabc");
             ] );
+        ( "joinedViaStarterPack",
+          `Assoc
+            [
+              ( "uri",
+                `String
+                  "at://did:plc:abc123xyz0001112223333/app.bsky.graph.starterpack/3k"
+              );
+              ("cid", `String "bafyreipack");
+            ] );
         ( "associated",
           `Assoc
             [
@@ -337,6 +346,9 @@ let test_parse_profile_and_scoped_mute_viewer _ =
   OUnit2.assert_equal
     (Some "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k")
     profile.pinned_post_uri;
+  OUnit2.assert_equal
+    (Some "at://did:plc:abc123xyz0001112223333/app.bsky.graph.starterpack/3k")
+    profile.joined_via_starter_pack_uri;
   (match profile.associated with
   | Some assoc -> (
       OUnit2.assert_equal (Some 2) assoc.lists;

@@ -185,11 +185,32 @@ let test_parse_starter_pack _ =
             ] );
         ("indexedAt", `String "2024-01-01T00:00:00.000Z");
         ("joinedAllTimeCount", `Int 12);
+        ( "listItemsSample",
+          `List
+            [
+              `Assoc
+                [
+                  ( "uri",
+                    `String
+                      "at://did:plc:abc123xyz0001112223333/app.bsky.graph.listitem/1"
+                  );
+                  ( "subject",
+                    `Assoc
+                      [
+                        ("did", `String "did:plc:xyz789aaa0001112223333");
+                        ("handle", `String "bob.test");
+                      ] );
+                ];
+            ] );
       ]
   in
   let pack = Graph.parse_starter_pack json in
   OUnit2.assert_equal (Some "New folks") pack.name;
-  OUnit2.assert_equal (Some 12) pack.joined_all_time_count
+  OUnit2.assert_equal (Some 12) pack.joined_all_time_count;
+  OUnit2.assert_equal 1 (List.length pack.list_items_sample);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "bob.test" (List.hd pack.list_items_sample).subject.handle
 
 let test_parse_relationships _ =
   let json =
@@ -206,6 +227,14 @@ let test_parse_relationships _ =
                     `String
                       "at://did:plc:abc123xyz0001112223333/app.bsky.graph.follow/1"
                   );
+                  ( "blockedByList",
+                    `String
+                      "at://did:plc:xyz789aaa0001112223333/app.bsky.graph.listblock/1"
+                  );
+                  ( "blockingByList",
+                    `String
+                      "at://did:plc:abc123xyz0001112223333/app.bsky.graph.listblock/2"
+                  );
                 ];
             ] );
       ]
@@ -214,6 +243,14 @@ let test_parse_relationships _ =
   OUnit2.assert_equal 1 (List.length rels.relationships);
   OUnit2.assert_bool "following present"
     (match (List.hd rels.relationships).following with
+    | Some _ -> true
+    | None -> false);
+  OUnit2.assert_bool "blockedByList"
+    (match (List.hd rels.relationships).blocked_by_list with
+    | Some _ -> true
+    | None -> false);
+  OUnit2.assert_bool "blockingByList"
+    (match (List.hd rels.relationships).blocking_by_list with
     | Some _ -> true
     | None -> false)
 

@@ -37,6 +37,8 @@ module Chat = struct
     original : Yojson.Safe.t;
   }
 
+  type last_reaction = { message : message; reaction : reaction }
+
   type convo = {
     id : string;
     rev : string;
@@ -45,11 +47,22 @@ module Chat = struct
     status : string option;
     members : member list;
     last_message : message option;
+    last_reaction : last_reaction option;
+    unread_join_request_count : int option;
+    lock_status : string option;
+    lock_status_moderation_override : bool option;
+    member_count : int option;
+    group_name : string option;
     original : Yojson.Safe.t;
   }
 
   type convos = { cursor : string option; convos : convo list }
-  type messages = { cursor : string option; messages : message list }
+
+  type messages = {
+    cursor : string option;
+    messages : message list;
+    related_profiles : member list;
+  }
 
   let parse_member json : member =
     {
@@ -112,7 +125,28 @@ module Chat = struct
       original = json;
     }
 
+  let parse_last_reaction json : last_reaction option =
+    match json with
+    | `Assoc _ -> (
+        let message = Yojson.Safe.Util.member "message" json in
+        let reaction = Yojson.Safe.Util.member "reaction" json in
+        match (message, reaction) with
+        | `Assoc _, `Assoc _ ->
+            Some
+              {
+                message = parse_message message;
+                reaction = parse_reaction reaction;
+              }
+        | _ -> None)
+    | _ -> None
+
+  let parse_group_kind json =
+    match Yojson.Safe.Util.member "kind" json with
+    | `Assoc _ as k -> k
+    | _ -> `Null
+
   let parse_convo json : convo =
+    let kind = parse_group_kind json in
     {
       id = Client.string_member json "id";
       rev = Client.string_member json "rev";
@@ -123,6 +157,28 @@ module Chat = struct
       last_message =
         (match Yojson.Safe.Util.member "lastMessage" json with
         | `Assoc _ as m -> Some (parse_message m)
+        | _ -> None);
+      last_reaction =
+        parse_last_reaction (Yojson.Safe.Util.member "lastReaction" json);
+      unread_join_request_count =
+        (match kind with
+        | `Assoc _ -> Client.int_opt kind "unreadJoinRequestCount"
+        | _ -> Client.int_opt json "unreadJoinRequestCount");
+      lock_status =
+        (match kind with
+        | `Assoc _ -> Client.string_opt kind "lockStatus"
+        | _ -> Client.string_opt json "lockStatus");
+      lock_status_moderation_override =
+        (match kind with
+        | `Assoc _ -> Client.bool_opt kind "lockStatusModerationOverride"
+        | _ -> Client.bool_opt json "lockStatusModerationOverride");
+      member_count =
+        (match kind with
+        | `Assoc _ -> Client.int_opt kind "memberCount"
+        | _ -> Client.int_opt json "memberCount");
+      group_name =
+        (match kind with
+        | `Assoc _ -> Client.string_opt kind "name"
         | _ -> None);
       original = json;
     }
@@ -137,6 +193,8 @@ module Chat = struct
     {
       cursor = Client.string_opt json "cursor";
       messages = List.map parse_message (Client.list_member json "messages");
+      related_profiles =
+        List.map parse_member (Client.list_member json "relatedProfiles");
     }
 
   let message_input ?facets ?embed ?reply_to text : Yojson.Safe.t =

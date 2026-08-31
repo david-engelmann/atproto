@@ -409,7 +409,7 @@ module Lexicon = struct
     {|{"lexicon":1,"id":"com.atproto.server.confirmEmail","defs":{"main":{"type":"procedure","description":"Confirm an email using a token from com.atproto.server.requestEmailConfirmation.","input":{"encoding":"application/json","schema":{"type":"object","required":["email","token"],"properties":{"email":{"type":"string"},"token":{"type":"string"}}}}}}}|}
 
   let official_feed_known_likers =
-    {|{"lexicon":1,"id":"app.bsky.feed.defs","defs":{"knownLikers":{"type":"object","description":"The post's likers whom you also follow","required":["count","actors"],"properties":{"count":{"type":"integer"},"actors":{"type":"array","items":{"type":"ref","ref":"app.bsky.actor.defs#profileViewBasic"}}}},"viewerState":{"type":"object","properties":{"repost":{"type":"string"},"like":{"type":"string"},"bookmarked":{"type":"boolean"},"threadMuted":{"type":"boolean"},"replyDisabled":{"type":"boolean"},"embeddingDisabled":{"type":"boolean"},"pinned":{"type":"boolean"},"knownLikers":{"type":"ref","ref":"#knownLikers"}}}}}|}
+    {|{"lexicon":1,"id":"app.bsky.feed.defs","defs":{"knownLikers":{"type":"object","description":"The post's likers whom you also follow","required":["count","actors"],"properties":{"count":{"type":"integer"},"actors":{"type":"array","items":{"type":"ref","ref":"app.bsky.actor.defs#profileViewBasic"}}}},"viewerState":{"type":"object","properties":{"repost":{"type":"string"},"like":{"type":"string"},"bookmarked":{"type":"boolean"},"threadMuted":{"type":"boolean"},"replyDisabled":{"type":"boolean"},"embeddingDisabled":{"type":"boolean"},"pinned":{"type":"boolean"},"knownLikers":{"type":"ref","ref":"#knownLikers"}}},"replyRef":{"type":"object","required":["root","parent"],"properties":{"root":{"type":"union"},"parent":{"type":"union"},"grandparentAuthor":{"type":"ref","ref":"app.bsky.actor.defs#profileViewBasic"}}}}}|}
 
   let official_embed_video =
     {|{"lexicon":1,"id":"app.bsky.embed.video","defs":{"main":{"type":"object","required":["video"],"properties":{"video":{"type":"blob"},"alt":{"type":"string"},"aspectRatio":{"type":"ref","ref":"app.bsky.embed.defs#aspectRatio"},"presentation":{"type":"string","knownValues":["default","gif"]}}},"view":{"type":"object","required":["cid","playlist"],"properties":{"cid":{"type":"string"},"playlist":{"type":"string"},"alt":{"type":"string"},"presentation":{"type":"string","knownValues":["default","gif"]}}}}}|}
@@ -421,7 +421,7 @@ module Lexicon = struct
     {|{"lexicon":1,"id":"app.bsky.graph.muteActor","defs":{"main":{"type":"procedure","description":"Creates a mute relationship for the specified account.","input":{"encoding":"application/json","schema":{"type":"object","required":["actor"],"properties":{"actor":{"type":"string"},"onlyReposts":{"type":"boolean"},"onlyQuoteposts":{"type":"boolean"}}}}}}}|}
 
   let official_actor_defs =
-    {|{"lexicon":1,"id":"app.bsky.actor.defs","defs":{"viewerState":{"type":"object","properties":{"muted":{"type":"boolean"},"mutedOnlyReposts":{"type":"boolean"},"mutedOnlyQuoteposts":{"type":"boolean"},"blocking":{"type":"string"},"knownFollowers":{"type":"ref","ref":"#knownFollowers"}}},"profileAssociatedGerm":{"type":"object","required":["showButtonTo","messageMeUrl"],"properties":{"showButtonTo":{"type":"string"},"messageMeUrl":{"type":"string"}}},"profileAssociated":{"type":"object","properties":{"germ":{"type":"ref","ref":"#profileAssociatedGerm"}}}}}|}
+    {|{"lexicon":1,"id":"app.bsky.actor.defs","defs":{"viewerState":{"type":"object","properties":{"muted":{"type":"boolean"},"mutedOnlyReposts":{"type":"boolean"},"mutedOnlyQuoteposts":{"type":"boolean"},"blocking":{"type":"string"},"knownFollowers":{"type":"ref","ref":"#knownFollowers"}}},"profileAssociatedGerm":{"type":"object","required":["showButtonTo","messageMeUrl"],"properties":{"showButtonTo":{"type":"string"},"messageMeUrl":{"type":"string"}}},"profileAssociated":{"type":"object","properties":{"germ":{"type":"ref","ref":"#profileAssociatedGerm"}}},"profileViewDetailed":{"type":"object","required":["did","handle"],"properties":{"joinedViaStarterPack":{"type":"ref","ref":"app.bsky.graph.defs#starterPackViewBasic"}}}}}|}
 
   let official_create_session =
     {|{"lexicon":1,"id":"com.atproto.server.createSession","defs":{"main":{"type":"procedure","description":"Create an authentication session.","input":{"encoding":"application/json","schema":{"type":"object","required":["identifier","password"],"properties":{"identifier":{"type":"string"},"password":{"type":"string"},"authFactorToken":{"type":"string"},"allowTakendown":{"type":"boolean"}}}}}}}|}
@@ -434,6 +434,24 @@ module Lexicon = struct
 
   let official_create_app_password =
     {|{"lexicon":1,"id":"com.atproto.server.createAppPassword","defs":{"main":{"type":"procedure","description":"Create an App Password.","input":{"encoding":"application/json","schema":{"type":"object","required":["name"],"properties":{"name":{"type":"string"},"privileged":{"type":"boolean"}}}}}}}|}
+
+  let official_embed_external =
+    {|{"lexicon":1,"id":"app.bsky.embed.external","defs":{"main":{"type":"object","required":["external"],"properties":{"external":{"type":"ref","ref":"#external"}}},"external":{"type":"object","required":["uri","title","description"],"properties":{"associatedRefs":{"type":"array"}}},"viewExternal":{"type":"object","required":["uri","title","description"],"properties":{"readingTime":{"type":"integer"},"associatedProfiles":{"type":"array"},"source":{"type":"ref","ref":"#viewExternalSource"}}},"viewExternalSourceTheme":{"type":"object","properties":{"backgroundRGB":{"type":"ref","ref":"#colorRGB"},"foregroundRGB":{"type":"ref","ref":"#colorRGB"},"accentRGB":{"type":"ref","ref":"#colorRGB"},"accentForegroundRGB":{"type":"ref","ref":"#colorRGB"}}}}}|}
+
+  let official_get_author_feed =
+    {|{"lexicon":1,"id":"app.bsky.feed.getAuthorFeed","defs":{"main":{"type":"query","description":"Get a view of an actor's author feed.","parameters":{"type":"params","required":["actor"],"properties":{"actor":{"type":"string"},"filter":{"type":"string"},"includePins":{"type":"boolean"}}}}}}|}
+
+  let official_graph_relationship =
+    {|{"lexicon":1,"id":"app.bsky.graph.defs","defs":{"relationship":{"type":"object","required":["did"],"properties":{"did":{"type":"string"},"blockingByList":{"type":"string"},"blockedByList":{"type":"string"}}},"starterPackView":{"type":"object","required":["uri","cid","record","creator","indexedAt"],"properties":{"listItemsSample":{"type":"array"}}}}}|}
+
+  let official_check_account_status =
+    {|{"lexicon":1,"id":"com.atproto.server.checkAccountStatus","defs":{"main":{"type":"query","description":"Returns the status of an account, especially as pertaining to import or recovery.","output":{"encoding":"application/json","schema":{"type":"object","required":["activated","validDid","repoCommit","repoRev","repoBlocks","indexedRecords","privateStateValues","expectedBlobs","importedBlobs"],"properties":{"activated":{"type":"boolean"},"validDid":{"type":"boolean"},"repoCommit":{"type":"string"},"repoRev":{"type":"string"},"repoBlocks":{"type":"integer"},"indexedRecords":{"type":"integer"},"privateStateValues":{"type":"integer"},"expectedBlobs":{"type":"integer"},"importedBlobs":{"type":"integer"}}}}}}}|}
+
+  let official_label_value_definition =
+    {|{"lexicon":1,"id":"com.atproto.label.defs","defs":{"labelValueDefinition":{"type":"object","required":["identifier","severity","blurs","locales"],"properties":{"identifier":{"type":"string"},"severity":{"type":"string"},"blurs":{"type":"string"},"defaultSetting":{"type":"string"},"adultOnly":{"type":"boolean"},"locales":{"type":"array"}}}}}|}
+
+  let official_get_messages =
+    {|{"lexicon":1,"id":"chat.bsky.convo.getMessages","defs":{"main":{"type":"query","description":"Returns a page of messages from a conversation.","parameters":{"type":"params","required":["convoId"],"properties":{"convoId":{"type":"string"}}},"output":{"encoding":"application/json","schema":{"type":"object","required":["messages"],"properties":{"messages":{"type":"array"},"relatedProfiles":{"type":"array"}}}}}}}|}
 
   let official_lexicons : (string * string) list =
     [
@@ -473,6 +491,12 @@ module Lexicon = struct
       ("com.atproto.server.createAccount", official_create_account);
       ("com.atproto.server.getSession", official_get_session);
       ("com.atproto.server.createAppPassword", official_create_app_password);
+      ("app.bsky.embed.external", official_embed_external);
+      ("app.bsky.feed.getAuthorFeed", official_get_author_feed);
+      ("app.bsky.graph.defs", official_graph_relationship);
+      ("com.atproto.server.checkAccountStatus", official_check_account_status);
+      ("com.atproto.label.defs", official_label_value_definition);
+      ("chat.bsky.convo.getMessages", official_get_messages);
     ]
 
   let official_documents () : document list =

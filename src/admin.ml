@@ -17,6 +17,8 @@ module Admin = struct
     original : Yojson.Safe.t;
   }
 
+  type threat_signature = { property : string; value : string }
+
   type account_info = {
     did : string;
     handle : string;
@@ -25,6 +27,9 @@ module Admin = struct
     invites_disabled : bool option;
     email_confirmed_at : string option;
     deactivated_at : string option;
+    invite_note : string option;
+    invited_by_code : string option;
+    threat_signatures : threat_signature list;
     original : Yojson.Safe.t;
   }
 
@@ -101,7 +106,19 @@ module Admin = struct
       original = json;
     }
 
+  let parse_threat_signature json : threat_signature =
+    {
+      property = Client.string_member json "property";
+      value = Client.string_member json "value";
+    }
+
   let parse_account_info json : account_info =
+    let invited_by_code =
+      match Yojson.Safe.Util.member "invitedBy" json with
+      | `Assoc _ as inv -> Client.string_opt inv "code"
+      | `String s -> Some s
+      | _ -> None
+    in
     {
       did = Client.string_member json "did";
       handle = Client.string_member json "handle";
@@ -110,6 +127,11 @@ module Admin = struct
       invites_disabled = Client.bool_opt json "invitesDisabled";
       email_confirmed_at = Client.string_opt json "emailConfirmedAt";
       deactivated_at = Client.string_opt json "deactivatedAt";
+      invite_note = Client.string_opt json "inviteNote";
+      invited_by_code;
+      threat_signatures =
+        List.map parse_threat_signature
+          (Client.list_member json "threatSignatures");
       original = json;
     }
 
