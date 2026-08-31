@@ -252,7 +252,8 @@ let test_more_appview _ =
           match Yojson.Safe.Util.member "uri" post with
           | `String uri when String.length uri > 0 -> (
               match
-                av_get_if_served "app.bsky.feed.getPosts" [ ("uris", uri) ]
+                av_get_if_served ~session:s "app.bsky.feed.getPosts"
+                  [ ("uris", uri) ]
               with
               | None -> ()
               | Some json ->
@@ -262,7 +263,7 @@ let test_more_appview _ =
       | _ -> ())
   | _ -> ());
   (match
-     av_get_if_served "app.bsky.graph.getRelationships"
+     av_get_if_served ~session:s "app.bsky.graph.getRelationships"
        [ ("actor", "alice.test"); ("others", "bob.test") ]
    with
   | None -> ()
@@ -270,7 +271,7 @@ let test_more_appview _ =
       let rel = Graph.parse_relationships json in
       OUnit2.assert_bool "getRelationships" (List.length rel.relationships >= 0));
   (match
-     av_get_if_served "app.bsky.graph.getLists"
+     av_get_if_served ~session:s "app.bsky.graph.getLists"
        [ ("actor", "alice.test"); ("limit", "10") ]
    with
   | None -> ()
@@ -278,7 +279,7 @@ let test_more_appview _ =
       let lists = Graph.parse_lists json in
       OUnit2.assert_bool "getLists" (List.length lists.lists >= 0));
   (match
-     av_get_if_served "app.bsky.graph.getActorStarterPacks"
+     av_get_if_served ~session:s "app.bsky.graph.getActorStarterPacks"
        [ ("actor", "alice.test"); ("limit", "5") ]
    with
   | None -> ()
@@ -306,7 +307,7 @@ let test_more_appview _ =
       let blocks = Graph.parse_blocks json in
       OUnit2.assert_bool "getBlocks" (List.length blocks.blocks >= 0));
   (match
-     av_get_if_served "app.bsky.graph.getKnownFollowers"
+     av_get_if_served ~session:s "app.bsky.graph.getKnownFollowers"
        [ ("actor", "alice.test"); ("limit", "5") ]
    with
   | None -> ()
@@ -314,7 +315,7 @@ let test_more_appview _ =
       let known = Graph.parse_followers json in
       OUnit2.assert_bool "getKnownFollowers" (List.length known.followers >= 0));
   match
-    av_get_if_served "app.bsky.actor.searchActorsTypeahead"
+    av_get_if_served ~session:s "app.bsky.actor.searchActorsTypeahead"
       [ ("q", "alice"); ("limit", "5") ]
   with
   | None -> ()
