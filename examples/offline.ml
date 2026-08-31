@@ -555,6 +555,11 @@ let () =
   assert (parsed.host = "public.api.bsky.app");
   let fake = Response.of_string ~status_code:200 "{}" in
   assert fake.success;
+  let confirm = Server.confirm_email_body ~email:"a@b.test" ~token:"t" in
+  assert (
+    match Yojson.Safe.Util.member "token" confirm with
+    | `String "t" -> true
+    | _ -> false);
   let jss_hdr =
     Jetstream.Jss.parse_header
       (Jetstream.Jss.encode_header

@@ -56,7 +56,10 @@ let test_create_helpers _ =
   OUnit2.assert_equal Request.test_post post.method_;
   OUnit2.assert_equal (Some "{}") post.body;
   let put = Request.put "https://example.com/x" ~body:"x" () in
-  OUnit2.assert_equal Http_method.Put put.method_
+  OUnit2.assert_equal Http_method.Put put.method_;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "david-engelmann/atproto (OCaml SDK)" Request.user_agent
 
 let suite =
   "suite"

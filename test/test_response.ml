@@ -52,6 +52,7 @@ let test_of_string_and_header _ =
   in
   OUnit2.assert_equal false r.success;
   OUnit2.assert_equal (Some "0") (Response.header r "ratelimit-remaining");
+  OUnit2.assert_equal None (Response.content_type r);
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "{\"error\":\"RateLimitExceeded\"}" (Response.body_string r)
