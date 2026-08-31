@@ -4,6 +4,8 @@ open Atproto.Ozone
 open Atproto.Label
 open Atproto.Client
 open Atproto.Error
+open Ozone
+open Label
 
 (* Real tools.ozone.* calls against official @atproto/dev-env Ozone.
    Uses the mock admin-mod.test account and ozone service DID. *)
@@ -62,13 +64,13 @@ let proxy () = Ozone.labeler_proxy (ozone_did ())
 
 let no_xrpc_error json =
   match Error.check_for_error json with
-  | Some _ ->
-      failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
+  | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
   | None -> ()
 
 let test_get_config _ =
   let s = admin_session () in
-  let cfg = Ozone.get_config s ~proxy:(proxy ()) ?host:(ozone_host ()) () in
+  (* Official path: PDS session + atproto-proxy (direct Ozone rejects at+jwt). *)
+  let cfg = Ozone.get_config s ~proxy:(proxy ()) () in
   no_xrpc_error cfg.original;
   OUnit2.assert_bool "getConfig returned JSON"
     (match cfg.original with `Assoc _ -> true | _ -> false)
@@ -76,44 +78,46 @@ let test_get_config _ =
 let test_emit_and_query _ =
   let s = admin_session () in
   let p = proxy () in
-  let host = ozone_host () in
   let alice = Session.create_session "alice.test" "hunter2" in
   let ev =
-    Ozone.emit_event s ~proxy:p ?host
+    Ozone.emit_event s ~proxy:p
       ~event:(Ozone.comment_event "ocaml local ozone integration")
-      ~subject:(Ozone.repo_ref alice.auth.did) ~created_by:s.auth.did ()
+      ~subject:(Ozone.repo_ref alice.auth.did)
+      ~created_by:s.auth.did ()
   in
   no_xrpc_error ev.original;
   OUnit2.assert_bool "emitEvent parsed"
     (match ev.id with Some n -> n >= 0 | None -> true);
   let events =
-    Ozone.query_events s ~proxy:p ?host ~subject:alice.auth.did ~limit:10 ()
+    Ozone.query_events s ~proxy:p ~subject:alice.auth.did ~limit:10 ()
   in
   OUnit2.assert_bool "queryEvents" (List.length events.events >= 1);
   let statuses =
-    Ozone.query_statuses s ~proxy:p ?host ~subject:alice.auth.did ~limit:10 ()
+    Ozone.query_statuses s ~proxy:p ~subject:alice.auth.did ~limit:10 ()
   in
-  OUnit2.assert_bool "queryStatuses"
-    (List.length statuses.subject_statuses >= 0)
+  OUnit2.assert_bool "queryStatuses" (List.length statuses.subject_statuses >= 0)
 
 let test_query_labels _ =
   let s = admin_session () in
+  let alice = Session.create_session "alice.test" "hunter2" in
   let labels =
-    Label.query_labels_parsed s ~uri_patterns:[ "at://did:plc:*" ] ~limit:10 ()
+    Label.query_labels_parsed s
+      ~uri_patterns:[ "at://" ^ alice.auth.did ]
+      ~sources:[ ozone_did () ]
+      ~limit:10 ()
   in
   OUnit2.assert_bool "queryLabels PDS" (List.length labels.labels >= 0);
   match ozone_host () with
   | None -> ()
-  | Some host ->
+  | Some host -> (
       let json =
-        Client.get_json ~session:s ~host ~extra:(Ozone.proxy_headers (proxy ()))
-          "com.atproto.label.queryLabels"
-          [ ("uriPatterns", "at://did:plc:*"); ("limit", "10") ]
+        Client.get_json ~host "com.atproto.label.queryLabels"
+          [ ("uriPatterns", "at://" ^ alice.auth.did); ("limit", "10") ]
       in
       no_xrpc_error json;
       match Yojson.Safe.Util.member "labels" json with
       | `List _ -> ()
-      | _ -> OUnit2.assert_failure "ozone queryLabels missing labels"
+      | _ -> OUnit2.assert_failure "ozone queryLabels missing labels")
 
 let suite =
   "local_ozone"
@@ -123,4 +127,6 @@ let suite =
          "test_query_labels" >:: test_query_labels;
        ]
 
-let () = run_test_tt_main suite
+let () =
+  Unix.putenv "OUNIT_RUNNER" "sequential";
+  run_test_tt_main suite

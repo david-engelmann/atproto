@@ -200,6 +200,7 @@ jobs:
             set +a
           fi
           export ATP_REQUIRE_LOCAL_PDS=1
+          export OUNIT_RUNNER=sequential
           {
             opam exec -- dune exec -- test/test_local_pds.exe
             opam exec -- dune exec -- test/test_local_appview.exe

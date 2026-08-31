@@ -62,7 +62,7 @@
   test_download_image
   test_video
   test_xrpc)
- (libraries)
+ (libraries
   async
   core
   uri

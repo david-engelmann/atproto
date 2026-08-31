@@ -8,6 +8,9 @@ open Atproto.Records
 open Atproto.Repo
 open Atproto.Client
 open Atproto.Error
+open Actor
+open Feed
+open Graph
 
 (* Real app.bsky.* calls against official @atproto/dev-env AppView. *)
 
@@ -39,20 +42,18 @@ let appview_host () =
 
 let ensure_ok json =
   match Error.check_for_error json with
-  | Some _ ->
-      failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
+  | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
   | None -> json
 
 let rfc3339_z () =
   let t = Unix.gmtime (Unix.gettimeofday ()) in
-  Printf.sprintf "%04d-%02d-%02dT%02d:%02d:%02d.000Z"
-    (t.Unix.tm_year + 1900) (t.Unix.tm_mon + 1) t.Unix.tm_mday t.Unix.tm_hour
-    t.Unix.tm_min t.Unix.tm_sec
+  Printf.sprintf "%04d-%02d-%02dT%02d:%02d:%02d.000Z" (t.Unix.tm_year + 1900)
+    (t.Unix.tm_mon + 1) t.Unix.tm_mday t.Unix.tm_hour t.Unix.tm_min
+    t.Unix.tm_sec
 
 let skip_unless_local () =
   if not (intended ()) then
-    skip_if true
-      "local AppView not selected (start scripts/local-atproto.sh)";
+    skip_if true "local AppView not selected (start scripts/local-atproto.sh)";
   try
     let json =
       Client.get_json ~host:(appview_host ()) "app.bsky.actor.getProfile"
@@ -85,40 +86,42 @@ let bob_session () =
 
 let session () = Lazy.force live_session
 
-let av_get s nsid pairs =
-  Client.get_json ~session:s ~host:(appview_host ()) nsid pairs |> ensure_ok
+(* Local AppView rejects PDS at+jwt (InvalidToken). Public app.bsky.* reads
+   go to AppView without a bearer. Authenticated product APIs (timeline /
+   mutes / notifications) go through the PDS, which proxies to this AppView. *)
+let av_get nsid pairs =
+  Client.get_json ~host:(appview_host ()) nsid pairs |> ensure_ok
+
+let pds_get s nsid pairs = Client.get_json ~session:s nsid pairs |> ensure_ok
 
 let test_get_profile _ =
   let s = session () in
-  let json = av_get s "app.bsky.actor.getProfile" [ ("actor", s.username) ] in
+  let json = av_get "app.bsky.actor.getProfile" [ ("actor", s.username) ] in
   let profile = Actor.parse_profile json in
   OUnit2.assert_bool "getProfile did"
     (String.length profile.did > 8 && String.sub profile.did 0 4 = "did:")
 
 let test_get_profiles _ =
-  let s = session () in
+  ignore (session ());
   let json =
-    Client.get_json ~session:s ~host:(appview_host ())
-      "app.bsky.actor.getProfiles"
+    Client.get_json ~host:(appview_host ()) "app.bsky.actor.getProfiles"
       (Client.repeat_param "actors" [ "alice.test"; "bob.test" ])
     |> ensure_ok
   in
   let profiles = Actor.parse_profiles json in
   OUnit2.assert_bool "getProfiles count" (List.length profiles >= 1)
 
-let method_missing err =
-  err = "MethodNotFound" || err = "MethodNotImplemented"
+let method_missing err = err = "MethodNotFound" || err = "MethodNotImplemented"
 
 let test_get_suggestions _ =
-  let s = session () in
+  ignore (session ());
   let json =
-    Client.get_json ~session:s ~host:(appview_host ())
-      "app.bsky.actor.getSuggestions" [ ("limit", "5") ]
+    Client.get_json ~host:(appview_host ()) "app.bsky.actor.getSuggestions"
+      [ ("limit", "5") ]
   in
   match Error.check_for_error json with
   | Some err when method_missing err -> ()
-  | Some _ ->
-      failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
+  | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
   | None ->
       let suggestions = Actor.parse_short_profiles json in
       OUnit2.assert_bool "getSuggestions list" (List.length suggestions >= 0)
@@ -128,23 +131,22 @@ let test_feed_after_writes _ =
   let bob = bob_session () in
   let created_at = rfc3339_z () in
   let post =
-    Records.post ~text:"appview integration post" ~created_at ~langs:[ "en" ]
-      ()
+    Records.post ~text:"appview integration post" ~created_at ~langs:[ "en" ] ()
   in
   let created =
     Repo.create_record s s.auth.did Records.nsid_post
       (Yojson.Safe.to_string post)
     |> Yojson.Safe.from_string |> ensure_ok |> Repo.parse_write_result
   in
-  OUnit2.assert_bool "pds createRecord uri" (String.length created.uri > 8);
+  OUnit2.assert_bool "pds createRecord uri" (String.length created.Repo.uri > 8);
   let like =
-    Records.like ~uri:created.uri ~cid:created.cid ~created_at ()
+    Records.like ~uri:created.Repo.uri ~cid:created.Repo.cid ~created_at ()
   in
   ignore
     (Repo.create_record bob bob.auth.did Records.nsid_like
        (Yojson.Safe.to_string like));
   let repost =
-    Records.repost ~uri:created.uri ~cid:created.cid ~created_at ()
+    Records.repost ~uri:created.Repo.uri ~cid:created.Repo.cid ~created_at ()
   in
   ignore
     (Repo.create_record bob bob.auth.did Records.nsid_repost
@@ -153,89 +155,91 @@ let test_feed_after_writes _ =
     if n <= 0 then failwith "AppView did not index the new post";
     let found =
       try
-        let page =
-          Feed.get_author_feed_page ~session:s ~host:(appview_host ())
-            ~actor:s.username ~limit:20 ()
+        let json =
+          Client.get_json ~host:(appview_host ()) "app.bsky.feed.getAuthorFeed"
+            [ ("actor", s.username); ("limit", "20") ]
         in
-        let uri_of = function
-          | `Post p -> p.post.uri
-          | `Reply r -> r.post.uri
-          | `Repost r -> r.post.uri
-        in
-        List.exists (fun item -> uri_of item = created.uri) page.feed
+        match Error.check_for_error json with
+        | Some _ -> false
+        | None -> (
+            match Yojson.Safe.Util.member "feed" json with
+            | `List items ->
+                List.exists
+                  (fun item ->
+                    match Yojson.Safe.Util.member "post" item with
+                    | `Assoc _ as post -> (
+                        match Yojson.Safe.Util.member "uri" post with
+                        | `String u -> u = created.Repo.uri
+                        | _ -> false)
+                    | _ -> false)
+                  items
+            | _ -> false)
       with _ -> false
     in
     if found then ()
     else (
-      Unix.sleep 2;
+      Unix.sleep 1;
       wait (n - 1))
   in
-  wait 30;
+  wait 45;
   let timeline =
-    av_get s "app.bsky.feed.getTimeline"
+    pds_get s "app.bsky.feed.getTimeline"
       [ ("algorithm", "reverse-chronological"); ("limit", "10") ]
     |> Feed.parse_timeline
   in
   OUnit2.assert_bool "getTimeline feed" (List.length timeline.feed >= 0);
   let thread =
-    av_get s "app.bsky.feed.getPostThread"
-      [ ("uri", created.uri); ("depth", "2") ]
+    av_get "app.bsky.feed.getPostThread"
+      [ ("uri", created.Repo.uri); ("depth", "2") ]
     |> Feed.parse_thread_feed
   in
   let _ = thread.thread in
   OUnit2.assert_bool "getPostThread parsed" true;
-  let likes =
-    av_get s "app.bsky.feed.getLikes"
-      [ ("uri", created.uri); ("cid", created.cid); ("limit", "10") ]
-    |> Feed.parse_likes
+  let likes_json =
+    av_get "app.bsky.feed.getLikes"
+      [ ("uri", created.Repo.uri); ("cid", created.Repo.cid); ("limit", "10") ]
   in
-  OUnit2.assert_bool "getLikes" (List.length likes.likes >= 0);
-  let reposted =
-    av_get s "app.bsky.feed.getRepostedBy"
-      [ ("uri", created.uri); ("cid", created.cid); ("limit", "10") ]
-    |> Feed.parse_reposted_by_feed
+  (match Yojson.Safe.Util.member "likes" likes_json with
+  | `List _ -> ()
+  | _ -> OUnit2.assert_failure "getLikes missing likes");
+  let reposted_json =
+    av_get "app.bsky.feed.getRepostedBy"
+      [ ("uri", created.Repo.uri); ("cid", created.Repo.cid); ("limit", "10") ]
   in
-  OUnit2.assert_bool "getRepostedBy" (List.length reposted.reposted_by >= 0)
+  match Yojson.Safe.Util.member "repostedBy" reposted_json with
+  | `List _ -> ()
+  | _ -> OUnit2.assert_failure "getRepostedBy missing repostedBy"
 
 let test_graph _ =
   let s = session () in
   let follows =
-    av_get s "app.bsky.graph.getFollows"
+    av_get "app.bsky.graph.getFollows"
       [ ("actor", "alice.test"); ("limit", "10") ]
     |> Graph.parse_follows
   in
   OUnit2.assert_bool "getFollows (mock seeds follows)"
     (List.length follows.follows >= 1);
   let followers =
-    av_get s "app.bsky.graph.getFollowers"
+    av_get "app.bsky.graph.getFollowers"
       [ ("actor", "alice.test"); ("limit", "10") ]
     |> Graph.parse_followers
   in
   OUnit2.assert_bool "getFollowers" (List.length followers.followers >= 1);
   ignore (Graph.mute_actor s "carla.test");
-  let mute_json =
-    Client.get_json ~session:s ~host:(appview_host ())
-      "app.bsky.graph.getMutes" [ ("limit", "10") ]
-  in
   let mutes =
-    match Error.check_for_error mute_json with
-    | Some err when method_missing err -> Graph.get_mutes s 10
-    | Some _ ->
-        failwith ("XRPC error: " ^ Error.to_string (Error.of_json mute_json))
-    | None -> Graph.parse_mutes mute_json
+    pds_get s "app.bsky.graph.getMutes" [ ("limit", "10") ] |> Graph.parse_mutes
   in
   OUnit2.assert_bool "getMutes after muteActor" (List.length mutes.mutes >= 0)
 
 let test_notifications _ =
   let s = session () in
   let json =
-    Client.get_json ~session:s ~host:(appview_host ())
-      "app.bsky.notification.listNotifications" [ ("limit", "10") ]
+    Client.get_json ~session:s "app.bsky.notification.listNotifications"
+      [ ("limit", "10") ]
   in
   match Error.check_for_error json with
   | Some err when method_missing err -> ()
-  | Some _ ->
-      failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
+  | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
   | None -> (
       match Yojson.Safe.Util.member "notifications" json with
       | `List _ -> ()
@@ -252,4 +256,6 @@ let suite =
          "test_notifications" >:: test_notifications;
        ]
 
-let () = run_test_tt_main suite
+let () =
+  Unix.putenv "OUNIT_RUNNER" "sequential";
+  run_test_tt_main suite

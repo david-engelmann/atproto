@@ -49,7 +49,7 @@ test-pds-run test-atproto-run:
 	@set -e; \
 	export $(LOCAL_ATP_ENV); \
 	if [ -f docker/dev-env/generated.env ]; then set -a; . docker/dev-env/generated.env; set +a; fi; \
-	export ATP_REQUIRE_LOCAL_PDS=1; \
+	export ATP_REQUIRE_LOCAL_PDS=1 OUNIT_RUNNER=sequential; \
 	dune exec -- test/test_local_pds.exe; \
 	dune exec -- test/test_local_appview.exe; \
 	dune exec -- test/test_local_ozone.exe
