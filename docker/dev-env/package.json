@@ -1,0 +1,10 @@
+{
+  "name": "atproto-ocaml-local-dev-env",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@atproto/dev-env": "0.6.4"
+  }
+}

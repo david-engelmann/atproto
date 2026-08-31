@@ -6,6 +6,14 @@ open App
 module Client = struct
   let public_appview_host = "public.api.bsky.app"
 
+  (* Local official @atproto/dev-env AppView is localhost:2584. *)
+  let appview_host_from_env : string =
+    match Sys.getenv_opt "ATP_APPVIEW_HOST" with
+    | Some h ->
+        let h = String.trim h in
+        if h = "" then public_appview_host else h
+    | None -> public_appview_host
+
   let string_member json field =
     match Yojson.Safe.Util.member field json with `String s -> s | _ -> ""
 

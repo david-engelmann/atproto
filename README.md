@@ -9,12 +9,16 @@ Create a `.env` (see `sample.env`) with at least:
 - `ATP_AUTH` : `EmailAddress:AppPassword`
   - Use an [App Password](https://bsky.app/settings/app-passwords) (email as the username).
 - `ATP_HOST` : `bsky.social`
-  - PDS / entryway host **without** a scheme (`localhost:2583` for the local compose stack).
-- `ATP_SCHEME` : `https` (default) or `http` for a local PDS without TLS.
+  - PDS / entryway host **without** a scheme (`localhost:2583` for the official local network).
+- `ATP_SCHEME` : `https` (default) or `http` for a local stack without TLS.
 
 Optional:
 
 - `BASE_ENDPOINT` : `xrpc` (default)
+- `ATP_APPVIEW_HOST` : AppView host without a scheme (`localhost:2584` for `@atproto/dev-env`)
+- `ATP_OZONE_HOST` : Ozone host without a scheme (`localhost:2587`)
+- `ATP_OZONE_DID` : Ozone service DID (printed by `scripts/local-atproto.sh env`)
+- `ATP_AUTH_BOB` / `ATP_AUTH_OZONE` : second PDS account and ozone admin (local network only)
 
 Session creation, repo writes, graph mutes, bookmarks, chat, ozone, and feed helpers need `ATP_AUTH`. Public identity, DID PLC, firehose subscribe, AppView reads (`public.api.bsky.app`), and most `com.atproto.sync.*` reads do **not**.
 
@@ -30,39 +34,58 @@ dune runtest
 
 Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to a real `email:app-password` pair (placeholder values in `sample.env` do not count). Public-network tests (handle resolve, PLC directory, `getLatestCommit`, `subscribeRepos`, AppView feed/search/labeler reads) run without auth and skip only if the request itself fails.
 
-## Local PDS (real protocol, not fixtures)
+## Local AT Protocol network (PDS + AppView + Ozone)
 
-CI and `make test-pds` start the official Bluesky PDS image plus a local PLC directory, create a test account, and run OCaml tests against `com.atproto.*` on that instance. This is a **separate** GitHub Actions job on the runner VM (Docker is available there). The existing `build` job stays inside `ocaml/opam:ubuntu-22.04` and does not start Docker.
+CI and `make test-pds` start Bluesky's official OSS local network — published [`@atproto/dev-env@0.6.4`](https://www.npmjs.com/package/@atproto/dev-env) (`TestNetwork.create()`, the same stack as `make run-dev-env` in [bluesky-social/atproto](https://github.com/bluesky-social/atproto)). This is a **separate** GitHub Actions job on the runner VM (Docker and Node >= 22 are available there). The existing `build` job stays inside `ocaml/opam:ubuntu-22.04` and does not start Docker.
 
 ```shell
-# start official PDS + PLC, create alice.test, run integration tests
+# start Postgres+Redis + official dev-env, then run PDS / AppView / Ozone tests
 make test-pds
 
 # or step by step
-make pds-up
-./scripts/local-pds.sh account
-eval "$(./scripts/local-pds.sh env)"
+./scripts/local-atproto.sh up
+./scripts/local-atproto.sh account
+eval "$(./scripts/local-atproto.sh env)"
 export ATP_REQUIRE_LOCAL_PDS=1
 dune exec -- test/test_local_pds.exe
+dune exec -- test/test_local_appview.exe
+dune exec -- test/test_local_ozone.exe
 
-make pds-down
+./scripts/local-atproto.sh down
 ```
 
-Docker Compose file: `docker/pds/compose.yaml`
+`scripts/local-pds.sh` is a back-compat wrapper around `scripts/local-atproto.sh`.
 
-- PDS: `ghcr.io/bluesky-social/pds:0.4` on `http://localhost:2583`
-- PLC: official `did-method-plc` directory server on `http://localhost:2582` (needed for `did:plc` `createAccount`)
-- Account created in-process: handle `alice.test`, password `local-pds-ci-password` (not a production Bluesky credential)
+Compose file for Postgres/Redis: `docker/dev-env/compose.yaml` (official `postgres:14.4-alpine` on `5433` and `redis:7.0-alpine` on `6380`, matching atproto `packages/dev-infra`). The Node process then starts:
+
+| Service | Port | Package |
+| --- | --- | --- |
+| PLC | `http://localhost:2582` | `@did-plc/server` |
+| PDS | `http://localhost:2583` | `@atproto/pds` |
+| AppView | `http://localhost:2584` | `@atproto/bsky` (`app.bsky.*`) |
+| Ozone | `http://localhost:2587` | `@atproto/ozone` (`tools.ozone.*`) |
+| bsync | (internal) | `@atproto/bsync` |
+| introspect | `http://localhost:2581` | dev-env |
+
+Mock accounts from official `generateMockSetup` (not production Bluesky credentials):
+
+- `alice.test` / `hunter2` and `bob.test` / `hunter2` (the suite waits until AppView has indexed both)
+- Ozone admin: `admin-mod.test` / `admin-mod-pass` plus the ozone service DID (`ATP_OZONE_DID`)
+- Ozone `ADMIN_PASSWORD` in this stack is `admin-pass`; tests use the PDS session + `atproto-proxy` (the library's existing path)
 
 Point the client at the local stack with:
 
-- `ATP_HOST=localhost:2583` (host **without** a scheme)
-- `ATP_SCHEME=http` (local compose has no TLS; production stays `https`)
-- `ATP_AUTH=alice.test:local-pds-ci-password`
+- `ATP_SCHEME=http`
+- `ATP_HOST=localhost:2583`
+- `ATP_APPVIEW_HOST=localhost:2584`
+- `ATP_OZONE_HOST=localhost:2587`
+- `ATP_AUTH=alice.test:hunter2`
 
-`test/test_local_pds.ml` calls `createAccount`, `createSession`, identity resolve, repo describe/getRecord/listRecords/createRecord/putRecord/deleteRecord/applyWrites, blob upload, and sync `getLatestCommit` / `getRepo` / `listBlobs`. If the local PDS is up, a failed protocol call **fails the test**. The suite skips only when it is not aimed at a local host (typical laptop `dune runtest` without Docker). In CI, `ATP_REQUIRE_LOCAL_PDS=1` is set and Docker is required.
+`test/test_local_pds.ml` hits PDS `com.atproto` identity / session / repo / blob / sync. `test/test_local_appview.ml` hits AppView `app.bsky.actor` / `feed` / `graph` / `notification` after writing posts, likes, reposts, follows, and mutes on the PDS. `test/test_local_ozone.ml` hits `tools.ozone.moderation.emitEvent` / `queryEvents` / `queryStatuses`, `tools.ozone.server.getConfig`, and `com.atproto.label.queryLabels`. If the local network is up, a failed protocol call **fails the test**. The suite skips only when it is not aimed at a local host (typical laptop `dune runtest` without Docker/Node). In CI, `ATP_REQUIRE_LOCAL_PDS=1` is set and the stack is required.
 
-AppView / chat / ozone / Jetstream are **not** a single PDS. `app.bsky.*`, `chat.bsky.*`, `tools.ozone.*`, and Jetstream still need a live AppView or those services. Existing skippable public Bluesky tests cover those product APIs.
+### Chat (`chat.bsky.*`)
+
+Pinned `@atproto/dev-env@0.6.4` `TestNetwork.create()` does **not** start a `chat.bsky.app` DM service. `packages/dev-env/src/bin.ts` sets `ozone.chatUrl` to `http://localhost:2590` with the comment `must run separate chat service`. There is no official OSS chat backend in that revision, so this repo does not fake one. Existing `test/test_chat.ml` live calls stay skippable (or hit production Bluesky when `ATP_AUTH` is a real app password).
 
 ## What this library covers
 

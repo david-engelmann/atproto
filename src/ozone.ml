@@ -381,9 +381,9 @@ module Ozone = struct
     in
     `Assoc fields
 
-  let query_statuses (s : Session.session) ~proxy ?subject ?comment
+  let query_statuses (s : Session.session) ~proxy ?host ?subject ?comment
       ?review_state ?limit ?cursor () : statuses =
-    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+    Client.get_json ~session:s ?host ~extra:(proxy_headers proxy)
       "tools.ozone.moderation.queryStatuses"
       (Client.opt_pair "subject" subject
       @ Client.opt_pair "comment" comment
@@ -392,9 +392,9 @@ module Ozone = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_statuses
 
-  let query_events (s : Session.session) ~proxy ?types ?created_by ?subject
-      ?limit ?cursor () : events =
-    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+  let query_events (s : Session.session) ~proxy ?host ?types ?created_by
+      ?subject ?limit ?cursor () : events =
+    Client.get_json ~session:s ?host ~extra:(proxy_headers proxy)
       "tools.ozone.moderation.queryEvents"
       (Client.repeat_param "types" (Option.value types ~default:[])
       @ Client.opt_pair "createdBy" created_by
@@ -403,9 +403,9 @@ module Ozone = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_events
 
-  let emit_event (s : Session.session) ~proxy ~event ~subject ~created_by
+  let emit_event (s : Session.session) ~proxy ?host ~event ~subject ~created_by
       ?subject_blob_cids ?external_id () : mod_event =
-    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+    Client.post_json ~session:s ?host ~extra:(proxy_headers proxy)
       "tools.ozone.moderation.emitEvent"
       (Yojson.Safe.to_string
          (emit_event_body ~event ~subject ~created_by ?subject_blob_cids
@@ -430,8 +430,8 @@ module Ozone = struct
       (("uri", uri) :: Client.opt_pair "cid" cid)
     |> parse_record
 
-  let get_config (s : Session.session) ~proxy () : server_config =
-    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+  let get_config (s : Session.session) ~proxy ?host () : server_config =
+    Client.get_json ~session:s ?host ~extra:(proxy_headers proxy)
       "tools.ozone.server.getConfig" []
     |> parse_server_config
 

@@ -33,6 +33,8 @@
   test_label
   test_labeler
   test_lexicon
+  test_local_appview
+  test_local_ozone
   test_local_pds
   test_moderation
   test_mst
@@ -117,6 +119,8 @@
   test_label
   test_labeler
   test_lexicon
+  test_local_appview
+  test_local_ozone
   test_local_pds
   test_moderation
   test_mst
