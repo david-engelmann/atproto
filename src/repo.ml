@@ -280,18 +280,13 @@ module Repo = struct
 
   let parse_blob_ref json : blob_ref =
     let open Yojson.Safe.Util in
-    let blob =
-      match json |> member "blob" with `Null -> json | b -> b
-    in
+    let blob = match json |> member "blob" with `Null -> json | b -> b in
     let cid =
       match blob |> member "ref" with
       | `Assoc _ as ref_ -> (
-          match ref_ |> member "$link" with
-          | `String s -> s
-          | _ -> "")
+          match ref_ |> member "$link" with `String s -> s | _ -> "")
       | `String s -> s
-      | _ -> (
-          match blob |> member "cid" with `String s -> s | _ -> "")
+      | _ -> ( match blob |> member "cid" with `String s -> s | _ -> "")
     in
     {
       cid;
@@ -305,8 +300,8 @@ module Repo = struct
     App.create_endpoint_url (App.create_base_url s)
       (create_repo_endpoint "uploadBlob")
 
-  let upload_blob (s : Session.session) ?(content_type = "application/octet-stream")
-      (bytes : string) : blob_ref =
+  let upload_blob (s : Session.session)
+      ?(content_type = "application/octet-stream") (bytes : string) : blob_ref =
     let bearer_token = Session.bearer_token_from_session s in
     let headers =
       Cohttp_client.create_headers_from_pairs

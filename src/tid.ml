@@ -51,8 +51,7 @@ module Tid = struct
         match index_of alphabet s.[i] with
         | None -> fail ("TID has invalid character " ^ String.make 1 s.[i])
         | Some n ->
-            loop (i + 1)
-              (Int64.logor (Int64.shift_left acc 5) (Int64.of_int n))
+            loop (i + 1) (Int64.logor (Int64.shift_left acc 5) (Int64.of_int n))
     in
     let v = loop 0 0L in
     if Int64.logand v 0x8000_0000_0000_0000L <> 0L then
@@ -66,7 +65,8 @@ module Tid = struct
   let timestamp_us (s : string) : int64 =
     Int64.shift_right_logical (to_int64 s) 10
 
-  let clock_id (s : string) : int = Int64.to_int (Int64.logand (to_int64 s) 0x3FFL)
+  let clock_id (s : string) : int =
+    Int64.to_int (Int64.logand (to_int64 s) 0x3FFL)
 
   let create ?(clock_id = 0) (timestamp_us : int64) : string =
     let ts = Int64.logand timestamp_us 0x1F_FFFF_FFFF_FFFFL in

@@ -50,4 +50,5 @@ let suite =
          "test_query_labels" >:: test_query_labels;
          "test_parse_query_labels" >:: test_parse_query_labels;
        ]
+
 let () = run_test_tt_main suite

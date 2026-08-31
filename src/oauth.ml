@@ -95,8 +95,8 @@ module Oauth = struct
     r ^ low_s s
 
   let dpop_proof ~(priv : Mirage_crypto_ec.P256.Dsa.priv)
-      ~(pub : Mirage_crypto_ec.P256.Dsa.pub) ~htm ~htu ?ath ?jti ?iat ?nonce () :
-      string =
+      ~(pub : Mirage_crypto_ec.P256.Dsa.pub) ~htm ~htu ?ath ?jti ?iat ?nonce ()
+      : string =
     let jti =
       match jti with
       | Some j -> j
@@ -197,9 +197,7 @@ module Oauth = struct
       ("state", state);
       ("scope", scope);
     ]
-    @ (match login_hint with
-      | Some h -> [ ("login_hint", h) ]
-      | None -> [])
+    @ (match login_hint with Some h -> [ ("login_hint", h) ] | None -> [])
     @
     match client_assertion with
     | Some assertion ->
@@ -279,19 +277,17 @@ module Oauth = struct
                  Some (Uri.pct_decode k, Uri.pct_decode (String.concat "=" rest)))
 
   let assoc_opt key pairs =
-    match List.assoc_opt key pairs with
-    | Some "" -> None
-    | other -> other
+    match List.assoc_opt key pairs with Some "" -> None | other -> other
 
   let parse_redirect (uri : string) : callback =
     let q =
       match String.index_opt uri '?' with
       | None -> ""
-      | Some i ->
+      | Some i -> (
           let rest = String.sub uri (i + 1) (String.length uri - i - 1) in
           match String.index_opt rest '#' with
           | None -> rest
-          | Some h -> String.sub rest 0 h
+          | Some h -> String.sub rest 0 h)
     in
     let pairs = parse_query_pairs q in
     match assoc_opt "error" pairs with
@@ -474,8 +470,7 @@ module Oauth = struct
     | _ -> false
 
   let is_localhost_client_id (client_id : string) : bool =
-    client_id = "http://localhost"
-    || starts_with client_id "http://localhost?"
+    client_id = "http://localhost" || starts_with client_id "http://localhost?"
 
   let validate_metadata (m : client_metadata) : unit =
     if m.client_id = "" then failwith "Oauth: client_id is required";
@@ -492,7 +487,8 @@ module Oauth = struct
     if m.token_endpoint_auth_signing_alg = Some "none" then
       failwith "Oauth: token_endpoint_auth_signing_alg must not be none";
     (match (m.jwks, m.jwks_uri) with
-    | Some _, Some _ -> failwith "Oauth: jwks and jwks_uri are mutually exclusive"
+    | Some _, Some _ ->
+        failwith "Oauth: jwks and jwks_uri are mutually exclusive"
     | _ -> ());
     (match m.jwks with
     | Some j when jwk_has_private_d j ->
@@ -502,8 +498,7 @@ module Oauth = struct
     | "private_key_jwt" -> (
         match (m.jwks, m.jwks_uri) with
         | None, None ->
-            failwith
-              "Oauth: confidential clients must supply jwks or jwks_uri"
+            failwith "Oauth: confidential clients must supply jwks or jwks_uri"
         | _ -> ())
     | "none" | "" -> ()
     | other ->
@@ -576,7 +571,8 @@ module Oauth = struct
     let open Yojson.Safe.Util in
     {
       issuer = json |> member "issuer" |> to_string;
-      authorization_endpoint = json |> member "authorization_endpoint" |> to_string;
+      authorization_endpoint =
+        json |> member "authorization_endpoint" |> to_string;
       token_endpoint = json |> member "token_endpoint" |> to_string;
       pushed_authorization_request_endpoint =
         json |> member "pushed_authorization_request_endpoint" |> to_string;
@@ -596,7 +592,9 @@ module Oauth = struct
         | `Bool b -> b
         | _ -> false);
       authorization_response_iss_parameter_supported =
-        (match json |> member "authorization_response_iss_parameter_supported" with
+        (match
+           json |> member "authorization_response_iss_parameter_supported"
+         with
         | `Bool b -> b
         | _ -> false);
       client_id_metadata_document_supported =
@@ -607,8 +605,7 @@ module Oauth = struct
 
   let require_mem label xs value =
     if not (List.mem value xs) then
-      failwith
-        (Printf.sprintf "Oauth: %s must include %s" label value)
+      failwith (Printf.sprintf "Oauth: %s must include %s" label value)
 
   let validate_as_metadata (m : as_metadata) : unit =
     if not (starts_with m.issuer "https://") then
@@ -628,14 +625,16 @@ module Oauth = struct
     require_mem "token_endpoint_auth_signing_alg_values_supported"
       m.token_endpoint_auth_signing_alg_values_supported "ES256";
     if List.mem "none" m.token_endpoint_auth_signing_alg_values_supported then
-      failwith "Oauth: token_endpoint_auth_signing_alg_values_supported has none";
+      failwith
+        "Oauth: token_endpoint_auth_signing_alg_values_supported has none";
     require_mem "scopes_supported" m.scopes_supported "atproto";
     require_mem "dpop_signing_alg_values_supported"
       m.dpop_signing_alg_values_supported "ES256";
     if not m.require_pushed_authorization_requests then
       failwith "Oauth: require_pushed_authorization_requests must be true";
     if not m.authorization_response_iss_parameter_supported then
-      failwith "Oauth: authorization_response_iss_parameter_supported must be true";
+      failwith
+        "Oauth: authorization_response_iss_parameter_supported must be true";
     if not m.client_id_metadata_document_supported then
       failwith "Oauth: client_id_metadata_document_supported must be true";
     if m.pushed_authorization_request_endpoint = "" then
@@ -685,8 +684,8 @@ module Oauth = struct
     }
 
   let client_assertion ~(priv : Mirage_crypto_ec.P256.Dsa.priv)
-      ~(pub : Mirage_crypto_ec.P256.Dsa.pub) ~client_id ~issuer ?kid ?jti ?iat
-      ?exp () : string =
+      ~pub:(_pub : Mirage_crypto_ec.P256.Dsa.pub) ~client_id ~issuer ?kid ?jti
+      ?iat ?exp () : string =
     let jti =
       match jti with
       | Some j -> j
@@ -720,8 +719,8 @@ module Oauth = struct
     let sig_ = Base64url.encode (sign_es256 ~priv input) in
     input ^ "." ^ sig_
 
-  let jwks_of_pub ?(kid = "oauth-client")
-      (pub : Mirage_crypto_ec.P256.Dsa.pub) : Yojson.Safe.t =
+  let jwks_of_pub ?(kid = "oauth-client") (pub : Mirage_crypto_ec.P256.Dsa.pub)
+      : Yojson.Safe.t =
     match p256_jwk pub with
     | `Assoc fields ->
         `Assoc
@@ -752,8 +751,7 @@ module Oauth = struct
   let header_value headers name =
     let lower = String.lowercase_ascii name in
     List.find_map
-      (fun (k, v) ->
-        if String.lowercase_ascii k = lower then Some v else None)
+      (fun (k, v) -> if String.lowercase_ascii k = lower then Some v else None)
       headers
 
   let use_dpop_nonce status body =
@@ -790,10 +788,10 @@ module Oauth = struct
   let ensure_ok label resp =
     if resp.status < 200 || resp.status >= 300 then
       match Error.Error.of_body resp.body with
-      | Some e -> failwith (Printf.sprintf "Oauth %s: %s" label (Error.Error.to_string e))
-      | None ->
+      | Some e ->
           failwith
-            (Printf.sprintf "Oauth %s: HTTP %d" label resp.status)
+            (Printf.sprintf "Oauth %s: %s" label (Error.Error.to_string e))
+      | None -> failwith (Printf.sprintf "Oauth %s: HTTP %d" label resp.status)
     else decode_json_body label resp.body
 
   let push_authorization ~(http : http_post) ~priv ~pub ~par_url ~form ?nonce ()
@@ -819,9 +817,7 @@ module Oauth = struct
   let resource_request_headers ~priv ~pub ~htm ~htu ~access_token ?ath ?nonce ()
       =
     let ath =
-      match ath with
-      | Some a -> a
-      | None -> ath_of_access_token access_token
+      match ath with Some a -> a | None -> ath_of_access_token access_token
     in
     let proof = dpop_proof ~priv ~pub ~htm ~htu ~ath ?nonce () in
     [ authorization_dpop access_token; dpop_header proof ]

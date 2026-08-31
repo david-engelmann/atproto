@@ -93,7 +93,8 @@ let sample_as_json =
       ("code_challenge_methods_supported", `List [ `String "S256" ]);
       ( "token_endpoint_auth_methods_supported",
         `List [ `String "none"; `String "private_key_jwt" ] );
-      ("token_endpoint_auth_signing_alg_values_supported", `List [ `String "ES256" ]);
+      ( "token_endpoint_auth_signing_alg_values_supported",
+        `List [ `String "ES256" ] );
       ( "scopes_supported",
         `List
           [
@@ -139,8 +140,9 @@ let test_client_metadata_public _ =
   Oauth.validate_metadata meta;
   let again = Oauth.metadata_of_json (Oauth.metadata_to_json meta) in
   OUnit2.assert_equal ~printer:(fun x -> x) client_id again.client_id;
-  OUnit2.assert_equal ~printer:(fun x -> x) "none"
-    again.token_endpoint_auth_method;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "none" again.token_endpoint_auth_method;
   OUnit2.assert_bool "dpop bound" again.dpop_bound_access_tokens;
   OUnit2.assert_bool "atproto"
     (Oauth.contains_scope ~scope:again.scope "atproto")
@@ -153,8 +155,9 @@ let test_client_metadata_confidential _ =
       ()
   in
   Oauth.validate_metadata meta;
-  OUnit2.assert_equal ~printer:(fun x -> x) "private_key_jwt"
-    meta.token_endpoint_auth_method;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "private_key_jwt" meta.token_endpoint_auth_method;
   ignore priv
 
 let test_client_metadata_rejects_private_jwk _ =
@@ -192,8 +195,9 @@ let test_localhost_client_metadata _ =
   Oauth.validate_metadata meta;
   OUnit2.assert_equal ~printer:(fun x -> x) "native" meta.application_type;
   OUnit2.assert_equal [ "http://127.0.0.1:8080/cb" ] meta.redirect_uris;
-  OUnit2.assert_equal ~printer:(fun x -> x) "atproto transition:generic"
-    meta.scope
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "atproto transition:generic" meta.scope
 
 let test_as_and_resource_metadata _ =
   let as_ = Oauth.parse_as_metadata sample_as_json in
@@ -224,7 +228,8 @@ let test_as_metadata_rejects_missing_par _ =
         `Assoc
           (List.map
              (fun (k, v) ->
-               if k = "require_pushed_authorization_requests" then (k, `Bool false)
+               if k = "require_pushed_authorization_requests" then
+                 (k, `Bool false)
                else (k, v))
              fields)
     | _ -> sample_as_json
@@ -244,8 +249,7 @@ let test_redirect_and_authorize_url _ =
       OUnit2.assert_equal ~printer:(fun x -> x) "splendid" code;
       OUnit2.assert_equal ~printer:(fun x -> x) "abc" state;
       OUnit2.assert_equal (Some "https://bsky.social") iss;
-      Oauth.expect_state ~expected:"abc"
-        (Oauth.Authorized { code; state; iss });
+      Oauth.expect_state ~expected:"abc" (Oauth.Authorized { code; state; iss });
       Oauth.expect_issuer ~expected:"https://bsky.social"
         (Oauth.Authorized { code; state; iss });
       let url =
@@ -258,8 +262,7 @@ let test_redirect_and_authorize_url _ =
         (let needle = "request_uri=" in
          let rec find i =
            i + String.length needle <= String.length url
-           && (String.sub url i (String.length needle) = needle
-              || find (i + 1))
+           && (String.sub url i (String.length needle) = needle || find (i + 1))
          in
          find 0)
   | Oauth.Denied _ -> OUnit2.assert_failure "expected authorized redirect"
@@ -298,7 +301,8 @@ let test_token_response_guards _ =
         ])
   in
   OUnit2.assert_equal ~printer:(fun x -> x) "tok" good.access_token;
-  OUnit2.assert_equal ~printer:(fun x -> x)
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
     "did:plc:7iza6de2dwap2sbkpav7c6c6" good.sub;
   let rejects json =
     try
@@ -341,22 +345,29 @@ let test_client_assertion _ =
   in
   let h, p, _ = Oauth.split_jwt jwt in
   let header = Yojson.Safe.from_string (Atproto.Base64url.Base64url.decode h) in
-  let payload = Yojson.Safe.from_string (Atproto.Base64url.Base64url.decode p) in
+  let payload =
+    Yojson.Safe.from_string (Atproto.Base64url.Base64url.decode p)
+  in
   let open Yojson.Safe.Util in
-  OUnit2.assert_equal ~printer:(fun x -> x) "ES256"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "ES256"
     (header |> member "alg" |> to_string);
-  OUnit2.assert_equal ~printer:(fun x -> x) client_id
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    client_id
     (payload |> member "iss" |> to_string);
-  OUnit2.assert_equal ~printer:(fun x -> x) "https://bsky.social"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "https://bsky.social"
     (payload |> member "aud" |> to_string);
   OUnit2.assert_bool "assertion verifies" (Oauth.verify_dpop ~pub jwt)
 
 let test_dpop_nonce_claim _ =
   let priv, pub = p256_pair () in
   let proof =
-    Oauth.dpop_proof ~priv ~pub ~htm:"POST"
-      ~htu:"https://bsky.social/oauth/par" ~nonce:"server-nonce" ~jti:"n1"
-      ~iat:1L ()
+    Oauth.dpop_proof ~priv ~pub ~htm:"POST" ~htu:"https://bsky.social/oauth/par"
+      ~nonce:"server-nonce" ~jti:"n1" ~iat:1L ()
   in
   let claims = Oauth.parse_dpop proof in
   OUnit2.assert_equal (Some "server-nonce") claims.nonce;
@@ -419,7 +430,8 @@ let test_par_token_loop_retries_nonce _ =
     Oauth.exchange_code ~http ~priv ~pub
       ~token_url:"https://bsky.social/oauth/token" ~form:token_form ()
   in
-  OUnit2.assert_equal ~printer:(fun x -> x)
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
     "did:plc:7iza6de2dwap2sbkpav7c6c6" token.sub;
   let headers =
     Oauth.resource_request_headers ~priv ~pub ~htm:"GET"
@@ -446,8 +458,7 @@ let test_live_as_metadata _ =
         let headers =
           Atproto.Cohttp_client.Cohttp_client.create_headers_from_pairs
             [
-              Atproto.Cohttp_client.Cohttp_client
-              .application_json_setting_tuple;
+              Atproto.Cohttp_client.Cohttp_client.application_json_setting_tuple;
             ]
         in
         let body =
@@ -457,8 +468,9 @@ let test_live_as_metadata _ =
         in
         let meta = Oauth.parse_as_metadata (Yojson.Safe.from_string body) in
         Oauth.validate_as_metadata meta;
-        OUnit2.assert_equal ~printer:(fun x -> x) "https://bsky.social"
-          meta.issuer
+        OUnit2.assert_equal
+          ~printer:(fun x -> x)
+          "https://bsky.social" meta.issuer
       with exn ->
         skip_if true
           ("oauth authorization-server metadata skipped: "

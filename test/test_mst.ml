@@ -287,7 +287,9 @@ let test_sign_verify_commit_p256 _ =
     Mst.sign_p256 ~priv ~did:"did:plc:7iza6de2dwap2sbkpav7c6c6" ~data
       ~rev:"3jzfcijpj2z2a" ()
   in
-  let commit = Mst.parse_repo_commit (Atproto.Dag_cbor.Dag_cbor.decode signed) in
+  let commit =
+    Mst.parse_repo_commit (Atproto.Dag_cbor.Dag_cbor.decode signed)
+  in
   OUnit2.assert_equal ~printer:(fun x -> x) "3jzfcijpj2z2a" commit.rev;
   match Mst.verify_commit_sig ~keys:[ p256_did_key pub ] commit with
   | `Valid -> ()
@@ -337,10 +339,10 @@ let test_commit_sig_wrong_key_and_missing _ =
     Mst.sign_p256 ~priv ~did:"did:plc:7iza6de2dwap2sbkpav7c6c6" ~data
       ~rev:"3jzfcijpj2z2a" ()
   in
-  let commit = Mst.parse_repo_commit (Atproto.Dag_cbor.Dag_cbor.decode signed) in
-  match
-    K256.priv_of_octets (String.make 31 '\x00' ^ "\x01")
-  with
+  let commit =
+    Mst.parse_repo_commit (Atproto.Dag_cbor.Dag_cbor.decode signed)
+  in
+  match K256.priv_of_octets (String.make 31 '\x00' ^ "\x01") with
   | Error _ -> OUnit2.assert_failure "k256 priv=1 rejected"
   | Ok kpriv -> (
       let kpub = K256.pub_of_priv kpriv in

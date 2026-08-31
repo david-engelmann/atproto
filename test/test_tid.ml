@@ -7,7 +7,9 @@ let test_zero _ =
 
 let test_official_example _ =
   OUnit2.assert_bool "3jzfcijpj2z2a" (Tid.is_valid "3jzfcijpj2z2a");
-  OUnit2.assert_equal ~printer:(fun x -> x) "3jzfcijpj2z2a"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "3jzfcijpj2z2a"
     (Tid.of_string "3jzfcijpj2z2a")
 
 let test_roundtrip _ =

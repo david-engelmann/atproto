@@ -272,11 +272,11 @@ module Mst = struct
     in
     encode_repo_commit ~version ~did ~data ~rev ?prev ~sig_:(r ^ s) ()
 
-  let sign_k256 ~(priv : K256.priv) ?(version = 3) ~did ~data ~rev ?prev () :
-      string =
+  let sign_k256 ~(priv : K256.K256.priv) ?(version = 3) ~did ~data ~rev ?prev ()
+      : string =
     let unsigned = unsigned_repo_commit ~version ~did ~data ~rev ?prev () in
     let digest = Hash.sha256 unsigned in
-    let r, s = K256.sign ~key:priv digest in
+    let r, s = K256.K256.sign ~key:priv digest in
     encode_repo_commit ~version ~did ~data ~rev ?prev ~sig_:(r ^ s) ()
 
   let verify_commit_sig ~(keys : string list) (c : repo_commit) : sig_status =
@@ -294,7 +294,7 @@ module Mst = struct
           in
           let parsed =
             List.filter_map
-              (fun k -> try Some (Did_key.of_string k) with _ -> None)
+              (fun k -> try Some (Did_key.Did_key.of_string k) with _ -> None)
               keys
           in
           let rec try_keys = function
@@ -302,8 +302,9 @@ module Mst = struct
                 let other =
                   List.find_map
                     (fun k ->
-                      match k.Did_key.curve with
-                      | Did_key.Other n -> Some (Printf.sprintf "0x%x" n)
+                      match k.Did_key.Did_key.curve with
+                      | Did_key.Did_key.Other n ->
+                          Some (Printf.sprintf "0x%x" n)
                       | _ -> None)
                     parsed
                 in
@@ -311,9 +312,9 @@ module Mst = struct
                 | Some curve -> `Unsupported_curve curve
                 | None -> `Invalid)
             | k :: rest -> (
-                match k.Did_key.curve with
-                | Did_key.P256 -> (
-                    match Did_key.p256_pub k with
+                match k.Did_key.Did_key.curve with
+                | Did_key.Did_key.P256 -> (
+                    match Did_key.Did_key.p256_pub k with
                     | Some pub ->
                         if
                           Did_plc.Did_plc.is_low_s s
@@ -322,15 +323,16 @@ module Mst = struct
                         then `Valid
                         else try_keys rest
                     | None -> try_keys rest)
-                | Did_key.K256 -> (
-                    match Did_key.k256_pub k with
+                | Did_key.Did_key.K256 -> (
+                    match Did_key.Did_key.k256_pub k with
                     | Some pub ->
                         if
-                          K256.is_low_s s && K256.verify ~key:pub (r, s) digest
+                          K256.K256.is_low_s s
+                          && K256.K256.verify ~key:pub (r, s) digest
                         then `Valid
                         else try_keys rest
                     | None -> try_keys rest)
-                | Did_key.Other _ -> try_keys rest)
+                | Did_key.Did_key.Other _ -> try_keys rest)
           in
           try_keys parsed
 

@@ -34,7 +34,7 @@
   test_blob
   test_blocks
   test_download_image)
- (libraries)
+ (libraries
   async
   core
   uri

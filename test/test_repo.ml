@@ -36,7 +36,12 @@ let test_apply_writes_body _ =
             {
               collection = "app.bsky.feed.post";
               rkey = Some rkey;
-              value = `Assoc [ ("text", `String "hi"); ("$type", `String "app.bsky.feed.post") ];
+              value =
+                `Assoc
+                  [
+                    ("text", `String "hi");
+                    ("$type", `String "app.bsky.feed.post");
+                  ];
             };
           Repo.Update
             {
@@ -44,28 +49,37 @@ let test_apply_writes_body _ =
               rkey = "self";
               value = `Assoc [ ("displayName", `String "Ada") ];
             };
-          Repo.Delete { collection = "app.bsky.feed.like"; rkey = "3jzfcijpj2z2a" };
+          Repo.Delete
+            { collection = "app.bsky.feed.like"; rkey = "3jzfcijpj2z2a" };
         ]
       ()
   in
   let open Yojson.Safe.Util in
-  OUnit2.assert_equal ~printer:(fun x -> x)
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
     "did:plc:7iza6de2dwap2sbkpav7c6c6"
     (body |> member "repo" |> to_string);
-  OUnit2.assert_equal ~printer:(fun x -> x) "bafyreihdummy"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "bafyreihdummy"
     (body |> member "swapCommit" |> to_string);
   let writes = body |> member "writes" |> to_list in
   OUnit2.assert_equal 3 (List.length writes);
-  OUnit2.assert_equal ~printer:(fun x -> x)
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
     "com.atproto.repo.applyWrites#create"
     (List.nth writes 0 |> member "$type" |> to_string);
-  OUnit2.assert_equal ~printer:(fun x -> x)
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
     "com.atproto.repo.applyWrites#update"
     (List.nth writes 1 |> member "$type" |> to_string);
-  OUnit2.assert_equal ~printer:(fun x -> x)
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
     "com.atproto.repo.applyWrites#delete"
     (List.nth writes 2 |> member "$type" |> to_string);
-  OUnit2.assert_equal ~printer:(fun x -> x) rkey
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    rkey
     (List.nth writes 0 |> member "rkey" |> to_string)
 
 let test_parse_blob_ref _ =
@@ -103,4 +117,5 @@ let suite =
          "test_apply_writes_body" >:: test_apply_writes_body;
          "test_parse_blob_ref" >:: test_parse_blob_ref;
        ]
+
 let () = run_test_tt_main suite
