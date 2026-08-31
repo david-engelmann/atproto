@@ -136,6 +136,26 @@ module Did_plc = struct
     | Some s -> Some s.service_endpoint
     | None -> None
 
+  let ends_with suffix s =
+    let n = String.length s and m = String.length suffix in
+    n >= m && String.sub s (n - m) m = suffix
+
+  (* DID document #bsky_chat / BlueskyChatService — chat.bsky atproto-proxy. *)
+  let is_chat_service (s : service) : bool =
+    s.id = "#bsky_chat" || s.id = "bsky_chat"
+    || ends_with "#bsky_chat" s.id
+    ||
+    let t = String.lowercase_ascii s.type_ in
+    t = "blueskychatservice" || t = "bskychatservice"
+
+  let chat_service (doc : did_document) : service option =
+    List.find_opt is_chat_service doc.service
+
+  let chat_endpoint (doc : did_document) : string option =
+    match chat_service doc with
+    | Some s -> Some s.service_endpoint
+    | None -> None
+
   let signing_key (doc : did_document) : verification_method option =
     List.find_opt
       (fun (m : verification_method) ->

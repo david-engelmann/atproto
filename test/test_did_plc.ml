@@ -47,6 +47,7 @@ let test_parse_document _ =
     "did:plc:7iza6de2dwap2sbkpav7c6c6" doc.id;
   OUnit2.assert_equal (Some "alice.test") (Did_plc.handle_of_document doc);
   OUnit2.assert_equal (Some "https://example2.com") (Did_plc.pds_endpoint doc);
+  OUnit2.assert_equal None (Did_plc.chat_endpoint doc);
   match Did_plc.signing_key doc with
   | None -> OUnit2.assert_failure "missing #atproto key"
   | Some key ->
@@ -56,6 +57,36 @@ let test_parse_document _ =
       OUnit2.assert_bool "did:key prefix"
         (String.length (List.hd keys) > 8
         && String.sub (List.hd keys) 0 8 = "did:key:")
+
+let test_chat_service _ =
+  let json =
+    Yojson.Safe.from_string
+      {|
+{
+  "id": "did:plc:7iza6de2dwap2sbkpav7c6c6",
+  "alsoKnownAs": ["at://alice.test"],
+  "verificationMethod": [],
+  "service": [
+    {
+      "id": "#atproto_pds",
+      "type": "AtprotoPersonalDataServer",
+      "serviceEndpoint": "https://pds.example"
+    },
+    {
+      "id": "#bsky_chat",
+      "type": "BlueskyChatService",
+      "serviceEndpoint": "https://api.bsky.chat"
+    }
+  ]
+}
+|}
+  in
+  let doc = Did_plc.parse_document json in
+  OUnit2.assert_equal (Some "https://api.bsky.chat") (Did_plc.chat_endpoint doc);
+  match Did_plc.chat_service doc with
+  | None -> OUnit2.assert_failure "expected #bsky_chat service"
+  | Some s ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "BlueskyChatService" s.type_
 
 let test_directory_url _ =
   OUnit2.assert_equal
@@ -286,6 +317,7 @@ let suite =
   >::: [
          "test_validate_plc_did" >:: test_validate_plc_did;
          "test_parse_document" >:: test_parse_document;
+         "test_chat_service" >:: test_chat_service;
          "test_directory_url" >:: test_directory_url;
          "test_resolve_live" >:: test_resolve_live;
          "test_sign_and_verify_p256" >:: test_sign_and_verify_p256;

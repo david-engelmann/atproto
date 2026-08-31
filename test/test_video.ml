@@ -103,6 +103,7 @@ let test_pds_audience _ =
              token = "t";
              refresh_token = None;
            };
+         did_doc = None;
        });
   OUnit2.assert_equal
     ~printer:(fun x -> x)
@@ -122,6 +123,7 @@ let test_pds_audience _ =
              token = "t";
              refresh_token = None;
            };
+         did_doc = None;
        })
 
 let test_recommended_exp _ =

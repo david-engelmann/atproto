@@ -7,6 +7,7 @@ module Session = struct
     password : string;
     atp_host : string;
     auth : Auth.auth;
+    did_doc : Yojson.Safe.t option;
   }
 
   (* com.atproto.server.getSession / createSession output extras. *)
@@ -72,8 +73,14 @@ module Session = struct
       Auth.make_auth_token_request ?auth_factor_token ?allow_takendown username
         password atp_host
     in
-    let session_auth = body |> Auth.convert_body_to_json |> Auth.parse_auth in
-    { username; password; atp_host; auth = session_auth }
+    let json = Auth.convert_body_to_json body in
+    let session_auth = Auth.parse_auth json in
+    let did_doc =
+      match Yojson.Safe.Util.member "didDoc" json with
+      | `Assoc _ as d -> Some d
+      | _ -> None
+    in
+    { username; password; atp_host; auth = session_auth; did_doc }
 
   let bearer_token_from_session (s : session) : string * string =
     let bearer_header = "Bearer " ^ s.auth.token in
@@ -118,8 +125,17 @@ module Session = struct
           (Option.get s.auth.refresh_token)
           current_session.handle current_session.did atp_host
       in
-      let session_auth = body |> Auth.convert_body_to_json |> Auth.parse_auth in
-      { username; password; atp_host; auth = session_auth }
+      let json = Auth.convert_body_to_json body in
+      let session_auth = Auth.parse_auth json in
+      let did_doc =
+        match current_session.did_doc with
+        | Some _ as d -> d
+        | None -> (
+            match Yojson.Safe.Util.member "didDoc" json with
+            | `Assoc _ as d -> Some d
+            | _ -> s.did_doc)
+      in
+      { username; password; atp_host; auth = session_auth; did_doc }
     else s
 
   let delete_session (s : session) : string =
