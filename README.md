@@ -46,7 +46,7 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | Ozone | `Ozone` | `tools.ozone.moderation.*` including typed event/subject unions, subjects/repos/records, timeline, reporter stats, scheduled actions; plus communication templates, sets, settings, team, safelink, signature, verification, hosting history + `getConfig`; `tools.ozone.queue.*` (list/create/update/delete, moderator assign, `routeReports`) and `tools.ozone.report.*` (query/get, activities, assignments, stats, close/reassign); requires `atproto-proxy` |
 | Admin | `Admin` | `com.atproto.admin` subject status, account info, invites, email |
 | Repo writes | `Repo`, `Records` | `createRecord` / `putRecord` / `deleteRecord` / `applyWrites` bodies; typed `describeRepo` / `getRecord` / `listRecords` parsers; builders for post/like/repost/follow/block/listblock/list/listitem/starterpack/profile/status/contentVisibility/verification/threadgate/postgate/generator/labeler/notification declaration |
-| Server | `Server` | describe server (typed), app passwords, invites, `reserveSigningKey`, account activate/status, `getServiceAuth` (aud may be `did#service`) |
+| Server | `Server` | describe server (typed), app passwords, invites, `reserveSigningKey`, account activate/status (`activateAccount` / `deactivateAccount` / `checkAccountStatus` clients), `getServiceAuth` (aud may be `did#service`), email confirm/update (`confirmEmail`, `requestEmailConfirmation`, `requestEmailUpdate`, `updateEmail`) |
 | Identity | `Identity`, `Did_plc`, `Did_web`, `Did_key` | resolve + typed `resolveDid` DID document + updateHandle / PLC operation helpers + `refreshIdentity` |
 | PLC chain | `Did_plc` | Genesis DID, prev CID links, p256 **and k256** ECDSA (low-S, IEEE P1363) |
 | Sync | `Sync` | `getLatestCommit`, `getRepo` (CAR), public `getBlocks` (bytes/CAR), `listBlobs`, `listRepos`, host/repo status |
@@ -84,11 +84,9 @@ These are product-level, not missing protocol cores:
 - Permissioned data / spaces / LtHash (no stable public spec to implement yet)
 - Official `com.atproto.sync.getRepo` **lexicon** still has no `collection` parameter (client-side subset export from a full CAR is implemented; servers that reject unknown query params are unchanged)
 
-#70–#83 covered protocol core, AppView/chat/ozone/temp, Jetstream, video, OAuth scopes, thread v2 / drafts / contacts, remaining preference kinds, and ozone queue/report.
+#70–#84 covered protocol core, AppView/chat/ozone/temp, Jetstream, video, OAuth scopes, thread v2 / drafts / contacts, remaining preference kinds, ozone queue/report, `site.standard.*`, `com.germnetwork.declaration`, leftover admin, safelink `queryEvents`, `joinLink` embeds, and HTTP/2.
 
-This stack fills remaining *library* gaps vs current public lexicons: `site.standard.*` records, `com.germnetwork.declaration`, leftover `com.atproto.admin` procedures (`getInviteCodes`, `disableInviteCodes`, `deleteAccount`, `updateAccountEmail` / `Handle` / `Password` / `SigningKey`), `tools.ozone.safelink.queryEvents`, and `chat.bsky.embed.joinLink`. `Http_client` is a real HTTP/2 TLS transport (not a stub) that keeps status and response headers.
-
-Privileged admin/ozone writes still need a real operator session and are not invented here.
+This stack fills leftover `com.atproto.server` email / activate-deactivate / `checkAccountStatus` clients, extra DAG-CBOR / HTTP/2 tests (query encoding, custom port, PUT/DELETE, 204, live POST), and the bundled `confirmEmail` lexicon. Privileged admin/ozone writes still need a real operator session and are not invented here.
 
 Still leftover vs current lexicons (not invented here):
 

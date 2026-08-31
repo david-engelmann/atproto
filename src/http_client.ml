@@ -199,6 +199,11 @@ module Http_client = struct
     in
     get url ()
 
+  let encode_query_pair (k, v) =
+    Uri.pct_encode ~component:`Query_key k
+    ^ "="
+    ^ Uri.pct_encode ~component:`Query_value v
+
   let xrpc_url ~host ?(port = 443) nsid ?(query = []) () : string =
     let base =
       if port = 443 then Printf.sprintf "https://%s/xrpc/%s" host nsid
@@ -206,12 +211,7 @@ module Http_client = struct
     in
     match query with
     | [] -> base
-    | qs ->
-        base ^ "?"
-        ^ String.concat "&"
-            (List.map
-               (fun (k, v) -> Uri.pct_encode k ^ "=" ^ Uri.pct_encode v)
-               qs)
+    | qs -> base ^ "?" ^ String.concat "&" (List.map encode_query_pair qs)
 
   let xrpc_get ~host ?port ~nsid ?(query = []) ?(headers = []) ?timeout () :
       Response.response Lwt.t =

@@ -405,6 +405,9 @@ module Lexicon = struct
   let official_join_link =
     {|{"lexicon":1,"id":"chat.bsky.embed.joinLink","defs":{"main":{"type":"object","required":["code"],"properties":{"code":{"type":"string"}}},"view":{"type":"object","required":["joinLinkPreview"],"properties":{"joinLinkPreview":{"type":"union","refs":["chat.bsky.group.defs#joinLinkPreviewView"]}}}}}|}
 
+  let official_confirm_email =
+    {|{"lexicon":1,"id":"com.atproto.server.confirmEmail","defs":{"main":{"type":"procedure","description":"Confirm an email using a token from com.atproto.server.requestEmailConfirmation.","input":{"encoding":"application/json","schema":{"type":"object","required":["email","token"],"properties":{"email":{"type":"string"},"token":{"type":"string"}}}}}}}|}
+
   let official_lexicons : (string * string) list =
     [
       ("app.bsky.graph.listitem", official_listitem);
@@ -433,6 +436,7 @@ module Lexicon = struct
       ("tools.ozone.safelink.queryEvents", official_safelink_query_events);
       ("com.atproto.admin.updateAccountSigningKey", official_admin_signing_key);
       ("chat.bsky.embed.joinLink", official_join_link);
+      ("com.atproto.server.confirmEmail", official_confirm_email);
     ]
 
   let official_documents () : document list =

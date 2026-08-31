@@ -227,6 +227,7 @@ let test_union_codegen_and_official_bundle _ =
               "tools.ozone.safelink.queryEvents";
               "chat.bsky.embed.joinLink";
               "com.atproto.admin.updateAccountSigningKey";
+              "com.atproto.server.confirmEmail";
             ])
 
 let test_parse_resolved_lexicon _ =

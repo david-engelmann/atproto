@@ -125,6 +125,32 @@ let test_reserve_signing_key_body _ =
     "did:plc:abc123xyz0001112223333"
     (body |> member "did" |> to_string)
 
+let test_email_and_account_bodies _ =
+  let open Yojson.Safe.Util in
+  let confirm = Server.confirm_email_body ~email:"a@b.test" ~token:"tok-1" in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "tok-1"
+    (confirm |> member "token" |> to_string);
+  let update =
+    Server.update_email_body ~email:"c@d.test" ~token:"tok-2"
+      ~email_auth_factor:true ()
+  in
+  OUnit2.assert_equal true (update |> member "emailAuthFactor" |> to_bool);
+  let parsed =
+    Server.parse_email_update (`Assoc [ ("tokenRequired", `Bool true) ])
+  in
+  OUnit2.assert_equal true parsed.token_required;
+  let deact =
+    Server.deactivate_account_body ~delete_after:"2026-01-01T00:00:00.000Z" ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "2026-01-01T00:00:00.000Z"
+    (deact |> member "deleteAfter" |> to_string);
+  let empty = Server.deactivate_account_body () in
+  OUnit2.assert_equal (`Assoc []) empty
+
 let test_describe_server_public _ =
   try
     with_public_timeout (fun () ->
@@ -148,6 +174,7 @@ let suite =
          "test_parse_describe_server_missing_contact"
          >:: test_parse_describe_server_missing_contact;
          "test_reserve_signing_key_body" >:: test_reserve_signing_key_body;
+         "test_email_and_account_bodies" >:: test_email_and_account_bodies;
          "test_describe_server_public" >:: test_describe_server_public;
        ]
 

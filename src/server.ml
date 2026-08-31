@@ -434,4 +434,55 @@ module Server = struct
     `Assoc fields
 
   let request_email_update_body () : Yojson.Safe.t = `Assoc []
+
+  let confirm_email (s : Session.session) ~email ~token () : unit =
+    ignore
+      (Client.Client.post_json ~session:s "com.atproto.server.confirmEmail"
+         (Yojson.Safe.to_string (confirm_email_body ~email ~token)))
+
+  let request_email_confirmation (s : Session.session) : unit =
+    ignore
+      (Client.Client.post_json ~session:s
+         "com.atproto.server.requestEmailConfirmation" "{}")
+
+  type email_update = { token_required : bool }
+
+  let parse_email_update json : email_update =
+    {
+      token_required =
+        (match Yojson.Safe.Util.member "tokenRequired" json with
+        | `Bool b -> b
+        | _ -> false);
+    }
+
+  let request_email_update (s : Session.session) : email_update =
+    Client.Client.post_json ~session:s "com.atproto.server.requestEmailUpdate"
+      (Yojson.Safe.to_string (request_email_update_body ()))
+    |> parse_email_update
+
+  let update_email (s : Session.session) ~email ?token ?email_auth_factor () :
+      unit =
+    ignore
+      (Client.Client.post_json ~session:s "com.atproto.server.updateEmail"
+         (Yojson.Safe.to_string
+            (update_email_body ~email ?token ?email_auth_factor ())))
+
+  let deactivate_account_body ?delete_after () : Yojson.Safe.t =
+    match delete_after with
+    | Some t -> `Assoc [ ("deleteAfter", `String t) ]
+    | None -> `Assoc []
+
+  let deactivate_account (s : Session.session) ?delete_after () : unit =
+    ignore
+      (Client.Client.post_json ~session:s "com.atproto.server.deactivateAccount"
+         (Yojson.Safe.to_string (deactivate_account_body ?delete_after ())))
+
+  let activate_account (s : Session.session) : unit =
+    ignore
+      (Client.Client.post_json ~session:s "com.atproto.server.activateAccount"
+         "{}")
+
+  let check_account_status (s : Session.session) : account_status =
+    Client.Client.get_json ~session:s "com.atproto.server.checkAccountStatus" []
+    |> parse_account_status
 end
