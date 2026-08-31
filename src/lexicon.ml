@@ -6,7 +6,7 @@ module Lexicon = struct
     | Integer
     | String
     | Ref
-    | Union
+    | Union of string list
     | Unknown
     | Cid_link
     | Bytes
@@ -54,7 +54,7 @@ module Lexicon = struct
     | "integer" -> Integer
     | "string" -> String
     | "ref" -> Ref
-    | "union" -> Union
+    | "union" -> Union []
     | "unknown" -> Unknown
     | "cid-link" -> Cid_link
     | "bytes" -> Bytes
@@ -79,17 +79,23 @@ module Lexicon = struct
     | `String s -> Some s
     | _ -> None
 
+  let parse_union_refs json : string list =
+    match Yojson.Safe.Util.member "refs" json with
+    | `List items ->
+        List.filter_map (function `String s -> Some s | _ -> None) items
+    | _ -> []
+
   let parse_property json : primitive =
     let open Yojson.Safe.Util in
     match json |> member "type" with
     | `String "ref" -> Ref
-    | `String "union" -> Union
+    | `String "union" -> Union (parse_union_refs json)
     | `String "array" -> (
         match json |> member "items" with
         | `Assoc _ as items -> (
             match items |> member "type" with
             | `String "ref" -> Ref
-            | `String "union" -> Union
+            | `String "union" -> Union (parse_union_refs items)
             | `String t -> lookup_primitive t
             | _ -> Unknown)
         | _ -> Unknown)
@@ -196,7 +202,14 @@ module Lexicon = struct
     | Number -> "float"
     | Integer -> "int"
     | String | Ref | Cid_link | Bytes -> "string"
-    | Union | Unknown -> "Yojson.Safe.t"
+    | Union refs ->
+        if refs = [] then "Yojson.Safe.t"
+        else
+          let variant r = "`" ^ ocaml_ident r ^ " of Yojson.Safe.t" in
+          "[ "
+          ^ String.concat " | " (List.map variant refs)
+          ^ " | `Unknown of Yojson.Safe.t ]"
+    | Unknown -> "Yojson.Safe.t"
 
   let kind_label = function
     | Record -> "record"
@@ -262,7 +275,7 @@ module Lexicon = struct
     | Number, (`Float _ | `Int _) -> true
     | Integer, (`Int _ | `Intlit _) -> true
     | (String | Ref | Cid_link | Bytes), `String _ -> true
-    | (Union | Unknown), _ -> true
+    | (Union _ | Unknown), _ -> true
     | _ -> false
 
   let validate (d : def) (json : Yojson.Safe.t) : (unit, string) result =
@@ -285,4 +298,33 @@ module Lexicon = struct
           in
           check d.properties
     | _ -> Error "expected JSON object"
+
+  let union_refs = function Union refs -> refs | _ -> []
+
+  let official_listitem =
+    {|{"lexicon":1,"id":"app.bsky.graph.listitem","defs":{"main":{"type":"record","description":"Record representing an account's inclusion on a specific list.","key":"tid","record":{"type":"object","required":["subject","list","createdAt"],"properties":{"subject":{"type":"string","format":"did"},"list":{"type":"string","format":"at-uri"},"createdAt":{"type":"string","format":"datetime"}}}}}}|}
+
+  let official_starterpack =
+    {|{"lexicon":1,"id":"app.bsky.graph.starterpack","defs":{"main":{"type":"record","description":"Record defining a starter pack of actors and feeds for new users.","key":"tid","record":{"type":"object","required":["name","list","createdAt"],"properties":{"name":{"type":"string"},"description":{"type":"string"},"descriptionFacets":{"type":"array","items":{"type":"ref","ref":"app.bsky.richtext.facet"}},"list":{"type":"string","format":"at-uri"},"feeds":{"type":"array","items":{"type":"ref","ref":"#feedItem"}},"createdAt":{"type":"string","format":"datetime"}}}},"feedItem":{"type":"object","required":["uri"],"properties":{"uri":{"type":"string","format":"at-uri"}}}}}|}
+
+  let official_list =
+    {|{"lexicon":1,"id":"app.bsky.graph.list","defs":{"main":{"type":"record","description":"Record representing a list of accounts.","key":"tid","record":{"type":"object","required":["name","purpose","createdAt"],"properties":{"purpose":{"type":"ref","ref":"app.bsky.graph.defs#listPurpose"},"name":{"type":"string"},"description":{"type":"string"},"descriptionFacets":{"type":"array","items":{"type":"ref","ref":"app.bsky.richtext.facet"}},"avatar":{"type":"blob"},"labels":{"type":"union","refs":["com.atproto.label.defs#selfLabels"]},"createdAt":{"type":"string","format":"datetime"}}}}}}|}
+
+  let official_chat_notification_defs =
+    {|{"lexicon":1,"id":"chat.bsky.notification.defs","defs":{"preferences":{"type":"object","required":["chat","chatRequest"],"properties":{"chat":{"type":"ref","ref":"#chatPreference"},"chatRequest":{"type":"ref","ref":"#chatPreference"}}},"chatPreference":{"type":"object","required":["include","push"],"properties":{"include":{"type":"string","knownValues":["all","follows"]},"push":{"type":"boolean"}}}}}|}
+
+  let official_get_post_thread =
+    {|{"lexicon":1,"id":"app.bsky.feed.getPostThread","defs":{"main":{"type":"query","description":"Get posts in a thread.","parameters":{"type":"params","required":["uri"],"properties":{"uri":{"type":"string","format":"at-uri"},"depth":{"type":"integer"},"parentHeight":{"type":"integer"}}},"output":{"encoding":"application/json","schema":{"type":"object","required":["thread"],"properties":{"thread":{"type":"union","refs":["app.bsky.feed.defs#threadViewPost","app.bsky.feed.defs#notFoundPost","app.bsky.feed.defs#blockedPost"]},"threadgate":{"type":"ref","ref":"app.bsky.feed.defs#threadgateView"}}}}}}}|}
+
+  let official_lexicons : (string * string) list =
+    [
+      ("app.bsky.graph.listitem", official_listitem);
+      ("app.bsky.graph.starterpack", official_starterpack);
+      ("app.bsky.graph.list", official_list);
+      ("chat.bsky.notification.defs", official_chat_notification_defs);
+      ("app.bsky.feed.getPostThread", official_get_post_thread);
+    ]
+
+  let official_documents () : document list =
+    List.map (fun (_id, body) -> of_string body) official_lexicons
 end

@@ -12,13 +12,6 @@ module Feed = struct
    * combination ie. type feed_post, type feed_reply, feed_repost, feed_like?, feed_follow?
    * *)
 
-  type thread_record = {
-    text : string;
-    record_type : string;
-    reply : Notification.reply;
-    created_at : string;
-  }
-
   type post_record = {
     text : string;
     record_type : string;
@@ -27,23 +20,13 @@ module Feed = struct
     embed : Embed.embed option;
     tags : string list option;
     self_labels : string list option;
+    reply : Notification.reply option;
     created_at : string;
   }
 
-  type reply_record = {
-    text : string;
-    record_type : string;
-    langs : string list option;
-    reply : Notification.reply;
-    created_at : string;
-  }
-
-  type repost_record = {
-    text : string;
-    record_type : string;
-    created_at : string;
-  }
-
+  type thread_record = post_record
+  type reply_record = post_record
+  type repost_record = post_record
   type like_viewer = { like : string }
   type repost_viewer = { repost : string; like : string }
 
@@ -74,54 +57,30 @@ module Feed = struct
     reply_count : int;
     repost_count : int;
     like_count : int;
+    quote_count : int option;
+    bookmark_count : int option;
     indexed_at : string;
     viewer : feed_viewer;
     labels : string list option;
+    embed : Embed.embed option;
   }
 
-  type reply_post = {
+  type reply_post = post
+  type repost_post = post
+  type thread_post = post
+  type not_found_post = { uri : string; not_found : bool }
+
+  type blocked_post = {
     uri : string;
-    cid : string;
-    author : Actor.typeahead_profile;
-    record : reply_record;
-    reply_count : int;
-    repost_count : int;
-    like_count : int;
-    indexed_at : string;
-    viewer : feed_viewer;
-    labels : string list option;
+    blocked : bool;
+    author_did : string option;
   }
 
-  type repost_post = {
-    uri : string;
-    cid : string;
-    author : Actor.typeahead_profile;
-    record : repost_record;
-    reply_count : int;
-    repost_count : int;
-    like_count : int;
-    indexed_at : string;
-    viewer : feed_viewer;
-    labels : string list option;
-  }
+  type reply_ref_item =
+    [ `Post of post | `NotFound of not_found_post | `Blocked of blocked_post ]
 
-  type thread_post = {
-    uri : string;
-    cid : string;
-    author : Actor.typeahead_profile;
-    record : thread_record;
-    reply_count : int;
-    repost_count : int;
-    like_count : int;
-    indexed_at : string;
-    viewer : feed_viewer;
-    labels : string list option;
-  }
-
-  (* lies *)
-  type reply = { root : repost_post; parent : repost_post }
+  type reply = { root : reply_ref_item; parent : reply_ref_item }
   type reply_feed = { post : reply_post; reply : reply }
-  type replies = { replies_type : string; post : reply_post }
 
   type reason = {
     reason_type : string;
@@ -170,42 +129,53 @@ module Feed = struct
   let extract_self_labels_option json : string list option =
     Label.Label.parse_self_labels (Yojson.Safe.Util.member "labels" json)
 
+  let string_or_empty json field =
+    match Yojson.Safe.Util.member field json with `String s -> s | _ -> ""
+
+  let int_or_zero json field =
+    match Yojson.Safe.Util.member field json with `Int n -> n | _ -> 0
+
+  let int_opt json field =
+    match Yojson.Safe.Util.member field json with `Int n -> Some n | _ -> None
+
+  let type_name json =
+    match Yojson.Safe.Util.member "$type" json with `String s -> s | _ -> ""
+
+  let ends_with suffix s =
+    let n = String.length suffix in
+    let m = String.length s in
+    m >= n && String.sub s (m - n) n = suffix
+
+  let parse_reply_ref json : Notification.reply option =
+    match Yojson.Safe.Util.member "reply" json with
+    | `Assoc _ as r -> ( try Some (Notification.parse_reply r) with _ -> None)
+    | _ -> None
+
   let parse_post_record json : post_record =
-    let open Yojson.Safe.Util in
-    let text = json |> member "text" |> to_string in
-    let record_type = json |> member "$type" |> to_string in
+    let text = string_or_empty json "text" in
+    let record_type = string_or_empty json "$type" in
     let langs = extract_langs_option json in
     let facets = extract_facets_option json in
     let embed = Embed.parse_embed_option json in
     let tags = extract_tags_option json in
     let self_labels = extract_self_labels_option json in
-    let created_at = json |> member "createdAt" |> to_string in
-    { text; record_type; langs; facets; embed; tags; self_labels; created_at }
+    let reply = parse_reply_ref json in
+    let created_at = string_or_empty json "createdAt" in
+    {
+      text;
+      record_type;
+      langs;
+      facets;
+      embed;
+      tags;
+      self_labels;
+      reply;
+      created_at;
+    }
 
-  let parse_reply_record json : reply_record =
-    let open Yojson.Safe.Util in
-    let text = json |> member "text" |> to_string in
-    let record_type = json |> member "$type" |> to_string in
-    let langs = extract_langs_option json in
-    let reply = json |> member "reply" |> Notification.parse_reply in
-    let created_at = json |> member "createdAt" |> to_string in
-    { text; record_type; langs; reply; created_at }
-
-  let parse_thread_record json : thread_record =
-    let open Yojson.Safe.Util in
-    let text = json |> member "text" |> to_string in
-    let record_type = json |> member "$type" |> to_string in
-    (* MAYBE REPLY NOW ALWAYS HERE *)
-    let reply = json |> member "reply" |> Notification.parse_reply in
-    let created_at = json |> member "createdAt" |> to_string in
-    { text; record_type; reply; created_at }
-
-  let parse_repost_record json : repost_record =
-    let open Yojson.Safe.Util in
-    let text = json |> member "text" |> to_string in
-    let record_type = json |> member "$type" |> to_string in
-    let created_at = json |> member "createdAt" |> to_string in
-    { text; record_type; created_at }
+  let parse_reply_record json : reply_record = parse_post_record json
+  let parse_thread_record json : thread_record = parse_post_record json
+  let parse_repost_record json : repost_record = parse_post_record json
 
   let parse_like_viewer json : like_viewer =
     let open Yojson.Safe.Util in
@@ -234,16 +204,19 @@ module Feed = struct
 
   let parse_post json : post =
     let open Yojson.Safe.Util in
-    let uri = json |> member "uri" |> to_string in
-    let cid = json |> member "cid" |> to_string in
+    let uri = string_or_empty json "uri" in
+    let cid = string_or_empty json "cid" in
     let author = json |> member "author" |> Actor.parse_typeahead_profile in
     let record = json |> member "record" |> parse_post_record in
-    let reply_count = json |> member "replyCount" |> to_int in
-    let repost_count = json |> member "repostCount" |> to_int in
-    let like_count = json |> member "likeCount" |> to_int in
-    let indexed_at = json |> member "indexedAt" |> to_string in
+    let reply_count = int_or_zero json "replyCount" in
+    let repost_count = int_or_zero json "repostCount" in
+    let like_count = int_or_zero json "likeCount" in
+    let quote_count = int_opt json "quoteCount" in
+    let bookmark_count = int_opt json "bookmarkCount" in
+    let indexed_at = string_or_empty json "indexedAt" in
     let viewer = json |> member "viewer" |> parse_feed_viewer in
     let labels = Label.Label.parse_label_values (json |> member "labels") in
+    let embed = Embed.parse_embed_option json in
     {
       uri;
       cid;
@@ -252,60 +225,16 @@ module Feed = struct
       reply_count;
       repost_count;
       like_count;
+      quote_count;
+      bookmark_count;
       indexed_at;
       viewer;
       labels;
+      embed;
     }
 
-  let parse_reply_post json : reply_post =
-    let open Yojson.Safe.Util in
-    let uri = json |> member "uri" |> to_string in
-    let cid = json |> member "cid" |> to_string in
-    let author = json |> member "author" |> Actor.parse_typeahead_profile in
-    let record = json |> member "record" |> parse_reply_record in
-    let reply_count = json |> member "replyCount" |> to_int in
-    let repost_count = json |> member "repostCount" |> to_int in
-    let like_count = json |> member "likeCount" |> to_int in
-    let indexed_at = json |> member "indexedAt" |> to_string in
-    let viewer = json |> member "viewer" |> parse_feed_viewer in
-    let labels = Label.Label.parse_label_values (json |> member "labels") in
-    {
-      uri;
-      cid;
-      author;
-      record;
-      reply_count;
-      repost_count;
-      like_count;
-      indexed_at;
-      viewer;
-      labels;
-    }
-
-  let parse_thread_post json : thread_post =
-    let open Yojson.Safe.Util in
-    let uri = json |> member "uri" |> to_string in
-    let cid = json |> member "cid" |> to_string in
-    let author = json |> member "author" |> Actor.parse_typeahead_profile in
-    let record = json |> member "record" |> parse_thread_record in
-    let reply_count = json |> member "replyCount" |> to_int in
-    let repost_count = json |> member "repostCount" |> to_int in
-    let like_count = json |> member "likeCount" |> to_int in
-    let indexed_at = json |> member "indexedAt" |> to_string in
-    let viewer = json |> member "viewer" |> parse_feed_viewer in
-    let labels = Label.Label.parse_label_values (json |> member "labels") in
-    {
-      uri;
-      cid;
-      author;
-      record;
-      reply_count;
-      repost_count;
-      like_count;
-      indexed_at;
-      viewer;
-      labels;
-    }
+  let parse_reply_post json : reply_post = parse_post json
+  let parse_thread_post json : thread_post = parse_post json
 
   let parse_like json : like =
     let open Yojson.Safe.Util in
@@ -329,35 +258,56 @@ module Feed = struct
     let indexed_at = json |> member "indexedAt" |> to_string in
     { reason_type; by; indexed_at }
 
-  let parse_repost_post json : repost_post =
-    let open Yojson.Safe.Util in
-    let uri = json |> member "uri" |> to_string in
-    let cid = json |> member "cid" |> to_string in
-    let author = json |> member "author" |> Actor.parse_typeahead_profile in
-    let record = json |> member "record" |> parse_repost_record in
-    let reply_count = json |> member "replyCount" |> to_int in
-    let repost_count = json |> member "repostCount" |> to_int in
-    let like_count = json |> member "likeCount" |> to_int in
-    let indexed_at = json |> member "indexedAt" |> to_string in
-    let viewer = json |> member "viewer" |> parse_feed_viewer in
-    let labels = Label.Label.parse_label_values (json |> member "labels") in
+  let parse_repost_post json : repost_post = parse_post json
+
+  let parse_not_found_post json : not_found_post =
     {
-      uri;
-      cid;
-      author;
-      record;
-      reply_count;
-      repost_count;
-      like_count;
-      indexed_at;
-      viewer;
-      labels;
+      uri = string_or_empty json "uri";
+      not_found =
+        (match Yojson.Safe.Util.member "notFound" json with
+        | `Bool b -> b
+        | _ -> true);
     }
+
+  let parse_blocked_post json : blocked_post =
+    let author = Yojson.Safe.Util.member "author" json in
+    {
+      uri = string_or_empty json "uri";
+      blocked =
+        (match Yojson.Safe.Util.member "blocked" json with
+        | `Bool b -> b
+        | _ -> true);
+      author_did =
+        (match author with
+        | `Assoc _ -> (
+            match Yojson.Safe.Util.member "did" author with
+            | `String s -> Some s
+            | _ -> None)
+        | _ -> None);
+    }
+
+  let parse_reply_ref_item json : reply_ref_item =
+    let t = type_name json in
+    if
+      ends_with "notFoundPost" t
+      ||
+      match Yojson.Safe.Util.member "notFound" json with
+      | `Bool true -> true
+      | _ -> false
+    then `NotFound (parse_not_found_post json)
+    else if
+      ends_with "blockedPost" t
+      ||
+      match Yojson.Safe.Util.member "blocked" json with
+      | `Bool true -> true
+      | _ -> false
+    then `Blocked (parse_blocked_post json)
+    else `Post (parse_post json)
 
   let parse_reply json : reply =
     let open Yojson.Safe.Util in
-    let root = json |> member "root" |> parse_repost_post in
-    let parent = json |> member "parent" |> parse_repost_post in
+    let root = json |> member "root" |> parse_reply_ref_item in
+    let parent = json |> member "parent" |> parse_reply_ref_item in
     { root; parent }
 
   let parse_repost_feed json : repost_feed =
@@ -404,50 +354,84 @@ module Feed = struct
     in
     { cursor; feed }
 
-  let parse_replies json : replies =
-    let open Yojson.Safe.Util in
-    let replies_type = json |> member "$type" |> to_string in
-    let post = json |> member "post" |> parse_reply_post in
-    { replies_type; post }
-
-  type thread_parent = {
-    thread_type : string;
-    post : repost_post;
-    replies : replies list;
-  }
+  type thread_context = { root_author_like : string option }
 
   type thread = {
     thread_type : string;
     post : thread_post;
-    parent : thread_parent;
-    replies : replies list;
+    parent : thread_item option;
+    replies : thread_item list;
+    thread_context : thread_context option;
   }
 
-  type thread_feed = { thread : thread }
+  and thread_item =
+    [ `Thread of thread
+    | `NotFound of not_found_post
+    | `Blocked of blocked_post ]
 
-  let parse_thread_parent json : thread_parent =
-    let open Yojson.Safe.Util in
-    let thread_type = json |> member "$type" |> to_string in
-    let post = json |> member "post" |> parse_repost_post in
-    let replies =
-      json |> member "replies" |> to_list |> List.map parse_replies
-    in
-    { thread_type; post; replies }
+  type replies = thread_item
+  type thread_parent = thread
+  type thread_feed = { thread : thread_item; threadgate : Yojson.Safe.t option }
 
-  let parse_thread json : thread =
+  let parse_thread_context json : thread_context =
+    {
+      root_author_like =
+        (match Yojson.Safe.Util.member "rootAuthorLike" json with
+        | `String s -> Some s
+        | _ -> None);
+    }
+
+  let rec parse_thread_item json : thread_item =
+    let t = type_name json in
+    if
+      ends_with "notFoundPost" t
+      ||
+      match Yojson.Safe.Util.member "notFound" json with
+      | `Bool true -> true
+      | _ -> false
+    then `NotFound (parse_not_found_post json)
+    else if
+      ends_with "blockedPost" t
+      ||
+      match Yojson.Safe.Util.member "blocked" json with
+      | `Bool true -> true
+      | _ -> false
+    then `Blocked (parse_blocked_post json)
+    else `Thread (parse_thread json)
+
+  and parse_thread json : thread =
     let open Yojson.Safe.Util in
-    let thread_type = json |> member "$type" |> to_string in
+    let thread_type = type_name json in
     let post = json |> member "post" |> parse_thread_post in
-    let parent = json |> member "parent" |> parse_thread_parent in
-    let replies =
-      json |> member "replies" |> to_list |> List.map parse_replies
+    let parent =
+      match json |> member "parent" with
+      | `Assoc _ as p -> Some (parse_thread_item p)
+      | _ -> None
     in
-    { thread_type; post; parent; replies }
+    let replies =
+      match json |> member "replies" with
+      | `List xs -> List.map parse_thread_item xs
+      | _ -> []
+    in
+    let thread_context =
+      match json |> member "threadContext" with
+      | `Assoc _ as c -> Some (parse_thread_context c)
+      | _ -> None
+    in
+    { thread_type; post; parent; replies; thread_context }
+
+  let parse_replies json : replies = parse_thread_item json
+  let parse_thread_parent json : thread_parent = parse_thread json
 
   let parse_thread_feed json : thread_feed =
     let open Yojson.Safe.Util in
-    let thread = json |> member "thread" |> parse_thread in
-    { thread }
+    {
+      thread = json |> member "thread" |> parse_thread_item;
+      threadgate =
+        (match json |> member "threadgate" with
+        | `Assoc _ as g -> Some g
+        | _ -> None);
+    }
 
   let parse_posts_feed json : posts_feed =
     let open Yojson.Safe.Util in
@@ -678,8 +662,10 @@ module Feed = struct
     tags : string list option;
     indexed_at : string;
     reply_count : int option;
+    repost_count : int option;
     like_count : int option;
     quote_count : int option;
+    bookmark_count : int option;
     original : Yojson.Safe.t;
   }
 
@@ -852,10 +838,16 @@ module Feed = struct
         (match json |> member "indexedAt" with `String s -> s | _ -> "");
       reply_count =
         (match json |> member "replyCount" with `Int n -> Some n | _ -> None);
+      repost_count =
+        (match json |> member "repostCount" with `Int n -> Some n | _ -> None);
       like_count =
         (match json |> member "likeCount" with `Int n -> Some n | _ -> None);
       quote_count =
         (match json |> member "quoteCount" with `Int n -> Some n | _ -> None);
+      bookmark_count =
+        (match json |> member "bookmarkCount" with
+        | `Int n -> Some n
+        | _ -> None);
       original = json;
     }
 

@@ -10,7 +10,13 @@ module Records = struct
   let nsid_follow = "app.bsky.graph.follow"
   let nsid_block = "app.bsky.graph.block"
   let nsid_listblock = "app.bsky.graph.listblock"
+  let nsid_list = "app.bsky.graph.list"
+  let nsid_listitem = "app.bsky.graph.listitem"
+  let nsid_starterpack = "app.bsky.graph.starterpack"
   let nsid_profile = "app.bsky.actor.profile"
+  let purpose_modlist = "app.bsky.graph.defs#modlist"
+  let purpose_curatelist = "app.bsky.graph.defs#curatelist"
+  let purpose_referencelist = "app.bsky.graph.defs#referencelist"
 
   let strong_ref ~uri ~cid : Yojson.Safe.t =
     `Assoc [ ("uri", `String uri); ("cid", `String cid) ]
@@ -99,6 +105,65 @@ module Records = struct
         ("createdAt", `String created_at);
       ]
 
+  let list ~name ~purpose ~created_at ?description ?description_facets ?avatar
+      ?self_labels () : Yojson.Safe.t =
+    let fields =
+      [
+        ("$type", `String nsid_list);
+        ("name", `String name);
+        ("purpose", `String purpose);
+        ("createdAt", `String created_at);
+      ]
+      @ (match description with
+        | Some s -> [ ("description", `String s) ]
+        | None -> [])
+      @ (match description_facets with
+        | Some fs -> [ ("descriptionFacets", Facet.facets_to_json fs) ]
+        | None -> [])
+      @ (match avatar with Some b -> [ ("avatar", b) ] | None -> [])
+      @
+      match self_labels with
+      | Some xs -> [ ("labels", Label.Label.self_labels_to_json xs) ]
+      | None -> []
+    in
+    `Assoc fields
+
+  let listitem ~subject ~list ~created_at () : Yojson.Safe.t =
+    `Assoc
+      [
+        ("$type", `String nsid_listitem);
+        ("subject", `String subject);
+        ("list", `String list);
+        ("createdAt", `String created_at);
+      ]
+
+  let starterpack ~name ~list ~created_at ?description ?description_facets
+      ?feeds () : Yojson.Safe.t =
+    let fields =
+      [
+        ("$type", `String nsid_starterpack);
+        ("name", `String name);
+        ("list", `String list);
+        ("createdAt", `String created_at);
+      ]
+      @ (match description with
+        | Some s -> [ ("description", `String s) ]
+        | None -> [])
+      @ (match description_facets with
+        | Some fs -> [ ("descriptionFacets", Facet.facets_to_json fs) ]
+        | None -> [])
+      @
+      match feeds with
+      | Some uris ->
+          [
+            ( "feeds",
+              `List (List.map (fun uri -> `Assoc [ ("uri", `String uri) ]) uris)
+            );
+          ]
+      | None -> []
+    in
+    `Assoc fields
+
   let profile ?display_name ?description ?pronouns ?website ?avatar ?banner
       ?self_labels ?pinned_post ?created_at () : Yojson.Safe.t =
     let fields =
@@ -140,6 +205,30 @@ module Records = struct
 
   type block_record = { subject : string; created_at : string }
 
+  type list_record = {
+    name : string;
+    purpose : string;
+    description : string option;
+    description_facets : Facet.facet list option;
+    created_at : string;
+    self_labels : string list option;
+  }
+
+  type listitem_record = {
+    subject : string;
+    list : string;
+    created_at : string;
+  }
+
+  type starterpack_record = {
+    name : string;
+    list : string;
+    description : string option;
+    description_facets : Facet.facet list option;
+    feeds : string list;
+    created_at : string;
+  }
+
   let parse_via json : Embed.strong_ref option =
     match Yojson.Safe.Util.member "via" json with
     | `Assoc _ as v -> Some (parse_strong_ref v)
@@ -174,4 +263,57 @@ module Records = struct
     }
 
   let parse_listblock json : block_record = parse_block json
+
+  let parse_facets_option json field : Facet.facet list option =
+    match Yojson.Safe.Util.member field json with
+    | `List xs -> Some (List.map Facet.parse_facet xs)
+    | _ -> None
+
+  let parse_list json : list_record =
+    let open Yojson.Safe.Util in
+    {
+      name = (match json |> member "name" with `String s -> s | _ -> "");
+      purpose = (match json |> member "purpose" with `String s -> s | _ -> "");
+      description =
+        (match json |> member "description" with
+        | `String s -> Some s
+        | _ -> None);
+      description_facets = parse_facets_option json "descriptionFacets";
+      created_at =
+        (match json |> member "createdAt" with `String s -> s | _ -> "");
+      self_labels = Label.Label.parse_self_labels (json |> member "labels");
+    }
+
+  let parse_listitem json : listitem_record =
+    let open Yojson.Safe.Util in
+    {
+      subject = (match json |> member "subject" with `String s -> s | _ -> "");
+      list = (match json |> member "list" with `String s -> s | _ -> "");
+      created_at =
+        (match json |> member "createdAt" with `String s -> s | _ -> "");
+    }
+
+  let parse_starterpack json : starterpack_record =
+    let open Yojson.Safe.Util in
+    let feeds =
+      match json |> member "feeds" with
+      | `List items ->
+          List.filter_map
+            (fun item ->
+              match item |> member "uri" with `String s -> Some s | _ -> None)
+            items
+      | _ -> []
+    in
+    {
+      name = (match json |> member "name" with `String s -> s | _ -> "");
+      list = (match json |> member "list" with `String s -> s | _ -> "");
+      description =
+        (match json |> member "description" with
+        | `String s -> Some s
+        | _ -> None);
+      description_facets = parse_facets_option json "descriptionFacets";
+      feeds;
+      created_at =
+        (match json |> member "createdAt" with `String s -> s | _ -> "");
+    }
 end

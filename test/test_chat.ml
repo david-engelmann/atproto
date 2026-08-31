@@ -2,6 +2,7 @@ open OUnit2
 open Atproto.Chat
 open Atproto.Xrpc
 open Atproto.Auth
+open Atproto.Facet
 
 let test_default_proxy _ =
   OUnit2.assert_equal
@@ -115,6 +116,106 @@ let test_parse_unread_and_logs _ =
   in
   OUnit2.assert_equal true avail.can_chat
 
+let test_parse_message_facets_reactions_embed _ =
+  let json =
+    `Assoc
+      [
+        ("id", `String "m1");
+        ("rev", `String "r1");
+        ("text", `String "hello #atp");
+        ("sentAt", `String "2024-01-01T00:00:00.000Z");
+        ("sender", `Assoc [ ("did", `String "did:plc:abc123xyz0001112223333") ]);
+        ( "facets",
+          `List
+            [
+              `Assoc
+                [
+                  ( "index",
+                    `Assoc [ ("byteStart", `Int 6); ("byteEnd", `Int 10) ] );
+                  ( "features",
+                    `List
+                      [
+                        `Assoc
+                          [
+                            ("$type", `String "app.bsky.richtext.facet#tag");
+                            ("tag", `String "atp");
+                          ];
+                      ] );
+                ];
+            ] );
+        ( "reactions",
+          `List
+            [
+              `Assoc
+                [
+                  ("value", `String "👍");
+                  ( "sender",
+                    `Assoc [ ("did", `String "did:plc:abc123xyz0001112223333") ]
+                  );
+                  ("createdAt", `String "2024-01-01T00:00:01.000Z");
+                ];
+            ] );
+        ( "embed",
+          `Assoc
+            [
+              ("$type", `String "app.bsky.embed.record");
+              ( "record",
+                `Assoc
+                  [
+                    ( "uri",
+                      `String
+                        "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k"
+                    );
+                    ( "cid",
+                      `String "bafyreihdummy000000000000000000000000000000" );
+                  ] );
+            ] );
+        ("replyTo", `Assoc [ ("messageId", `String "m0") ]);
+      ]
+  in
+  let msg = Chat.parse_message json in
+  OUnit2.assert_equal 1 (List.length msg.facets);
+  OUnit2.assert_equal 1 (List.length msg.reactions);
+  OUnit2.assert_equal ~printer:(fun x -> x) "👍" (List.hd msg.reactions).value;
+  OUnit2.assert_equal (Some "m0") msg.reply_to_id;
+  match msg.embed with
+  | Some (`Record _) -> ()
+  | _ -> OUnit2.assert_failure "expected record embed attachment"
+
+let test_lock_unlock_and_group_bodies _ =
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "c1"
+    (Chat.convo_id_body "c1" |> member "convoId" |> to_string);
+  let prefs =
+    Chat.parse_notification_preferences
+      (`Assoc
+        [
+          ( "preferences",
+            `Assoc
+              [
+                ( "chat",
+                  `Assoc [ ("include", `String "all"); ("push", `Bool true) ] );
+                ( "chatRequest",
+                  `Assoc
+                    [ ("include", `String "follows"); ("push", `Bool false) ] );
+              ] );
+        ])
+  in
+  OUnit2.assert_equal ~printer:(fun x -> x) "all" prefs.chat.include_;
+  OUnit2.assert_equal true prefs.chat.push;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "follows" prefs.chat_request.include_;
+  OUnit2.assert_equal false prefs.chat_request.push;
+  let body =
+    Chat.message_input
+      ~facets:[ Facet.tag ~byte_start:0 ~byte_end:4 "atp" ]
+      "hi #atp"
+  in
+  OUnit2.assert_equal 1 (body |> member "facets" |> to_list |> List.length)
+
 let test_list_convos_auth_skipped _ =
   skip_if
     (not Auth.has_live_credentials)
@@ -133,6 +234,10 @@ let suite =
          "test_parse_convos" >:: test_parse_convos;
          "test_send_message_body" >:: test_send_message_body;
          "test_parse_unread_and_logs" >:: test_parse_unread_and_logs;
+         "test_parse_message_facets_reactions_embed"
+         >:: test_parse_message_facets_reactions_embed;
+         "test_lock_unlock_and_group_bodies"
+         >:: test_lock_unlock_and_group_bodies;
          "test_list_convos_auth_skipped" >:: test_list_convos_auth_skipped;
        ]
 
