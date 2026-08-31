@@ -174,6 +174,19 @@ let test_union_codegen_and_official_bundle _ =
        (fun (d : Lexicon.document) ->
          d.id = "chat.bsky.moderation.subscribeModEvents")
        docs);
+  OUnit2.assert_bool "convo.defs bundled"
+    (List.exists
+       (fun (d : Lexicon.document) -> d.id = "chat.bsky.convo.defs")
+       docs);
+  OUnit2.assert_bool "listConvoRequests bundled"
+    (List.exists
+       (fun (d : Lexicon.document) ->
+         d.id = "chat.bsky.convo.listConvoRequests")
+       docs);
+  OUnit2.assert_bool "ageassurance.defs bundled"
+    (List.exists
+       (fun (d : Lexicon.document) -> d.id = "app.bsky.ageassurance.defs")
+       docs);
   List.iter
     (fun (doc : Lexicon.document) ->
       OUnit2.assert_equal 1 doc.lexicon;

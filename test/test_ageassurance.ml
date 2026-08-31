@@ -102,10 +102,18 @@ let test_parse_event _ =
           ("access", `String "full");
           ("countryCode", `String "US");
           ("email", `String "user@example.com");
+          ("initIp", `String "203.0.113.10");
+          ("initUa", `String "atproto-test/1.0");
+          ("completeIp", `String "203.0.113.11");
+          ("completeUa", `String "atproto-test/1.1");
         ])
   in
   OUnit2.assert_equal ~printer:(fun x -> x) "assured" ev.status;
-  OUnit2.assert_equal ~printer:(fun x -> x) "full" ev.access
+  OUnit2.assert_equal ~printer:(fun x -> x) "full" ev.access;
+  OUnit2.assert_equal (Some "203.0.113.10") ev.init_ip;
+  OUnit2.assert_equal (Some "atproto-test/1.0") ev.init_ua;
+  OUnit2.assert_equal (Some "203.0.113.11") ev.complete_ip;
+  OUnit2.assert_equal (Some "atproto-test/1.1") ev.complete_ua
 
 let test_get_config_live _ =
   try

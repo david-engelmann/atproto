@@ -42,7 +42,7 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | Video | `Video` | `getJobStatus`, `getUploadLimits`, byte upload (`uploadVideo` URL + POST), multipart `startUpload` / `uploadPart` / `finishUpload` / `abortUpload` / `getUploadStatus`, service-auth audience (`did:web:<pds>` + `uploadBlob` lxm), injectable job poll, `video_embed_json`. Client only — no hosted transcoder |
 | Unspecced | `Unspecced` | Popular generators, search skeletons, trending topics + `getTrends` / `getTrendsSkeleton`, tagged suggestions, unspecced age-assurance state, suggestion / feed / starter-pack / onboarding / discover / explore / seeMore skeletons, `getPostThreadV2` / `getPostThreadOtherV2`, config |
 | Labeler | `Labeler` | `app.bsky.labeler.getServices` |
-| Chat / DMs | `Chat` | `chat.bsky.convo.*` including typed message facets/reactions/embeds, lock/unlock, `getConvoMembers`, `getMessages.relatedProfiles`, group convo lock/join-request fields; `chat.bsky.group` create/add/remove/edit + join links / join requests / mutual groups; notification prefs; actor status / declaration / export / delete; moderation views + `subscribeModEvents`; `atproto-proxy: did:web:api.bsky.chat#bsky_chat` |
+| Chat / DMs | `Chat` | `chat.bsky.convo.*` including typed message facets/reactions/embeds, **system message data** (`addedBy` / `removedBy` / `approvedBy` / `unlockedBy` / `lockedBy`), `getConvoMembers` (`role` / `addedBy` / `chatDisabled` / `kind`), `getMessages.relatedProfiles`, group convo leftover fields (`createdAt` / `joinLink` / `joinRequestCount` / `memberLimit`), `listConvoRequests` `convoView` / `joinRequestConvoView` union, `getLog` message / relatedProfiles / member; `chat.bsky.group` create/add/remove/edit + join links / join requests / mutual groups; notification prefs; actor status / declaration / export / delete; moderation views + `subscribeModEvents`; `atproto-proxy: did:web:api.bsky.chat#bsky_chat` |
 | Ozone | `Ozone` | `tools.ozone.moderation.*` including typed event/subject unions, subjects/repos/records, timeline, reporter stats, scheduled actions; plus communication templates, sets, settings, team, safelink, signature, verification, hosting history + `getConfig`; `tools.ozone.queue.*` (list/create/update/delete, moderator assign, `routeReports`) and `tools.ozone.report.*` (query/get, activities, assignments, stats, close/reassign); requires `atproto-proxy` |
 | Admin | `Admin` | `com.atproto.admin` subject status, account info (`inviteNote` / `invitedBy` / `threatSignatures`), invites, email |
 | Repo writes | `Repo`, `Records` | `createRecord` / `putRecord` / `deleteRecord` / `applyWrites` bodies; typed `describeRepo` / `getRecord` / `listRecords` parsers; builders for post/like/repost/follow/block/listblock/list/listitem/starterpack/profile/status/contentVisibility/verification/threadgate/postgate/generator/labeler/notification declaration / `com.atproto.lexicon.schema` |
@@ -65,7 +65,7 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | Syntax | `Syntax` | Handle, DID, NSID, record-key, datetime, language validators |
 | Drafts | `Draft` | `app.bsky.draft` create/get/update/delete + typed draft / embed / threadgate / postgate builders |
 | Contacts | `Contact` | `app.bsky.contact` phone verify, import, matches, dismiss, sync status, remove data |
-| Age assurance | `Ageassurance` | `app.bsky.ageassurance` begin / getConfig / getState + region-rule union |
+| Age assurance | `Ageassurance` | `app.bsky.ageassurance` begin / getConfig / getState + region-rule union; stash `#event` parses `initIp` / `initUa` / `completeIp` / `completeUa` |
 | Embeds / facets | `Embed`, `Facet` | Images, external (`readingTime`, `associatedProfiles`, source theme RGB, `associatedRefs`), record, recordWithMedia, video (`presentation` `default`/`gif`), **gallery**, record `#view` union; `getEmbedExternalView`; mention / link / tag parse **and serialize** |
 | Notifications | `Notification` | All `listNotifications` known reasons; prefs / prefs-v2 / activity subscriptions / register+unregister push |
 | User reports | `Moderation` | `com.atproto.moderation.createReport` (strongRef / repoRef, optional `modTool`, reason-type constants) |
@@ -84,9 +84,9 @@ These are product-level, not missing protocol cores:
 - Permissioned data / spaces / LtHash (no stable public spec to implement yet)
 - Official `com.atproto.sync.getRepo` **lexicon** still has no `collection` parameter (client-side subset export from a full CAR is implemented; servers that reject unknown query params are unchanged)
 
-#70–#87 covered protocol core, AppView/chat/ozone/temp, Jetstream, video, OAuth scopes, thread v2 / drafts / contacts, remaining preference kinds, ozone queue/report, `site.standard.*`, leftover admin, HTTP/2, server email/activate, `knownLikers` / video `presentation` / `lexicon.schema`, and scoped mutes / profile associated / session extras.
+#70–#88 covered protocol core, AppView/chat/ozone/temp, Jetstream, video, OAuth scopes, thread v2 / drafts / contacts, remaining preference kinds, ozone queue/report, `site.standard.*`, leftover admin, HTTP/2, server email/activate, `knownLikers` / video `presentation` / `lexicon.schema`, scoped mutes / profile associated / session extras, and leftover official field parsers after #87.
 
-This stack fills leftover *library* field gaps vs current official lexicons: external-embed hydration (`readingTime`, `associatedProfiles`, source theme), feed `grandparentAuthor` + `getAuthorFeed` `includePins`, graph list-block relationship URIs + starter-pack `listItemsSample`, typed `checkAccountStatus` / label-value definitions, chat `relatedProfiles`, and admin invite/threat fields.
+This stack fills leftover *library* field gaps vs current official lexicons: chat system-message actor refs, group-member `addedBy`/`role`/`kind`, leftover group-convo fields, `listConvoRequests` union, `getLog` payloads, join-preview `viewer.requestedAt`, and age-assurance stash event IP/UA.
 
 Privileged admin/ozone writes still need a real operator session and are not invented here.
 
@@ -96,6 +96,8 @@ Still leftover vs current lexicons (not invented here):
 - Deprecated `com.atproto.sync.getCheckout` / `getHead` (use `getRepo` / `getLatestCommit`)
 - `app.bsky.auth*` / `chat.bsky.authFullChatClient` permission documents (OAuth scope tokens, not XRPC clients)
 - `internal.bsky.actor.getProfiles` (service-to-service AppView query, not a public client surface)
+- Internal `debug` fields and deprecated `entities` / `isFallback`
+- Privileged Ozone operator view fields (clients exist; live operator session not invented)
 
 Open PR `#69` (`de-sync-types`) is superseded by this work: it still targeted the removed `getCheckout` API and left CAR/CBOR unfinished.
 

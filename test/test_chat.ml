@@ -589,6 +589,294 @@ let test_group_join_parsers _ =
   in
   OUnit2.assert_equal 1 (List.length members.members)
 
+let test_parse_system_messages_and_members _ =
+  let member_json =
+    `Assoc
+      [
+        ("did", `String "did:plc:member0000000000000001");
+        ("handle", `String "bob.test");
+        ("displayName", `String "Bob");
+        ("chatDisabled", `Bool false);
+        ( "kind",
+          `Assoc
+            [
+              ("$type", `String "chat.bsky.actor.defs#groupConvoMember");
+              ("role", `String "standard");
+              ( "addedBy",
+                `Assoc
+                  [
+                    ("did", `String "did:plc:owner0000000000000001");
+                    ("handle", `String "alice.test");
+                  ] );
+            ] );
+      ]
+  in
+  let member = Chat.parse_member member_json in
+  OUnit2.assert_equal (Some "standard") member.role;
+  OUnit2.assert_equal (Some false) member.chat_disabled;
+  OUnit2.assert_equal (Some `Group) member.kind;
+  (match member.added_by with
+  | Some added ->
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "did:plc:owner0000000000000001" added.did
+  | None -> OUnit2.assert_failure "expected addedBy");
+  let add =
+    Chat.parse_message
+      (`Assoc
+        [
+          ("$type", `String "chat.bsky.convo.defs#systemMessageView");
+          ("id", `String "s1");
+          ("rev", `String "r1");
+          ("sentAt", `String "2026-01-01T00:00:00.000Z");
+          ( "data",
+            `Assoc
+              [
+                ( "$type",
+                  `String "chat.bsky.convo.defs#systemMessageDataAddMember" );
+                ( "member",
+                  `Assoc [ ("did", `String "did:plc:member0000000000000001") ]
+                );
+                ("role", `String "standard");
+                ( "addedBy",
+                  `Assoc [ ("did", `String "did:plc:owner0000000000000001") ] );
+              ] );
+        ])
+  in
+  OUnit2.assert_equal true add.is_system;
+  OUnit2.assert_equal false add.deleted;
+  (match add.system with
+  | Some (`Add_member (member, "standard", added_by)) ->
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "did:plc:member0000000000000001" member.did;
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "did:plc:owner0000000000000001" added_by.did
+  | _ -> OUnit2.assert_failure "expected add-member system data");
+  let join =
+    Chat.parse_system_data
+      (`Assoc
+        [
+          ("$type", `String "chat.bsky.convo.defs#systemMessageDataMemberJoin");
+          ( "member",
+            `Assoc [ ("did", `String "did:plc:member0000000000000001") ] );
+          ("role", `String "standard");
+          ( "approvedBy",
+            `Assoc [ ("did", `String "did:plc:owner0000000000000001") ] );
+        ])
+  in
+  (match join with
+  | `Member_join (_, "standard", Some approved) ->
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "did:plc:owner0000000000000001" approved.did
+  | _ -> OUnit2.assert_failure "expected member-join approvedBy");
+  let unlock =
+    Chat.parse_system_data
+      (`Assoc
+        [
+          ("$type", `String "chat.bsky.convo.defs#systemMessageDataUnlockConvo");
+          ( "unlockedBy",
+            `Assoc [ ("did", `String "did:plc:owner0000000000000001") ] );
+        ])
+  in
+  (match unlock with
+  | `Unlock u ->
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "did:plc:owner0000000000000001" u.did
+  | _ -> OUnit2.assert_failure "expected unlock system data");
+  let remove =
+    Chat.parse_system_data
+      (`Assoc
+        [
+          ("$type", `String "chat.bsky.convo.defs#systemMessageDataRemoveMember");
+          ( "member",
+            `Assoc [ ("did", `String "did:plc:member0000000000000001") ] );
+          ( "removedBy",
+            `Assoc [ ("did", `String "did:plc:owner0000000000000001") ] );
+        ])
+  in
+  match remove with
+  | `Remove_member (_, removed_by) ->
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "did:plc:owner0000000000000001" removed_by.did
+  | _ -> OUnit2.assert_failure "expected remove-member system data"
+
+let test_parse_group_convo_leftover_fields _ =
+  let json =
+    `Assoc
+      [
+        ("id", `String "g2");
+        ("rev", `String "r9");
+        ("muted", `Bool false);
+        ("unreadCount", `Int 0);
+        ( "kind",
+          `Assoc
+            [
+              ("$type", `String "chat.bsky.convo.defs#groupConvo");
+              ("name", `String "mods");
+              ("createdAt", `String "2026-01-01T00:00:00.000Z");
+              ("lockStatus", `String "locked");
+              ("lockStatusModerationOverride", `Bool false);
+              ("memberCount", `Int 8);
+              ("memberLimit", `Int 50);
+              ("joinRequestCount", `Int 3);
+              ("unreadJoinRequestCount", `Int 1);
+              ( "joinLink",
+                `Assoc
+                  [
+                    ("code", `String "abc123");
+                    ("enabledStatus", `String "enabled");
+                    ("requireApproval", `Bool true);
+                    ("joinRule", `String "followedByOwner");
+                    ("createdAt", `String "2026-01-02T00:00:00.000Z");
+                  ] );
+            ] );
+      ]
+  in
+  let convo = Chat.parse_convo json in
+  OUnit2.assert_equal (Some "2026-01-01T00:00:00.000Z") convo.created_at;
+  OUnit2.assert_equal (Some 50) convo.member_limit;
+  OUnit2.assert_equal (Some 3) convo.join_request_count;
+  match convo.join_link with
+  | Some link ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "abc123" link.code;
+      OUnit2.assert_equal true link.require_approval
+  | None -> OUnit2.assert_failure "expected group convo joinLink"
+
+let test_parse_log_and_convo_requests _ =
+  let logs =
+    Chat.parse_logs
+      (`Assoc
+        [
+          ( "logs",
+            `List
+              [
+                `Assoc
+                  [
+                    ("$type", `String "chat.bsky.convo.defs#logAddMember");
+                    ("convoId", `String "g1");
+                    ("rev", `String "r3");
+                    ( "message",
+                      `Assoc
+                        [
+                          ( "$type",
+                            `String "chat.bsky.convo.defs#systemMessageView" );
+                          ("id", `String "s2");
+                          ("rev", `String "r3");
+                          ("sentAt", `String "2026-01-01T00:00:00.000Z");
+                          ( "data",
+                            `Assoc
+                              [
+                                ( "$type",
+                                  `String
+                                    "chat.bsky.convo.defs#systemMessageDataAddMember"
+                                );
+                                ( "member",
+                                  `Assoc
+                                    [
+                                      ( "did",
+                                        `String "did:plc:member0000000000000001"
+                                      );
+                                    ] );
+                                ("role", `String "standard");
+                                ( "addedBy",
+                                  `Assoc
+                                    [
+                                      ( "did",
+                                        `String "did:plc:owner0000000000000001"
+                                      );
+                                    ] );
+                              ] );
+                        ] );
+                    ( "relatedProfiles",
+                      `List
+                        [
+                          `Assoc
+                            [
+                              ("did", `String "did:plc:member0000000000000001");
+                              ("handle", `String "bob.test");
+                            ];
+                        ] );
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal 1 (List.length logs.logs);
+  let entry = List.hd logs.logs in
+  OUnit2.assert_equal 1 (List.length entry.related_profiles);
+  (match entry.message with
+  | Some m -> OUnit2.assert_equal true m.is_system
+  | None -> OUnit2.assert_failure "expected log message");
+  let page =
+    Chat.parse_convo_requests
+      (`Assoc
+        [
+          ( "requests",
+            `List
+              [
+                `Assoc
+                  [
+                    ("id", `String "c1");
+                    ("rev", `String "r0");
+                    ("muted", `Bool false);
+                    ("unreadCount", `Int 1);
+                    ("members", `List []);
+                  ];
+                `Assoc
+                  [
+                    ( "$type",
+                      `String "chat.bsky.group.defs#joinRequestConvoView" );
+                    ("convoId", `String "g9");
+                    ("name", `String "Friends");
+                    ( "owner",
+                      `Assoc
+                        [
+                          ("did", `String "did:plc:owner0000000000000001");
+                          ("handle", `String "alice.test");
+                        ] );
+                    ("memberCount", `Int 4);
+                    ("memberLimit", `Int 100);
+                    ( "viewer",
+                      `Assoc
+                        [ ("requestedAt", `String "2026-01-03T00:00:00.000Z") ]
+                    );
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal 2 (List.length page.requests);
+  (match List.nth page.requests 1 with
+  | `Join_request jr ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "Friends" jr.name;
+      OUnit2.assert_equal (Some "2026-01-03T00:00:00.000Z") jr.requested_at;
+      OUnit2.assert_equal 100 jr.member_limit
+  | _ -> OUnit2.assert_failure "expected joinRequestConvoView");
+  let preview =
+    Chat.parse_join_preview
+      (`Assoc
+        [
+          ("$type", `String "chat.bsky.group.defs#joinLinkPreviewView");
+          ("convoId", `String "g9");
+          ("code", `String "joinme");
+          ("name", `String "Friends");
+          ("owner", `Assoc [ ("did", `String "did:plc:owner0000000000000001") ]);
+          ("memberCount", `Int 4);
+          ("memberLimit", `Int 100);
+          ("requireApproval", `Bool true);
+          ("joinRule", `String "anyone");
+          ( "viewer",
+            `Assoc [ ("requestedAt", `String "2026-01-03T00:00:00.000Z") ] );
+        ])
+  in
+  match preview with
+  | `Preview p ->
+      OUnit2.assert_equal (Some "2026-01-03T00:00:00.000Z") p.requested_at
+  | _ -> OUnit2.assert_failure "expected join preview viewer.requestedAt"
+
 let test_list_convos_auth_skipped _ =
   skip_if
     (not Auth.has_live_credentials)
@@ -619,6 +907,12 @@ let suite =
          "test_moderation_parsers" >:: test_moderation_parsers;
          "test_subscribe_mod_events" >:: test_subscribe_mod_events;
          "test_group_join_parsers" >:: test_group_join_parsers;
+         "test_parse_system_messages_and_members"
+         >:: test_parse_system_messages_and_members;
+         "test_parse_group_convo_leftover_fields"
+         >:: test_parse_group_convo_leftover_fields;
+         "test_parse_log_and_convo_requests"
+         >:: test_parse_log_and_convo_requests;
          "test_list_convos_auth_skipped" >:: test_list_convos_auth_skipped;
        ]
 

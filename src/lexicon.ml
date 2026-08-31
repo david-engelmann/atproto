@@ -453,6 +453,21 @@ module Lexicon = struct
   let official_get_messages =
     {|{"lexicon":1,"id":"chat.bsky.convo.getMessages","defs":{"main":{"type":"query","description":"Returns a page of messages from a conversation.","parameters":{"type":"params","required":["convoId"],"properties":{"convoId":{"type":"string"}}},"output":{"encoding":"application/json","schema":{"type":"object","required":["messages"],"properties":{"messages":{"type":"array"},"relatedProfiles":{"type":"array"}}}}}}}|}
 
+  let official_convo_system_messages =
+    {|{"lexicon":1,"id":"chat.bsky.convo.defs","defs":{"systemMessageReferredUser":{"type":"object","required":["did"],"properties":{"did":{"type":"string"}}},"systemMessageDataAddMember":{"type":"object","required":["member","role","addedBy"],"properties":{"member":{"type":"ref"},"role":{"type":"ref"},"addedBy":{"type":"ref"}}},"systemMessageDataRemoveMember":{"type":"object","required":["member","removedBy"],"properties":{"member":{"type":"ref"},"removedBy":{"type":"ref"}}},"systemMessageDataUnlockConvo":{"type":"object","required":["unlockedBy"],"properties":{"unlockedBy":{"type":"ref"}}},"groupConvo":{"type":"object","required":["createdAt","lockStatus","memberCount","memberLimit","name"],"properties":{"createdAt":{"type":"string"},"joinLink":{"type":"ref"},"joinRequestCount":{"type":"integer"},"memberLimit":{"type":"integer"}}}}}|}
+
+  let official_chat_actor_member =
+    {|{"lexicon":1,"id":"chat.bsky.actor.defs","defs":{"groupConvoMember":{"type":"object","required":["role"],"properties":{"addedBy":{"type":"ref","ref":"#profileViewBasic"},"role":{"type":"ref","ref":"#memberRole"}}},"profileViewBasic":{"type":"object","required":["did","handle"],"properties":{"chatDisabled":{"type":"boolean"},"kind":{"type":"union","refs":["#directConvoMember","#groupConvoMember","#pastGroupConvoMember"]}}}}}|}
+
+  let official_list_convo_requests =
+    {|{"lexicon":1,"id":"chat.bsky.convo.listConvoRequests","defs":{"main":{"type":"query","description":"Returns incoming conversation requests. Direct convo requests are convoView; group join requests made by the user are joinRequestConvoView.","output":{"encoding":"application/json","schema":{"type":"object","required":["requests"],"properties":{"requests":{"type":"array"}}}}}}}|}
+
+  let official_join_request_convo =
+    {|{"lexicon":1,"id":"chat.bsky.group.defs","defs":{"joinRequestConvoView":{"type":"object","required":["convoId","name","owner","memberCount","memberLimit","viewer"],"properties":{"convoId":{"type":"string"},"name":{"type":"string"},"owner":{"type":"ref"},"memberCount":{"type":"integer"},"memberLimit":{"type":"integer"},"viewer":{"type":"ref","ref":"#joinLinkViewerState"}}},"joinLinkViewerState":{"type":"object","properties":{"requestedAt":{"type":"string"}}}}}|}
+
+  let official_ageassurance_event =
+    {|{"lexicon":1,"id":"app.bsky.ageassurance.defs","defs":{"event":{"type":"object","required":["createdAt","status","access","attemptId","countryCode"],"properties":{"initIp":{"type":"string"},"initUa":{"type":"string"},"completeIp":{"type":"string"},"completeUa":{"type":"string"}}}}}|}
+
   let official_lexicons : (string * string) list =
     [
       ("app.bsky.graph.listitem", official_listitem);
@@ -497,6 +512,11 @@ module Lexicon = struct
       ("com.atproto.server.checkAccountStatus", official_check_account_status);
       ("com.atproto.label.defs", official_label_value_definition);
       ("chat.bsky.convo.getMessages", official_get_messages);
+      ("chat.bsky.convo.defs", official_convo_system_messages);
+      ("chat.bsky.actor.defs", official_chat_actor_member);
+      ("chat.bsky.convo.listConvoRequests", official_list_convo_requests);
+      ("chat.bsky.group.defs", official_join_request_convo);
+      ("app.bsky.ageassurance.defs", official_ageassurance_event);
     ]
 
   let official_documents () : document list =

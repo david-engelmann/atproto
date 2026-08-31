@@ -15,13 +15,53 @@ module Chat = struct
 
   let proxy_headers ?(proxy = default_proxy) () = [ Xrpc.proxy_header proxy ]
 
+  let ends_with suffix s =
+    let n = String.length s and m = String.length suffix in
+    n >= m && String.sub s (n - m) m = suffix
+
+  type member_kind = [ `Direct | `Group | `Past | `Unknown of string ]
+
+  (* chat.bsky.actor.defs#profileViewBasic + #groupConvoMember extras. *)
   type member = {
     did : string;
     handle : string option;
     display_name : string option;
+    chat_disabled : bool option;
+    role : string option;
+    added_by : member option;
+    kind : member_kind option;
   }
 
+  let empty_member =
+    {
+      did = "";
+      handle = None;
+      display_name = None;
+      chat_disabled = None;
+      role = None;
+      added_by = None;
+      kind = None;
+    }
+
   type reaction = { value : string; sender_did : string; created_at : string }
+
+  (* chat.bsky.convo.defs#systemMessageReferredUser *)
+  type referred_user = { did : string }
+
+  type system_message_data =
+    [ `Add_member of referred_user * string * referred_user
+    | `Remove_member of referred_user * referred_user
+    | `Member_join of referred_user * string * referred_user option
+    | `Member_leave of referred_user
+    | `Lock of referred_user
+    | `Unlock of referred_user
+    | `Lock_permanently of referred_user
+    | `Edit_group of string option * string option
+    | `Create_join_link
+    | `Edit_join_link
+    | `Enable_join_link
+    | `Disable_join_link
+    | `Unknown of Yojson.Safe.t ]
 
   type message = {
     id : string;
@@ -30,6 +70,8 @@ module Chat = struct
     sender_did : string option;
     sent_at : string;
     deleted : bool;
+    is_system : bool;
+    system : system_message_data option;
     facets : Facet.facet list;
     reactions : reaction list;
     embed : Embed.embed option;
@@ -38,6 +80,16 @@ module Chat = struct
   }
 
   type last_reaction = { message : message; reaction : reaction }
+
+  (* chat.bsky.group.defs#joinLinkView — also used on #groupConvo.joinLink. *)
+  type join_link = {
+    code : string;
+    enabled_status : string;
+    require_approval : bool;
+    join_rule : string;
+    created_at : string;
+    original : Yojson.Safe.t;
+  }
 
   type convo = {
     id : string;
@@ -52,6 +104,10 @@ module Chat = struct
     lock_status : string option;
     lock_status_moderation_override : bool option;
     member_count : int option;
+    member_limit : int option;
+    join_request_count : int option;
+    created_at : string option;
+    join_link : join_link option;
     group_name : string option;
     original : Yojson.Safe.t;
   }
@@ -64,12 +120,93 @@ module Chat = struct
     related_profiles : member list;
   }
 
-  let parse_member json : member =
+  let rec parse_member json : member =
+    let kind_json =
+      match Yojson.Safe.Util.member "kind" json with
+      | `Assoc _ as k -> Some k
+      | _ -> None
+    in
+    let kind_src = match kind_json with Some k -> k | None -> json in
+    let kind =
+      match kind_json with
+      | None -> None
+      | Some k ->
+          let ty = Option.value ~default:"" (Client.string_opt k "$type") in
+          if ends_with "pastGroupConvoMember" ty then Some `Past
+          else if ends_with "groupConvoMember" ty then Some `Group
+          else if ends_with "directConvoMember" ty then Some `Direct
+          else if ty = "" then None
+          else Some (`Unknown ty)
+    in
     {
       did = Client.string_member json "did";
       handle = Client.string_opt json "handle";
       display_name = Client.string_opt json "displayName";
+      chat_disabled = Client.bool_opt json "chatDisabled";
+      role = Client.string_opt kind_src "role";
+      added_by =
+        (match Yojson.Safe.Util.member "addedBy" kind_src with
+        | `Assoc _ as m -> Some (parse_member m)
+        | _ -> None);
+      kind;
     }
+
+  let parse_join_link json : join_link =
+    {
+      code = Client.string_member json "code";
+      enabled_status = Client.string_member json "enabledStatus";
+      require_approval = Client.bool_member json "requireApproval";
+      join_rule = Client.string_member json "joinRule";
+      created_at = Client.string_member json "createdAt";
+      original = json;
+    }
+
+  let parse_referred_user json : referred_user =
+    { did = Client.string_member json "did" }
+
+  let referred_opt json field =
+    match Yojson.Safe.Util.member field json with
+    | `Assoc _ as u -> Some (parse_referred_user u)
+    | _ -> None
+
+  let referred_req json field =
+    match Yojson.Safe.Util.member field json with
+    | `Assoc _ as u -> parse_referred_user u
+    | _ -> { did = Client.string_member json field }
+
+  let parse_system_data json : system_message_data =
+    let ty = Option.value ~default:"" (Client.string_opt json "$type") in
+    if ends_with "systemMessageDataAddMember" ty then
+      `Add_member
+        ( referred_req json "member",
+          Client.string_member json "role",
+          referred_req json "addedBy" )
+    else if ends_with "systemMessageDataRemoveMember" ty then
+      `Remove_member (referred_req json "member", referred_req json "removedBy")
+    else if ends_with "systemMessageDataMemberJoin" ty then
+      `Member_join
+        ( referred_req json "member",
+          Client.string_member json "role",
+          referred_opt json "approvedBy" )
+    else if ends_with "systemMessageDataMemberLeave" ty then
+      `Member_leave (referred_req json "member")
+    else if ends_with "systemMessageDataLockConvoPermanently" ty then
+      `Lock_permanently (referred_req json "lockedBy")
+    else if ends_with "systemMessageDataLockConvo" ty then
+      `Lock (referred_req json "lockedBy")
+    else if ends_with "systemMessageDataUnlockConvo" ty then
+      `Unlock (referred_req json "unlockedBy")
+    else if ends_with "systemMessageDataEditGroup" ty then
+      `Edit_group
+        (Client.string_opt json "oldName", Client.string_opt json "newName")
+    else if ends_with "systemMessageDataCreateJoinLink" ty then
+      `Create_join_link
+    else if ends_with "systemMessageDataEditJoinLink" ty then `Edit_join_link
+    else if ends_with "systemMessageDataEnableJoinLink" ty then
+      `Enable_join_link
+    else if ends_with "systemMessageDataDisableJoinLink" ty then
+      `Disable_join_link
+    else `Unknown json
 
   let parse_reaction json : reaction =
     let sender_did =
@@ -97,11 +234,19 @@ module Chat = struct
 
   let parse_message json : message =
     let ty = Client.string_opt json "$type" in
-    let deleted =
+    let is_system =
       match ty with
-      | Some t ->
-          let n = String.length t in
-          n >= 19 && String.sub t (n - 19) 19 = "deletedMessageView"
+      | Some t -> ends_with "systemMessageView" t
+      | None -> (
+          match Yojson.Safe.Util.member "data" json with
+          | `Assoc _ -> true
+          | _ -> false)
+    in
+    let deleted =
+      (not is_system)
+      &&
+      match ty with
+      | Some t -> ends_with "deletedMessageView" t
       | None ->
           Client.string_member json "text" = ""
           && Client.string_member json "id" <> ""
@@ -118,6 +263,11 @@ module Chat = struct
       sender_did;
       sent_at = Client.string_member json "sentAt";
       deleted;
+      is_system;
+      system =
+        (match Yojson.Safe.Util.member "data" json with
+        | `Assoc _ as d -> Some (parse_system_data d)
+        | _ -> None);
       facets = parse_message_facets json;
       reactions = List.map parse_reaction (Client.list_member json "reactions");
       embed = Embed.parse_embed_option json;
@@ -176,6 +326,23 @@ module Chat = struct
         (match kind with
         | `Assoc _ -> Client.int_opt kind "memberCount"
         | _ -> Client.int_opt json "memberCount");
+      member_limit =
+        (match kind with
+        | `Assoc _ -> Client.int_opt kind "memberLimit"
+        | _ -> Client.int_opt json "memberLimit");
+      join_request_count =
+        (match kind with
+        | `Assoc _ -> Client.int_opt kind "joinRequestCount"
+        | _ -> Client.int_opt json "joinRequestCount");
+      created_at =
+        (match kind with
+        | `Assoc _ -> Client.string_opt kind "createdAt"
+        | _ -> Client.string_opt json "createdAt");
+      join_link =
+        (let src = match kind with `Assoc _ -> kind | _ -> json in
+         match Yojson.Safe.Util.member "joinLink" src with
+         | `Assoc _ as j -> Some (parse_join_link j)
+         | _ -> None);
       group_name =
         (match kind with
         | `Assoc _ -> Client.string_opt kind "name"
@@ -326,6 +493,10 @@ module Chat = struct
     type_ : string;
     convo_id : string option;
     rev : string option;
+    message : message option;
+    related_profiles : member list;
+    member : member option;
+    reaction : reaction option;
     original : Yojson.Safe.t;
   }
 
@@ -360,6 +531,20 @@ module Chat = struct
       type_ = Client.string_member json "$type";
       convo_id = Client.string_opt json "convoId";
       rev = Client.string_opt json "rev";
+      message =
+        (match Yojson.Safe.Util.member "message" json with
+        | `Assoc _ as m -> Some (parse_message m)
+        | _ -> None);
+      related_profiles =
+        List.map parse_member (Client.list_member json "relatedProfiles");
+      member =
+        (match Yojson.Safe.Util.member "member" json with
+        | `Assoc _ as m -> Some (parse_member m)
+        | _ -> None);
+      reaction =
+        (match Yojson.Safe.Util.member "reaction" json with
+        | `Assoc _ as r -> Some (parse_reaction r)
+        | _ -> None);
       original = json;
     }
 
@@ -377,14 +562,72 @@ module Chat = struct
 
   let parse_accept json : accept_result = { rev = Client.string_opt json "rev" }
 
+  (* chat.bsky.group.defs#joinRequestConvoView — requester's view in listConvoRequests. *)
+  type join_request_convo = {
+    convo_id : string;
+    name : string;
+    owner : member;
+    member_count : int;
+    member_limit : int;
+    requested_at : string option;
+    original : Yojson.Safe.t;
+  }
+
+  type convo_request =
+    [ `Convo of convo
+    | `Join_request of join_request_convo
+    | `Unknown of Yojson.Safe.t ]
+
+  type convo_requests = {
+    cursor : string option;
+    requests : convo_request list;
+  }
+
+  let parse_join_request_convo json : join_request_convo =
+    {
+      convo_id = Client.string_member json "convoId";
+      name = Client.string_member json "name";
+      owner =
+        (match Yojson.Safe.Util.member "owner" json with
+        | `Assoc _ as o -> parse_member o
+        | _ -> empty_member);
+      member_count = Client.int_member json "memberCount";
+      member_limit = Client.int_member json "memberLimit";
+      requested_at =
+        (match Yojson.Safe.Util.member "viewer" json with
+        | `Assoc _ as v -> Client.string_opt v "requestedAt"
+        | _ -> None);
+      original = json;
+    }
+
+  let parse_convo_request json : convo_request =
+    let ty = Option.value ~default:"" (Client.string_opt json "$type") in
+    if
+      ends_with "joinRequestConvoView" ty
+      || Client.string_member json "convoId" <> ""
+         && Client.string_member json "id" = ""
+    then `Join_request (parse_join_request_convo json)
+    else if Client.string_member json "id" <> "" || ends_with "convoView" ty
+    then `Convo (parse_convo json)
+    else `Unknown json
+
+  let parse_convo_requests json : convo_requests =
+    {
+      cursor = Client.string_opt json "cursor";
+      requests =
+        List.map parse_convo_request
+          (match Yojson.Safe.Util.member "requests" json with
+          | `List xs -> xs
+          | _ -> Client.list_member json "convos");
+    }
+
   let parse_requests json : convos =
     {
       cursor = Client.string_opt json "cursor";
       convos =
-        List.map parse_convo
-          (match Yojson.Safe.Util.member "requests" json with
-          | `List xs -> xs
-          | _ -> Client.list_member json "convos");
+        List.filter_map
+          (function `Convo c -> Some c | _ -> None)
+          (parse_convo_requests json).requests;
     }
 
   let accept_convo (s : Session.session) ?proxy ~convo_id () : accept_result =
@@ -455,11 +698,11 @@ module Chat = struct
     |> parse_unread_counts
 
   let list_convo_requests (s : Session.session) ?proxy ?limit ?cursor () :
-      convos =
+      convo_requests =
     Client.get_json ~session:s ~extra:(proxy_headers ?proxy ())
       "chat.bsky.convo.listConvoRequests"
       (Client.opt_int "limit" limit @ Client.opt_pair "cursor" cursor)
-    |> parse_requests
+    |> parse_convo_requests
 
   let send_message_batch (s : Session.session) ?proxy ~items () : message list =
     let payload =
@@ -553,15 +796,6 @@ module Chat = struct
 
   type members_page = { cursor : string option; members : member list }
 
-  type join_link = {
-    code : string;
-    enabled_status : string;
-    require_approval : bool;
-    join_rule : string;
-    created_at : string;
-    original : Yojson.Safe.t;
-  }
-
   type join_request = {
     convo_id : string;
     requested_by : member;
@@ -579,6 +813,7 @@ module Chat = struct
     member_limit : int;
     require_approval : bool;
     join_rule : string;
+    requested_at : string option;
     convo : convo option;
   }
 
@@ -596,16 +831,6 @@ module Chat = struct
       members = List.map parse_member (Client.list_member json "members");
     }
 
-  let parse_join_link json : join_link =
-    {
-      code = Client.string_member json "code";
-      enabled_status = Client.string_member json "enabledStatus";
-      require_approval = Client.bool_member json "requireApproval";
-      join_rule = Client.string_member json "joinRule";
-      created_at = Client.string_member json "createdAt";
-      original = json;
-    }
-
   let unwrap_join_link json : join_link =
     match Yojson.Safe.Util.member "joinLink" json with
     | `Assoc _ as j -> parse_join_link j
@@ -618,11 +843,7 @@ module Chat = struct
         (match Yojson.Safe.Util.member "requestedBy" json with
         | `Assoc _ as m -> parse_member m
         | _ ->
-            {
-              did = Client.string_member json "requestedBy";
-              handle = None;
-              display_name = None;
-            });
+            { empty_member with did = Client.string_member json "requestedBy" });
       requested_at = Client.string_member json "requestedAt";
     }
 
@@ -655,11 +876,15 @@ module Chat = struct
           owner =
             (match Yojson.Safe.Util.member "owner" json with
             | `Assoc _ as o -> parse_member o
-            | _ -> { did = ""; handle = None; display_name = None });
+            | _ -> empty_member);
           member_count = Client.int_member json "memberCount";
           member_limit = Client.int_member json "memberLimit";
           require_approval = Client.bool_member json "requireApproval";
           join_rule = Client.string_member json "joinRule";
+          requested_at =
+            (match Yojson.Safe.Util.member "viewer" json with
+            | `Assoc _ as v -> Client.string_opt v "requestedAt"
+            | _ -> None);
           convo =
             (match Yojson.Safe.Util.member "convo" json with
             | `Assoc _ as c -> Some (parse_convo c)

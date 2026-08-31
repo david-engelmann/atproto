@@ -41,6 +41,10 @@ module Ageassurance = struct
     country_code : string;
     region_code : string option;
     email : string option;
+    init_ip : string option;
+    init_ua : string option;
+    complete_ip : string option;
+    complete_ua : string option;
     original : Yojson.Safe.t;
   }
 
@@ -119,6 +123,10 @@ module Ageassurance = struct
       country_code = Client.string_member json "countryCode";
       region_code = Client.string_opt json "regionCode";
       email = Client.string_opt json "email";
+      init_ip = Client.string_opt json "initIp";
+      init_ua = Client.string_opt json "initUa";
+      complete_ip = Client.string_opt json "completeIp";
+      complete_ua = Client.string_opt json "completeUa";
       original = json;
     }
 
