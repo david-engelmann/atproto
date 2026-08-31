@@ -225,7 +225,10 @@ let () =
           ( "root",
             `Assoc
               [
-                ("uri", `String "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/r");
+                ( "uri",
+                  `String
+                    "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/r"
+                );
                 ("cid", `String "bafyreiroot");
                 ( "author",
                   `Assoc
@@ -239,7 +242,10 @@ let () =
           ( "parent",
             `Assoc
               [
-                ("uri", `String "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/p");
+                ( "uri",
+                  `String
+                    "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/p"
+                );
                 ("cid", `String "bafyreiparent");
                 ( "author",
                   `Assoc
@@ -279,7 +285,8 @@ let () =
   assert (status.repo_rev = Some "3jzfcijpj2z2a");
   let invites =
     Server.create_invite_codes_body ~code_count:1 ~use_count:1
-      ~for_accounts:[ "did:plc:abc123xyz0001112223333" ] ()
+      ~for_accounts:[ "did:plc:abc123xyz0001112223333" ]
+      ()
   in
   assert (
     match Yojson.Safe.Util.member "codeCount" invites with

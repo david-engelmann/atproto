@@ -23,7 +23,6 @@ module Embed = struct
   }
 
   type strong_ref = { uri : string; cid : string }
-
   type color_rgb = { r : int; g : int; b : int }
 
   type ext_view_source_theme = {
@@ -297,8 +296,7 @@ module Embed = struct
             icon = string_opt json "icon";
             description = string_opt json "description";
             theme =
-              parse_ext_view_source_theme
-                (Yojson.Safe.Util.member "theme" json);
+              parse_ext_view_source_theme (Yojson.Safe.Util.member "theme" json);
           }
     | _ -> None
 
@@ -315,7 +313,13 @@ module Embed = struct
     let thumb = json |> member "thumb" |> parse_thumb in
     let title = string_member json "title" in
     let description = string_member json "description" in
-    { uri; thumb; title; description; associated_refs = parse_strong_ref_list json }
+    {
+      uri;
+      thumb;
+      title;
+      description;
+      associated_refs = parse_strong_ref_list json;
+    }
 
   let parse_ext_view json : ext_view =
     {
@@ -326,7 +330,8 @@ module Embed = struct
       created_at = string_opt json "createdAt";
       updated_at = string_opt json "updatedAt";
       reading_time = int_opt json "readingTime";
-      labels = Label.Label.parse_label_values (Yojson.Safe.Util.member "labels" json);
+      labels =
+        Label.Label.parse_label_values (Yojson.Safe.Util.member "labels" json);
       associated_refs = parse_strong_ref_list json;
       associated_profiles =
         (match Yojson.Safe.Util.member "associatedProfiles" json with
@@ -769,10 +774,7 @@ module Embed = struct
           match e.ext.associated_refs with
           | [] -> []
           | refs ->
-              [
-                ( "associatedRefs",
-                  `List (List.map strong_ref_to_json refs) );
-              ]
+              [ ("associatedRefs", `List (List.map strong_ref_to_json refs)) ]
         in
         `Assoc
           [

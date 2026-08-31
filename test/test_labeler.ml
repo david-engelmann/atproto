@@ -71,12 +71,12 @@ let test_parse_services _ =
   OUnit2.assert_equal (Some official_labeler) (List.hd svcs.views).creator_did;
   OUnit2.assert_bool "policies"
     (match (List.hd svcs.views).policies with
-    | Some p ->
+    | Some p -> (
         List.mem "spam" p.label_values
         &&
         match p.label_value_definitions with
         | def :: _ -> def.identifier = "spam" && def.severity = "inform"
-        | [] -> false
+        | [] -> false)
     | None -> false)
 
 let test_get_services_live _ =

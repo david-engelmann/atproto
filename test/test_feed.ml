@@ -584,8 +584,7 @@ let test_get_author_feed_page_live _ =
             ~filter:"posts_no_replies" ~include_pins:true ()
         in
         OUnit2.assert_bool "author feed page" (List.length page.feed >= 0))
-  with exn ->
-    skip_if true ("getAuthorFeed skipped: " ^ Printexc.to_string exn)
+  with exn -> skip_if true ("getAuthorFeed skipped: " ^ Printexc.to_string exn)
 
 let suite =
   "suite"

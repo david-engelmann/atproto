@@ -188,12 +188,14 @@ let test_email_and_account_bodies _ =
   OUnit2.assert_equal (`Assoc []) empty;
   let invites =
     Server.create_invite_codes_body ~code_count:2 ~use_count:5
-      ~for_accounts:[ "did:plc:abc123xyz0001112223333" ] ()
+      ~for_accounts:[ "did:plc:abc123xyz0001112223333" ]
+      ()
   in
   OUnit2.assert_equal 2 (invites |> member "codeCount" |> to_int);
   match invites |> member "forAccounts" with
   | `List [ `String did ] ->
-      OUnit2.assert_equal ~printer:(fun x -> x)
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
         "did:plc:abc123xyz0001112223333" did
   | _ -> OUnit2.assert_failure "expected forAccounts"
 

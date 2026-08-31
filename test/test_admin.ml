@@ -71,8 +71,9 @@ let test_parse_account_info _ =
   OUnit2.assert_equal (Some "friend") info.invite_note;
   OUnit2.assert_equal (Some "bsky-invite-9") info.invited_by_code;
   OUnit2.assert_equal 1 (List.length info.threat_signatures);
-  OUnit2.assert_equal ~printer:(fun x -> x) "ip"
-    (List.hd info.threat_signatures).property
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "ip" (List.hd info.threat_signatures).property
 
 let test_invite_codes_and_admin_bodies _ =
   let codes =

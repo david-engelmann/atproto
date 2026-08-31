@@ -128,12 +128,15 @@ module Chat = struct
   let parse_last_reaction json : last_reaction option =
     match json with
     | `Assoc _ -> (
-        match
-          ( Yojson.Safe.Util.member "message" json,
-            Yojson.Safe.Util.member "reaction" json )
-        with
-        | `Assoc _ as m, `Assoc _ as r ->
-            Some { message = parse_message m; reaction = parse_reaction r }
+        let message = Yojson.Safe.Util.member "message" json in
+        let reaction = Yojson.Safe.Util.member "reaction" json in
+        match (message, reaction) with
+        | `Assoc _, `Assoc _ ->
+            Some
+              {
+                message = parse_message message;
+                reaction = parse_reaction reaction;
+              }
         | _ -> None)
     | _ -> None
 

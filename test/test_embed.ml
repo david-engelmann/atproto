@@ -399,14 +399,14 @@ let test_parse_embed_external_view _ =
   let v = Embed.parse_embed_external_view json in
   OUnit2.assert_equal 1 (List.length v.associated_refs);
   match v.view with
-  | Some e ->
+  | Some e -> (
       OUnit2.assert_equal ~printer:(fun x -> x) "https://atproto.com" e.ext.uri;
       OUnit2.assert_equal (Some 8) e.ext.reading_time;
       OUnit2.assert_equal 1 (List.length e.ext.associated_profiles);
-      (match e.ext.source with
-      | Some s ->
+      match e.ext.source with
+      | Some s -> (
           OUnit2.assert_equal ~printer:(fun x -> x) "Standard" s.title;
-          (match s.theme with
+          match s.theme with
           | Some t -> (
               match t.background_rgb with
               | Some c -> OUnit2.assert_equal 10 c.r
@@ -446,8 +446,8 @@ let test_parse_external_associated_refs _ =
                     `Assoc
                       [
                         ( "uri",
-                          `String
-                            "at://did:plc:alice/site.standard.document/1" );
+                          `String "at://did:plc:alice/site.standard.document/1"
+                        );
                         ("cid", `String "bafyreihdummy000000000000000000000");
                       ];
                   ] );
@@ -457,7 +457,8 @@ let test_parse_external_associated_refs _ =
   match Embed.parse_embed json with
   | `External e ->
       OUnit2.assert_equal 1 (List.length e.ext.associated_refs);
-      OUnit2.assert_equal ~printer:(fun x -> x)
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
         "at://did:plc:alice/site.standard.document/1"
         (List.hd e.ext.associated_refs).uri
   | _ -> OUnit2.assert_failure "expected external embed"

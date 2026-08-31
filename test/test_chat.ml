@@ -91,8 +91,12 @@ let test_parse_messages_related_profiles _ =
   let page = Chat.parse_messages json in
   OUnit2.assert_equal 1 (List.length page.messages);
   OUnit2.assert_equal 1 (List.length page.related_profiles);
-  OUnit2.assert_equal ~printer:(fun x -> x) "alice.test"
-    (List.hd page.related_profiles).handle
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "alice.test"
+    (match (List.hd page.related_profiles).handle with
+    | Some h -> h
+    | None -> "")
 
 let test_parse_group_convo_extras _ =
   let json =
@@ -141,8 +145,7 @@ let test_parse_group_convo_extras _ =
   OUnit2.assert_equal (Some 4) convo.member_count;
   OUnit2.assert_equal (Some 2) convo.unread_join_request_count;
   match convo.last_reaction with
-  | Some lr ->
-      OUnit2.assert_equal ~printer:(fun x -> x) "👍" lr.reaction.value
+  | Some lr -> OUnit2.assert_equal ~printer:(fun x -> x) "👍" lr.reaction.value
   | None -> OUnit2.assert_failure "expected lastReaction"
 
 let test_send_message_body _ =

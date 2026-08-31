@@ -208,8 +208,9 @@ let test_parse_starter_pack _ =
   OUnit2.assert_equal (Some "New folks") pack.name;
   OUnit2.assert_equal (Some 12) pack.joined_all_time_count;
   OUnit2.assert_equal 1 (List.length pack.list_items_sample);
-  OUnit2.assert_equal ~printer:(fun x -> x) "bob.test"
-    (List.hd pack.list_items_sample).subject.handle
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "bob.test" (List.hd pack.list_items_sample).subject.handle
 
 let test_parse_relationships _ =
   let json =

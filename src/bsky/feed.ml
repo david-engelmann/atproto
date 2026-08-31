@@ -99,6 +99,7 @@ module Feed = struct
     parent : reply_ref_item;
     grandparent_author : Actor.typeahead_profile option;
   }
+
   type reply_feed = { post : reply_post; reply : reply }
 
   type reason = {
