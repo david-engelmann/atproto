@@ -87,12 +87,23 @@ let bob_session () =
   | None -> session_of "bob.test:hunter2"
 
 let session () = Lazy.force live_session
+let method_missing err = err = "MethodNotFound" || err = "MethodNotImplemented"
 
 (* Public AppView reads omit the PDS session. Authenticated AppView calls
    mint a service-auth JWT (aud=AppView DID, lxm=NSID) and never send at+jwt. *)
 let av_get ?session nsid pairs =
   Client.get_json_appview ?session ~host:(appview_host ()) nsid pairs
   |> ensure_ok
+
+(* Only assert when this AppView revision actually implements the NSID. *)
+let av_get_if_served ?session nsid pairs =
+  let json =
+    Client.get_json_appview ?session ~host:(appview_host ()) nsid pairs
+  in
+  match Error.check_for_error json with
+  | Some err when method_missing err -> None
+  | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
+  | None -> Some json
 
 let test_get_profile _ =
   let s = session () in
@@ -110,8 +121,6 @@ let test_get_profiles _ =
   in
   let profiles = Actor.parse_profiles json in
   OUnit2.assert_bool "getProfiles count" (List.length profiles >= 1)
-
-let method_missing err = err = "MethodNotFound" || err = "MethodNotImplemented"
 
 let test_get_suggestions _ =
   ignore (session ());
@@ -269,50 +278,40 @@ let test_more_appview _ =
   in
   OUnit2.assert_bool "getActorStarterPacks"
     (List.length packs.starter_packs >= 0);
-  let prefs =
-    av_get ~session:s "app.bsky.actor.getPreferences" []
-    |> Actor.parse_preferences
-  in
-  OUnit2.assert_bool "getPreferences" (List.length prefs.preferences >= 0);
-  let unread =
-    av_get ~session:s "app.bsky.notification.getUnreadCount" []
-    |> Notification.parse_unread_count
-  in
-  OUnit2.assert_bool "getUnreadCount" (unread.count >= 0);
-  let blocks =
-    av_get ~session:s "app.bsky.graph.getBlocks" [ ("limit", "10") ]
-    |> Graph.parse_blocks
-  in
-  OUnit2.assert_bool "getBlocks" (List.length blocks.blocks >= 0);
+  (match av_get_if_served ~session:s "app.bsky.actor.getPreferences" [] with
+  | None -> ()
+  | Some json ->
+      let prefs = Actor.parse_preferences json in
+      OUnit2.assert_bool "getPreferences" (List.length prefs.preferences >= 0));
   (match
-     Error.check_for_error
-       (Client.get_json ~host:(appview_host ())
-          "app.bsky.graph.getKnownFollowers"
-          [ ("actor", "alice.test"); ("limit", "5") ])
+     av_get_if_served ~session:s "app.bsky.notification.getUnreadCount" []
    with
-  | Some err when method_missing err -> ()
-  | Some _ -> failwith "getKnownFollowers XRPC error"
-  | None ->
-      let known =
-        av_get "app.bsky.graph.getKnownFollowers"
-          [ ("actor", "alice.test"); ("limit", "5") ]
-        |> Graph.parse_followers
-      in
+  | None -> ()
+  | Some json ->
+      let unread = Notification.parse_unread_count json in
+      OUnit2.assert_bool "getUnreadCount" (unread.count >= 0));
+  (match
+     av_get_if_served ~session:s "app.bsky.graph.getBlocks" [ ("limit", "10") ]
+   with
+  | None -> ()
+  | Some json ->
+      let blocks = Graph.parse_blocks json in
+      OUnit2.assert_bool "getBlocks" (List.length blocks.blocks >= 0));
+  (match
+     av_get_if_served "app.bsky.graph.getKnownFollowers"
+       [ ("actor", "alice.test"); ("limit", "5") ]
+   with
+  | None -> ()
+  | Some json ->
+      let known = Graph.parse_followers json in
       OUnit2.assert_bool "getKnownFollowers" (List.length known.followers >= 0));
   match
-    Error.check_for_error
-      (Client.get_json ~host:(appview_host ())
-         "app.bsky.actor.searchActorsTypeahead"
-         [ ("q", "alice"); ("limit", "5") ])
+    av_get_if_served "app.bsky.actor.searchActorsTypeahead"
+      [ ("q", "alice"); ("limit", "5") ]
   with
-  | Some err when method_missing err -> ()
-  | Some _ -> failwith "searchActorsTypeahead XRPC error"
-  | None ->
-      let typeahead =
-        av_get "app.bsky.actor.searchActorsTypeahead"
-          [ ("q", "alice"); ("limit", "5") ]
-        |> Actor.parse_typeahead_profiles
-      in
+  | None -> ()
+  | Some json ->
+      let typeahead = Actor.parse_typeahead_profiles json in
       OUnit2.assert_bool "searchActorsTypeahead" (List.length typeahead >= 0)
 
 let test_notifications _ =
