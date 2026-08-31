@@ -276,11 +276,13 @@ module Unspecced = struct
     muted_by_viewer : bool;
   }
 
+  type thread_item_blocked = { author_did : string option }
+
   type thread_item_value =
     [ `Post of thread_item_post
     | `No_unauthenticated
     | `Not_found
-    | `Blocked of { author_did : string option }
+    | `Blocked of thread_item_blocked
     | `Unknown of Yojson.Safe.t ]
 
   type thread_item = {

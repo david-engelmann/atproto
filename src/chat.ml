@@ -850,7 +850,7 @@ module Chat = struct
     convo_created_at : string;
     convo_id : string;
     created_at : string;
-    method : string;
+    method_ : string;
     rev : string;
     group_member_count : int option;
     group_name : string option;
@@ -1001,7 +1001,7 @@ module Chat = struct
       convo_created_at = Client.string_member json "convoCreatedAt";
       convo_id = Client.string_member json "convoId";
       created_at = Client.string_member json "createdAt";
-      method = Client.string_member json "method";
+      method_ = Client.string_member json "method";
       rev = Client.string_member json "rev";
       group_member_count = Client.int_opt json "groupMemberCount";
       group_name = Client.string_opt json "groupName";
