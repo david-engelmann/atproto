@@ -29,6 +29,7 @@
   test_server
   test_session
   test_sync
+  test_tid
   test_user
   test_blob
   test_blocks
@@ -86,6 +87,7 @@
   test_server
   test_session
   test_sync
+  test_tid
   test_user
   test_blob
   test_blocks

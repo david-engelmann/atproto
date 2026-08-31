@@ -10,6 +10,8 @@ module Label = struct
     val_ : string;
     neg : bool option;
     cts : string option;
+    exp : string option;
+    ver : int option;
   }
 
   let parse_label json : label =
@@ -21,6 +23,21 @@ module Label = struct
       val_ = (match json |> member "val" with `String s -> s | _ -> "");
       neg = (match json |> member "neg" with `Bool b -> Some b | _ -> None);
       cts = (match json |> member "cts" with `String s -> Some s | _ -> None);
+      exp = (match json |> member "exp" with `String s -> Some s | _ -> None);
+      ver = (match json |> member "ver" with `Int n -> Some n | _ -> None);
+    }
+
+  type query_labels = { cursor : string option; labels : label list }
+
+  let parse_query_labels json : query_labels =
+    let open Yojson.Safe.Util in
+    {
+      cursor =
+        (match json |> member "cursor" with `String s -> Some s | _ -> None);
+      labels =
+        (match json |> member "labels" with
+        | `List items -> List.map parse_label items
+        | _ -> []);
     }
 
   let parse_label_values json : string list option =

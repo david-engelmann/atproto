@@ -204,4 +204,112 @@ module Repo = struct
         (Cohttp_client.post_data_with_headers delete_record_url data headers)
     in
     deleted_record
+
+  type write_op =
+    | Create of {
+        collection : string;
+        rkey : string option;
+        value : Yojson.Safe.t;
+      }
+    | Update of { collection : string; rkey : string; value : Yojson.Safe.t }
+    | Delete of { collection : string; rkey : string }
+
+  let write_op_to_json = function
+    | Create { collection; rkey; value } ->
+        `Assoc
+          ([
+             ("$type", `String "com.atproto.repo.applyWrites#create");
+             ("collection", `String collection);
+             ("value", value);
+           ]
+          @ match rkey with Some r -> [ ("rkey", `String r) ] | None -> [])
+    | Update { collection; rkey; value } ->
+        `Assoc
+          [
+            ("$type", `String "com.atproto.repo.applyWrites#update");
+            ("collection", `String collection);
+            ("rkey", `String rkey);
+            ("value", value);
+          ]
+    | Delete { collection; rkey } ->
+        `Assoc
+          [
+            ("$type", `String "com.atproto.repo.applyWrites#delete");
+            ("collection", `String collection);
+            ("rkey", `String rkey);
+          ]
+
+  let apply_writes_body ~repo ~writes ?(validate = true) ?swap_commit () :
+      Yojson.Safe.t =
+    let fields =
+      [
+        ("repo", `String repo);
+        ("validate", `Bool validate);
+        ("writes", `List (List.map write_op_to_json writes));
+      ]
+      @
+      match swap_commit with
+      | Some cid -> [ ("swapCommit", `String cid) ]
+      | None -> []
+    in
+    `Assoc fields
+
+  let apply_writes (s : Session.session) ~repo ~writes ?validate ?swap_commit ()
+      : string =
+    let bearer_token = Session.bearer_token_from_session s in
+    let application_json = Cohttp_client.application_json_setting_tuple in
+    let headers =
+      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
+    in
+    let base_url = App.create_base_url s in
+    let url =
+      App.create_endpoint_url base_url (create_repo_endpoint "applyWrites")
+    in
+    let data =
+      Yojson.Safe.to_string
+        (apply_writes_body ~repo ~writes ?validate ?swap_commit ())
+    in
+    Lwt_main.run (Cohttp_client.post_data_with_headers url data headers)
+
+  type blob_ref = {
+    cid : string;
+    mime_type : string;
+    size : int;
+    original : Yojson.Safe.t;
+  }
+
+  let parse_blob_ref json : blob_ref =
+    let open Yojson.Safe.Util in
+    let blob = match json |> member "blob" with `Null -> json | b -> b in
+    let cid =
+      match blob |> member "ref" with
+      | `Assoc _ as ref_ -> (
+          match ref_ |> member "$link" with `String s -> s | _ -> "")
+      | `String s -> s
+      | _ -> ( match blob |> member "cid" with `String s -> s | _ -> "")
+    in
+    {
+      cid;
+      mime_type =
+        (match blob |> member "mimeType" with `String s -> s | _ -> "");
+      size = (match blob |> member "size" with `Int n -> n | _ -> 0);
+      original = blob;
+    }
+
+  let upload_blob_url (s : Session.session) : string =
+    App.create_endpoint_url (App.create_base_url s)
+      (create_repo_endpoint "uploadBlob")
+
+  let upload_blob (s : Session.session)
+      ?(content_type = "application/octet-stream") (bytes : string) : blob_ref =
+    let bearer_token = Session.bearer_token_from_session s in
+    let headers =
+      Cohttp_client.create_headers_from_pairs
+        [ ("Content-Type", content_type); bearer_token ]
+    in
+    let url = upload_blob_url s in
+    let body =
+      Lwt_main.run (Cohttp_client.post_data_with_headers url bytes headers)
+    in
+    parse_blob_ref (Yojson.Safe.from_string body)
 end

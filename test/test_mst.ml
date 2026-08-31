@@ -1,6 +1,9 @@
 open OUnit2
 open Atproto.Cid
 open Atproto.Mst
+open Atproto.Did_key
+open Atproto.Hash
+open Atproto.K256
 
 let official_heights =
   [
@@ -263,6 +266,94 @@ let test_invert_create_mismatch _ =
        false
      with Mst.Verify_error _ -> true)
 
+let rfc6979_p256_priv =
+  Hash.hex_decode
+    "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721"
+
+let p256_pair () =
+  match Mirage_crypto_ec.P256.Dsa.priv_of_octets rfc6979_p256_priv with
+  | Error _ -> failwith "could not load RFC 6979 P-256 private key"
+  | Ok priv -> (priv, Mirage_crypto_ec.P256.Dsa.pub_of_priv priv)
+
+let p256_did_key pub =
+  Did_key.to_string
+    (Did_key.of_p256_octets
+       (Mirage_crypto_ec.P256.Dsa.pub_to_octets ~compress:true pub))
+
+let test_sign_verify_commit_p256 _ =
+  let priv, pub = p256_pair () in
+  let data = Cid.create ~codec:Cid.Raw "mst-root" in
+  let signed =
+    Mst.sign_p256 ~priv ~did:"did:plc:7iza6de2dwap2sbkpav7c6c6" ~data
+      ~rev:"3jzfcijpj2z2a" ()
+  in
+  let commit =
+    Mst.parse_repo_commit (Atproto.Dag_cbor.Dag_cbor.decode signed)
+  in
+  OUnit2.assert_equal ~printer:(fun x -> x) "3jzfcijpj2z2a" commit.rev;
+  match Mst.verify_commit_sig ~keys:[ p256_did_key pub ] commit with
+  | `Valid -> ()
+  | other ->
+      OUnit2.assert_failure
+        (match other with
+        | `Invalid -> "p256 commit sig invalid"
+        | `Missing -> "p256 commit sig missing"
+        | `Unsupported_curve c -> "unsupported " ^ c
+        | `Valid -> "valid")
+
+let test_sign_verify_commit_k256 _ =
+  match K256.priv_of_octets (Hash.hex_decode (String.make 63 '0' ^ "3")) with
+  | Error _ -> OUnit2.assert_failure "k256 priv rejected"
+  | Ok priv -> (
+      let pub = K256.pub_of_priv priv in
+      let data = Cid.create ~codec:Cid.Raw "mst-root-k" in
+      let signed =
+        Mst.sign_k256 ~priv ~did:"did:plc:7iza6de2dwap2sbkpav7c6c6" ~data
+          ~rev:"3jzfcijpj2z2a" ()
+      in
+      let commit =
+        Mst.parse_repo_commit (Atproto.Dag_cbor.Dag_cbor.decode signed)
+      in
+      let key =
+        Did_key.to_string
+          (Did_key.of_k256_octets (K256.pub_to_octets ~compress:true pub))
+      in
+      match Mst.verify_commit_sig ~keys:[ key ] commit with
+      | `Valid -> ()
+      | _ -> OUnit2.assert_failure "k256 commit sig invalid")
+
+let test_commit_sig_wrong_key_and_missing _ =
+  let priv, pub = p256_pair () in
+  let data = Cid.create ~codec:Cid.Raw "mst-root" in
+  let unsigned =
+    Mst.unsigned_repo_commit ~did:"did:plc:7iza6de2dwap2sbkpav7c6c6" ~data
+      ~rev:"3jzfcijpj2z2a" ()
+  in
+  let unsigned_c =
+    Mst.parse_repo_commit (Atproto.Dag_cbor.Dag_cbor.decode unsigned)
+  in
+  (match Mst.verify_commit_sig ~keys:[ p256_did_key pub ] unsigned_c with
+  | `Missing -> ()
+  | _ -> OUnit2.assert_failure "unsigned commit should be Missing");
+  let signed =
+    Mst.sign_p256 ~priv ~did:"did:plc:7iza6de2dwap2sbkpav7c6c6" ~data
+      ~rev:"3jzfcijpj2z2a" ()
+  in
+  let commit =
+    Mst.parse_repo_commit (Atproto.Dag_cbor.Dag_cbor.decode signed)
+  in
+  match K256.priv_of_octets (String.make 31 '\x00' ^ "\x01") with
+  | Error _ -> OUnit2.assert_failure "k256 priv=1 rejected"
+  | Ok kpriv -> (
+      let kpub = K256.pub_of_priv kpriv in
+      let wrong =
+        Did_key.to_string
+          (Did_key.of_k256_octets (K256.pub_to_octets ~compress:true kpub))
+      in
+      match Mst.verify_commit_sig ~keys:[ wrong ] commit with
+      | `Invalid -> ()
+      | _ -> OUnit2.assert_failure "wrong-key commit should be Invalid")
+
 let test_cid_mismatch _ =
   let v = Cid.create ~codec:Cid.Raw "x" in
   let node =
@@ -293,6 +384,10 @@ let suite =
          "test_insert_replace_returns_prev" >:: test_insert_replace_returns_prev;
          "test_invert_create_update_delete" >:: test_invert_create_update_delete;
          "test_invert_create_mismatch" >:: test_invert_create_mismatch;
+         "test_sign_verify_commit_p256" >:: test_sign_verify_commit_p256;
+         "test_sign_verify_commit_k256" >:: test_sign_verify_commit_k256;
+         "test_commit_sig_wrong_key_and_missing"
+         >:: test_commit_sig_wrong_key_and_missing;
          "test_cid_mismatch" >:: test_cid_mismatch;
        ]
 

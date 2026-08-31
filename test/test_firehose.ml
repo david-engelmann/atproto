@@ -34,6 +34,58 @@ let test_decode_identity_frame _ =
       OUnit2.assert_equal (Some "alice.test") ev.handle
   | _ -> OUnit2.assert_failure "expected #identity frame"
 
+let test_decode_sync_account_info _ =
+  let cid = Cid.of_digest (String.make 32 '\x09') in
+  let empty_car = Car.encode { Car.roots = [ cid ]; blocks = [] } in
+  let sync_header = Firehose.encode_header { op = 1; t = Some "#sync" } in
+  let sync_body =
+    Dag_cbor.encode
+      (Dag_cbor.Map
+         [
+           ("seq", Dag_cbor.Int 3);
+           ("did", Dag_cbor.Text "did:plc:7iza6de2dwap2sbkpav7c6c6");
+           ("blocks", Dag_cbor.Bytes empty_car);
+           ("rev", Dag_cbor.Text "3jzfcijpj2z2a");
+           ("time", Dag_cbor.Text "2024-01-01T00:00:00.000Z");
+         ])
+  in
+  (match Firehose.decode_frame (sync_header ^ sync_body) with
+  | _, `Sync ev ->
+      OUnit2.assert_equal ~printer:Int64.to_string 3L ev.seq;
+      OUnit2.assert_equal ~printer:(fun x -> x) "3jzfcijpj2z2a" ev.rev
+  | _ -> OUnit2.assert_failure "expected #sync frame");
+  let acct_header = Firehose.encode_header { op = 1; t = Some "#account" } in
+  let acct_body =
+    Dag_cbor.encode
+      (Dag_cbor.Map
+         [
+           ("seq", Dag_cbor.Int 4);
+           ("did", Dag_cbor.Text "did:plc:7iza6de2dwap2sbkpav7c6c6");
+           ("time", Dag_cbor.Text "2024-01-01T00:00:00.000Z");
+           ("active", Dag_cbor.Bool false);
+           ("status", Dag_cbor.Text "takendown");
+         ])
+  in
+  (match Firehose.decode_frame (acct_header ^ acct_body) with
+  | _, `Account ev ->
+      OUnit2.assert_equal false ev.active;
+      OUnit2.assert_equal (Some "takendown") ev.status
+  | _ -> OUnit2.assert_failure "expected #account frame");
+  let info_header = Firehose.encode_header { op = 1; t = Some "#info" } in
+  let info_body =
+    Dag_cbor.encode
+      (Dag_cbor.Map
+         [
+           ("name", Dag_cbor.Text "OutdatedCursor");
+           ("message", Dag_cbor.Text "cursor is too old");
+         ])
+  in
+  match Firehose.decode_frame (info_header ^ info_body) with
+  | _, `Info ev ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "OutdatedCursor" ev.name;
+      OUnit2.assert_equal (Some "cursor is too old") ev.message
+  | _ -> OUnit2.assert_failure "expected #info frame"
+
 let test_decode_error_frame _ =
   let header = Firehose.encode_header { op = -1; t = None } in
   let body =
@@ -322,6 +374,7 @@ let suite =
   >::: [
          "test_subscribe_url" >:: test_subscribe_url;
          "test_decode_identity_frame" >:: test_decode_identity_frame;
+         "test_decode_sync_account_info" >:: test_decode_sync_account_info;
          "test_decode_error_frame" >:: test_decode_error_frame;
          "test_decode_commit_ops" >:: test_decode_commit_ops;
          "test_decode_update_and_delete_ops"

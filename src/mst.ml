@@ -2,6 +2,8 @@ open Cid
 open Dag_cbor
 open Hash
 
+let ensure_rng = lazy (Mirage_crypto_rng_unix.use_default ())
+
 (** Merkle Search Tree used by AT Protocol repositories (fanout 4). *)
 module Mst = struct
   type entry = {
@@ -250,6 +252,89 @@ module Mst = struct
       @ match sig_ with Some b -> [ ("sig", Dag_cbor.Bytes b) ] | None -> []
     in
     Dag_cbor.encode (Dag_cbor.Map fields)
+
+  let unsigned_repo_commit ?(version = 3) ~did ~data ~rev ?prev () : string =
+    encode_repo_commit ~version ~did ~data ~rev ?prev ()
+
+  type sig_status =
+    [ `Valid | `Invalid | `Unsupported_curve of string | `Missing ]
+
+  let sign_p256 ~(priv : Mirage_crypto_ec.P256.Dsa.priv) ?(version = 3) ~did
+      ~data ~rev ?prev () : string =
+    Lazy.force ensure_rng;
+    let unsigned = unsigned_repo_commit ~version ~did ~data ~rev ?prev () in
+    let digest = Hash.sha256 unsigned in
+    let r, s = Mirage_crypto_ec.P256.Dsa.sign ~key:priv digest in
+    let s =
+      if String.compare s Did_plc.Did_plc.p256_n_half > 0 then
+        Did_plc.Did_plc.sub_be Did_plc.Did_plc.p256_n s
+      else s
+    in
+    encode_repo_commit ~version ~did ~data ~rev ?prev ~sig_:(r ^ s) ()
+
+  let sign_k256 ~(priv : K256.K256.priv) ?(version = 3) ~did ~data ~rev ?prev ()
+      : string =
+    let unsigned = unsigned_repo_commit ~version ~did ~data ~rev ?prev () in
+    let digest = Hash.sha256 unsigned in
+    let r, s = K256.K256.sign ~key:priv digest in
+    encode_repo_commit ~version ~did ~data ~rev ?prev ~sig_:(r ^ s) ()
+
+  let verify_commit_sig ~(keys : string list) (c : repo_commit) : sig_status =
+    match c.sig_ with
+    | None -> `Missing
+    | Some raw ->
+        if String.length raw <> 64 then `Invalid
+        else
+          let r = String.sub raw 0 32 in
+          let s = String.sub raw 32 32 in
+          let digest =
+            Hash.sha256
+              (unsigned_repo_commit ~version:c.version ~did:c.did ~data:c.data
+                 ~rev:c.rev ?prev:c.prev ())
+          in
+          let parsed =
+            List.filter_map
+              (fun k -> try Some (Did_key.Did_key.of_string k) with _ -> None)
+              keys
+          in
+          let rec try_keys = function
+            | [] -> (
+                let other =
+                  List.find_map
+                    (fun k ->
+                      match k.Did_key.Did_key.curve with
+                      | Did_key.Did_key.Other n ->
+                          Some (Printf.sprintf "0x%x" n)
+                      | _ -> None)
+                    parsed
+                in
+                match other with
+                | Some curve -> `Unsupported_curve curve
+                | None -> `Invalid)
+            | k :: rest -> (
+                match k.Did_key.Did_key.curve with
+                | Did_key.Did_key.P256 -> (
+                    match Did_key.Did_key.p256_pub k with
+                    | Some pub ->
+                        if
+                          Did_plc.Did_plc.is_low_s s
+                          && Mirage_crypto_ec.P256.Dsa.verify ~key:pub (r, s)
+                               digest
+                        then `Valid
+                        else try_keys rest
+                    | None -> try_keys rest)
+                | Did_key.Did_key.K256 -> (
+                    match Did_key.Did_key.k256_pub k with
+                    | Some pub ->
+                        if
+                          K256.K256.is_low_s s
+                          && K256.K256.verify ~key:pub (r, s) digest
+                        then `Valid
+                        else try_keys rest
+                    | None -> try_keys rest)
+                | Did_key.Did_key.Other _ -> try_keys rest)
+          in
+          try_keys parsed
 
   type record_op = {
     action : string;
