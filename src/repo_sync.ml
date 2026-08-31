@@ -60,7 +60,7 @@ module Repo_sync = struct
         ( String.sub path 0 i,
           String.sub path (i + 1) (String.length path - i - 1) )
 
-  let open_car (car : Car.t) : snapshot =
+  let open_car ?(complete = true) (car : Car.t) : snapshot =
     let commit_cid =
       match Car.root car with Some c -> c | None -> fail "CAR has no root"
     in
@@ -74,13 +74,19 @@ module Repo_sync = struct
       fail
         (Printf.sprintf "commit CID mismatch: root %s block %s"
            (Cid.to_string commit_cid) (Cid.to_string computed));
+    if not (Cid.is_blessed ~codec:Cid.Dag_cbor commit_cid) then
+      fail "commit CID is not a blessed dag-cbor SHA-256 CID";
     let commit = Mst.parse_repo_commit (Dag_cbor.decode block.data) in
     if commit.version <> 3 then
       fail (Printf.sprintf "unsupported repo commit version %d" commit.version);
     if not (Tid.is_valid commit.rev) then
       fail ("commit rev is not a TID: " ^ commit.rev);
+    if Tid.is_future commit.rev then
+      fail ("commit rev is in the future: " ^ commit.rev);
     let store = Mst.store_of_car car in
-    Mst.verify_tree ~get_block:(Mst.store_get store) commit.data;
+    if complete then
+      Mst.verify_tree ~get_block:(Mst.store_get store) commit.data
+    else Mst.verify_tree_available ~get_block:(Mst.store_get store) commit.data;
     let tree = Mst.tree_of_root store commit.data in
     {
       did = commit.did;
@@ -92,7 +98,8 @@ module Repo_sync = struct
       tree;
     }
 
-  let open_car_bytes (bytes : string) : snapshot = open_car (Car.parse bytes)
+  let open_car_bytes ?complete (bytes : string) : snapshot =
+    open_car ?complete (Car.parse bytes)
 
   let verify_snapshot ?(keys : string list option) (snap : snapshot) : unit =
     Mst.verify_tree
@@ -117,10 +124,176 @@ module Repo_sync = struct
         b.data
 
   let verify_record_proof ~(car : Car.t) ~(path : string) : Cid.t * string =
-    let snap = open_car car in
-    match Mst.get snap.tree path with
+    if not (Syntax.Syntax.is_valid_repo_path path) then
+      fail ("invalid repo path " ^ path);
+    (* getRecord proof CARs are partial (commit + MST path + record). *)
+    let snap = open_car ~complete:false car in
+    let store = Mst.store_of_car car in
+    match Mst.lookup ~get_block:(Mst.store_get store) snap.data path with
     | None -> fail ("record path not in MST: " ^ path)
     | Some cid -> (cid, record_block car cid)
+
+  let preorder_blocks (snap : snapshot) : Car.block list =
+    let commit_block =
+      match Car.find_block snap.car snap.commit_cid with
+      | Some b -> b
+      | None ->
+          {
+            Car.cid = snap.commit_cid;
+            data =
+              Mst.encode_repo_commit ~did:snap.did ~data:snap.data ~rev:snap.rev
+                ?prev:snap.commit.prev ?sig_:snap.commit.sig_ ();
+          }
+    in
+    commit_block :: Mst.preorder_blocks snap.tree
+
+  let is_preorder (snap : snapshot) : bool =
+    Car.follows_order
+      ~expected:(List.map (fun (b : Car.block) -> b.cid) (preorder_blocks snap))
+      (Car.block_cids snap.car)
+
+  let export_car (snap : snapshot) : Car.t =
+    let seen = Hashtbl.create 16 in
+    let blocks =
+      List.filter
+        (fun (b : Car.block) ->
+          let k = Cid.to_string b.cid in
+          if Hashtbl.mem seen k then false
+          else (
+            Hashtbl.add seen k ();
+            true))
+        (preorder_blocks snap)
+    in
+    { Car.roots = [ snap.commit_cid ]; blocks }
+
+  let export_car_bytes (snap : snapshot) : string = Car.encode (export_car snap)
+
+  let export_subset (snap : snapshot) ~(collections : string list) : Car.t =
+    if collections = [] then export_car snap
+    else
+      let commit_block =
+        match Car.find_block snap.car snap.commit_cid with
+        | Some b -> b
+        | None -> fail "commit block missing from snapshot"
+      in
+      let blocks =
+        List.concat
+          (List.map
+             (fun collection ->
+               let start, end_exclusive = Mst.collection_range collection in
+               Mst.range_blocks ~start ~end_exclusive snap.tree)
+             collections)
+      in
+      let all = commit_block :: blocks in
+      let expected =
+        Car.first_occurrences (List.map (fun (b : Car.block) -> b.cid) all)
+      in
+      {
+        Car.roots = [ snap.commit_cid ];
+        blocks =
+          List.filter_map
+            (fun cid ->
+              List.find_opt (fun (b : Car.block) -> Cid.equal b.cid cid) all)
+            expected;
+      }
+
+  let export_subset_bytes snap ~collections =
+    Car.encode (export_subset snap ~collections)
+
+  exception Not_preorder of string
+
+  (* Walk records by consuming blocks in streamable pre-order. Omitted child
+     CIDs (subset proofs) are skipped; an out-of-order present block fails. *)
+  let stream_walk (car : Car.t) : (string * Cid.t) list =
+    let by_cid = Hashtbl.create (List.length car.blocks) in
+    List.iter
+      (fun (b : Car.block) ->
+        let k = Cid.to_string b.cid in
+        if not (Hashtbl.mem by_cid k) then Hashtbl.add by_cid k b)
+      car.blocks;
+    let unused = Queue.create () in
+    List.iter (fun b -> Queue.add b unused) car.blocks;
+    let consumed = Hashtbl.create 16 in
+    let take (cid : Cid.t) : Car.block option =
+      let k = Cid.to_string cid in
+      if Hashtbl.mem consumed k then Hashtbl.find_opt by_cid k
+      else if not (Hashtbl.mem by_cid k) then None
+      else
+        let rec skip () =
+          if Queue.is_empty unused then
+            raise (Not_preorder ("expected " ^ Cid.to_string cid))
+          else
+            let next = Queue.take unused in
+            let nk = Cid.to_string next.cid in
+            if Hashtbl.mem consumed nk then skip ()
+            else if Cid.equal next.cid cid then (
+              Hashtbl.add consumed k ();
+              Some next)
+            else
+              raise
+                (Not_preorder
+                   (Printf.sprintf "pre-order expected %s got %s"
+                      (Cid.to_string cid) (Cid.to_string next.cid)))
+        in
+        skip ()
+    in
+    let commit_cid =
+      match Car.root car with Some c -> c | None -> fail "CAR has no root"
+    in
+    (match take commit_cid with
+    | None -> fail "commit block missing from CAR"
+    | Some _ -> ());
+    let commit_block =
+      match Hashtbl.find_opt by_cid (Cid.to_string commit_cid) with
+      | Some b -> b
+      | None -> fail "commit block missing from CAR"
+    in
+    let commit = Mst.parse_repo_commit (Dag_cbor.decode commit_block.data) in
+    let rec walk_node (cid : Cid.t) : (string * Cid.t) list =
+      match take cid with
+      | None -> []
+      | Some block ->
+          let node = Mst.node_of_bytes block.data in
+          let items = Mst.verify_node node in
+          let left =
+            match node.left with Some c -> walk_node c | None -> []
+          in
+          left
+          @ List.concat
+              (List.map
+                 (fun (r : Mst.reconstructed) ->
+                   (match take r.value with Some _ | None -> ());
+                   (r.key, r.value)
+                   :: (match r.right with Some c -> walk_node c | None -> []))
+                 items)
+    in
+    walk_node commit.data
+
+  let walk_car (car : Car.t) : (string * Cid.t) list =
+    try stream_walk car
+    with Not_preorder _ ->
+      let snap = open_car ~complete:false car in
+      Mst.walk_available snap.tree
+
+  let verify_subset ~(collections : string list) (car : Car.t) : snapshot =
+    let snap = open_car ~complete:false car in
+    let store = Mst.store_of_car car in
+    List.iter
+      (fun collection ->
+        let start, end_exclusive = Mst.collection_range collection in
+        (match
+           Mst.range_completeness ~start ~end_exclusive
+             ~get_block:(Mst.store_get store) snap.data
+         with
+        | Mst.Complete -> ()
+        | Mst.Incomplete msg -> fail ("subset proof incomplete: " ^ msg));
+        List.iter
+          (fun (path, cid) ->
+            if Mst.key_in_range ~start ~end_exclusive path then
+              ignore (record_block car cid))
+          (Mst.walk_available snap.tree))
+      collections;
+    snap
 
   let create_account ?(collections = []) ~did () : account =
     if not (Syntax.Syntax.is_valid_did did) then fail ("invalid did " ^ did);
@@ -313,6 +486,10 @@ module Repo_sync = struct
 
   let fetch_repo ?host ?session (did : string) : snapshot =
     open_car_bytes (Sync.get_repo ?host ?session did)
+
+  let fetch_repo_subset ?host ?session ~did ~collections () : Car.t =
+    let snap = fetch_repo ?host ?session did in
+    export_subset snap ~collections
 
   let fetch_record_proof ?host ?session ?commit ~did ~collection ~rkey () :
       Cid.t * string =

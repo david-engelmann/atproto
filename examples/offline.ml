@@ -149,4 +149,30 @@ let () =
       ~collections:[ "app.bsky.feed.post" ] ()
   in
   assert (acct.status = Repo_sync.Desynchronized);
+  assert (Syntax.is_valid_repo_path "app.bsky.feed.post/3jzfcijpj2z2a");
+  assert (Cid.is_blessed (Cid.create "{\"v\":1}"));
+  let start, finish = Mst.collection_range "app.bsky.feed.post" in
+  assert (start = "app.bsky.feed.post/" && finish = "app.bsky.feed.post0");
+  let jss_hdr =
+    Jetstream.Jss.parse_header
+      (Jetstream.Jss.encode_header
+         {
+           checksum = 0L;
+           version = 1;
+           block_count = 0;
+           event_count = 0;
+           unique_did_count = 0;
+           min_seq = 0L;
+           max_seq = 0L;
+           min_witnessed_at = 0L;
+           max_witnessed_at = 0L;
+           footer_offset = 0L;
+           did_bloom_offset = 0L;
+           block_did_bloom_offset = 0L;
+           collection_index_offset = 0L;
+           block_index_offset = 0L;
+           sealed = false;
+         })
+  in
+  assert (jss_hdr.version = 1);
   print_endline "examples/offline: public API typechecks and fixtures pass"

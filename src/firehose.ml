@@ -67,6 +67,12 @@ module Firehose = struct
 
   let default_relay_host = "bsky.network"
 
+  (* https://atproto.com/specs/sync#commit-events *)
+  let max_frame_bytes = 5_000_000
+  let max_blocks_bytes = 2_000_000
+  let max_record_bytes = 1_000_000
+  let max_ops = 200
+
   let subscribe_url ?(host = default_relay_host) ?cursor () =
     let base =
       Printf.sprintf "wss://%s/xrpc/com.atproto.sync.subscribeRepos" host
@@ -282,7 +288,26 @@ module Firehose = struct
     let inverted = Mst.Mst.invert_ops tree (record_ops c.ops) in
     Mst.Mst.root_cid inverted
 
+  let validate_limits (c : commit) : unit =
+    if String.length c.raw_blocks > max_blocks_bytes then
+      failwith "Firehose.validate_limits: blocks exceed 2,000,000 bytes";
+    if List.length c.ops > max_ops then
+      failwith "Firehose.validate_limits: more than 200 record operations";
+    List.iter
+      (fun (op : repo_op) ->
+        if not (Syntax.Syntax.is_valid_repo_path op.path) then
+          failwith ("Firehose.validate_limits: invalid repo path " ^ op.path))
+      c.ops;
+    if Tid.Tid.is_future c.rev then
+      failwith ("Firehose.validate_limits: rev is in the future " ^ c.rev);
+    List.iter
+      (fun (b : Car.block) ->
+        if String.length b.data > max_record_bytes then
+          failwith "Firehose.validate_limits: block exceeds 1,000,000 bytes")
+      c.blocks.blocks
+
   let verify_commit (c : commit) : unit =
+    validate_limits c;
     match (c.too_big, c.rebase, c.ops) with
     | true, _, _ | _, true, _ -> ()
     | _, _, [] ->
@@ -300,6 +325,10 @@ module Firehose = struct
         | None -> ())
 
   let verify_commit_object (c : commit) : Mst.Mst.repo_commit =
+    (match Car.root c.blocks with
+    | Some root when not (Cid.equal root c.commit) ->
+        failwith "Firehose.verify_commit_object: CAR root is not the commit CID"
+    | _ -> ());
     let signed = repo_commit_of c in
     if c.repo <> signed.did then
       failwith
@@ -309,6 +338,10 @@ module Firehose = struct
       failwith
         (Printf.sprintf "Firehose.verify_commit_object: rev %s != %s" signed.rev
            c.rev);
+    if Tid.Tid.is_future signed.rev then
+      failwith
+        ("Firehose.verify_commit_object: commit rev is in the future "
+       ^ signed.rev);
     signed
 
   let verify_commit_sig ~keys (c : commit) : Mst.Mst.sig_status =

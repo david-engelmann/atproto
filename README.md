@@ -38,7 +38,7 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | AppView feed | `Feed` | Timeline, threads, generators (`getFeed` / `getFeedGenerator` / `getActorFeeds`), `searchPosts`, quotes, list feed, interactions |
 | AppView graph | `Graph` | Follows/blocks/mutes, lists, starter packs, relationships, known followers |
 | Bookmarks | `Bookmark` | `createBookmark` / `deleteBookmark` / `getBookmarks` |
-| Jetstream | `Jetstream` | v2 live tail, collection/DID/kind filters, seq + unix-µs cursors, reconnect/dedupe, v1 `/subscribe` compat; Network Replay planner (`planSnapshot`/`planBackfill`/`listSegments` types, page window, download jobs, live cutover `?cursor=sealedTipSeq`, Range resume) + skippable unauthenticated HTTP (no invented archive token) |
+| Jetstream | `Jetstream` | v2 live tail, collection/DID/kind filters, seq + unix-µs cursors, reconnect/dedupe, v1 `/subscribe` compat; Network Replay planner + skippable unauthenticated HTTP (no invented archive token); `.jss` v1 header / block-index / columnar decode (zstd via injected callback) |
 | Video | `Video` | `getJobStatus`, `getUploadLimits`, byte upload (`uploadVideo` URL + POST), service-auth audience (`did:web:<pds>` + `uploadBlob` lxm), injectable job poll, `video_embed_json`. Client only — no hosted transcoder |
 | Unspecced | `Unspecced` | Popular generators, search skeletons, trending topics, config |
 | Labeler | `Labeler` | `app.bsky.labeler.getServices` |
@@ -50,9 +50,9 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | Identity | `Identity`, `Did_plc`, `Did_web`, `Did_key` | resolve + updateHandle / PLC operation helpers |
 | PLC chain | `Did_plc` | Genesis DID, prev CID links, p256 **and k256** ECDSA (low-S, IEEE P1363) |
 | Sync | `Sync` | `getLatestCommit`, `getRepo` (CAR), public `getBlocks` (bytes/CAR), `listBlobs`, `listRepos`, host/repo status |
-| CID / CAR | `Cid`, `Car`, `Dag_cbor` | CIDv1 (including SHA-256 `Cid.create`) + CARv1 |
-| MST | `Mst` | Layer/prefix rules, node parse, CID verify, lookup, insert/delete/walk, firehose-diff inversion **and** forward apply, p256/k256 commit sign+verify |
-| Repo sync (TAP-like) | `Repo_sync` | Library-shaped backfill: open/verify repo CAR, walk records, `getRecord` inclusion proof, record-table apply of firehose ops, `#sync` desync, MST-level `apply_commit_tree`. Not a hosted Tap service |
+| CID / CAR | `Cid`, `Car`, `Dag_cbor` | CIDv1 (including SHA-256 `Cid.create`) + CARv1, blessed CID check, Sync 1.1 streamable pre-order |
+| MST | `Mst` | Layer/prefix rules, node parse, CID verify, lookup, insert/delete/walk, firehose-diff inversion **and** forward apply, p256/k256 commit sign+verify, pre-order blocks, collection-range proofs |
+| Repo sync (TAP-like) | `Repo_sync` | Library-shaped backfill: open/verify repo CAR, walk records, `getRecord` inclusion proof (partial CAR), record-table apply of firehose ops, `#sync` desync, MST-level `apply_commit_tree`, Sync 1.1 pre-order export + collection-subset CAR. Not a hosted Tap service |
 | TID | `Tid` | Record-key / commit-rev identifiers (base32-sortable, official syntax) |
 | AT URI | `At_uri` | `at://` parse / serialize |
 | Lexicon | `Lexicon` | Parse lexicon-1 JSON (parameters + procedure input/output schemas), `to_ocaml` codegen, JSON validate |
@@ -74,11 +74,11 @@ These are product-level, not missing protocol cores:
 
 - Hosting a public **client-metadata document** and completing a **live browser login** against a PDS (the protocol core — metadata, PAR + DPoP-nonce retry, authorize URL, redirect `code`/`state`/`iss`, token parse — is implemented and tested with fixtures)
 - A hosted PDS, hosted Tap service, hosted video transcoder, or live Ozone operator session (client request/response types, video byte-upload + job poll, TAP-like repo sync helpers, and proxy headers are implemented)
-- Jetstream Network Replay / HTTP snapshot **download** against Bluesky's gated archive (planner, `listSegments` types, cutover cursor, Range resume, and skippable unauthenticated HTTP are implemented; a live archive download still needs an operator token this library does not invent)
+- Jetstream Network Replay / HTTP snapshot **download** against Bluesky's gated archive (planner, `listSegments` types, cutover cursor, Range resume, skippable unauthenticated HTTP, and `.jss` v1 decode are implemented; a live archive download still needs an operator token this library does not invent, and zstd frames need an injected decompressor)
 - Permissioned data / spaces / LtHash (no stable public spec to implement yet)
-- Defined CAR block ordering and collection-subset repo exports (Sync 1.1 leftovers; no stable export layout to implement yet)
+- Official `com.atproto.sync.getRepo` **lexicon** still has no `collection` parameter (client-side subset export from a full CAR is implemented; servers that reject unknown query params are unchanged)
 
-Service-auth JWT mint/verify (`jti`/`kid`/`iat`, `did#service` audience, ES256/ES256K), TAP-like `Repo_sync` (CAR walk, record-table apply, `#sync` resync, MST forward apply), blob CID verify, and skippable Jetstream snapshot HTTP are in this slice. #70–#75 already landed identity/MST/OAuth-core/AppView/Ozone/Jetstream/video.
+Service-auth JWT mint/verify, TAP-like `Repo_sync`, Sync 1.1 pre-order CAR encode/verify + collection-subset proofs, `.jss` v1 columnar decode, blessed CID / repo-path / firehose size+future-rev checks are in this slice. #70–#76 already landed identity/MST/OAuth-core/AppView/Ozone/Jetstream/video/service-auth.
 
 Open PR `#69` (`de-sync-types`) is superseded by this work: it still targeted the removed `getCheckout` API and left CAR/CBOR unfinished.
 

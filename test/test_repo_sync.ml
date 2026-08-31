@@ -249,6 +249,108 @@ let test_signed_snapshot _ =
       OUnit2.assert_equal `Valid
         (Mst.verify_commit_sig ~keys:[ key ] snap.commit)
 
+let test_preorder_export_and_stream _ =
+  let store = Mst.store_of_get (fun _ -> None) in
+  let t = Mst.empty_tree store in
+  let va = Cid.create ~codec:Cid.Raw "rec-a" in
+  let vb = Cid.create ~codec:Cid.Raw "rec-b" in
+  let t, _ = Mst.insert t "app.bsky.feed.post/aaa" va in
+  let t, _ = Mst.insert t "app.bsky.feed.like/bbb" vb in
+  let car =
+    car_of_tree ~did ~rev:"3jzfcijpj2z2a"
+      ~records:[ (va, "rec-a"); (vb, "rec-b") ]
+      t
+  in
+  let snap = Repo_sync.open_car car in
+  let exported = Repo_sync.export_car snap in
+  let again = Repo_sync.open_car exported in
+  OUnit2.assert_bool "exported commit"
+    (Cid.equal snap.commit_cid again.commit_cid);
+  OUnit2.assert_bool "exported is pre-order" (Repo_sync.is_preorder again);
+  let streamed = Repo_sync.stream_walk exported in
+  OUnit2.assert_equal
+    (List.sort String.compare (List.map fst (Repo_sync.walk snap)))
+    (List.sort String.compare (List.map fst streamed));
+  let shuffled = { exported with Car.blocks = List.rev exported.Car.blocks } in
+  if List.length shuffled.Car.blocks > 1 then
+    OUnit2.assert_bool "reversed is not pre-order"
+      (not
+         (Car.follows_order
+            ~expected:
+              (List.map
+                 (fun (b : Car.block) -> b.cid)
+                 (Repo_sync.preorder_blocks snap))
+            (Car.block_cids shuffled)));
+  let walked = Repo_sync.walk_car shuffled in
+  OUnit2.assert_equal 2 (List.length walked)
+
+let test_collection_subset_export _ =
+  let store = Mst.store_of_get (fun _ -> None) in
+  let t = Mst.empty_tree store in
+  let va = Cid.create ~codec:Cid.Raw "rec-a" in
+  let vb = Cid.create ~codec:Cid.Raw "rec-b" in
+  let t, _ = Mst.insert t "app.bsky.feed.post/aaa" va in
+  let t, _ = Mst.insert t "app.bsky.feed.like/bbb" vb in
+  let car =
+    car_of_tree ~did ~rev:"3jzfcijpj2z2a"
+      ~records:[ (va, "rec-a"); (vb, "rec-b") ]
+      t
+  in
+  let snap = Repo_sync.open_car car in
+  let subset =
+    Repo_sync.export_subset snap ~collections:[ "app.bsky.feed.post" ]
+  in
+  let proven =
+    Repo_sync.verify_subset ~collections:[ "app.bsky.feed.post" ] subset
+  in
+  OUnit2.assert_equal ~printer:(fun x -> x) did proven.did;
+  let paths =
+    List.map fst
+      (List.filter
+         (fun (p, _) ->
+           Mst.key_in_range
+             ~start:(Mst.collection_start "app.bsky.feed.post")
+             ~end_exclusive:(Mst.collection_end "app.bsky.feed.post")
+             p)
+         (Mst.walk_available proven.tree))
+  in
+  OUnit2.assert_equal [ "app.bsky.feed.post/aaa" ] paths;
+  let cid, bytes =
+    Repo_sync.verify_record_proof ~car:subset ~path:"app.bsky.feed.post/aaa"
+  in
+  OUnit2.assert_bool "subset proof cid" (Cid.equal cid va);
+  OUnit2.assert_equal ~printer:(fun x -> x) "rec-a" bytes;
+  OUnit2.assert_bool "like record omitted from subset"
+    (match Car.find_block subset vb with None -> true | Some _ -> false)
+
+let test_partial_getrecord_proof _ =
+  let store = Mst.store_of_get (fun _ -> None) in
+  let t = Mst.empty_tree store in
+  let va = Cid.create ~codec:Cid.Raw "rec-a" in
+  let vb = Cid.create ~codec:Cid.Raw "rec-b" in
+  let t, _ = Mst.insert t "app.bsky.feed.post/aaa" va in
+  let t, _ = Mst.insert t "app.bsky.graph.follow/ccc" vb in
+  let full =
+    car_of_tree ~did ~rev:"3jzfcijpj2z2a"
+      ~records:[ (va, "rec-a"); (vb, "rec-b") ]
+      t
+  in
+  let snap = Repo_sync.open_car full in
+  let proof_blocks = Mst.covering_proof snap.tree "app.bsky.feed.post/aaa" in
+  let commit =
+    match Car.find_block full snap.commit_cid with
+    | Some b -> b
+    | None -> OUnit2.assert_failure "commit"
+  in
+  let proof_car =
+    { Car.roots = [ snap.commit_cid ]; blocks = commit :: proof_blocks }
+  in
+  let cid, bytes =
+    Repo_sync.verify_record_proof ~car:proof_car ~path:"app.bsky.feed.post/aaa"
+  in
+  OUnit2.assert_bool "partial proof" (Cid.equal cid va);
+  OUnit2.assert_equal ~printer:(fun x -> x) "rec-a" bytes
+
 let test_split_path _ =
   OUnit2.assert_equal
     ("app.bsky.feed.post", "3jzfcijpj2z2a")
@@ -267,6 +369,9 @@ let suite =
          "test_apply_commit_tree" >:: test_apply_commit_tree;
          "test_signed_snapshot" >:: test_signed_snapshot;
          "test_split_path" >:: test_split_path;
+         "test_preorder_export_and_stream" >:: test_preorder_export_and_stream;
+         "test_collection_subset_export" >:: test_collection_subset_export;
+         "test_partial_getrecord_proof" >:: test_partial_getrecord_proof;
        ]
 
 let () = run_test_tt_main suite
