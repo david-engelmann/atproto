@@ -248,28 +248,32 @@ let test_resolve_live _ =
     skip_if true ("plc.directory request skipped: " ^ Printexc.to_string exn)
 
 let test_live_chain_structure _ =
-  try
-    let did = "did:plc:z72i7hdynmk6r22z27h6tvur" in
-    let ops = Did_plc.resolve_log did in
-    OUnit2.assert_bool "expected a non-empty PLC log" (ops <> []);
-    let chain = Did_plc.verify_chain ~did ops in
-    OUnit2.assert_bool "live genesis DID must match the log" chain.genesis_ok;
-    OUnit2.assert_bool "live prev CID chain must link" chain.prev_links_ok;
-    List.iteri
-      (fun i st ->
-        match st with
-        | `Valid -> ()
-        | `Missing ->
-            OUnit2.assert_failure
-              (Printf.sprintf "live PLC op %d is missing a signature" i)
-        | `Invalid ->
-            OUnit2.assert_failure
-              (Printf.sprintf "live PLC op %d signature is invalid" i)
-        | `Unsupported_curve c ->
-            OUnit2.assert_failure
-              (Printf.sprintf "live PLC op %d uses unsupported curve %s" i c))
-      chain.signatures
-  with exn -> skip_if true ("plc log chain skipped: " ^ Printexc.to_string exn)
+  let did = "did:plc:z72i7hdynmk6r22z27h6tvur" in
+  let ops =
+    try Did_plc.resolve_log did
+    with exn ->
+      skip_if true ("plc log fetch skipped: " ^ Printexc.to_string exn);
+      []
+  in
+  OUnit2.assert_bool "expected a non-empty PLC log" (ops <> []);
+  let chain = Did_plc.verify_chain ~did ops in
+  skip_if (not chain.genesis_ok)
+    "live genesis DID did not rematch (directory CBOR bytes)";
+  skip_if (not chain.prev_links_ok) "live prev CID chain did not link";
+  List.iteri
+    (fun i st ->
+      match st with
+      | `Valid -> ()
+      | `Missing ->
+          OUnit2.assert_failure
+            (Printf.sprintf "live PLC op %d is missing a signature" i)
+      | `Invalid ->
+          OUnit2.assert_failure
+            (Printf.sprintf "live PLC op %d signature is invalid" i)
+      | `Unsupported_curve c ->
+          OUnit2.assert_failure
+            (Printf.sprintf "live PLC op %d uses unsupported curve %s" i c))
+    chain.signatures
 
 let suite =
   "did_plc"

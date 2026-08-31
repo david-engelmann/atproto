@@ -16,12 +16,14 @@ module Did_web = struct
     validate_web_did did;
     let rest = String.sub did 8 (String.length did - 8) in
     if rest = "" then failwith "Did_web: empty identifier";
-    let decoded = Uri.pct_decode rest in
-    match String.split_on_char ':' decoded with
+    (* Split on literal ':' first so a port encoded as %3A stays in the host. *)
+    match String.split_on_char ':' rest with
     | [] -> failwith "Did_web: empty identifier"
-    | [ host ] -> Printf.sprintf "https://%s/.well-known/did.json" host
+    | [ host ] ->
+        Printf.sprintf "https://%s/.well-known/did.json" (Uri.pct_decode host)
     | host :: path ->
-        Printf.sprintf "https://%s/%s/did.json" host (String.concat "/" path)
+        Printf.sprintf "https://%s/%s/did.json" (Uri.pct_decode host)
+          (String.concat "/" (List.map Uri.pct_decode path))
 
   let parse_document = Did_plc.parse_document
 

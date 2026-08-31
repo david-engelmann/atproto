@@ -1,6 +1,8 @@
 open Hash
 open Base64url
 
+let ensure_rng = lazy (Mirage_crypto_rng_unix.use_default ())
+
 (** AT Protocol OAuth core: PKCE (S256), DPoP (ES256), PAR/token request shapes.
     Browser redirects, client-metadata hosting, and a live token loop are
     product-level and left to the application. *)
@@ -85,6 +87,7 @@ module Oauth = struct
 
   let sign_es256 ~(priv : Mirage_crypto_ec.P256.Dsa.priv) (input : string) :
       string =
+    Lazy.force ensure_rng;
     let digest = Hash.sha256 input in
     let r, s = Mirage_crypto_ec.P256.Dsa.sign ~key:priv digest in
     r ^ low_s s

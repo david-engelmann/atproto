@@ -35,7 +35,7 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | AppView | `Actor`, `Feed`, `Graph`, `Notification` | Profiles, search (`q`), follows/blocks/mutes |
 | Repo writes | `Repo` | `createRecord` / `putRecord` send `record` as JSON |
 | Server | `Server` | describe server, app passwords, invites |
-| Identity | `Identity`, `Did_plc`, `Did_web`, `Did_key` | `resolveHandle`, `did:plc`, `did:web`, `did:key` |
+| Identity | `Identity`, `Did_plc`, `Did_web`, `Did_key` | `resolveHandle`, `did:plc`, `did:web` (including `%3A` ports), `did:key` |
 | PLC chain | `Did_plc` | Genesis DID, prev CID links, p256 **and k256** ECDSA (low-S, IEEE P1363) |
 | Sync | `Sync` | Current `getLatestCommit`, `getRepo` (CAR), `listBlobs`, `listRepos` |
 | CID / CAR | `Cid`, `Car`, `Dag_cbor` | CIDv1 (including SHA-256 `Cid.create`) + CARv1 |

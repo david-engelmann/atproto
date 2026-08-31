@@ -6,6 +6,8 @@ open Base64url
 open Hash
 open Did_key
 
+let ensure_rng = lazy (Mirage_crypto_rng_unix.use_default ())
+
 (** did:plc documents and directory resolution — https://web.plc.directory/spec/v0.1/did-plc *)
 module Did_plc = struct
   type verification_method = {
@@ -254,6 +256,7 @@ module Did_plc = struct
 
   let sign_p256 ~(priv : Mirage_crypto_ec.P256.Dsa.priv) (json : Yojson.Safe.t)
       : Yojson.Safe.t =
+    Lazy.force ensure_rng;
     let unsigned = strip_sig json in
     let digest = Hash.sha256 (cbor_of_json unsigned) in
     let r, s = Mirage_crypto_ec.P256.Dsa.sign ~key:priv digest in

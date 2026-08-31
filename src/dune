@@ -21,6 +21,7 @@
   lwt
   digestif
   mirage-crypto-ec
+  mirage-crypto-rng.unix
   zarith)
  (preprocess
   (pps ppx_jane))
