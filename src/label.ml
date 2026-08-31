@@ -382,4 +382,29 @@ module Label = struct
            ])
     in
     header ^ body
+
+  let subscribe ?(host = "bsky.network") ?cursor ?max_messages f =
+    let url = subscribe_url ~host ?cursor () in
+    Websocket.Websocket.with_connection url (fun ws ->
+        let rec loop n =
+          match max_messages with
+          | Some m when n >= m -> ()
+          | _ -> (
+              match Websocket.Websocket.recv_message ws with
+              | Websocket.Websocket.Binary payload
+              | Websocket.Websocket.Text payload ->
+                  f (decode_frame payload);
+                  loop (n + 1)
+              | Websocket.Websocket.Close _ -> ()
+              | Websocket.Websocket.Ping _ | Websocket.Websocket.Pong _ ->
+                  loop n)
+        in
+        loop 0)
+
+  let subscribe_one ?host ?cursor () : header * message =
+    let cell = ref None in
+    subscribe ?host ?cursor ~max_messages:1 (fun frame -> cell := Some frame);
+    match !cell with
+    | Some frame -> frame
+    | None -> failwith "Label.subscribe_one: no frame received"
 end

@@ -422,8 +422,43 @@ module Jetstream = struct
     stats : snapshot_stats;
   }
 
+  (* listSegments row — snapshot-only archive mirror (HTTP + token). *)
+  type archive_segment = {
+    name : string;
+    index : int;
+    checksum : string;
+    size_bytes : int64 option;
+    event_count : int option;
+    min_seq : int64;
+    max_seq : int64;
+    min_witnessed_at : int64 option;
+    max_witnessed_at : int64 option;
+  }
+
+  type list_segments = {
+    cursor : string option;
+    segments : archive_segment list;
+  }
+
+  type download_job =
+    | Segment of { name : string; checksum : string }
+    | Blocks of { name : string; checksum : string; ranges : block_range list }
+
   let plan_snapshot_url ?(host = default_host) () =
     Printf.sprintf "https://%s/xrpc/network.bsky.jetstream.planSnapshot" host
+
+  let plan_backfill_url ?(host = default_host) () =
+    Printf.sprintf "https://%s/xrpc/network.bsky.jetstream.planBackfill" host
+
+  let list_segments_url ?(host = default_host) ?cursor () =
+    let qs =
+      Cohttp_client.Cohttp_client.create_body_from_pairs
+        (match cursor with Some c -> [ ("cursor", c) ] | None -> [])
+    in
+    let base =
+      Printf.sprintf "https://%s/xrpc/network.bsky.jetstream.listSegments" host
+    in
+    if qs = "" then base else base ^ "?" ^ qs
 
   let get_segment_url ?(host = default_host) ~name () =
     let qs =
@@ -500,27 +535,107 @@ module Jetstream = struct
       stats = parse_snapshot_stats (Yojson.Safe.Util.member "stats" json);
     }
 
+  let parse_archive_segment json : archive_segment =
+    {
+      name = string_member json "name";
+      index =
+        (match Yojson.Safe.Util.member "index" json with `Int n -> n | _ -> 0);
+      checksum = string_member json "checksum";
+      size_bytes =
+        (match Yojson.Safe.Util.member "sizeBytes" json with
+        | `Int n -> Some (Int64.of_int n)
+        | `Intlit s -> Some (Int64.of_string s)
+        | _ -> None);
+      event_count =
+        (match Yojson.Safe.Util.member "eventCount" json with
+        | `Int n -> Some n
+        | _ -> None);
+      min_seq = int64_member json "minSeq";
+      max_seq = int64_member json "maxSeq";
+      min_witnessed_at =
+        (match int64_member json "minWitnessedAt" with
+        | 0L -> None
+        | n -> Some n);
+      max_witnessed_at =
+        (match int64_member json "maxWitnessedAt" with
+        | 0L -> None
+        | n -> Some n);
+    }
+
+  let parse_list_segments json : list_segments =
+    {
+      cursor = string_opt json "cursor";
+      segments =
+        (match Yojson.Safe.Util.member "segments" json with
+        | `List xs -> List.map parse_archive_segment xs
+        | _ -> []);
+    }
+
+  (* Official replay loop: pin sealedTipSeq, page while plannedThroughSeq < S. *)
+  let plan_needs_next (p : snapshot_plan) : bool =
+    Int64.compare p.planned_through_seq p.sealed_tip_seq < 0
+
+  let next_plan_window (p : snapshot_plan) : (int64 * int64) option =
+    if plan_needs_next p then Some (p.planned_through_seq, p.sealed_tip_seq)
+    else None
+
+  let download_jobs (p : snapshot_plan) : download_job list =
+    List.map
+      (fun (s : snapshot_segment) ->
+        if s.mode = "blocks" && s.blocks <> [] then
+          Blocks { name = s.name; checksum = s.checksum; ranges = s.blocks }
+        else Segment { name = s.name; checksum = s.checksum })
+      p.segments
+
+  let cutover_cursor (p : snapshot_plan) : cursor = Seq p.sealed_tip_seq
+
+  let cutover_filter ?(filter = empty_filter) (p : snapshot_plan) : filter =
+    { filter with cursor = Some (cutover_cursor p) }
+
+  let subscribe_url_after_plan ?host ?(filter = empty_filter)
+      (p : snapshot_plan) =
+    subscribe_url ?host ~filter:(cutover_filter ~filter p) ()
+
+  (* Range resume for getSegment after a mid-download 429. *)
+  let range_header ~first ?last () : string * string =
+    let spec =
+      match last with
+      | Some n -> Printf.sprintf "bytes=%d-%d" first n
+      | None -> Printf.sprintf "bytes=%d-" first
+    in
+    ("Range", spec)
+
+  let fold_removes_records (ev : event) : bool =
+    match ev with
+    | `Account a -> (not a.active) && a.status = Some "deleted"
+    | `Sync _ -> true
+    | `Commit c -> c.operation = "delete"
+    | `Identity _ | `Info _ | `Unknown _ -> false
+
   (* Live archive HTTP. Public hosts gate this; pass [token] only if the
      operator already has one. This library never invents a token. Live tail
      ([subscribe]) stays unauthenticated. *)
   exception Snapshot_gated of int * string
   exception Snapshot_http of int * string
+  exception Snapshot_rate_limited of int * string
 
   type snapshot_fetch =
     [ `Plan of snapshot_plan | `Bytes of string | `Gated of int * string ]
 
-  let snapshot_headers ?token () =
+  let snapshot_headers ?token ?range () =
     let pairs =
       Cohttp_client.Cohttp_client.application_json_setting_tuple
       ::
       (match token with
       | Some t when t <> "" -> [ ("Authorization", "Bearer " ^ t) ]
       | _ -> [])
+      @ match range with Some (k, v) -> [ (k, v) ] | None -> []
     in
     Cohttp_client.Cohttp_client.create_headers_from_pairs pairs
 
   let classify_snapshot_status code body =
     if code = 401 || code = 403 then raise (Snapshot_gated (code, body))
+    else if code = 429 then raise (Snapshot_rate_limited (code, body))
     else if code >= 400 then raise (Snapshot_http (code, body))
     else body
 
@@ -539,9 +654,9 @@ module Jetstream = struct
     parse_snapshot_plan
       (Yojson.Safe.from_string (classify_snapshot_status code body))
 
-  let try_get_segment ?host ?token ~name () : string =
+  let try_get_segment ?host ?token ?range ~name () : string =
     let url = get_segment_url ?host ~name () in
-    let headers = snapshot_headers ?token () in
+    let headers = snapshot_headers ?token ?range () in
     let code, body =
       Lwt_main.run (Cohttp_client.Cohttp_client.get_with_status url headers)
     in
@@ -554,4 +669,28 @@ module Jetstream = struct
       Lwt_main.run (Cohttp_client.Cohttp_client.get_with_status url headers)
     in
     classify_snapshot_status code body
+
+  let try_list_segments ?host ?token ?cursor () : list_segments =
+    let url = list_segments_url ?host ?cursor () in
+    let headers = snapshot_headers ?token () in
+    let code, body =
+      Lwt_main.run (Cohttp_client.Cohttp_client.get_with_status url headers)
+    in
+    parse_list_segments
+      (Yojson.Safe.from_string (classify_snapshot_status code body))
+
+  let try_plan_backfill ?host ?token ?kinds ?dids ?collections ?after_seq
+      ?before_seq () : snapshot_plan =
+    let url = plan_backfill_url ?host () in
+    let headers = snapshot_headers ?token () in
+    let data =
+      Yojson.Safe.to_string
+        (plan_snapshot_body ?kinds ?dids ?collections ?after_seq ?before_seq ())
+    in
+    let code, body =
+      Lwt_main.run
+        (Cohttp_client.Cohttp_client.post_with_status url data headers)
+    in
+    parse_snapshot_plan
+      (Yojson.Safe.from_string (classify_snapshot_status code body))
 end

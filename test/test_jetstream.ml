@@ -251,6 +251,107 @@ let test_plan_snapshot _ =
      in
      contains 0)
 
+let test_replay_planner _ =
+  let page =
+    Jetstream.parse_snapshot_plan
+      (`Assoc
+        [
+          ("plannedThroughSeq", `Int 10);
+          ("sealedTipSeq", `Int 20);
+          ( "segments",
+            `List
+              [
+                `Assoc
+                  [
+                    ("name", `String "seg_0000000000.jss");
+                    ("index", `Int 0);
+                    ("checksum", `String "0c9577a8002d2b24");
+                    ("minSeq", `Int 1);
+                    ("maxSeq", `Int 10);
+                    ("mode", `String "blocks");
+                    ( "blocks",
+                      `List [ `Assoc [ ("first", `Int 7); ("last", `Int 9) ] ]
+                    );
+                  ];
+              ] );
+          ("stats", `Assoc [ ("entries", `Int 1) ]);
+        ])
+  in
+  OUnit2.assert_bool "needs next page" (Jetstream.plan_needs_next page);
+  (match Jetstream.next_plan_window page with
+  | Some (after, before) ->
+      OUnit2.assert_equal ~printer:Int64.to_string 10L after;
+      OUnit2.assert_equal ~printer:Int64.to_string 20L before
+  | None -> OUnit2.assert_failure "expected next window");
+  (match Jetstream.download_jobs page with
+  | [ Jetstream.Blocks { name; ranges; _ } ] ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "seg_0000000000.jss" name;
+      OUnit2.assert_equal 7 (List.hd ranges).first
+  | _ -> OUnit2.assert_failure "expected block-range job");
+  let done_ = { page with planned_through_seq = 20L } in
+  OUnit2.assert_bool "complete" (not (Jetstream.plan_needs_next done_));
+  OUnit2.assert_equal None (Jetstream.next_plan_window done_);
+  let url = Jetstream.subscribe_url_after_plan done_ in
+  OUnit2.assert_bool "cutover cursor"
+    (let needle = "cursor=20" in
+     let rec contains i =
+       i + String.length needle <= String.length url
+       && (String.sub url i (String.length needle) = needle || contains (i + 1))
+     in
+     contains 0);
+  let h, v = Jetstream.range_header ~first:1024 () in
+  OUnit2.assert_equal "Range" h;
+  OUnit2.assert_equal ~printer:(fun x -> x) "bytes=1024-" v;
+  let listed =
+    Jetstream.parse_list_segments
+      (`Assoc
+        [
+          ( "segments",
+            `List
+              [
+                `Assoc
+                  [
+                    ("name", `String "seg_0000000000.jss");
+                    ("index", `Int 0);
+                    ("sizeBytes", `Int 193462065);
+                    ("checksum", `String "0c9577a8002d2b24");
+                    ("eventCount", `Int 2569479);
+                    ("minSeq", `Int 1);
+                    ("maxSeq", `Int 2569835);
+                    ("minWitnessedAt", `Intlit "1785262575375952");
+                    ("maxWitnessedAt", `Intlit "1785262678113580");
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal 1 (List.length listed.segments);
+  OUnit2.assert_equal (Some 2569479) (List.hd listed.segments).event_count;
+  OUnit2.assert_bool "backfill URL"
+    (let u = Jetstream.plan_backfill_url () in
+     let needle = "planBackfill" in
+     let rec contains i =
+       i + String.length needle <= String.length u
+       && (String.sub u i (String.length needle) = needle || contains (i + 1))
+     in
+     contains 0);
+  OUnit2.assert_bool "delete folds"
+    (Jetstream.fold_removes_records
+       (Jetstream.parse_event
+          (`Assoc
+            [
+              ("kind", `String "commit");
+              ("did", `String "did:plc:7e6kocyzb77xkncplrkoojej");
+              ("time_us", `Int 1);
+              ( "commit",
+                `Assoc
+                  [
+                    ("operation", `String "delete");
+                    ("collection", `String "app.bsky.feed.post");
+                    ("rkey", `String "3jzfcijpj2z2a");
+                    ("rev", `String "3jzfcijpj2z2a");
+                  ] );
+            ])))
+
 let test_snapshot_gated_live _ =
   let old =
     Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
@@ -313,6 +414,7 @@ let suite =
          "test_dedupe" >:: test_dedupe;
          "test_reconnect_cursor" >:: test_reconnect_cursor;
          "test_plan_snapshot" >:: test_plan_snapshot;
+         "test_replay_planner" >:: test_replay_planner;
          "test_snapshot_gated_live" >:: test_snapshot_gated_live;
          "test_subscribe_live" >:: test_subscribe_live;
        ]

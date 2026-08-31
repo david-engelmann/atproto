@@ -314,6 +314,11 @@ module Repo_sync = struct
   let fetch_repo ?host ?session (did : string) : snapshot =
     open_car_bytes (Sync.get_repo ?host ?session did)
 
+  let fetch_record_proof ?host ?session ?commit ~did ~collection ~rkey () :
+      Cid.t * string =
+    let car = Sync.get_record_car ?host ?session ?commit did collection rkey in
+    verify_record_proof ~car ~path:(Sync.record_path ~collection ~rkey)
+
   let backfill ?host ?session ?keys (acct : account) : record_change list =
     let snap = fetch_repo ?host ?session acct.did in
     resync_from_car ?keys ~live:false acct snap.car

@@ -38,7 +38,7 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | AppView feed | `Feed` | Timeline, threads, generators (`getFeed` / `getFeedGenerator` / `getActorFeeds`), `searchPosts`, quotes, list feed, interactions |
 | AppView graph | `Graph` | Follows/blocks/mutes, lists, starter packs, relationships, known followers |
 | Bookmarks | `Bookmark` | `createBookmark` / `deleteBookmark` / `getBookmarks` |
-| Jetstream | `Jetstream` | v2 live tail (`wss://jetstream.us-west/east.bsky.network/xrpc/network.bsky.jetstream.subscribeEvents`), collection/DID/kind filters, seq + unix-µs cursors, reconnect/dedupe, v1 `/subscribe` compat, snapshot/replay URL+plan types + skippable unauthenticated `try_plan_snapshot` (no invented archive token) |
+| Jetstream | `Jetstream` | v2 live tail, collection/DID/kind filters, seq + unix-µs cursors, reconnect/dedupe, v1 `/subscribe` compat; Network Replay planner (`planSnapshot`/`planBackfill`/`listSegments` types, page window, download jobs, live cutover `?cursor=sealedTipSeq`, Range resume) + skippable unauthenticated HTTP (no invented archive token) |
 | Video | `Video` | `getJobStatus`, `getUploadLimits`, byte upload (`uploadVideo` URL + POST), service-auth audience (`did:web:<pds>` + `uploadBlob` lxm), injectable job poll, `video_embed_json`. Client only — no hosted transcoder |
 | Unspecced | `Unspecced` | Popular generators, search skeletons, trending topics, config |
 | Labeler | `Labeler` | `app.bsky.labeler.getServices` |
@@ -74,7 +74,7 @@ These are product-level, not missing protocol cores:
 
 - Hosting a public **client-metadata document** and completing a **live browser login** against a PDS (the protocol core — metadata, PAR + DPoP-nonce retry, authorize URL, redirect `code`/`state`/`iss`, token parse — is implemented and tested with fixtures)
 - A hosted PDS, hosted Tap service, hosted video transcoder, or live Ozone operator session (client request/response types, video byte-upload + job poll, TAP-like repo sync helpers, and proxy headers are implemented)
-- Jetstream Network Replay / HTTP snapshot download against Bluesky's gated archive (plan/segment/block URLs, JSON types, and a skippable unauthenticated `try_plan_snapshot` are implemented; a live download still needs an operator token this library does not invent)
+- Jetstream Network Replay / HTTP snapshot **download** against Bluesky's gated archive (planner, `listSegments` types, cutover cursor, Range resume, and skippable unauthenticated HTTP are implemented; a live archive download still needs an operator token this library does not invent)
 - Permissioned data / spaces / LtHash (no stable public spec to implement yet)
 - Defined CAR block ordering and collection-subset repo exports (Sync 1.1 leftovers; no stable export layout to implement yet)
 

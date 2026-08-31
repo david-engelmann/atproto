@@ -3,6 +3,7 @@ open Atproto.Session
 open Atproto.Auth
 open Atproto.Sync
 open Atproto.Car
+open Atproto.Cid
 open Atproto.Identity
 
 let skip_without_auth () =
@@ -161,6 +162,21 @@ let test_get_blocks_url _ =
      in
      contains 0)
 
+let test_get_record_proof_public _ =
+  try
+    with_public_timeout (fun () ->
+        let ident = public_actor () in
+        let host = public_pds_host ident in
+        let cid, bytes =
+          Atproto.Repo_sync.Repo_sync.fetch_record_proof ~host ~did:ident.did
+            ~collection:"app.bsky.actor.profile" ~rkey:"self" ()
+        in
+        OUnit2.assert_bool "profile proof cid"
+          (String.length (Cid.to_string cid) > 8);
+        OUnit2.assert_bool "profile bytes" (String.length bytes > 0))
+  with exn ->
+    skip_if true ("getRecord proof skipped: " ^ Printexc.to_string exn)
+
 let test_get_repo_status_public _ =
   try
     with_public_timeout (fun () ->
@@ -184,6 +200,7 @@ let suite =
          >:: test_parse_list_repos_by_collection;
          "test_get_blocks_url" >:: test_get_blocks_url;
          "test_get_repo_status_public" >:: test_get_repo_status_public;
+         "test_get_record_proof_public" >:: test_get_record_proof_public;
        ]
 
 let () = run_test_tt_main suite

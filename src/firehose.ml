@@ -314,6 +314,29 @@ module Firehose = struct
   let verify_commit_sig ~keys (c : commit) : Mst.Mst.sig_status =
     Mst.Mst.verify_commit_sig ~keys (repo_commit_of c)
 
+  let verify_sync (s : sync) : Mst.Mst.repo_commit =
+    let root =
+      match Car.root s.blocks with
+      | Some c -> c
+      | None -> failwith "Firehose.verify_sync: CAR has no root"
+    in
+    let block =
+      match Car.find_block s.blocks root with
+      | Some b -> b
+      | None -> failwith "Firehose.verify_sync: commit block missing"
+    in
+    let computed = Cid.create block.data in
+    if not (Cid.equal computed root) then
+      failwith "Firehose.verify_sync: commit CID mismatch";
+    let signed = Mst.Mst.parse_repo_commit (Dag_cbor.decode block.data) in
+    if signed.did <> s.did then
+      failwith
+        (Printf.sprintf "Firehose.verify_sync: did %s != %s" signed.did s.did);
+    if signed.rev <> s.rev then
+      failwith
+        (Printf.sprintf "Firehose.verify_sync: rev %s != %s" signed.rev s.rev);
+    signed
+
   let apply_commit ~(prev_tree : Mst.Mst.tree) (c : commit) : Mst.Mst.tree =
     let signed = verify_commit_object c in
     verify_commit c;
