@@ -1,5 +1,6 @@
 open Auth
 open Cohttp_client
+open Error
 
 module Session = struct
   type session = {
@@ -112,31 +113,31 @@ module Session = struct
   let get_session (s : session) : session_request =
     Yojson.Safe.from_string (get_session_request s) |> parse_session_request
 
+  let refresh_session (s : session) : session =
+    match s.auth.refresh_token with
+    | None -> failwith "Session.refresh_session: missing refreshJwt"
+    | Some refresh ->
+        let body =
+          Auth.refresh_auth_token_request s.auth.token refresh s.username
+            s.auth.did s.atp_host
+        in
+        let json = Auth.convert_body_to_json body in
+        (match Error.check_for_error json with
+        | Some _ ->
+            failwith
+              ("Session.refresh_session: "
+              ^ Error.to_string (Error.of_json json))
+        | None -> ());
+        let session_auth = Auth.parse_auth json in
+        let did_doc =
+          match Yojson.Safe.Util.member "didDoc" json with
+          | `Assoc _ as d -> Some d
+          | _ -> s.did_doc
+        in
+        { s with auth = session_auth; did_doc }
+
   let refresh_session_auth (s : session) : session =
-    if Auth.is_token_expired s.auth then
-      let current_session =
-        Yojson.Safe.from_string (get_session_request s) |> parse_session_request
-      in
-      let username = s.username in
-      let password = s.password in
-      let atp_host = s.atp_host in
-      let body =
-        Auth.refresh_auth_token_request s.auth.token
-          (Option.get s.auth.refresh_token)
-          current_session.handle current_session.did atp_host
-      in
-      let json = Auth.convert_body_to_json body in
-      let session_auth = Auth.parse_auth json in
-      let did_doc =
-        match current_session.did_doc with
-        | Some _ as d -> d
-        | None -> (
-            match Yojson.Safe.Util.member "didDoc" json with
-            | `Assoc _ as d -> Some d
-            | _ -> s.did_doc)
-      in
-      { username; password; atp_host; auth = session_auth; did_doc }
-    else s
+    if Auth.is_token_expired s.auth then refresh_session s else s
 
   let delete_session (s : session) : string =
     let bearer_token = refresh_token_from_session s in

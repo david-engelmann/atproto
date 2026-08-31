@@ -60,6 +60,59 @@ module Ozone = struct
   type priority_score_event = { comment : string option; score : int }
   type unknown_event = { type_ : string; original : Yojson.Safe.t }
 
+  type mute_reporter_event = {
+    comment : string option;
+    duration_in_hours : int option;
+  }
+
+  type divert_event = { comment : string option }
+
+  type account_lifecycle_event = {
+    comment : string option;
+    active : bool;
+    status : string option;
+    timestamp : string;
+  }
+
+  type identity_lifecycle_event = {
+    comment : string option;
+    handle : string option;
+    pds_host : string option;
+    tombstone : bool option;
+    timestamp : string;
+  }
+
+  type record_lifecycle_event = {
+    comment : string option;
+    op : string;
+    cid : string option;
+    timestamp : string;
+  }
+
+  type age_assurance_event = {
+    created_at : string;
+    attempt_id : string;
+    status : string;
+    country_code : string option;
+    region_code : string option;
+    init_ip : string option;
+    init_ua : string option;
+    complete_ip : string option;
+    complete_ua : string option;
+  }
+
+  type age_assurance_override_event = { comment : string; status : string }
+  type comment_required_event = { comment : string }
+
+  type schedule_takedown_event = {
+    comment : string option;
+    execute_at : string option;
+    execute_after : string option;
+    execute_until : string option;
+  }
+
+  type mod_tool = { name : string; meta : Yojson.Safe.t option }
+
   type event =
     [ `Comment of comment_event
     | `Acknowledge of acknowledge_event
@@ -70,13 +123,26 @@ module Ozone = struct
     | `Escalate of comment_only_event
     | `Mute of mute_event
     | `Unmute of comment_only_event
+    | `Mute_reporter of mute_reporter_event
+    | `Unmute_reporter of comment_only_event
     | `Email of email_event
     | `Tag of tag_event
     | `Resolve_appeal of comment_only_event
     | `Priority_score of priority_score_event
+    | `Divert of divert_event
+    | `Account of account_lifecycle_event
+    | `Identity of identity_lifecycle_event
+    | `Record of record_lifecycle_event
+    | `Age_assurance of age_assurance_event
+    | `Age_assurance_override of age_assurance_override_event
+    | `Age_assurance_purge of comment_required_event
+    | `Revoke_account_credentials of comment_required_event
+    | `Schedule_takedown of schedule_takedown_event
+    | `Cancel_scheduled_takedown of comment_only_event
     | `Unknown of unknown_event ]
 
   type subject_status = {
+    id : int option;
     subject : subject;
     subject_repo_handle : string option;
     updated_at : string option;
@@ -84,6 +150,20 @@ module Ozone = struct
     review_state : string option;
     comment : string option;
     priority_score : int option;
+    hosting : Yojson.Safe.t option;
+    subject_blob_cids : string list;
+    mute_until : string option;
+    mute_reporting_until : string option;
+    last_reviewed_by : string option;
+    last_reviewed_at : string option;
+    last_reported_at : string option;
+    last_appealed_at : string option;
+    takendown : bool option;
+    appealed : bool option;
+    suspend_until : string option;
+    tags : string list;
+    age_assurance_state : string option;
+    age_assurance_updated_by : string option;
     original : Yojson.Safe.t;
   }
 
@@ -98,6 +178,10 @@ module Ozone = struct
     subject : subject;
     created_by : string option;
     created_at : string option;
+    creator_handle : string option;
+    subject_handle : string option;
+    subject_blob_cids : string list;
+    mod_tool : mod_tool option;
     original : Yojson.Safe.t;
   }
 
@@ -247,10 +331,75 @@ module Ozone = struct
     else if ends_with "modEventResolveAppeal" t then `Resolve_appeal { comment }
     else if ends_with "modEventPriorityScore" t then
       `Priority_score { comment; score = Client.int_member json "score" }
+    else if ends_with "modEventMuteReporter" t then
+      `Mute_reporter
+        { comment; duration_in_hours = Client.int_opt json "durationInHours" }
+    else if ends_with "modEventUnmuteReporter" t then
+      `Unmute_reporter { comment }
+    else if ends_with "modEventDivert" t then `Divert { comment }
+    else if ends_with "accountEvent" t then
+      `Account
+        {
+          comment;
+          active = Client.bool_member json "active";
+          status = Client.string_opt json "status";
+          timestamp = Client.string_member json "timestamp";
+        }
+    else if ends_with "identityEvent" t then
+      `Identity
+        {
+          comment;
+          handle = Client.string_opt json "handle";
+          pds_host = Client.string_opt json "pdsHost";
+          tombstone = Client.bool_opt json "tombstone";
+          timestamp = Client.string_member json "timestamp";
+        }
+    else if ends_with "recordEvent" t then
+      `Record
+        {
+          comment;
+          op = Client.string_member json "op";
+          cid = Client.string_opt json "cid";
+          timestamp = Client.string_member json "timestamp";
+        }
+    else if ends_with "ageAssuranceEvent" t then
+      `Age_assurance
+        {
+          created_at = Client.string_member json "createdAt";
+          attempt_id = Client.string_member json "attemptId";
+          status = Client.string_member json "status";
+          country_code = Client.string_opt json "countryCode";
+          region_code = Client.string_opt json "regionCode";
+          init_ip = Client.string_opt json "initIp";
+          init_ua = Client.string_opt json "initUa";
+          complete_ip = Client.string_opt json "completeIp";
+          complete_ua = Client.string_opt json "completeUa";
+        }
+    else if ends_with "ageAssuranceOverrideEvent" t then
+      `Age_assurance_override
+        {
+          comment = Option.value comment ~default:"";
+          status = Client.string_member json "status";
+        }
+    else if ends_with "ageAssurancePurgeEvent" t then
+      `Age_assurance_purge { comment = Option.value comment ~default:"" }
+    else if ends_with "revokeAccountCredentialsEvent" t then
+      `Revoke_account_credentials { comment = Option.value comment ~default:"" }
+    else if ends_with "scheduleTakedownEvent" t then
+      `Schedule_takedown
+        {
+          comment;
+          execute_at = Client.string_opt json "executeAt";
+          execute_after = Client.string_opt json "executeAfter";
+          execute_until = Client.string_opt json "executeUntil";
+        }
+    else if ends_with "cancelScheduledTakedownEvent" t then
+      `Cancel_scheduled_takedown { comment }
     else `Unknown { type_ = t; original = json }
 
   let parse_subject_status json : subject_status =
     {
+      id = Client.int_opt json "id";
       subject =
         (match Yojson.Safe.Util.member "subject" json with
         | `Assoc _ as s -> parse_subject s
@@ -261,6 +410,23 @@ module Ozone = struct
       review_state = Client.string_opt json "reviewState";
       comment = Client.string_opt json "comment";
       priority_score = Client.int_opt json "priorityScore";
+      hosting =
+        (match Yojson.Safe.Util.member "hosting" json with
+        | `Null -> None
+        | other -> Some other);
+      subject_blob_cids = string_list json "subjectBlobCids";
+      mute_until = Client.string_opt json "muteUntil";
+      mute_reporting_until = Client.string_opt json "muteReportingUntil";
+      last_reviewed_by = Client.string_opt json "lastReviewedBy";
+      last_reviewed_at = Client.string_opt json "lastReviewedAt";
+      last_reported_at = Client.string_opt json "lastReportedAt";
+      last_appealed_at = Client.string_opt json "lastAppealedAt";
+      takendown = Client.bool_opt json "takendown";
+      appealed = Client.bool_opt json "appealed";
+      suspend_until = Client.string_opt json "suspendUntil";
+      tags = string_list json "tags";
+      age_assurance_state = Client.string_opt json "ageAssuranceState";
+      age_assurance_updated_by = Client.string_opt json "ageAssuranceUpdatedBy";
       original = json;
     }
 
@@ -270,6 +436,15 @@ module Ozone = struct
       subject_statuses =
         List.map parse_subject_status
           (Client.list_member json "subjectStatuses");
+    }
+
+  let parse_mod_tool json : mod_tool =
+    {
+      name = Client.string_member json "name";
+      meta =
+        (match Yojson.Safe.Util.member "meta" json with
+        | `Null -> None
+        | other -> Some other);
     }
 
   let parse_mod_event json : mod_event =
@@ -285,6 +460,13 @@ module Ozone = struct
         | other -> `Unknown other);
       created_by = Client.string_opt json "createdBy";
       created_at = Client.string_opt json "createdAt";
+      creator_handle = Client.string_opt json "creatorHandle";
+      subject_handle = Client.string_opt json "subjectHandle";
+      subject_blob_cids = string_list json "subjectBlobCids";
+      mod_tool =
+        (match Yojson.Safe.Util.member "modTool" json with
+        | `Assoc _ as t -> Some (parse_mod_tool t)
+        | _ -> None);
       original = json;
     }
 

@@ -2,6 +2,7 @@ open OUnit2
 open Atproto.Session
 open Atproto.Auth
 open Atproto.Graph
+open Atproto.Label
 
 let create_test_session _ =
   let username, password = Auth.username_and_password_from_env in
@@ -202,6 +203,32 @@ let test_parse_starter_pack _ =
                       ] );
                 ];
             ] );
+        ( "feeds",
+          `List
+            [
+              `Assoc
+                [
+                  ( "uri",
+                    `String
+                      "at://did:plc:abc123xyz0001112223333/app.bsky.feed.generator/hot"
+                  );
+                  ("cid", `String "bafyreifeed");
+                  ("displayName", `String "Hot");
+                ];
+            ] );
+        ( "labels",
+          `List
+            [
+              `Assoc
+                [
+                  ("src", `String "did:plc:labeler000111222333444555");
+                  ( "uri",
+                    `String
+                      "at://did:plc:abc123xyz0001112223333/app.bsky.graph.starterpack/3k"
+                  );
+                  ("val", `String "!hide");
+                ];
+            ] );
       ]
   in
   let pack = Graph.parse_starter_pack json in
@@ -210,7 +237,11 @@ let test_parse_starter_pack _ =
   OUnit2.assert_equal 1 (List.length pack.list_items_sample);
   OUnit2.assert_equal
     ~printer:(fun x -> x)
-    "bob.test" (List.hd pack.list_items_sample).subject.handle
+    "bob.test" (List.hd pack.list_items_sample).subject.handle;
+  OUnit2.assert_equal 1 (List.length pack.feeds);
+  OUnit2.assert_equal (Some "Hot") (List.hd pack.feeds).display_name;
+  OUnit2.assert_equal 1 (List.length pack.labels);
+  OUnit2.assert_equal ~printer:(fun x -> x) "!hide" (List.hd pack.labels).val_
 
 let test_parse_relationships _ =
   let json =

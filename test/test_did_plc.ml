@@ -279,6 +279,99 @@ let test_verify_missing_and_wrong_key _ =
   OUnit2.assert_equal `Invalid
     (Did_plc.verify_with_rotation_keys [ rotation_k256_did_key kpub ] op)
 
+let test_operation_builders _ =
+  let priv, pub = p256_pair () in
+  let rotation = rotation_did_key pub in
+  let services =
+    [
+      ( "atproto_pds",
+        {
+          Did_plc.type_ = "AtprotoPersonalDataServer";
+          endpoint = "https://example.com";
+        } );
+    ]
+  in
+  let genesis =
+    Did_plc.genesis_operation ~rotation_keys:[ rotation ]
+      ~verification_methods:[ ("atproto", rotation) ]
+      ~also_known_as:[ "at://alice.test" ] ~services ()
+  in
+  let signed = Did_plc.sign_p256 ~priv genesis in
+  let op = Did_plc.parse_operation signed in
+  let did = Did_plc.genesis_did op in
+  OUnit2.assert_equal ~printer:(fun x -> x) "plc_operation" op.type_;
+  OUnit2.assert_equal None op.prev;
+  let prev = Atproto.Cid.Cid.to_string (Did_plc.cid_of_operation op) in
+  let update =
+    Did_plc.update_operation ~rotation_keys:[ rotation ]
+      ~verification_methods:[ ("atproto", rotation) ]
+      ~also_known_as:[ "at://alice.test" ] ~services ~prev ()
+  in
+  let second = Did_plc.parse_operation (Did_plc.sign_p256 ~priv update) in
+  let chain = Did_plc.verify_chain ~did [ op; second ] in
+  OUnit2.assert_bool "builder genesis_ok" chain.genesis_ok;
+  OUnit2.assert_bool "builder prev_links_ok" chain.prev_links_ok;
+  let tomb = Did_plc.tombstone_operation ~prev () in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "plc_tombstone"
+    (tomb |> member "type" |> to_string)
+
+let test_parse_data_and_audit _ =
+  let data =
+    Did_plc.parse_plc_state
+      (`Assoc
+        [
+          ("did", `String "did:plc:7iza6de2dwap2sbkpav7c6c6");
+          ( "rotationKeys",
+            `List
+              [
+                `String
+                  "did:key:zDnaeh9v2RmcMo13Du2d6pjUf5bZwtauYxj3n9dYjw4EZUAR7";
+              ] );
+          ( "verificationMethods",
+            `Assoc
+              [
+                ( "atproto",
+                  `String
+                    "did:key:zDnaeh9v2RmcMo13Du2d6pjUf5bZwtauYxj3n9dYjw4EZUAR7"
+                );
+              ] );
+          ("alsoKnownAs", `List [ `String "at://alice.test" ]);
+          ( "services",
+            `Assoc
+              [
+                ( "atproto_pds",
+                  `Assoc
+                    [
+                      ("type", `String "AtprotoPersonalDataServer");
+                      ("endpoint", `String "https://example.com");
+                    ] );
+              ] );
+        ])
+  in
+  OUnit2.assert_equal (Some "did:plc:7iza6de2dwap2sbkpav7c6c6") data.did;
+  OUnit2.assert_equal 1 (List.length data.rotation_keys);
+  OUnit2.assert_equal "https://example.com"
+    (List.hd data.services |> snd).endpoint;
+  let audit =
+    Did_plc.parse_audit_entry
+      (`Assoc
+        [
+          ("did", `String "did:plc:7iza6de2dwap2sbkpav7c6c6");
+          ("cid", `String "bafyreiaudit");
+          ("nullified", `Bool false);
+          ("createdAt", `String "2024-01-01T00:00:00.000Z");
+          ( "operation",
+            `Assoc [ ("type", `String "plc_operation"); ("prev", `Null) ] );
+        ])
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "plc_operation" audit.operation.type_;
+  OUnit2.assert_bool "not nullified" (not audit.nullified)
+
 let test_unsigned_omits_sig _ =
   let priv, pub = p256_pair () in
   let signed = Did_plc.sign_p256 ~priv (genesis_json (rotation_did_key pub)) in
@@ -341,6 +434,8 @@ let suite =
          "test_verify_missing_and_wrong_key"
          >:: test_verify_missing_and_wrong_key;
          "test_chain_prev_and_genesis" >:: test_chain_prev_and_genesis;
+         "test_operation_builders" >:: test_operation_builders;
+         "test_parse_data_and_audit" >:: test_parse_data_and_audit;
          "test_unsigned_omits_sig" >:: test_unsigned_omits_sig;
          "test_live_chain_structure" >:: test_live_chain_structure;
        ]

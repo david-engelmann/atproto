@@ -185,16 +185,78 @@ let test_more_ozone _ =
               let got = Ozone.get_event s ~proxy:p ~id () in
               no_xrpc_error got.original
           | _ -> ())));
-  match
-    ozone_json s p "tools.ozone.moderation.getAccountTimeline"
-      [ ("did", alice.auth.did) ]
-  with
+  (match
+     ozone_json s p "tools.ozone.moderation.getAccountTimeline"
+       [ ("did", alice.auth.did) ]
+   with
   | json when served json ->
       let timeline =
         Ozone.get_account_timeline s ~proxy:p ~did:alice.auth.did ()
       in
       OUnit2.assert_bool "getAccountTimeline"
         (List.length timeline.timeline >= 0)
+  | _ -> ());
+  (match
+     ozone_json s p "tools.ozone.moderation.getRecord"
+       [
+         ( "uri",
+           Printf.sprintf "at://%s/app.bsky.actor.profile/self" alice.auth.did
+         );
+       ]
+   with
+  | json when served json ->
+      let record =
+        Ozone.get_record s ~proxy:p
+          ~uri:
+            (Printf.sprintf "at://%s/app.bsky.actor.profile/self" alice.auth.did)
+          ()
+      in
+      OUnit2.assert_bool "getRecord uri" (String.length record.uri > 0)
+  | _ -> ());
+  (match
+     ozone_json s p "tools.ozone.report.queryReports"
+       [ ("status", "open"); ("limit", "10") ]
+   with
+  | json when served json -> (
+      let reports =
+        Ozone.query_reports s ~proxy:p ~status:"open" ~limit:10 ()
+      in
+      OUnit2.assert_bool "queryReports" (List.length reports.reports >= 0);
+      if reports.reports <> [] then
+        match ozone_json s p "tools.ozone.report.getLatestReport" [] with
+        | latest when served latest ->
+            let got = Ozone.get_latest_report s ~proxy:p () in
+            OUnit2.assert_bool "getLatestReport" (got.id >= 0)
+        | _ -> ()
+        | _ -> ()));
+  (match ozone_json s p "tools.ozone.queue.listQueues" [ ("limit", "10") ] with
+  | json when served json ->
+      let queues = Ozone.list_queues s ~proxy:p ~limit:10 () in
+      OUnit2.assert_bool "listQueues" (List.length queues.queues >= 0)
+  | _ -> ());
+  (match ozone_json s p "tools.ozone.set.querySets" [ ("limit", "10") ] with
+  | json when served json -> (
+      let sets = Ozone.query_sets s ~proxy:p ~limit:10 () in
+      match sets.sets with
+      | [] -> ()
+      | set :: _ -> (
+          match
+            ozone_json s p "tools.ozone.set.getValues" [ ("name", set.name) ]
+          with
+          | values when served values ->
+              let got = Ozone.get_set_values s ~proxy:p ~name:set.name () in
+              OUnit2.assert_bool "getValues" (List.length got.values >= 0)
+          | _ -> ()))
+  | _ -> ());
+  match
+    ozone_json s p "tools.ozone.moderation.getReporterStats"
+      [ ("dids", alice.auth.did) ]
+  with
+  | json when served json ->
+      let stats =
+        Ozone.get_reporter_stats s ~proxy:p ~dids:[ alice.auth.did ] ()
+      in
+      OUnit2.assert_bool "getReporterStats" (List.length stats.stats >= 0)
   | _ -> ()
 
 let suite =

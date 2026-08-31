@@ -76,7 +76,18 @@ let test_request_builders _ =
   let put = Request.put "https://example.com/blob" ~body:"bytes" () in
   OUnit2.assert_equal Http_method.Put put.method_;
   let del = Request.delete "https://example.com/item" () in
-  OUnit2.assert_equal Http_method.Delete del.method_
+  OUnit2.assert_equal Http_method.Delete del.method_;
+  let url =
+    Http_client.xrpc_url ~host:"public.api.bsky.app"
+      "com.atproto.repo.putRecord" ()
+  in
+  OUnit2.assert_bool "xrpc_put path"
+    (contains url "/xrpc/com.atproto.repo.putRecord");
+  let del_url =
+    Http_client.xrpc_url ~host:"public.api.bsky.app"
+      "app.bsky.bookmark.deleteBookmark" ()
+  in
+  OUnit2.assert_bool "xrpc_delete path" (contains del_url "deleteBookmark")
 
 let test_response_helpers _ =
   let r =

@@ -379,6 +379,102 @@ let test_other_pds_xrpc _ =
   let report = Moderation.parse_report_response report_json in
   OUnit2.assert_bool "createReport id" (report.id >= 0)
 
+let test_session_refresh_and_delete _ =
+  skip_unless_local_pds ();
+  let handle = unique_handle "ref" in
+  let email = handle ^ "@test.local" in
+  let password = "local-pds-refresh-password" in
+  ignore
+    (Server.create_account_at ~host:(pds_host ()) ~handle ~email ~password ()
+    |> ensure_ok);
+  let s = Session.create_session handle password in
+  OUnit2.assert_bool "throwaway access token" (String.length s.auth.token > 0);
+  let refreshed = Session.refresh_session s in
+  OUnit2.assert_equal ~printer:(fun x -> x) s.auth.did refreshed.auth.did;
+  OUnit2.assert_bool "refreshSession rotated accessJwt"
+    (refreshed.auth.token <> s.auth.token);
+  let info = Session.get_session refreshed in
+  OUnit2.assert_equal ~printer:(fun x -> x) s.auth.did info.did;
+  let deleted = Session.delete_session refreshed in
+  ignore deleted
+
+let test_get_account_invite_codes _ =
+  let s = session () in
+  let body = Server.get_account_invite_codes s false false in
+  let json = json_of_body body in
+  match Yojson.Safe.Util.member "codes" json with
+  | `List _ -> ()
+  | _ -> OUnit2.assert_failure "getAccountInviteCodes missing codes"
+
+let local_plc_directory () =
+  match Sys.getenv_opt "PLC_ORIGIN" with
+  | Some o when String.trim o <> "" -> String.trim o
+  | _ -> "http://localhost:2582"
+
+let test_plc_directory_write _ =
+  skip_unless_local_pds ();
+  Mirage_crypto_rng_unix.use_default ();
+  Random.self_init ();
+  let rec random_p256 n =
+    if n <= 0 then failwith "could not generate a P-256 key";
+    let bytes = Bytes.create 32 in
+    for i = 0 to 31 do
+      Bytes.set bytes i (Char.chr (Random.int 256))
+    done;
+    match Mirage_crypto_ec.P256.Dsa.priv_of_octets (Bytes.to_string bytes) with
+    | Ok priv -> priv
+    | Error _ -> random_p256 (n - 1)
+  in
+  let priv = random_p256 32 in
+  let pub = Mirage_crypto_ec.P256.Dsa.pub_of_priv priv in
+  let octets = Mirage_crypto_ec.P256.Dsa.pub_to_octets ~compress:true pub in
+  let rotation =
+    Atproto.Did_key.Did_key.to_string
+      (Atproto.Did_key.Did_key.of_p256_octets octets)
+  in
+  let services =
+    [
+      ( "atproto_pds",
+        {
+          Atproto.Did_plc.Did_plc.type_ = "AtprotoPersonalDataServer";
+          endpoint = "http://localhost:2583";
+        } );
+    ]
+  in
+  let genesis =
+    Atproto.Did_plc.Did_plc.genesis_operation ~rotation_keys:[ rotation ]
+      ~verification_methods:[ ("atproto", rotation) ]
+      ~also_known_as:[ "at://plcwrite.test" ] ~services ()
+  in
+  let signed = Atproto.Did_plc.Did_plc.sign_p256 ~priv genesis in
+  let op = Atproto.Did_plc.Did_plc.parse_operation signed in
+  let did = Atproto.Did_plc.Did_plc.genesis_did op in
+  let directory = local_plc_directory () in
+  ignore (Atproto.Did_plc.Did_plc.submit_operation ~directory did signed);
+  let doc = Atproto.Did_plc.Did_plc.resolve ~directory did in
+  OUnit2.assert_equal ~printer:(fun x -> x) did doc.id;
+  let data = Atproto.Did_plc.Did_plc.resolve_data ~directory did in
+  OUnit2.assert_equal [ rotation ] data.rotation_keys;
+  let prev =
+    Atproto.Cid.Cid.to_string (Atproto.Did_plc.Did_plc.cid_of_operation op)
+  in
+  let update =
+    Atproto.Did_plc.Did_plc.update_operation ~rotation_keys:[ rotation ]
+      ~verification_methods:[ ("atproto", rotation) ]
+      ~also_known_as:[ "at://plcwrite-updated.test" ]
+      ~services ~prev ()
+  in
+  let signed_update = Atproto.Did_plc.Did_plc.sign_p256 ~priv update in
+  ignore (Atproto.Did_plc.Did_plc.submit_operation ~directory did signed_update);
+  let audit = Atproto.Did_plc.Did_plc.resolve_audit_log ~directory did in
+  OUnit2.assert_bool "audit log after update" (List.length audit >= 2);
+  let chain =
+    Atproto.Did_plc.Did_plc.verify_chain ~did
+      (Atproto.Did_plc.Did_plc.resolve_log ~directory did)
+  in
+  OUnit2.assert_bool "PLC chain genesis" chain.genesis_ok;
+  OUnit2.assert_bool "PLC chain prev" chain.prev_links_ok
+
 let suite =
   "local_pds"
   >::: [
@@ -394,6 +490,9 @@ let suite =
          "test_upload_blob" >:: test_upload_blob;
          "test_sync_endpoints" >:: test_sync_endpoints;
          "test_other_pds_xrpc" >:: test_other_pds_xrpc;
+         "test_session_refresh_and_delete" >:: test_session_refresh_and_delete;
+         "test_get_account_invite_codes" >:: test_get_account_invite_codes;
+         "test_plc_directory_write" >:: test_plc_directory_write;
        ]
 
 let () =

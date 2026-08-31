@@ -113,6 +113,29 @@ module Client = struct
     in
     Yojson.Safe.from_string resp
 
+  let header_pairs ?session ?bearer ?(extra = []) () =
+    Cohttp_client.application_json_setting_tuple
+    ::
+    (match bearer with
+    | Some token -> [ bearer_jwt token ]
+    | None -> (
+        match session with
+        | Some s -> [ Session.bearer_token_from_session s ]
+        | None -> []))
+    @ extra
+
+  (* HTTPS-only HTTP/2 GET that keeps status + response headers. Hosts with
+     an explicit port (local stacks) stay on Cohttp. *)
+  let get_json_h2 ?session ?host ?bearer ?(extra = []) nsid pairs =
+    let host = host_of ?session ?host () in
+    if String.contains host ':' then
+      get_json ?session ~host ?bearer ~extra nsid pairs
+    else
+      let headers = header_pairs ?session ?bearer ~extra () in
+      let url = Http_client.xrpc_url ~host nsid ~query:pairs () in
+      let resp = Http_client.run (Http_client.get url ~headers ()) in
+      Yojson.Safe.from_string (Response.body_string resp)
+
   (* PDS accessJwt is at+jwt. AppView requires a service-auth JWT
      (com.atproto.server.getServiceAuth, aud=AppView DID, lxm=NSID). *)
   let get_service_auth (s : Session.session) ~aud ~lxm () : string =
@@ -132,4 +155,13 @@ module Client = struct
         let aud = match aud with Some a -> a | None -> appview_did_from_env in
         let token = get_service_auth s ~aud ~lxm:nsid () in
         get_json ~host ~bearer:token ~extra nsid pairs
+
+  let post_json_appview ?session ?host ?aud ?(extra = []) nsid data =
+    let host = match host with Some h -> h | None -> appview_host_from_env in
+    match session with
+    | None -> post_json ~host ~extra nsid data
+    | Some s ->
+        let aud = match aud with Some a -> a | None -> appview_did_from_env in
+        let token = get_service_auth s ~aud ~lxm:nsid () in
+        post_json ~host ~bearer:token ~extra nsid data
 end

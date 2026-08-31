@@ -33,6 +33,24 @@ module Did_plc = struct
     raw : Yojson.Safe.t;
   }
 
+  type plc_service = { type_ : string; endpoint : string }
+
+  type plc_state = {
+    did : string option;
+    rotation_keys : string list;
+    verification_methods : (string * string) list;
+    also_known_as : string list;
+    services : (string * plc_service) list;
+  }
+
+  type audit_entry = {
+    did : string option;
+    cid : string option;
+    operation : operation;
+    nullified : bool;
+    created_at : string option;
+  }
+
   let default_directory = "plc.directory"
 
   let strip_trailing_slash (s : string) : string =
@@ -240,6 +258,142 @@ module Did_plc = struct
     match fetch_json url with
     | `List items -> List.map parse_operation items
     | _ -> failwith "Did_plc.resolve_log: expected a JSON array"
+
+  let json_string_opt json field =
+    match Yojson.Safe.Util.member field json with
+    | `String s -> Some s
+    | _ -> None
+
+  let parse_plc_service json : plc_service =
+    {
+      type_ =
+        (match Yojson.Safe.Util.member "type" json with
+        | `String s -> s
+        | _ -> "");
+      endpoint =
+        (match Yojson.Safe.Util.member "endpoint" json with
+        | `String s -> s
+        | _ -> "");
+    }
+
+  let parse_plc_state json : plc_state =
+    let open Yojson.Safe.Util in
+    let verification_methods =
+      match json |> member "verificationMethods" with
+      | `Assoc fields ->
+          List.filter_map
+            (fun (k, v) -> match v with `String s -> Some (k, s) | _ -> None)
+            fields
+      | _ -> []
+    in
+    let services =
+      match json |> member "services" with
+      | `Assoc fields ->
+          List.filter_map
+            (fun (k, v) ->
+              match v with
+              | `Assoc _ as obj -> Some (k, parse_plc_service obj)
+              | _ -> None)
+            fields
+      | _ -> []
+    in
+    {
+      did = json_string_opt json "did";
+      rotation_keys = string_list json "rotationKeys";
+      verification_methods;
+      also_known_as = string_list json "alsoKnownAs";
+      services;
+    }
+
+  let parse_audit_entry json : audit_entry =
+    let op_json =
+      match Yojson.Safe.Util.member "operation" json with
+      | `Assoc _ as op -> op
+      | _ -> json
+    in
+    {
+      did = json_string_opt json "did";
+      cid = json_string_opt json "cid";
+      operation = parse_operation op_json;
+      nullified =
+        (match Yojson.Safe.Util.member "nullified" json with
+        | `Bool b -> b
+        | _ -> false);
+      created_at = json_string_opt json "createdAt";
+    }
+
+  let resolve_data ?directory (did : string) : plc_state =
+    validate_plc_did did;
+    parse_plc_state
+      (fetch_json (plc_origin ?directory () ^ "/" ^ did ^ "/data"))
+
+  let resolve_audit_log ?directory (did : string) : audit_entry list =
+    validate_plc_did did;
+    let url = plc_origin ?directory () ^ "/" ^ did ^ "/log/audit" in
+    match fetch_json url with
+    | `List items -> List.map parse_audit_entry items
+    | _ -> failwith "Did_plc.resolve_audit_log: expected a JSON array"
+
+  let assoc_strings xs = `Assoc (List.map (fun (k, v) -> (k, `String v)) xs)
+
+  let services_json (services : (string * plc_service) list) : Yojson.Safe.t =
+    `Assoc
+      (List.map
+         (fun (id, s) ->
+           ( id,
+             `Assoc
+               [ ("type", `String s.type_); ("endpoint", `String s.endpoint) ]
+           ))
+         services)
+
+  let genesis_operation ?(also_known_as = [])
+      ?(verification_methods : (string * string) list = [])
+      ?(services : (string * plc_service) list = []) ~rotation_keys () :
+      Yojson.Safe.t =
+    `Assoc
+      [
+        ("type", `String "plc_operation");
+        ("rotationKeys", `List (List.map (fun k -> `String k) rotation_keys));
+        ("verificationMethods", assoc_strings verification_methods);
+        ("alsoKnownAs", `List (List.map (fun a -> `String a) also_known_as));
+        ("services", services_json services);
+        ("prev", `Null);
+      ]
+
+  let update_operation ?(also_known_as = [])
+      ?(verification_methods : (string * string) list = [])
+      ?(services : (string * plc_service) list = []) ~rotation_keys ~prev () :
+      Yojson.Safe.t =
+    `Assoc
+      [
+        ("type", `String "plc_operation");
+        ("rotationKeys", `List (List.map (fun k -> `String k) rotation_keys));
+        ("verificationMethods", assoc_strings verification_methods);
+        ("alsoKnownAs", `List (List.map (fun a -> `String a) also_known_as));
+        ("services", services_json services);
+        ("prev", `String prev);
+      ]
+
+  let tombstone_operation ~prev () : Yojson.Safe.t =
+    `Assoc [ ("type", `String "plc_tombstone"); ("prev", `String prev) ]
+
+  let submit_operation ?directory (did : string) (op : Yojson.Safe.t) : string =
+    validate_plc_did did;
+    let url = plc_origin ?directory () ^ "/" ^ did in
+    let headers =
+      Cohttp_client.create_headers_from_pairs
+        [ Cohttp_client.application_json_setting_tuple ]
+    in
+    let status, body =
+      Lwt_main.run
+        (Cohttp_client.post_with_status url (Yojson.Safe.to_string op) headers)
+    in
+    if status < 200 || status >= 300 then
+      match Error.Error.of_body body with
+      | Some e -> failwith ("Did_plc.submit: " ^ Error.Error.to_string e)
+      | None ->
+          failwith (Printf.sprintf "Did_plc.submit: HTTP %d %s" status body)
+    else body
 
   let rec json_to_cbor : Yojson.Safe.t -> Dag_cbor.value = function
     | `Null -> Dag_cbor.Null

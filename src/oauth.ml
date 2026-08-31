@@ -94,16 +94,26 @@ module Oauth = struct
     let r, s = Mirage_crypto_ec.P256.Dsa.sign ~key:priv digest in
     r ^ low_s s
 
+  (* RFC 9449: htu is the HTTP URI without query or fragment. *)
+  let htu_of_url (url : string) : string =
+    let cut c s =
+      match String.index_opt s c with Some i -> String.sub s 0 i | None -> s
+    in
+    cut '#' (cut '?' url)
+
+  let random_jti () : string =
+    Lazy.force ensure_rng;
+    Random.self_init ();
+    let bytes = Bytes.create 32 in
+    for i = 0 to 31 do
+      Bytes.set bytes i (Char.chr (Random.int 256))
+    done;
+    Base64url.encode (Bytes.to_string bytes)
+
   let dpop_proof ~(priv : Mirage_crypto_ec.P256.Dsa.priv)
       ~(pub : Mirage_crypto_ec.P256.Dsa.pub) ~htm ~htu ?ath ?jti ?iat ?nonce ()
       : string =
-    let jti =
-      match jti with
-      | Some j -> j
-      | None ->
-          Base64url.encode
-            (Hash.sha256 (string_of_float (Unix.gettimeofday ())))
-    in
+    let jti = match jti with Some j -> j | None -> random_jti () in
     let iat =
       match iat with
       | Some n -> n
@@ -338,6 +348,9 @@ module Oauth = struct
     jwks_uri : string option;
     client_name : string option;
     client_uri : string option;
+    logo_uri : string option;
+    tos_uri : string option;
+    policy_uri : string option;
   }
 
   let string_list json field =
@@ -360,7 +373,8 @@ module Oauth = struct
 
   let public_metadata ~client_id ~redirect_uris
       ?(scope = "atproto transition:generic") ?(application_type = "web")
-      ?client_name ?client_uri () : client_metadata =
+      ?client_name ?client_uri ?logo_uri ?tos_uri ?policy_uri () :
+      client_metadata =
     {
       client_id;
       application_type;
@@ -375,14 +389,18 @@ module Oauth = struct
       jwks_uri = None;
       client_name;
       client_uri;
+      logo_uri;
+      tos_uri;
+      policy_uri;
     }
 
   let confidential_metadata ~client_id ~redirect_uris ~jwks
       ?(scope = "atproto transition:generic") ?(application_type = "web")
-      ?client_name ?client_uri () : client_metadata =
+      ?client_name ?client_uri ?logo_uri ?tos_uri ?policy_uri () :
+      client_metadata =
     {
       (public_metadata ~client_id ~redirect_uris ~scope ~application_type
-         ?client_name ?client_uri ())
+         ?client_name ?client_uri ?logo_uri ?tos_uri ?policy_uri ())
       with
       token_endpoint_auth_method = "private_key_jwt";
       token_endpoint_auth_signing_alg = Some "ES256";
@@ -412,9 +430,18 @@ module Oauth = struct
       @ (match m.client_name with
         | Some n -> [ ("client_name", `String n) ]
         | None -> [])
+      @ (match m.client_uri with
+        | Some u -> [ ("client_uri", `String u) ]
+        | None -> [])
+      @ (match m.logo_uri with
+        | Some u -> [ ("logo_uri", `String u) ]
+        | None -> [])
+      @ (match m.tos_uri with
+        | Some u -> [ ("tos_uri", `String u) ]
+        | None -> [])
       @
-      match m.client_uri with
-      | Some u -> [ ("client_uri", `String u) ]
+      match m.policy_uri with
+      | Some u -> [ ("policy_uri", `String u) ]
       | None -> []
     in
     `Assoc fields
@@ -448,6 +475,9 @@ module Oauth = struct
       jwks_uri = json_string_opt json "jwks_uri";
       client_name = json_string_opt json "client_name";
       client_uri = json_string_opt json "client_uri";
+      logo_uri = json_string_opt json "logo_uri";
+      tos_uri = json_string_opt json "tos_uri";
+      policy_uri = json_string_opt json "policy_uri";
     }
 
   let jwk_has_private_d json =
@@ -544,6 +574,7 @@ module Oauth = struct
     require_pushed_authorization_requests : bool;
     authorization_response_iss_parameter_supported : bool;
     client_id_metadata_document_supported : bool;
+    require_request_uri_registration : bool;
   }
 
   type resource_metadata = {
@@ -602,6 +633,10 @@ module Oauth = struct
         (match json |> member "client_id_metadata_document_supported" with
         | `Bool b -> b
         | _ -> false);
+      require_request_uri_registration =
+        (match json |> member "require_request_uri_registration" with
+        | `Bool b -> b
+        | _ -> true);
     }
 
   let require_mem label xs value =
@@ -638,6 +673,8 @@ module Oauth = struct
         "Oauth: authorization_response_iss_parameter_supported must be true";
     if not m.client_id_metadata_document_supported then
       failwith "Oauth: client_id_metadata_document_supported must be true";
+    if not m.require_request_uri_registration then
+      failwith "Oauth: require_request_uri_registration must not be false";
     if m.pushed_authorization_request_endpoint = "" then
       failwith "Oauth: pushed_authorization_request_endpoint is required"
 
@@ -684,16 +721,20 @@ module Oauth = struct
       sub;
     }
 
+  let expect_sub ~expected (t : token) : unit =
+    if t.sub <> expected then
+      failwith
+        (Printf.sprintf "Oauth: token sub %s != expected DID %s" t.sub expected)
+
+  let expires_at ~issued_at (t : token) : float option =
+    match t.expires_in with
+    | Some n -> Some (issued_at +. float_of_int n)
+    | None -> None
+
   let client_assertion ~(priv : Mirage_crypto_ec.P256.Dsa.priv)
       ~pub:(_pub : Mirage_crypto_ec.P256.Dsa.pub) ~client_id ~issuer ?kid ?jti
       ?iat ?exp () : string =
-    let jti =
-      match jti with
-      | Some j -> j
-      | None ->
-          Base64url.encode
-            (Hash.sha256 (string_of_float (Unix.gettimeofday ())))
-    in
+    let jti = match jti with Some j -> j | None -> random_jti () in
     let iat =
       match iat with
       | Some n -> n
@@ -762,10 +803,14 @@ module Oauth = struct
     | Some e -> e.Error.Error.error = "use_dpop_nonce"
     | None -> false
 
+  let missing_dpop_nonce () =
+    failwith "Oauth: use_dpop_nonce response is missing a DPoP-Nonce header"
+
   let post_with_dpop ~(http : http_post) ~priv ~pub ~url ~htm ~body ?ath ?nonce
       () : http_response * string option =
+    let htu = htu_of_url url in
     let rec attempt nonce tries =
-      let proof = dpop_proof ~priv ~pub ~htm ~htu:url ?ath ?nonce () in
+      let proof = dpop_proof ~priv ~pub ~htm ~htu ?ath ?nonce () in
       let headers =
         [
           ("Content-Type", "application/x-www-form-urlencoded");
@@ -777,7 +822,7 @@ module Oauth = struct
       if use_dpop_nonce resp.status resp.body && tries > 0 then
         match next_nonce with
         | Some n -> attempt (Some n) (tries - 1)
-        | None -> (resp, nonce)
+        | None -> missing_dpop_nonce ()
       else (resp, match next_nonce with Some n -> Some n | None -> nonce)
     in
     attempt nonce 1
@@ -820,6 +865,35 @@ module Oauth = struct
     let ath =
       match ath with Some a -> a | None -> ath_of_access_token access_token
     in
-    let proof = dpop_proof ~priv ~pub ~htm ~htu ~ath ?nonce () in
+    let proof =
+      dpop_proof ~priv ~pub ~htm ~htu:(htu_of_url htu) ~ath ?nonce ()
+    in
     [ authorization_dpop access_token; dpop_header proof ]
+
+  type http_request =
+    url:string ->
+    method_:string ->
+    headers:(string * string) list ->
+    body:string option ->
+    http_response
+
+  (* DPoP-bound resource request with one use_dpop_nonce retry. *)
+  let request_with_dpop ~(http : http_request) ~priv ~pub ~url ~htm
+      ~access_token ?body ?ath ?nonce () : http_response * string option =
+    let ath =
+      match ath with Some a -> a | None -> ath_of_access_token access_token
+    in
+    let htu = htu_of_url url in
+    let rec attempt nonce tries =
+      let proof = dpop_proof ~priv ~pub ~htm ~htu ~ath ?nonce () in
+      let headers = [ authorization_dpop access_token; dpop_header proof ] in
+      let resp = http ~url ~method_:htm ~headers ~body in
+      let next_nonce = header_value resp.headers "DPoP-Nonce" in
+      if use_dpop_nonce resp.status resp.body && tries > 0 then
+        match next_nonce with
+        | Some n -> attempt (Some n) (tries - 1)
+        | None -> missing_dpop_nonce ()
+      else (resp, match next_nonce with Some n -> Some n | None -> nonce)
+    in
+    attempt nonce 1
 end

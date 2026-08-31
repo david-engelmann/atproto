@@ -443,6 +443,106 @@ let test_par_token_loop_retries_nonce _ =
     "DPoP tok"
     (List.assoc "Authorization" headers)
 
+let test_htu_strips_query_and_fragment _ =
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "https://pds.example/xrpc/com.atproto.repo.getRecord"
+    (Oauth.htu_of_url
+       "https://pds.example/xrpc/com.atproto.repo.getRecord?repo=did:plc:abc#frag")
+
+let test_expect_sub_and_expires _ =
+  let token =
+    Oauth.parse_token_response
+      (`Assoc
+        [
+          ("access_token", `String "tok");
+          ("token_type", `String "DPoP");
+          ("expires_in", `Int 300);
+          ("scope", `String "atproto");
+          ("sub", `String "did:plc:7iza6de2dwap2sbkpav7c6c6");
+        ])
+  in
+  Oauth.expect_sub ~expected:"did:plc:7iza6de2dwap2sbkpav7c6c6" token;
+  OUnit2.assert_bool "sub mismatch accepted"
+    (try
+       Oauth.expect_sub ~expected:"did:plc:aaaaaaaaaaaaaaaaaaaaaaaa" token;
+       false
+     with Failure _ -> true);
+  match Oauth.expires_at ~issued_at:1_000. token with
+  | Some at -> OUnit2.assert_equal ~printer:string_of_float 1_300. at
+  | None -> OUnit2.assert_failure "expected expires_at"
+
+let test_as_metadata_rejects_false_request_uri_registration _ =
+  let bad =
+    match sample_as_json with
+    | `Assoc fields ->
+        `Assoc (fields @ [ ("require_request_uri_registration", `Bool false) ])
+    | _ -> sample_as_json
+  in
+  OUnit2.assert_bool "false require_request_uri_registration accepted"
+    (try
+       Oauth.validate_as_metadata (Oauth.parse_as_metadata bad);
+       false
+     with Failure _ -> true)
+
+let test_resource_request_retries_nonce _ =
+  let priv, pub = p256_pair () in
+  let hits = ref 0 in
+  let seen_nonce = ref None in
+  let http ~url:_ ~method_:_ ~headers ~body:_ =
+    incr hits;
+    let claims = Oauth.parse_dpop (List.assoc "DPoP" headers) in
+    if !hits = 1 then
+      {
+        Oauth.status = 400;
+        headers = [ ("DPoP-Nonce", "rs-nonce-1") ];
+        body = {|{"error":"use_dpop_nonce"}|};
+      }
+    else (
+      seen_nonce := claims.nonce;
+      { Oauth.status = 200; headers = []; body = {|{"ok":true}|} })
+  in
+  let resp, _ =
+    Oauth.request_with_dpop ~http ~priv ~pub
+      ~url:"https://pds.example/xrpc/com.atproto.repo.getRecord?repo=x"
+      ~htm:"GET" ~access_token:"tok" ()
+  in
+  OUnit2.assert_equal 2 !hits;
+  OUnit2.assert_equal (Some "rs-nonce-1") !seen_nonce;
+  OUnit2.assert_equal 200 resp.status
+
+let test_use_dpop_nonce_without_header_fails _ =
+  let priv, pub = p256_pair () in
+  let http ~url:_ ~headers:_ ~body:_ =
+    { Oauth.status = 400; headers = []; body = {|{"error":"use_dpop_nonce"}|} }
+  in
+  OUnit2.assert_bool "missing DPoP-Nonce accepted"
+    (try
+       ignore
+         (Oauth.post_with_dpop ~http ~priv ~pub
+            ~url:"https://bsky.social/oauth/par" ~htm:"POST" ~body:"" ());
+       false
+     with Failure msg ->
+       let needle = "DPoP-Nonce" in
+       let rec find i =
+         i + String.length needle <= String.length msg
+         && (String.sub msg i (String.length needle) = needle || find (i + 1))
+       in
+       find 0)
+
+let test_metadata_optional_uris _ =
+  let meta =
+    Oauth.public_metadata ~client_id ~redirect_uris:[ redirect_uri ]
+      ~logo_uri:"https://client.example/logo.png"
+      ~tos_uri:"https://client.example/tos"
+      ~policy_uri:"https://client.example/policy" ()
+  in
+  let json = Oauth.metadata_to_json meta in
+  let parsed = Oauth.metadata_of_json json in
+  OUnit2.assert_equal (Some "https://client.example/logo.png") parsed.logo_uri;
+  OUnit2.assert_equal (Some "https://client.example/tos") parsed.tos_uri;
+  OUnit2.assert_equal (Some "https://client.example/policy") parsed.policy_uri
+
 let test_live_as_metadata _ =
   let old =
     Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
@@ -502,6 +602,16 @@ let suite =
          "test_dpop_nonce_claim" >:: test_dpop_nonce_claim;
          "test_par_token_loop_retries_nonce"
          >:: test_par_token_loop_retries_nonce;
+         "test_htu_strips_query_and_fragment"
+         >:: test_htu_strips_query_and_fragment;
+         "test_expect_sub_and_expires" >:: test_expect_sub_and_expires;
+         "test_as_metadata_rejects_false_request_uri_registration"
+         >:: test_as_metadata_rejects_false_request_uri_registration;
+         "test_resource_request_retries_nonce"
+         >:: test_resource_request_retries_nonce;
+         "test_use_dpop_nonce_without_header_fails"
+         >:: test_use_dpop_nonce_without_header_fails;
+         "test_metadata_optional_uris" >:: test_metadata_optional_uris;
          "test_live_as_metadata" >:: test_live_as_metadata;
        ]
 

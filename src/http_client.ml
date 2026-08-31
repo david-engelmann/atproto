@@ -69,7 +69,8 @@ module Http_client = struct
     | ADDR_INET (addr, port) -> Some (addr, port)
 
   let get_addr_info (host : string) (port : int) : Unix.addr_info list Lwt.t =
-    Lwt_unix.getaddrinfo host (string_of_int port) [ Unix.(AI_FAMILY PF_INET) ]
+    Lwt_unix.getaddrinfo host (string_of_int port)
+      [ Unix.AI_SOCKTYPE Unix.SOCK_STREAM ]
 
   let headers_to_list (h : H2.Headers.t) : (string * string) list =
     H2.Headers.to_list h
@@ -171,7 +172,9 @@ module Http_client = struct
     match addrs with
     | [] -> Lwt.fail (Error ("DNS lookup failed for " ^ parsed.host))
     | addr_info :: _ ->
-        let socket = Lwt_unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
+        let socket =
+          Lwt_unix.socket addr_info.Unix.ai_family Unix.SOCK_STREAM 0
+        in
         Lwt.finalize
           (fun () ->
             Lwt_unix.connect socket addr_info.Unix.ai_addr >>= fun () ->
@@ -191,6 +194,16 @@ module Http_client = struct
 
   let post url ?(headers = []) ?body ?timeout () : Response.response Lwt.t =
     request ?timeout (Request.post url ~headers ?body ())
+
+  let put url ?(headers = []) ?body ?timeout () : Response.response Lwt.t =
+    request ?timeout (Request.put url ~headers ?body ())
+
+  let delete url ?(headers = []) ?body ?timeout () : Response.response Lwt.t =
+    request ?timeout (Request.delete url ~headers ?body ())
+
+  let patch url ?(headers = []) ?body ?timeout () : Response.response Lwt.t =
+    request ?timeout
+      (Request.create ~method_:Http_method.Patch ~url ~headers ?body ())
 
   let get_host (host : string) (port : int) : Response.response Lwt.t =
     let url =
@@ -228,6 +241,30 @@ module Http_client = struct
       else ("content-type", "application/json") :: headers
     in
     post (xrpc_url ~host ?port nsid ()) ~headers:hdrs ?body ?timeout ()
+
+  let json_headers headers =
+    if
+      List.exists
+        (fun (k, _) -> String.lowercase_ascii k = "content-type")
+        headers
+    then headers
+    else ("content-type", "application/json") :: headers
+
+  let xrpc_put ~host ?port ~nsid ?(headers = []) ?body ?timeout () :
+      Response.response Lwt.t =
+    put
+      (xrpc_url ~host ?port nsid ())
+      ~headers:(json_headers headers) ?body ?timeout ()
+
+  let xrpc_delete ~host ?port ~nsid ?(headers = []) ?body ?timeout () :
+      Response.response Lwt.t =
+    delete (xrpc_url ~host ?port nsid ()) ~headers ?body ?timeout ()
+
+  let xrpc_patch ~host ?port ~nsid ?(headers = []) ?body ?timeout () :
+      Response.response Lwt.t =
+    patch
+      (xrpc_url ~host ?port nsid ())
+      ~headers:(json_headers headers) ?body ?timeout ()
 
   let run (t : 'a Lwt.t) : 'a = Lwt_main.run t
 end

@@ -448,6 +448,29 @@ let test_cid_mismatch _ =
        false
      with Mst.Verify_error _ -> true)
 
+let test_diff_ops_roundtrip _ =
+  let store = Mst.store_of_get (fun _ -> None) in
+  let va = value_cid "rec-a"
+  and vb = value_cid "rec-b"
+  and vc = value_cid "rec-c" in
+  let prev, _ = Mst.insert (Mst.empty_tree store) "app.bsky.feed.post/aaa" va in
+  let next, _ = Mst.insert prev "app.bsky.feed.post/bbb" vb in
+  let next, _ = Mst.insert next "app.bsky.feed.post/aaa" vc in
+  let ops = Mst.diff_ops prev next in
+  let actions =
+    List.map (fun (o : Mst.record_op) -> o.action ^ ":" ^ o.path) ops
+  in
+  OUnit2.assert_equal
+    ~printer:(fun xs -> String.concat "," xs)
+    [ "update:app.bsky.feed.post/aaa"; "create:app.bsky.feed.post/bbb" ]
+    actions;
+  let applied = Mst.apply_ops prev ops in
+  OUnit2.assert_bool "apply(diff) restores next"
+    (Cid.equal (Mst.root_cid applied) (Mst.root_cid next));
+  let inverted = Mst.invert_ops applied ops in
+  OUnit2.assert_bool "invert(diff) restores prev"
+    (Cid.equal (Mst.root_cid inverted) (Mst.root_cid prev))
+
 let test_collection_range_and_preorder _ =
   let start, end_ = Mst.collection_range "app.bsky.feed.post" in
   OUnit2.assert_equal ~printer:(fun x -> x) "app.bsky.feed.post/" start;
@@ -489,6 +512,7 @@ let suite =
          "test_commit_sig_wrong_key_and_missing"
          >:: test_commit_sig_wrong_key_and_missing;
          "test_cid_mismatch" >:: test_cid_mismatch;
+         "test_diff_ops_roundtrip" >:: test_diff_ops_roundtrip;
          "test_collection_range_and_preorder"
          >:: test_collection_range_and_preorder;
        ]
