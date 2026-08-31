@@ -387,6 +387,24 @@ module Lexicon = struct
   let official_revoke_creds =
     {|{"lexicon":1,"id":"com.atproto.temp.revokeAccountCredentials","defs":{"main":{"type":"procedure","description":"Revoke sessions, password, and app passwords associated with account.","input":{"encoding":"application/json","schema":{"type":"object","required":["account"],"properties":{"account":{"type":"string"}}}}}}}|}
 
+  let official_site_recommend =
+    {|{"lexicon":1,"id":"site.standard.graph.recommend","defs":{"main":{"type":"record","description":"Record declaring a recommendation of a document.","key":"tid","record":{"type":"object","required":["document","createdAt"],"properties":{"document":{"type":"string","format":"at-uri"},"createdAt":{"type":"string","format":"datetime"}}}}}}|}
+
+  let official_site_subscription =
+    {|{"lexicon":1,"id":"site.standard.graph.subscription","defs":{"main":{"type":"record","description":"Record declaring a subscription to a publication.","key":"tid","record":{"type":"object","required":["publication"],"properties":{"publication":{"type":"string","format":"at-uri"},"createdAt":{"type":"string","format":"datetime"}}}}}}|}
+
+  let official_germ_declaration =
+    {|{"lexicon":1,"id":"com.germnetwork.declaration","defs":{"main":{"type":"record","description":"A declaration of a Germ Network account","key":"literal:self","record":{"type":"object","required":["version","currentKey"],"properties":{"version":{"type":"string"},"currentKey":{"type":"bytes"},"messageMe":{"type":"ref","ref":"#messageMe"}}}},"messageMe":{"type":"object","required":["showButtonTo","messageMeUrl"],"properties":{"showButtonTo":{"type":"string","knownValues":["none","usersIFollow","everyone"]},"messageMeUrl":{"type":"string","format":"uri"}}}}}|}
+
+  let official_safelink_query_events =
+    {|{"lexicon":1,"id":"tools.ozone.safelink.queryEvents","defs":{"main":{"type":"procedure","description":"Query URL safety audit events","input":{"encoding":"application/json","schema":{"type":"object","properties":{"cursor":{"type":"string"},"limit":{"type":"integer"},"urls":{"type":"array","items":{"type":"string"}},"patternType":{"type":"string"},"sortDirection":{"type":"string"}}}},"output":{"encoding":"application/json","schema":{"type":"object","required":["events"],"properties":{"cursor":{"type":"string"},"events":{"type":"array","items":{"type":"ref","ref":"tools.ozone.safelink.defs#event"}}}}}}}}|}
+
+  let official_admin_signing_key =
+    {|{"lexicon":1,"id":"com.atproto.admin.updateAccountSigningKey","defs":{"main":{"type":"procedure","description":"Administrative action to update an account's signing key in their Did document.","input":{"encoding":"application/json","schema":{"type":"object","required":["did","signingKey"],"properties":{"did":{"type":"string","format":"did"},"signingKey":{"type":"string","format":"did"}}}}}}}|}
+
+  let official_join_link =
+    {|{"lexicon":1,"id":"chat.bsky.embed.joinLink","defs":{"main":{"type":"object","required":["code"],"properties":{"code":{"type":"string"}}},"view":{"type":"object","required":["joinLinkPreview"],"properties":{"joinLinkPreview":{"type":"union","refs":["chat.bsky.group.defs#joinLinkPreviewView"]}}}}}|}
+
   let official_lexicons : (string * string) list =
     [
       ("app.bsky.graph.listitem", official_listitem);
@@ -409,6 +427,12 @@ module Lexicon = struct
       ("com.atproto.temp.checkSignupQueue", official_check_signup);
       ("com.atproto.temp.dereferenceScope", official_deref_scope);
       ("com.atproto.temp.revokeAccountCredentials", official_revoke_creds);
+      ("site.standard.graph.recommend", official_site_recommend);
+      ("site.standard.graph.subscription", official_site_subscription);
+      ("com.germnetwork.declaration", official_germ_declaration);
+      ("tools.ozone.safelink.queryEvents", official_safelink_query_events);
+      ("com.atproto.admin.updateAccountSigningKey", official_admin_signing_key);
+      ("chat.bsky.embed.joinLink", official_join_link);
     ]
 
   let official_documents () : document list =

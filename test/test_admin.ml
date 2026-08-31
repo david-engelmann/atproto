@@ -51,6 +51,68 @@ let test_parse_account_info _ =
   OUnit2.assert_equal ~printer:(fun x -> x) "alice.test" info.handle;
   OUnit2.assert_equal (Some true) info.invites_disabled
 
+let test_invite_codes_and_admin_bodies _ =
+  let codes =
+    Admin.parse_invite_codes
+      (`Assoc
+        [
+          ("cursor", `String "c1");
+          ( "codes",
+            `List
+              [
+                `Assoc
+                  [
+                    ("code", `String "bsky-invite-1");
+                    ("available", `Int 5);
+                    ("disabled", `Bool false);
+                    ("forAccount", `String "did:plc:abc123xyz0001112223333");
+                    ("createdBy", `String "admin");
+                    ("createdAt", `String "2024-01-01T00:00:00.000Z");
+                    ( "uses",
+                      `List
+                        [
+                          `Assoc
+                            [
+                              ( "usedBy",
+                                `String "did:plc:user000111222333444555666" );
+                              ("usedAt", `String "2024-01-02T00:00:00.000Z");
+                            ];
+                        ] );
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "bsky-invite-1" (List.hd codes.codes).code;
+  OUnit2.assert_equal 1 (List.length (List.hd codes.codes).uses);
+  let disable =
+    Admin.disable_invite_codes_body ~codes:[ "x" ]
+      ~accounts:[ "did:plc:abc123xyz0001112223333" ]
+      ()
+  in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "x"
+    (disable |> member "codes" |> to_list |> List.hd |> to_string);
+  let signing =
+    Admin.update_account_signing_key_body ~did:"did:plc:abc123xyz0001112223333"
+      ~signing_key:"did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH" ()
+  in
+  OUnit2.assert_bool "signingKey present"
+    (match signing |> member "signingKey" with
+    | `String s -> String.length s > 8
+    | _ -> false);
+  let email =
+    Admin.update_account_email_body ~account:"alice.test" ~email:"a@example.com"
+      ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "a@example.com"
+    (email |> member "email" |> to_string)
+
 let test_send_email_body _ =
   let body =
     Admin.send_email_body ~recipient_did:"did:plc:abc123xyz0001112223333"
@@ -82,6 +144,8 @@ let suite =
          "test_parse_subject_status" >:: test_parse_subject_status;
          "test_update_body" >:: test_update_body;
          "test_parse_account_info" >:: test_parse_account_info;
+         "test_invite_codes_and_admin_bodies"
+         >:: test_invite_codes_and_admin_bodies;
          "test_send_email_body" >:: test_send_email_body;
          "test_admin_auth_skipped" >:: test_admin_auth_skipped;
        ]

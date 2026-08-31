@@ -364,6 +364,15 @@ let test_parse_embed_external_view _ =
       OUnit2.assert_equal ~printer:(fun x -> x) "https://atproto.com" e.ext.uri
   | None -> OUnit2.assert_failure "expected view"
 
+let test_join_link_embed _ =
+  let built = Embed.join_link ~code:"abc123xyz" () in
+  (match built with
+  | `JoinLink e -> OUnit2.assert_equal ~printer:(fun x -> x) "abc123xyz" e.code
+  | _ -> OUnit2.assert_failure "expected join link builder");
+  match Embed.parse_embed (Embed.embed_to_json built) with
+  | `JoinLink e -> OUnit2.assert_equal ~printer:(fun x -> x) "abc123xyz" e.code
+  | _ -> OUnit2.assert_failure "expected join link parse"
+
 let suite =
   "embed"
   >::: [
@@ -379,6 +388,7 @@ let suite =
          "test_parse_record_view_not_found" >:: test_parse_record_view_not_found;
          "test_embed_to_json_roundtrip" >:: test_embed_to_json_roundtrip;
          "test_parse_embed_external_view" >:: test_parse_embed_external_view;
+         "test_join_link_embed" >:: test_join_link_embed;
        ]
 
 let () = run_test_tt_main suite

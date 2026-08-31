@@ -1,5 +1,6 @@
 open OUnit2
 open Atproto.Request
+open Atproto.Http_method
 
 let test_sample_request_with_body_method_ _ =
   match Request.sample_request_with_body with
@@ -45,6 +46,18 @@ let test_sample_request_without_body_body _ =
       | None -> OUnit2.assert_equal 1 1
       | Some _ -> OUnit2.assert_equal 0 1)
 
+let test_create_helpers _ =
+  let get = Request.get "https://public.api.bsky.app/xrpc/ping" () in
+  OUnit2.assert_equal Request.test_get get.method_;
+  OUnit2.assert_equal None get.body;
+  let post =
+    Request.post "https://public.api.bsky.app/xrpc/ping" ~body:"{}" ()
+  in
+  OUnit2.assert_equal Request.test_post post.method_;
+  OUnit2.assert_equal (Some "{}") post.body;
+  let put = Request.put "https://example.com/x" ~body:"x" () in
+  OUnit2.assert_equal Http_method.Put put.method_
+
 let suite =
   "suite"
   >::: [
@@ -64,6 +77,7 @@ let suite =
          >:: test_sample_request_without_body_headers;
          "test_sample_request_without_body_body"
          >:: test_sample_request_without_body_body;
+         "test_create_helpers" >:: test_create_helpers;
        ]
 
 let () = run_test_tt_main suite

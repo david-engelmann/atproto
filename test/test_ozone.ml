@@ -267,6 +267,43 @@ let test_operator_namespace_parsers _ =
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "https://evil.example" (List.hd rules.rules).url;
+  let events =
+    Ozone.parse_safelink_events
+      (`Assoc
+        [
+          ( "events",
+            `List
+              [
+                `Assoc
+                  [
+                    ("id", `Int 9);
+                    ("eventType", `String "addRule");
+                    ("url", `String "https://phish.example");
+                    ("pattern", `String "domain");
+                    ("action", `String "block");
+                    ("reason", `String "phishing");
+                    ("createdBy", `String "did:plc:mod000111222333444555666");
+                    ("createdAt", `String "2026-01-01T00:00:00.000Z");
+                    ("comment", `String "caught");
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal 9 (List.hd events.events).id;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "addRule" (List.hd events.events).event_type;
+  let qbody =
+    Ozone.query_safelink_events_body
+      ~urls:[ "https://phish.example" ]
+      ~pattern_type:"domain" ~sort_direction:"desc" ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "domain"
+    (qbody
+    |> Yojson.Safe.Util.member "patternType"
+    |> Yojson.Safe.Util.to_string);
   let body =
     Ozone.create_template_body ~name:"Hello" ~content_markdown:"hi"
       ~subject:"welcome" ()
