@@ -379,8 +379,14 @@ module Feed = struct
 
   let parse_timeline json : timeline =
     let open Yojson.Safe.Util in
-    let cursor = json |> member "cursor" |> to_string in
-    let feed = json |> member "feed" |> to_list |> List.map parse_feed in
+    let cursor =
+      match json |> member "cursor" with `String s -> s | _ -> ""
+    in
+    let feed =
+      match json |> member "feed" with
+      | `List xs -> List.map parse_feed xs
+      | _ -> []
+    in
     { cursor; feed }
 
   let parse_replies json : replies =
@@ -604,4 +610,363 @@ module Feed = struct
            body headers)
     in
     feed_skeleton
+
+  (* ---- feed generators, search, quotes, interactions ------------------- *)
+
+  type generator_view = {
+    uri : string;
+    cid : string;
+    did : string;
+    display_name : string;
+    description : string option;
+    creator_did : string option;
+    like_count : int option;
+    accepts_interactions : bool option;
+    indexed_at : string;
+    original : Yojson.Safe.t;
+  }
+
+  type generator_info = {
+    view : generator_view;
+    is_online : bool;
+    is_valid : bool;
+  }
+
+  type generators = { cursor : string option; feeds : generator_view list }
+
+  type skeleton_item = {
+    post : string;
+    reason : Yojson.Safe.t option;
+    feed_context : string option;
+  }
+
+  type feed_skeleton = {
+    cursor : string option;
+    req_id : string option;
+    feed : skeleton_item list;
+  }
+
+  type describe_feed_generator = {
+    did : string;
+    feeds : string list;
+    privacy_policy : string option;
+    terms_of_service : string option;
+  }
+
+  type post_view = {
+    uri : string;
+    cid : string;
+    author_did : string option;
+    author_handle : string option;
+    text : string option;
+    indexed_at : string;
+    reply_count : int option;
+    like_count : int option;
+    original : Yojson.Safe.t;
+  }
+
+  type search_posts = {
+    cursor : string option;
+    hits_total : int option;
+    posts : post_view list;
+  }
+
+  type quotes = {
+    uri : string;
+    cid : string option;
+    cursor : string option;
+    posts : post_view list;
+  }
+
+  type interaction = {
+    item : string option;
+    event : string option;
+    feed_context : string option;
+    req_id : string option;
+  }
+
+  let parse_generator_view json : generator_view =
+    let creator_did =
+      match Yojson.Safe.Util.member "creator" json with
+      | `Assoc _ as c -> (
+          match Yojson.Safe.Util.member "did" c with
+          | `String s -> Some s
+          | _ -> None)
+      | _ -> None
+    in
+    {
+      uri =
+        (match Yojson.Safe.Util.member "uri" json with
+        | `String s -> s
+        | _ -> "");
+      cid =
+        (match Yojson.Safe.Util.member "cid" json with
+        | `String s -> s
+        | _ -> "");
+      did =
+        (match Yojson.Safe.Util.member "did" json with
+        | `String s -> s
+        | _ -> "");
+      display_name =
+        (match Yojson.Safe.Util.member "displayName" json with
+        | `String s -> s
+        | _ -> "");
+      description =
+        (match Yojson.Safe.Util.member "description" json with
+        | `String s -> Some s
+        | _ -> None);
+      creator_did;
+      like_count =
+        (match Yojson.Safe.Util.member "likeCount" json with
+        | `Int n -> Some n
+        | _ -> None);
+      accepts_interactions =
+        (match Yojson.Safe.Util.member "acceptsInteractions" json with
+        | `Bool b -> Some b
+        | _ -> None);
+      indexed_at =
+        (match Yojson.Safe.Util.member "indexedAt" json with
+        | `String s -> s
+        | _ -> "");
+      original = json;
+    }
+
+  let parse_generator_info json : generator_info =
+    let open Yojson.Safe.Util in
+    {
+      view = json |> member "view" |> parse_generator_view;
+      is_online =
+        (match json |> member "isOnline" with `Bool b -> b | _ -> false);
+      is_valid =
+        (match json |> member "isValid" with `Bool b -> b | _ -> false);
+    }
+
+  let parse_generators json : generators =
+    {
+      cursor =
+        (match Yojson.Safe.Util.member "cursor" json with
+        | `String s -> Some s
+        | _ -> None);
+      feeds =
+        List.map parse_generator_view
+          (match Yojson.Safe.Util.member "feeds" json with
+          | `List xs -> xs
+          | _ -> []);
+    }
+
+  let parse_skeleton_item json : skeleton_item =
+    {
+      post =
+        (match Yojson.Safe.Util.member "post" json with
+        | `String s -> s
+        | _ -> "");
+      reason =
+        (match Yojson.Safe.Util.member "reason" json with
+        | `Null -> None
+        | other -> Some other);
+      feed_context =
+        (match Yojson.Safe.Util.member "feedContext" json with
+        | `String s -> Some s
+        | _ -> None);
+    }
+
+  let parse_feed_skeleton json : feed_skeleton =
+    {
+      cursor =
+        (match Yojson.Safe.Util.member "cursor" json with
+        | `String s -> Some s
+        | _ -> None);
+      req_id =
+        (match Yojson.Safe.Util.member "reqId" json with
+        | `String s -> Some s
+        | _ -> None);
+      feed =
+        List.map parse_skeleton_item
+          (match Yojson.Safe.Util.member "feed" json with
+          | `List xs -> xs
+          | _ -> []);
+    }
+
+  let parse_describe_feed_generator json : describe_feed_generator =
+    let open Yojson.Safe.Util in
+    let links = json |> member "links" in
+    {
+      did = (match json |> member "did" with `String s -> s | _ -> "");
+      feeds =
+        (match json |> member "feeds" with
+        | `List items ->
+            List.filter_map
+              (fun item ->
+                match item |> member "uri" with
+                | `String s -> Some s
+                | _ -> None)
+              items
+        | _ -> []);
+      privacy_policy =
+        (match links |> member "privacyPolicy" with
+        | `String s -> Some s
+        | _ -> None);
+      terms_of_service =
+        (match links |> member "termsOfService" with
+        | `String s -> Some s
+        | _ -> None);
+    }
+
+  let parse_post_view json : post_view =
+    let open Yojson.Safe.Util in
+    let author = json |> member "author" in
+    let record = json |> member "record" in
+    {
+      uri = (match json |> member "uri" with `String s -> s | _ -> "");
+      cid = (match json |> member "cid" with `String s -> s | _ -> "");
+      author_did =
+        (match author |> member "did" with `String s -> Some s | _ -> None);
+      author_handle =
+        (match author |> member "handle" with `String s -> Some s | _ -> None);
+      text =
+        (match record |> member "text" with `String s -> Some s | _ -> None);
+      indexed_at =
+        (match json |> member "indexedAt" with `String s -> s | _ -> "");
+      reply_count =
+        (match json |> member "replyCount" with `Int n -> Some n | _ -> None);
+      like_count =
+        (match json |> member "likeCount" with `Int n -> Some n | _ -> None);
+      original = json;
+    }
+
+  let parse_search_posts json : search_posts =
+    {
+      cursor =
+        (match Yojson.Safe.Util.member "cursor" json with
+        | `String s -> Some s
+        | _ -> None);
+      hits_total =
+        (match Yojson.Safe.Util.member "hitsTotal" json with
+        | `Int n -> Some n
+        | _ -> None);
+      posts =
+        List.map parse_post_view
+          (match Yojson.Safe.Util.member "posts" json with
+          | `List xs -> xs
+          | _ -> []);
+    }
+
+  let parse_quotes json : quotes =
+    {
+      uri =
+        (match Yojson.Safe.Util.member "uri" json with
+        | `String s -> s
+        | _ -> "");
+      cid =
+        (match Yojson.Safe.Util.member "cid" json with
+        | `String s -> Some s
+        | _ -> None);
+      cursor =
+        (match Yojson.Safe.Util.member "cursor" json with
+        | `String s -> Some s
+        | _ -> None);
+      posts =
+        List.map parse_post_view
+          (match Yojson.Safe.Util.member "posts" json with
+          | `List xs -> xs
+          | _ -> []);
+    }
+
+  let interaction_to_json (i : interaction) : Yojson.Safe.t =
+    let fields =
+      (match i.item with Some v -> [ ("item", `String v) ] | None -> [])
+      @ (match i.event with Some v -> [ ("event", `String v) ] | None -> [])
+      @ (match i.feed_context with
+        | Some v -> [ ("feedContext", `String v) ]
+        | None -> [])
+      @ match i.req_id with Some v -> [ ("reqId", `String v) ] | None -> []
+    in
+    `Assoc fields
+
+  let send_interactions_body ?feed interactions : Yojson.Safe.t =
+    let fields =
+      [ ("interactions", `List (List.map interaction_to_json interactions)) ]
+      @ match feed with Some u -> [ ("feed", `String u) ] | None -> []
+    in
+    `Assoc fields
+
+  let get_feed ?session ?host ~feed ?limit ?cursor () : timeline =
+    Client.Client.get_json ?session ?host "app.bsky.feed.getFeed"
+      ((("feed", feed) :: Client.Client.opt_int "limit" limit)
+      @ Client.Client.opt_pair "cursor" cursor)
+    |> parse_timeline
+
+  let get_feed_generator ?session ?host ~feed () : generator_info =
+    Client.Client.get_json ?session ?host "app.bsky.feed.getFeedGenerator"
+      [ ("feed", feed) ]
+    |> parse_generator_info
+
+  let get_feed_generators ?session ?host ~feeds () : generator_view list =
+    Client.Client.get_json ?session ?host "app.bsky.feed.getFeedGenerators"
+      (Client.Client.repeat_param "feeds" feeds)
+    |> parse_generators
+    |> fun (g : generators) -> g.feeds
+
+  let get_actor_feeds ?session ?host ~actor ?limit ?cursor () : generators =
+    Client.Client.get_json ?session ?host "app.bsky.feed.getActorFeeds"
+      ((("actor", actor) :: Client.Client.opt_int "limit" limit)
+      @ Client.Client.opt_pair "cursor" cursor)
+    |> parse_generators
+
+  let get_suggested_feeds ?session ?host ?limit ?cursor () : generators =
+    Client.Client.get_json ?session ?host "app.bsky.feed.getSuggestedFeeds"
+      (Client.Client.opt_int "limit" limit
+      @ Client.Client.opt_pair "cursor" cursor)
+    |> parse_generators
+
+  let get_list_feed ?session ?host ~list ?limit ?cursor () : timeline =
+    Client.Client.get_json ?session ?host "app.bsky.feed.getListFeed"
+      ((("list", list) :: Client.Client.opt_int "limit" limit)
+      @ Client.Client.opt_pair "cursor" cursor)
+    |> parse_timeline
+
+  let get_feed_skeleton_parsed ?session ?host ~feed ?limit ?cursor () :
+      feed_skeleton =
+    Client.Client.get_json ?session ?host "app.bsky.feed.getFeedSkeleton"
+      ((("feed", feed) :: Client.Client.opt_int "limit" limit)
+      @ Client.Client.opt_pair "cursor" cursor)
+    |> parse_feed_skeleton
+
+  let describe_feed_generator ?session ?host () : describe_feed_generator =
+    Client.Client.get_json ?session ?host "app.bsky.feed.describeFeedGenerator"
+      []
+    |> parse_describe_feed_generator
+
+  let search_posts ?session ?host ~q ?sort ?since ?until ?mentions ?author ?lang
+      ?domain ?url ?limit ?cursor () : search_posts =
+    Client.Client.get_json ?session ?host "app.bsky.feed.searchPosts"
+      ((("q", q) :: Client.Client.opt_pair "sort" sort)
+      @ Client.Client.opt_pair "since" since
+      @ Client.Client.opt_pair "until" until
+      @ Client.Client.opt_pair "mentions" mentions
+      @ Client.Client.opt_pair "author" author
+      @ Client.Client.opt_pair "lang" lang
+      @ Client.Client.opt_pair "domain" domain
+      @ Client.Client.opt_pair "url" url
+      @ Client.Client.opt_int "limit" limit
+      @ Client.Client.opt_pair "cursor" cursor)
+    |> parse_search_posts
+
+  let get_quotes ?session ?host ~uri ?cid ?limit ?cursor () : quotes =
+    Client.Client.get_json ?session ?host "app.bsky.feed.getQuotes"
+      ((("uri", uri) :: Client.Client.opt_pair "cid" cid)
+      @ Client.Client.opt_int "limit" limit
+      @ Client.Client.opt_pair "cursor" cursor)
+    |> parse_quotes
+
+  let get_actor_likes ?session ?host ~actor ?limit ?cursor () : timeline =
+    Client.Client.get_json ?session ?host "app.bsky.feed.getActorLikes"
+      ((("actor", actor) :: Client.Client.opt_int "limit" limit)
+      @ Client.Client.opt_pair "cursor" cursor)
+    |> parse_timeline
+
+  let send_interactions (s : Session.session) ?feed interactions : unit =
+    ignore
+      (Client.Client.post_json ~session:s "app.bsky.feed.sendInteractions"
+         (Yojson.Safe.to_string (send_interactions_body ?feed interactions)))
 end

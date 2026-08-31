@@ -70,6 +70,58 @@ let test_account_urls _ =
      String.length u > 18
      && String.sub u (String.length u - 18) 18 = "checkAccountStatus")
 
+let with_public_timeout ?(seconds = 20) f =
+  let old =
+    Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
+  in
+  ignore (Unix.alarm seconds);
+  Fun.protect
+    ~finally:(fun () ->
+      ignore (Unix.alarm 0);
+      Sys.set_signal Sys.sigalrm old)
+    f
+
+let test_parse_describe_server _ =
+  let json =
+    `Assoc
+      [
+        ("did", `String "did:web:bsky.social");
+        ("availableUserDomains", `List [ `String ".bsky.social" ]);
+        ("inviteCodeRequired", `Bool false);
+        ( "links",
+          `Assoc
+            [
+              ( "privacyPolicy",
+                `String "https://bsky.social/about/support/privacy" );
+            ] );
+        ("contact", `Assoc [ ("email", `String "support@bsky.app") ]);
+      ]
+  in
+  let desc = Server.parse_describe_server json in
+  OUnit2.assert_equal ~printer:(fun x -> x) "did:web:bsky.social" desc.did;
+  OUnit2.assert_bool "domains"
+    (List.mem ".bsky.social" desc.available_user_domains)
+
+let test_reserve_signing_key_body _ =
+  let body =
+    Server.reserve_signing_key_body ~did:"did:plc:abc123xyz0001112223333" ()
+  in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:abc123xyz0001112223333"
+    (body |> member "did" |> to_string)
+
+let test_describe_server_public _ =
+  try
+    with_public_timeout (fun () ->
+        let desc = Server.describe_server_parsed ~host:"bsky.social" () in
+        OUnit2.assert_bool "server did"
+          (String.length desc.did > 4
+          && List.length desc.available_user_domains >= 0))
+  with exn ->
+    skip_if true ("describeServer skipped: " ^ Printexc.to_string exn)
+
 let suite =
   "suite"
   >::: [
@@ -79,6 +131,9 @@ let suite =
          "test_parse_service_auth" >:: test_parse_service_auth;
          "test_parse_account_status" >:: test_parse_account_status;
          "test_account_urls" >:: test_account_urls;
+         "test_parse_describe_server" >:: test_parse_describe_server;
+         "test_reserve_signing_key_body" >:: test_reserve_signing_key_body;
+         "test_describe_server_public" >:: test_describe_server_public;
        ]
 
 let () = run_test_tt_main suite

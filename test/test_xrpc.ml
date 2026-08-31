@@ -12,6 +12,14 @@ let test_proxy _ =
   OUnit2.assert_equal "atproto-proxy" h;
   OUnit2.assert_equal
     ~printer:(fun x -> x)
+    "did:web:api.bsky.chat#bsky_chat"
+    (Xrpc.proxy_to_string Xrpc.chat_proxy);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:web:api.bsky.app#bsky_appview"
+    (Xrpc.proxy_to_string Xrpc.appview_proxy);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
     "did:web:mod.example.com#atproto_labeler" v;
   OUnit2.assert_bool "missing fragment rejected"
     (try

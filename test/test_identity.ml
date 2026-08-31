@@ -102,6 +102,14 @@ let test_recommended_did_credentials _ =
   OUnit2.assert_equal (Some "at://alice.test")
     (List.nth_opt creds.also_known_as 0)
 
+let test_update_handle_body _ =
+  let body = Identity.update_handle_body "alice.test" in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "alice.test"
+    (body |> member "handle" |> to_string)
+
 let test_handle_txt_helpers _ =
   OUnit2.assert_equal (Some "did:plc:ewvi7nxzyoun6zhxrhs64oiz")
     (Identity.parse_txt_did "did=did:plc:ewvi7nxzyoun6zhxrhs64oiz");
@@ -122,6 +130,7 @@ let suite =
          "test_plc_operation_bodies" >:: test_plc_operation_bodies;
          "test_recommended_did_credentials" >:: test_recommended_did_credentials;
          "test_handle_txt_helpers" >:: test_handle_txt_helpers;
+         "test_update_handle_body" >:: test_update_handle_body;
        ]
 
 let () = run_test_tt_main suite

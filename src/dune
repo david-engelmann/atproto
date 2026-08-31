@@ -26,6 +26,7 @@
  (preprocess
   (pps ppx_jane))
  (modules
+  Admin
   App
   Actor
   At_uri
@@ -33,8 +34,11 @@
   Base32
   Base58
   Base64url
+  Bookmark
   Car
+  Chat
   Cid
+  Client
   Cohttp_client
   Dag_cbor
   Did_key
@@ -52,11 +56,13 @@
   Identity
   K256
   Label
+  Labeler
   Lexicon
   Moderation
   Mst
   Notification
   Oauth
+  Ozone
   Repo
   Request
   Response
@@ -65,7 +71,9 @@
   Sync
   Syntax
   Tid
+  Unspecced
   User
   Varint
+  Video
   Websocket
   Xrpc))

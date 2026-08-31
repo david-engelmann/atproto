@@ -178,4 +178,415 @@ module Graph = struct
         (Cohttp_client.post_data_with_headers get_unmuted_actor_url data headers)
     in
     unmuted_actor
+
+  (* ---- lists, starter packs, relationships ----------------------------- *)
+
+  type list_viewer = { muted : bool option; blocked : string option }
+
+  type list_view = {
+    uri : string;
+    cid : string;
+    name : string;
+    purpose : string;
+    creator_did : string option;
+    description : string option;
+    list_item_count : int option;
+    indexed_at : string;
+    viewer : list_viewer option;
+    original : Yojson.Safe.t;
+  }
+
+  type list_item_subject = {
+    did : string;
+    handle : string;
+    display_name : string option;
+  }
+
+  type list_item = { uri : string; subject : list_item_subject }
+
+  type list_page = {
+    cursor : string option;
+    list : list_view;
+    items : list_item list;
+  }
+
+  type lists = { cursor : string option; lists : list_view list }
+
+  type starter_pack = {
+    uri : string;
+    cid : string;
+    name : string option;
+    creator_did : string option;
+    list_uri : string option;
+    list_item_count : int option;
+    joined_week_count : int option;
+    joined_all_time_count : int option;
+    indexed_at : string;
+    original : Yojson.Safe.t;
+  }
+
+  type starter_packs = {
+    cursor : string option;
+    starter_packs : starter_pack list;
+  }
+
+  type relationship = {
+    did : string;
+    following : string option;
+    followed_by : string option;
+    blocking : string option;
+    blocked_by : string option;
+    not_found : bool;
+    original : Yojson.Safe.t;
+  }
+
+  type relationships = {
+    actor : string option;
+    relationships : relationship list;
+  }
+
+  let parse_list_viewer json : list_viewer =
+    {
+      muted =
+        (match Yojson.Safe.Util.member "muted" json with
+        | `Bool b -> Some b
+        | _ -> None);
+      blocked =
+        (match Yojson.Safe.Util.member "blocked" json with
+        | `String s -> Some s
+        | _ -> None);
+    }
+
+  let parse_list_view json : list_view =
+    let creator_did =
+      match Yojson.Safe.Util.member "creator" json with
+      | `Assoc _ as c -> (
+          match Yojson.Safe.Util.member "did" c with
+          | `String s -> Some s
+          | _ -> None)
+      | _ -> None
+    in
+    {
+      uri =
+        (match Yojson.Safe.Util.member "uri" json with
+        | `String s -> s
+        | _ -> "");
+      cid =
+        (match Yojson.Safe.Util.member "cid" json with
+        | `String s -> s
+        | _ -> "");
+      name =
+        (match Yojson.Safe.Util.member "name" json with
+        | `String s -> s
+        | _ -> "");
+      purpose =
+        (match Yojson.Safe.Util.member "purpose" json with
+        | `String s -> s
+        | _ -> "");
+      creator_did;
+      description =
+        (match Yojson.Safe.Util.member "description" json with
+        | `String s -> Some s
+        | _ -> None);
+      list_item_count =
+        (match Yojson.Safe.Util.member "listItemCount" json with
+        | `Int n -> Some n
+        | _ -> None);
+      indexed_at =
+        (match Yojson.Safe.Util.member "indexedAt" json with
+        | `String s -> s
+        | _ -> "");
+      viewer =
+        (match Yojson.Safe.Util.member "viewer" json with
+        | `Assoc _ as v -> Some (parse_list_viewer v)
+        | _ -> None);
+      original = json;
+    }
+
+  let parse_list_item json : list_item =
+    let subject_json = Yojson.Safe.Util.member "subject" json in
+    {
+      uri =
+        (match Yojson.Safe.Util.member "uri" json with
+        | `String s -> s
+        | _ -> "");
+      subject =
+        {
+          did =
+            (match Yojson.Safe.Util.member "did" subject_json with
+            | `String s -> s
+            | _ -> "");
+          handle =
+            (match Yojson.Safe.Util.member "handle" subject_json with
+            | `String s -> s
+            | _ -> "");
+          display_name =
+            (match Yojson.Safe.Util.member "displayName" subject_json with
+            | `String s -> Some s
+            | _ -> None);
+        };
+    }
+
+  let parse_list_page json : list_page =
+    {
+      cursor =
+        (match Yojson.Safe.Util.member "cursor" json with
+        | `String s -> Some s
+        | _ -> None);
+      list = parse_list_view (Yojson.Safe.Util.member "list" json);
+      items =
+        List.map parse_list_item
+          (match Yojson.Safe.Util.member "items" json with
+          | `List xs -> xs
+          | _ -> []);
+    }
+
+  let parse_lists json : lists =
+    {
+      cursor =
+        (match Yojson.Safe.Util.member "cursor" json with
+        | `String s -> Some s
+        | _ -> None);
+      lists =
+        List.map parse_list_view
+          (match Yojson.Safe.Util.member "lists" json with
+          | `List xs -> xs
+          | _ -> []);
+    }
+
+  let parse_starter_pack json : starter_pack =
+    let record = Yojson.Safe.Util.member "record" json in
+    let creator_did =
+      match Yojson.Safe.Util.member "creator" json with
+      | `Assoc _ as c -> (
+          match Yojson.Safe.Util.member "did" c with
+          | `String s -> Some s
+          | _ -> None)
+      | _ -> None
+    in
+    let list_uri =
+      match Yojson.Safe.Util.member "list" json with
+      | `Assoc _ as l -> (
+          match Yojson.Safe.Util.member "uri" l with
+          | `String s -> Some s
+          | _ -> None)
+      | _ -> (
+          match record with
+          | `Assoc _ -> (
+              match Yojson.Safe.Util.member "list" record with
+              | `String s -> Some s
+              | _ -> None)
+          | _ -> None)
+    in
+    {
+      uri =
+        (match Yojson.Safe.Util.member "uri" json with
+        | `String s -> s
+        | _ -> "");
+      cid =
+        (match Yojson.Safe.Util.member "cid" json with
+        | `String s -> s
+        | _ -> "");
+      name =
+        (match record with
+        | `Assoc _ -> (
+            match Yojson.Safe.Util.member "name" record with
+            | `String s -> Some s
+            | _ -> None)
+        | _ -> None);
+      creator_did;
+      list_uri;
+      list_item_count =
+        (match Yojson.Safe.Util.member "listItemCount" json with
+        | `Int n -> Some n
+        | _ -> None);
+      joined_week_count =
+        (match Yojson.Safe.Util.member "joinedWeekCount" json with
+        | `Int n -> Some n
+        | _ -> None);
+      joined_all_time_count =
+        (match Yojson.Safe.Util.member "joinedAllTimeCount" json with
+        | `Int n -> Some n
+        | _ -> None);
+      indexed_at =
+        (match Yojson.Safe.Util.member "indexedAt" json with
+        | `String s -> s
+        | _ -> "");
+      original = json;
+    }
+
+  let parse_starter_packs json : starter_packs =
+    {
+      cursor =
+        (match Yojson.Safe.Util.member "cursor" json with
+        | `String s -> Some s
+        | _ -> None);
+      starter_packs =
+        List.map parse_starter_pack
+          (match Yojson.Safe.Util.member "starterPacks" json with
+          | `List xs -> xs
+          | _ -> []);
+    }
+
+  let parse_relationship json : relationship =
+    let not_found =
+      match Yojson.Safe.Util.member "notFound" json with
+      | `Bool b -> b
+      | _ -> false
+    in
+    {
+      did =
+        (match Yojson.Safe.Util.member "did" json with
+        | `String s -> s
+        | _ -> (
+            match Yojson.Safe.Util.member "actor" json with
+            | `String s -> s
+            | _ -> ""));
+      following =
+        (match Yojson.Safe.Util.member "following" json with
+        | `String s -> Some s
+        | _ -> None);
+      followed_by =
+        (match Yojson.Safe.Util.member "followedBy" json with
+        | `String s -> Some s
+        | _ -> None);
+      blocking =
+        (match Yojson.Safe.Util.member "blocking" json with
+        | `String s -> Some s
+        | _ -> None);
+      blocked_by =
+        (match Yojson.Safe.Util.member "blockedBy" json with
+        | `String s -> Some s
+        | _ -> None);
+      not_found;
+      original = json;
+    }
+
+  let parse_relationships json : relationships =
+    {
+      actor =
+        (match Yojson.Safe.Util.member "actor" json with
+        | `String s -> Some s
+        | _ -> None);
+      relationships =
+        List.map parse_relationship
+          (match Yojson.Safe.Util.member "relationships" json with
+          | `List xs -> xs
+          | _ -> []);
+    }
+
+  let get_list ?session ?host ~list ?limit ?cursor () : list_page =
+    Client.Client.get_json ?session ?host "app.bsky.graph.getList"
+      ((("list", list) :: Client.Client.opt_int "limit" limit)
+      @ Client.Client.opt_pair "cursor" cursor)
+    |> parse_list_page
+
+  let get_lists ?session ?host ~actor ?limit ?cursor () : lists =
+    Client.Client.get_json ?session ?host "app.bsky.graph.getLists"
+      ((("actor", actor) :: Client.Client.opt_int "limit" limit)
+      @ Client.Client.opt_pair "cursor" cursor)
+    |> parse_lists
+
+  let get_list_mutes (s : Session.session) ?limit ?cursor () : lists =
+    Client.Client.get_json ~session:s "app.bsky.graph.getListMutes"
+      (Client.Client.opt_int "limit" limit
+      @ Client.Client.opt_pair "cursor" cursor)
+    |> parse_lists
+
+  let get_list_blocks (s : Session.session) ?limit ?cursor () : lists =
+    Client.Client.get_json ~session:s "app.bsky.graph.getListBlocks"
+      (Client.Client.opt_int "limit" limit
+      @ Client.Client.opt_pair "cursor" cursor)
+    |> parse_lists
+
+  let mute_actor_list (s : Session.session) ~list () : unit =
+    ignore
+      (Client.Client.post_json ~session:s "app.bsky.graph.muteActorList"
+         (Yojson.Safe.to_string (`Assoc [ ("list", `String list) ])))
+
+  let unmute_actor_list (s : Session.session) ~list () : unit =
+    ignore
+      (Client.Client.post_json ~session:s "app.bsky.graph.unmuteActorList"
+         (Yojson.Safe.to_string (`Assoc [ ("list", `String list) ])))
+
+  let mute_thread (s : Session.session) ~root () : unit =
+    ignore
+      (Client.Client.post_json ~session:s "app.bsky.graph.muteThread"
+         (Yojson.Safe.to_string (`Assoc [ ("root", `String root) ])))
+
+  let unmute_thread (s : Session.session) ~root () : unit =
+    ignore
+      (Client.Client.post_json ~session:s "app.bsky.graph.unmuteThread"
+         (Yojson.Safe.to_string (`Assoc [ ("root", `String root) ])))
+
+  let get_starter_pack ?session ?host ~starter_pack () : starter_pack =
+    Client.Client.get_json ?session ?host "app.bsky.graph.getStarterPack"
+      [ ("starterPack", starter_pack) ]
+    |> fun json ->
+    match Yojson.Safe.Util.member "starterPack" json with
+    | `Assoc _ as sp -> parse_starter_pack sp
+    | _ -> parse_starter_pack json
+
+  let get_starter_packs ?session ?host ~uris () : starter_pack list =
+    Client.Client.get_json ?session ?host "app.bsky.graph.getStarterPacks"
+      (Client.Client.repeat_param "uris" uris)
+    |> parse_starter_packs
+    |> fun p -> p.starter_packs
+
+  let get_actor_starter_packs ?session ?host ~actor ?limit ?cursor () :
+      starter_packs =
+    Client.Client.get_json ?session ?host "app.bsky.graph.getActorStarterPacks"
+      ((("actor", actor) :: Client.Client.opt_int "limit" limit)
+      @ Client.Client.opt_pair "cursor" cursor)
+    |> parse_starter_packs
+
+  let search_starter_packs ?session ?host ~q ?limit ?cursor () : starter_packs =
+    Client.Client.get_json ?session ?host "app.bsky.graph.searchStarterPacks"
+      ((("q", q) :: Client.Client.opt_int "limit" limit)
+      @ Client.Client.opt_pair "cursor" cursor)
+    |> parse_starter_packs
+
+  let get_relationships ?session ?host ~actor ?others () : relationships =
+    Client.Client.get_json ?session ?host "app.bsky.graph.getRelationships"
+      (("actor", actor)
+      :: Client.Client.repeat_param "others" (Option.value others ~default:[]))
+    |> parse_relationships
+
+  let get_known_followers ?session ?host ~actor ?limit ?cursor () : followers =
+    Client.Client.get_json ?session ?host "app.bsky.graph.getKnownFollowers"
+      ((("actor", actor) :: Client.Client.opt_int "limit" limit)
+      @ Client.Client.opt_pair "cursor" cursor)
+    |> parse_followers
+
+  let get_suggested_follows_by_actor ?session ?host ~actor () :
+      list_item_subject list =
+    Client.Client.get_json ?session ?host
+      "app.bsky.graph.getSuggestedFollowsByActor"
+      [ ("actor", actor) ]
+    |> fun json ->
+    let items =
+      match Yojson.Safe.Util.member "suggestions" json with
+      | `List xs -> xs
+      | _ -> (
+          match Yojson.Safe.Util.member "actors" json with
+          | `List xs -> xs
+          | _ -> [])
+    in
+    List.map
+      (fun subject_json ->
+        {
+          did =
+            (match Yojson.Safe.Util.member "did" subject_json with
+            | `String s -> s
+            | _ -> "");
+          handle =
+            (match Yojson.Safe.Util.member "handle" subject_json with
+            | `String s -> s
+            | _ -> "");
+          display_name =
+            (match Yojson.Safe.Util.member "displayName" subject_json with
+            | `String s -> Some s
+            | _ -> None);
+        })
+      items
 end
