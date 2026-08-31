@@ -150,9 +150,10 @@ module Graph = struct
   let mute_actor_body ~actor ?only_reposts ?only_quoteposts () : Yojson.Safe.t =
     let fields =
       ("actor", `String actor)
-      :: (match only_reposts with
-         | Some b -> [ ("onlyReposts", `Bool b) ]
-         | None -> [])
+      ::
+      (match only_reposts with
+      | Some b -> [ ("onlyReposts", `Bool b) ]
+      | None -> [])
       @
       match only_quoteposts with
       | Some b -> [ ("onlyQuoteposts", `Bool b) ]

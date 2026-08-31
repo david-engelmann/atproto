@@ -32,7 +32,9 @@ module Session = struct
       match json |> member "emailConfirmed" with `Bool b -> Some b | _ -> None
     in
     let email_auth_factor =
-      match json |> member "emailAuthFactor" with `Bool b -> Some b | _ -> None
+      match json |> member "emailAuthFactor" with
+      | `Bool b -> Some b
+      | _ -> None
     in
     let active =
       match json |> member "active" with `Bool b -> Some b | _ -> None

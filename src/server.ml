@@ -43,8 +43,7 @@ module Server = struct
       @ (match recovery_key with
         | Some s -> [ ("recoveryKey", `String s) ]
         | None -> [])
-      @
-      match plc_op with Some v -> [ ("plcOp", v) ] | None -> []
+      @ match plc_op with Some v -> [ ("plcOp", v) ] | None -> []
     in
     `Assoc fields
 
@@ -62,9 +61,8 @@ module Server = struct
     in
     let data =
       Yojson.Safe.to_string
-        (create_account_body ~handle ~email ?did ?invite_code
-           ?verification_code ?verification_phone ~password ?recovery_key
-           ?plc_op ())
+        (create_account_body ~handle ~email ?did ?invite_code ?verification_code
+           ?verification_phone ~password ?recovery_key ?plc_op ())
     in
     let created_account =
       Lwt_main.run

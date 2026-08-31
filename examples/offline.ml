@@ -212,9 +212,7 @@ let () =
   | Some kl -> assert (kl.count = 1)
   | None -> assert false);
   assert (liked.bookmarked = None);
-  let mute =
-    Graph.mute_actor_body ~actor:"alice.test" ~only_reposts:true ()
-  in
+  let mute = Graph.mute_actor_body ~actor:"alice.test" ~only_reposts:true () in
   assert (
     match Yojson.Safe.Util.member "onlyReposts" mute with
     | `Bool true -> true
@@ -228,14 +226,16 @@ let () =
     | `Bool true -> true
     | _ -> false);
   let acct =
-    Server.create_account_body ~handle:"alice.test"
-      ~verification_code:"123456" ()
+    Server.create_account_body ~handle:"alice.test" ~verification_code:"123456"
+      ()
   in
   assert (
     match Yojson.Safe.Util.member "verificationCode" acct with
     | `String "123456" -> true
     | _ -> false);
-  let app_pw = Server.create_app_password_body ~name:"cli" ~privileged:true () in
+  let app_pw =
+    Server.create_app_password_body ~name:"cli" ~privileged:true ()
+  in
   assert (
     match Yojson.Safe.Util.member "privileged" app_pw with
     | `Bool true -> true
@@ -258,8 +258,8 @@ let () =
                     ] );
               ] );
           ( "viewer",
-            `Assoc
-              [ ("muted", `Bool false); ("mutedOnlyReposts", `Bool true) ] );
+            `Assoc [ ("muted", `Bool false); ("mutedOnlyReposts", `Bool true) ]
+          );
         ])
   in
   assert (profile_view.pronouns = Some "she/her");

@@ -14,12 +14,7 @@ module Actor = struct
 
   (* app.bsky.notification.defs#activitySubscription on viewerState. *)
   type viewer_activity_subscription = { post : bool; reply : bool }
-
-  type list_ref = {
-    uri : string;
-    cid : string option;
-    name : string option;
-  }
+  type list_ref = { uri : string; cid : string option; name : string option }
 
   (* app.bsky.actor.defs#viewerState — includes scoped mutes (onlyReposts / onlyQuoteposts). *)
   type viewer_status = {
@@ -174,8 +169,8 @@ module Actor = struct
 
   let parse_list_ref json : list_ref option =
     match json with
-    | `Assoc _ ->
-        (match extract_string_option json "uri" with
+    | `Assoc _ -> (
+        match extract_string_option json "uri" with
         | None -> None
         | Some uri ->
             Some
@@ -188,9 +183,12 @@ module Actor = struct
 
   let parse_known_follower json : known_follower =
     {
-      did = (match extract_string_option json "did" with Some s -> s | None -> "");
+      did =
+        (match extract_string_option json "did" with Some s -> s | None -> "");
       handle =
-        (match extract_string_option json "handle" with Some s -> s | None -> "");
+        (match extract_string_option json "handle" with
+        | Some s -> s
+        | None -> "");
       display_name = extract_string_option json "displayName";
     }
 
@@ -200,7 +198,9 @@ module Actor = struct
         Some
           {
             count =
-              (match extract_int_option json "count" with Some n -> n | None -> 0);
+              (match extract_int_option json "count" with
+              | Some n -> n
+              | None -> 0);
             followers =
               (match Yojson.Safe.Util.member "followers" json with
               | `List xs -> List.map parse_known_follower xs
@@ -208,8 +208,8 @@ module Actor = struct
           }
     | _ -> None
 
-  let parse_viewer_activity_subscription json : viewer_activity_subscription option
-      =
+  let parse_viewer_activity_subscription json :
+      viewer_activity_subscription option =
     match json with
     | `Assoc _ ->
         Some
@@ -246,7 +246,8 @@ module Actor = struct
           blocking_by_list = parse_list_ref (json |> member "blockingByList");
           following = extract_string_option json "following";
           followed_by = extract_string_option json "followedBy";
-          known_followers = parse_known_followers_opt (json |> member "knownFollowers");
+          known_followers =
+            parse_known_followers_opt (json |> member "knownFollowers");
           activity_subscription =
             parse_viewer_activity_subscription
               (json |> member "activitySubscription");
@@ -286,8 +287,8 @@ module Actor = struct
               | _ -> None);
             activity_subscription =
               (match Yojson.Safe.Util.member "activitySubscription" json with
-              | `Assoc _ as a ->
-                  (match extract_string_option a "allowSubscriptions" with
+              | `Assoc _ as a -> (
+                  match extract_string_option a "allowSubscriptions" with
                   | Some s -> Some { allow_subscriptions = s }
                   | None -> None)
               | _ -> None);
@@ -301,14 +302,21 @@ module Actor = struct
   let parse_verification_view json : verification_view =
     {
       issuer =
-        (match extract_string_option json "issuer" with Some s -> s | None -> "");
+        (match extract_string_option json "issuer" with
+        | Some s -> s
+        | None -> "");
       issuer_display_name = extract_string_option json "issuerDisplayName";
       issuer_handle = extract_string_option json "issuerHandle";
-      uri = (match extract_string_option json "uri" with Some s -> s | None -> "");
+      uri =
+        (match extract_string_option json "uri" with Some s -> s | None -> "");
       is_valid =
-        (match extract_bool_option json "isValid" with Some b -> b | None -> false);
+        (match extract_bool_option json "isValid" with
+        | Some b -> b
+        | None -> false);
       created_at =
-        (match extract_string_option json "createdAt" with Some s -> s | None -> "");
+        (match extract_string_option json "createdAt" with
+        | Some s -> s
+        | None -> "");
     }
 
   let parse_verification_state json : verification_state option =

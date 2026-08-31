@@ -118,9 +118,7 @@ module Auth = struct
   let create_session_body ~identifier ~password ?auth_factor_token
       ?allow_takendown () : Yojson.Safe.t =
     let fields =
-      [
-        ("identifier", `String identifier); ("password", `String password);
-      ]
+      [ ("identifier", `String identifier); ("password", `String password) ]
       @ (match auth_factor_token with
         | Some t -> [ ("authFactorToken", `String t) ]
         | None -> [])

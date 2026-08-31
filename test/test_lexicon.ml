@@ -213,7 +213,7 @@ let test_union_codegen_and_official_bundle _ =
       in
       match Lexicon.main list_doc with
       | None -> OUnit2.assert_failure "missing list main"
-      | Some main ->
+      | Some main -> (
           (match List.assoc_opt "labels" main.properties with
           | Some (Lexicon.Union refs) ->
               OUnit2.assert_equal [ "com.atproto.label.defs#selfLabels" ] refs
@@ -274,7 +274,7 @@ let test_union_codegen_and_official_bundle _ =
               OUnit2.assert_bool "onlyReposts"
                 (List.exists
                    (fun (name, _) -> name = "onlyReposts")
-                   main.input.properties))
+                   main.input.properties)))
 
 let test_parse_resolved_lexicon _ =
   let json =

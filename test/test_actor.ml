@@ -289,7 +289,10 @@ let test_parse_profile_and_scoped_mute_viewer _ =
                     `Assoc
                       [
                         ("issuer", `String "did:plc:verifier000111222333444");
-                        ("uri", `String "at://did:plc:verifier/app.bsky.graph.verification/1");
+                        ( "uri",
+                          `String
+                            "at://did:plc:verifier/app.bsky.graph.verification/1"
+                        );
                         ("isValid", `Bool true);
                         ("createdAt", `String "2024-02-01T00:00:00.000Z");
                       ];
@@ -308,9 +311,7 @@ let test_parse_profile_and_scoped_mute_viewer _ =
               ("mutedOnlyReposts", `Bool true);
               ("mutedOnlyQuoteposts", `Bool false);
               ("blockedBy", `Bool false);
-              ( "blocking",
-                `String
-                  "at://did:plc:me/app.bsky.graph.block/1" );
+              ("blocking", `String "at://did:plc:me/app.bsky.graph.block/1");
               ( "knownFollowers",
                 `Assoc
                   [
@@ -342,22 +343,16 @@ let test_parse_profile_and_scoped_mute_viewer _ =
       OUnit2.assert_equal (Some true) assoc.labeler;
       (match assoc.germ with
       | Some g ->
-          OUnit2.assert_equal
-            ~printer:(fun x -> x)
-            "everyone" g.show_button_to
+          OUnit2.assert_equal ~printer:(fun x -> x) "everyone" g.show_button_to
       | None -> OUnit2.assert_failure "expected associated.germ");
       match assoc.chat with
       | Some c ->
-          OUnit2.assert_equal
-            ~printer:(fun x -> x)
-            "following" c.allow_incoming
+          OUnit2.assert_equal ~printer:(fun x -> x) "following" c.allow_incoming
       | None -> OUnit2.assert_failure "expected associated.chat")
   | None -> OUnit2.assert_failure "expected associated");
   (match profile.verification with
   | Some v ->
-      OUnit2.assert_equal
-        ~printer:(fun x -> x)
-        "valid" v.verified_status;
+      OUnit2.assert_equal ~printer:(fun x -> x) "valid" v.verified_status;
       OUnit2.assert_equal 1 (List.length v.verifications)
   | None -> OUnit2.assert_failure "expected verification");
   (match profile.status with
