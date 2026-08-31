@@ -27,8 +27,8 @@ module Temp = struct
       let n = String.length ty and m = String.length suffix in
       n >= m && String.sub ty (n - m) m = suffix
     in
-    if ends_with "resultAvailable" ty then `Available
-    else if ends_with "resultUnavailable" ty then
+    if ends_with "resultAvailable" then `Available
+    else if ends_with "resultUnavailable" then
       `Unavailable
         (List.map parse_suggestion (Client.list_member json "suggestions"))
     else
@@ -51,8 +51,7 @@ module Temp = struct
   let check_handle_availability ?session ?host ~handle ?email ?birth_date () :
       handle_check =
     Client.get_json ?session ?host "com.atproto.temp.checkHandleAvailability"
-      (("handle", handle)
-      :: Client.opt_pair "email" email
+      ((("handle", handle) :: Client.opt_pair "email" email)
       @ Client.opt_pair "birthDate" birth_date)
     |> parse_handle_check
 end

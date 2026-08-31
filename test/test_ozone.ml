@@ -210,8 +210,9 @@ let test_operator_namespace_parsers _ =
               ] );
         ])
   in
-  OUnit2.assert_equal ~printer:(fun x -> x) "Hello"
-    (List.hd templates.templates).name;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "Hello" (List.hd templates.templates).name;
   let sets =
     Ozone.parse_sets
       (`Assoc
@@ -263,8 +264,9 @@ let test_operator_namespace_parsers _ =
               ] );
         ])
   in
-  OUnit2.assert_equal ~printer:(fun x -> x) "https://evil.example"
-    (List.hd rules.rules).url;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "https://evil.example" (List.hd rules.rules).url;
   let body =
     Ozone.create_template_body ~name:"Hello" ~content_markdown:"hi"
       ~subject:"welcome" ()
@@ -298,8 +300,7 @@ let suite =
          "test_parse_typed_event_and_subject"
          >:: test_parse_typed_event_and_subject;
          "test_query_statuses_auth_skipped" >:: test_query_statuses_auth_skipped;
-         "test_operator_namespace_parsers"
-         >:: test_operator_namespace_parsers;
+         "test_operator_namespace_parsers" >:: test_operator_namespace_parsers;
        ]
 
 let () = run_test_tt_main suite

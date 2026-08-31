@@ -463,8 +463,7 @@ let test_search_posts_v2_live _ =
             ~hashtags:[ "atproto" ] ()
         in
         OUnit2.assert_bool "search posts v2" (List.length page.posts >= 0))
-  with exn ->
-    skip_if true ("searchPostsV2 skipped: " ^ Printexc.to_string exn)
+  with exn -> skip_if true ("searchPostsV2 skipped: " ^ Printexc.to_string exn)
 
 let suite =
   "suite"

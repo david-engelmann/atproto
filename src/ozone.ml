@@ -740,10 +740,7 @@ module Ozone = struct
   let create_template_body ~name ~content_markdown ?subject ?lang () :
       Yojson.Safe.t =
     `Assoc
-      ([
-         ("name", `String name);
-         ("contentMarkdown", `String content_markdown);
-       ]
+      ([ ("name", `String name); ("contentMarkdown", `String content_markdown) ]
       @ (match subject with Some s -> [ ("subject", `String s) ] | None -> [])
       @ match lang with Some s -> [ ("lang", `String s) ] | None -> [])
 
@@ -764,8 +761,7 @@ module Ozone = struct
         | Some c -> [ ("contentMarkdown", `String c) ]
         | None -> [])
       @ (match subject with Some s -> [ ("subject", `String s) ] | None -> [])
-      @
-      match disabled with Some b -> [ ("disabled", `Bool b) ] | None -> []
+      @ match disabled with Some b -> [ ("disabled", `Bool b) ] | None -> []
     in
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.communication.updateTemplate"
@@ -828,8 +824,7 @@ module Ozone = struct
       @ Client.opt_pair "sortDirection" sort_direction)
     |> parse_sets
 
-  let upsert_set (s : Session.session) ~proxy ~name ?description () : set_view
-      =
+  let upsert_set (s : Session.session) ~proxy ~name ?description () : set_view =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.set.upsertSet"
       (Yojson.Safe.to_string
@@ -845,8 +840,7 @@ module Ozone = struct
       set_values =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.set.getValues"
-      (("name", name)
-      :: Client.opt_int "limit" limit
+      ((("name", name) :: Client.opt_int "limit" limit)
       @ Client.opt_pair "cursor" cursor)
     |> parse_set_values
 
@@ -906,8 +900,8 @@ module Ozone = struct
           | xs -> xs);
     }
 
-  let list_options (s : Session.session) ~proxy ?prefix ?scope ?limit ?cursor
-      () : setting_options =
+  let list_options (s : Session.session) ~proxy ?prefix ?scope ?limit ?cursor ()
+      : setting_options =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.setting.listOptions"
       (Client.opt_pair "prefix" prefix
@@ -916,17 +910,13 @@ module Ozone = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_setting_options
 
-  let upsert_option (s : Session.session) ~proxy ~key ~scope ~value
-      ?description () : setting_option =
+  let upsert_option (s : Session.session) ~proxy ~key ~scope ~value ?description
+      () : setting_option =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.setting.upsertOption"
       (Yojson.Safe.to_string
          (`Assoc
-           ([
-              ("key", `String key);
-              ("scope", `String scope);
-              ("value", value);
-            ]
+           ([ ("key", `String key); ("scope", `String scope); ("value", value) ]
            @
            match description with
            | Some d -> [ ("description", `String d) ]
@@ -1081,7 +1071,10 @@ module Ozone = struct
            @ (match reason with
              | Some r -> [ ("reason", `String r) ]
              | None -> [])
-           @ match comment with Some c -> [ ("comment", `String c) ] | None -> [])))
+           @
+           match comment with
+           | Some c -> [ ("comment", `String c) ]
+           | None -> [])))
     |> parse_url_rule
 
   let update_safelink_rule (s : Session.session) ~proxy ~url ~pattern_type
@@ -1091,14 +1084,18 @@ module Ozone = struct
       (Yojson.Safe.to_string
          (`Assoc
            (("url", `String url)
-           :: ("patternType", `String pattern_type)
-           :: (match action with
-              | Some a -> [ ("action", `String a) ]
-              | None -> [])
+            :: ("patternType", `String pattern_type)
+            ::
+            (match action with
+            | Some a -> [ ("action", `String a) ]
+            | None -> [])
            @ (match reason with
              | Some r -> [ ("reason", `String r) ]
              | None -> [])
-           @ match comment with Some c -> [ ("comment", `String c) ] | None -> [])))
+           @
+           match comment with
+           | Some c -> [ ("comment", `String c) ]
+           | None -> [])))
     |> parse_url_rule
 
   let remove_safelink_rule (s : Session.session) ~proxy ~url ~pattern_type
@@ -1150,13 +1147,12 @@ module Ozone = struct
       : related_accounts =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.signature.findRelatedAccounts"
-      (("did", did)
-      :: Client.opt_int "limit" limit
+      ((("did", did) :: Client.opt_int "limit" limit)
       @ Client.opt_pair "cursor" cursor)
     |> parse_related_accounts
 
-  let search_accounts_by_signature (s : Session.session) ~proxy
-      ?(values = []) ?limit ?cursor () : related_accounts =
+  let search_accounts_by_signature (s : Session.session) ~proxy ?(values = [])
+      ?limit ?cursor () : related_accounts =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.signature.searchAccounts"
       (Client.repeat_param "values" values
@@ -1210,7 +1206,8 @@ module Ozone = struct
       verifications =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.verification.grantVerifications"
-      (Yojson.Safe.to_string (`Assoc [ ("verifications", `List verifications) ]))
+      (Yojson.Safe.to_string
+         (`Assoc [ ("verifications", `List verifications) ]))
     |> parse_verifications
 
   let revoke_verifications (s : Session.session) ~proxy ~uris ?revoke_reason ()
@@ -1257,7 +1254,7 @@ module Ozone = struct
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.hosting.getAccountHistory"
       (("did", did)
-      :: Client.repeat_param "events" (Option.value events ~default:[])
+       :: Client.repeat_param "events" (Option.value events ~default:[])
       @ Client.opt_pair "cursor" cursor
       @ Client.opt_int "limit" limit)
     |> parse_account_history

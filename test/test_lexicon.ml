@@ -233,8 +233,11 @@ let test_parse_resolved_lexicon _ =
                                 ("type", `String "object");
                                 ("required", `List [ `String "text" ]);
                                 ( "properties",
-                                  `Assoc [ ("text", `Assoc [ ("type", `String "string") ]) ]
-                                );
+                                  `Assoc
+                                    [
+                                      ( "text",
+                                        `Assoc [ ("type", `String "string") ] );
+                                    ] );
                               ] );
                         ] );
                   ] );
@@ -243,10 +246,10 @@ let test_parse_resolved_lexicon _ =
   in
   let resolved = Lexicon.parse_resolved_lexicon json in
   OUnit2.assert_equal ~printer:(fun x -> x) "bafyreischema" resolved.cid;
-  (match resolved.document with
+  match resolved.document with
   | Some doc ->
       OUnit2.assert_equal ~printer:(fun x -> x) "app.bsky.feed.post" doc.id
-  | None -> OUnit2.assert_failure "expected parsed schema document")
+  | None -> OUnit2.assert_failure "expected parsed schema document"
 
 let suite =
   "lexicon"

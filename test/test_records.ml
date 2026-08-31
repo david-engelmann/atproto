@@ -180,8 +180,9 @@ let test_remaining_record_builders _ =
     (status |> member "$type" |> to_string);
   OUnit2.assert_equal 30 (status |> member "durationMinutes" |> to_int);
   let parsed_status = Records.parse_status status in
-  OUnit2.assert_equal ~printer:(fun x -> x) Records.status_live
-    parsed_status.status;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    Records.status_live parsed_status.status;
   let vis =
     Records.content_visibility_declaration
       ~hide_from_algorithmic_recommendations:true ()
@@ -202,8 +203,7 @@ let test_remaining_record_builders _ =
       ~post:"at://did:plc:alice/app.bsky.feed.post/3jzfcijpj2z2a"
       ~created_at:"2024-01-01T00:00:00.000Z"
       ~allow:[ `Mention; `List "at://did:plc:alice/app.bsky.graph.list/3k" ]
-      ~hidden_replies:
-        [ "at://did:plc:alice/app.bsky.feed.post/hidden" ]
+      ~hidden_replies:[ "at://did:plc:alice/app.bsky.feed.post/hidden" ]
       ()
   in
   let parsed_gate = Records.parse_threadgate gate in
@@ -212,8 +212,7 @@ let test_remaining_record_builders _ =
   | Some [ `Mention; `List _ ] -> ()
   | _ -> OUnit2.assert_failure "expected mention + list rules");
   let postgate =
-    Records.postgate
-      ~post:"at://did:plc:alice/app.bsky.feed.post/3jzfcijpj2z2a"
+    Records.postgate ~post:"at://did:plc:alice/app.bsky.feed.post/3jzfcijpj2z2a"
       ~created_at:"2024-01-01T00:00:00.000Z" ~embedding_rules:[ `Disable ] ()
   in
   let parsed_pg = Records.parse_postgate postgate in
@@ -227,17 +226,18 @@ let test_remaining_record_builders _ =
     ~printer:(fun x -> x)
     "app.bsky.feed.generator"
     (gen |> member "$type" |> to_string);
-  let decl = Records.notification_declaration ~allow_subscriptions:"mutuals" () in
+  let decl =
+    Records.notification_declaration ~allow_subscriptions:"mutuals" ()
+  in
   OUnit2.assert_equal
     ~printer:(fun x -> x)
-    "mutuals"
-    (Records.parse_notification_declaration decl).allow_subscriptions;
+    "mutuals" (Records.parse_notification_declaration decl).allow_subscriptions;
   let labeler =
     Records.labeler_service
-      ~policies:
-        (`Assoc [ ("labelValues", `List [ `String "!hide" ]) ])
+      ~policies:(`Assoc [ ("labelValues", `List [ `String "!hide" ]) ])
       ~created_at:"2024-01-01T00:00:00.000Z"
-      ~reason_types:[ "com.atproto.moderation.defs#reasonSpam" ] ()
+      ~reason_types:[ "com.atproto.moderation.defs#reasonSpam" ]
+      ()
   in
   OUnit2.assert_equal
     ~printer:(fun x -> x)

@@ -512,18 +512,20 @@ module Chat = struct
 
   type join_requests = { cursor : string option; requests : join_request list }
 
+  type join_link_preview = {
+    convo_id : string;
+    code : string;
+    name : string;
+    owner : member;
+    member_count : int;
+    member_limit : int;
+    require_approval : bool;
+    join_rule : string;
+    convo : convo option;
+  }
+
   type join_preview =
-    [ `Preview of {
-        convo_id : string;
-        code : string;
-        name : string;
-        owner : member;
-        member_count : int;
-        member_limit : int;
-        require_approval : bool;
-        join_rule : string;
-        convo : convo option;
-      }
+    [ `Preview of join_link_preview
     | `Disabled of string
     | `Invalid of string
     | `Unknown of Yojson.Safe.t ]
@@ -579,12 +581,12 @@ module Chat = struct
       let n = String.length ty and m = String.length suffix in
       n >= m && String.sub ty (n - m) m = suffix
     in
-    if ends_with "disabledJoinLinkPreviewView" ty then
+    if ends_with "disabledJoinLinkPreviewView" then
       `Disabled (Client.string_member json "code")
-    else if ends_with "invalidJoinLinkPreviewView" ty then
+    else if ends_with "invalidJoinLinkPreviewView" then
       `Invalid (Client.string_member json "code")
     else if
-      ends_with "joinLinkPreviewView" ty
+      ends_with "joinLinkPreviewView"
       || Client.string_member json "convoId" <> ""
     then
       `Preview
@@ -611,8 +613,7 @@ module Chat = struct
       : members_page =
     Client.get_json ~session:s ~extra:(proxy_headers ?proxy ())
       "chat.bsky.convo.getConvoMembers"
-      (("convoId", convo_id)
-      :: Client.opt_int "limit" limit
+      ((("convoId", convo_id) :: Client.opt_int "limit" limit)
       @ Client.opt_pair "cursor" cursor)
     |> parse_members_page
 
@@ -644,9 +645,10 @@ module Chat = struct
       ?require_approval () : join_link =
     let fields =
       ("convoId", `String convo_id)
-      :: (match join_rule with
-         | Some r -> [ ("joinRule", `String r) ]
-         | None -> [])
+      ::
+      (match join_rule with
+      | Some r -> [ ("joinRule", `String r) ]
+      | None -> [])
       @
       match require_approval with
       | Some b -> [ ("requireApproval", `Bool b) ]
@@ -672,7 +674,8 @@ module Chat = struct
   let get_join_link_previews ?session ?proxy ?host ~codes () : join_preview list
       =
     Client.get_json ?session ?host
-      ~extra:(match session with Some _ -> proxy_headers ?proxy () | None -> [])
+      ~extra:
+        (match session with Some _ -> proxy_headers ?proxy () | None -> [])
       "chat.bsky.group.getJoinLinkPreviews"
       (Client.repeat_param "codes" codes)
     |> fun json ->
@@ -682,8 +685,7 @@ module Chat = struct
       () : join_requests =
     Client.get_json ~session:s ~extra:(proxy_headers ?proxy ())
       "chat.bsky.group.listJoinRequests"
-      (("convoId", convo_id)
-      :: Client.opt_int "limit" limit
+      ((("convoId", convo_id) :: Client.opt_int "limit" limit)
       @ Client.opt_pair "cursor" cursor)
     |> parse_join_requests
 
@@ -691,8 +693,7 @@ module Chat = struct
       : convos =
     Client.get_json ~session:s ~extra:(proxy_headers ?proxy ())
       "chat.bsky.group.listMutualGroups"
-      (("subject", subject)
-      :: Client.opt_int "limit" limit
+      ((("subject", subject) :: Client.opt_int "limit" limit)
       @ Client.opt_pair "cursor" cursor)
     |> parse_convos
 
@@ -701,8 +702,7 @@ module Chat = struct
     Client.post_json ~session:s ~extra:(proxy_headers ?proxy ())
       "chat.bsky.group.approveJoinRequest"
       (Yojson.Safe.to_string
-         (`Assoc
-           [ ("convoId", `String convo_id); ("member", `String member) ]))
+         (`Assoc [ ("convoId", `String convo_id); ("member", `String member) ]))
     |> unwrap_convo
 
   let reject_join_request (s : Session.session) ?proxy ~convo_id ~member () :
@@ -734,8 +734,8 @@ module Chat = struct
          "chat.bsky.group.withdrawJoinRequest"
          (Yojson.Safe.to_string (convo_id_body convo_id)))
 
-  let update_join_requests_read (s : Session.session) ?proxy ~convo_id () :
-      unit =
+  let update_join_requests_read (s : Session.session) ?proxy ~convo_id () : unit
+      =
     ignore
       (Client.post_json ~session:s ~extra:(proxy_headers ?proxy ())
          "chat.bsky.group.updateJoinRequestsRead"

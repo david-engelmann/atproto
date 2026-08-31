@@ -253,16 +253,17 @@ let test_parse_membership_and_v2 _ =
       (`Assoc
         [
           ( "listsWithMembership",
-            `List
-              [ `Assoc [ ("list", list_json); ("listItem", item_json) ] ] );
+            `List [ `Assoc [ ("list", list_json); ("listItem", item_json) ] ] );
         ])
   in
   OUnit2.assert_equal 1 (List.length page.lists);
-  OUnit2.assert_equal ~printer:(fun x -> x) "Friends"
-    (List.hd page.lists).list.name;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "Friends" (List.hd page.lists).list.name;
   (match (List.hd page.lists).list_item with
   | Some item ->
-      OUnit2.assert_equal ~printer:(fun x -> x)
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
         "did:plc:xyz789aaa0001112223333" item.subject.did
   | None -> OUnit2.assert_failure "expected list item");
   let packs =

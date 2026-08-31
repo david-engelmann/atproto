@@ -57,7 +57,7 @@
   test_download_image
   test_video
   test_xrpc)
- (libraries)
+ (libraries
   async
   core
   uri
@@ -137,4 +137,4 @@
   test_blocks
   test_download_image
   test_video
-  test_xrpc)))
+  test_xrpc))

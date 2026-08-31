@@ -450,8 +450,9 @@ let test_group_join_parsers _ =
         ])
   in
   OUnit2.assert_equal 1 (List.length reqs.requests);
-  OUnit2.assert_equal ~printer:(fun x -> x) "g1"
-    (List.hd reqs.requests).convo_id;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "g1" (List.hd reqs.requests).convo_id;
   (match
      Chat.parse_join_preview
        (`Assoc

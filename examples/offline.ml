@@ -169,7 +169,8 @@ let () =
   in
   assert (v2.detected_query_languages = [ "ja" ]);
   let membership =
-    Graph.parse_lists_with_membership (`Assoc [ ("listsWithMembership", `List []) ])
+    Graph.parse_lists_with_membership
+      (`Assoc [ ("listsWithMembership", `List []) ])
   in
   assert (membership.lists = []);
   let handle_check =
@@ -182,7 +183,8 @@ let () =
               [
                 ( "$type",
                   `String
-                    "com.atproto.temp.checkHandleAvailability#resultAvailable" );
+                    "com.atproto.temp.checkHandleAvailability#resultAvailable"
+                );
               ] );
         ])
   in
@@ -191,7 +193,9 @@ let () =
     Lexicon.parse_resolved_lexicon
       (`Assoc
         [
-          ("uri", `String "at://did:plc:x/com.atproto.lexicon.schema/app.bsky.feed.post");
+          ( "uri",
+            `String
+              "at://did:plc:x/com.atproto.lexicon.schema/app.bsky.feed.post" );
           ("cid", `String "bafy");
           ( "schema",
             `Assoc

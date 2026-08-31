@@ -231,10 +231,7 @@ module Graph = struct
     hits_total : int option;
   }
 
-  type list_with_membership = {
-    list : list_view;
-    list_item : list_item option;
-  }
+  type list_with_membership = { list : list_view; list_item : list_item option }
 
   type lists_with_membership = {
     cursor : string option;
@@ -606,7 +603,7 @@ module Graph = struct
     Client.Client.get_json ?session ?host "app.bsky.graph.getStarterPacks"
       (Client.Client.repeat_param "uris" uris)
     |> parse_starter_packs
-    |> fun p -> p.starter_packs
+    |> fun (p : starter_packs) -> p.starter_packs
 
   let get_actor_starter_packs ?session ?host ~actor ?limit ?cursor () :
       starter_packs =

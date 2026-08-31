@@ -216,8 +216,8 @@ module Records = struct
     in
     `Assoc fields
 
-  let content_visibility_declaration ~hide_from_algorithmic_recommendations ()
-      : Yojson.Safe.t =
+  let content_visibility_declaration ~hide_from_algorithmic_recommendations () :
+      Yojson.Safe.t =
     `Assoc
       [
         ("$type", `String nsid_content_visibility);
@@ -237,7 +237,11 @@ module Records = struct
       ]
 
   type threadgate_rule =
-    [ `Mention | `Follower | `Following | `List of string | `Unknown of Yojson.Safe.t ]
+    [ `Mention
+    | `Follower
+    | `Following
+    | `List of string
+    | `Unknown of Yojson.Safe.t ]
 
   type postgate_rule = [ `Disable | `Unknown of Yojson.Safe.t ]
 
@@ -257,8 +261,7 @@ module Records = struct
     | `Unknown json -> json
 
   let postgate_rule_json = function
-    | `Disable ->
-        `Assoc [ ("$type", `String (nsid_postgate ^ "#disableRule")) ]
+    | `Disable -> `Assoc [ ("$type", `String (nsid_postgate ^ "#disableRule")) ]
     | `Unknown json -> json
 
   let threadgate ~post ~created_at ?allow ?hidden_replies () : Yojson.Safe.t =

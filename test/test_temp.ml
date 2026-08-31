@@ -22,7 +22,8 @@ let test_parse_available _ =
             `Assoc
               [
                 ( "$type",
-                  `String "com.atproto.temp.checkHandleAvailability#resultAvailable"
+                  `String
+                    "com.atproto.temp.checkHandleAvailability#resultAvailable"
                 );
               ] );
         ])
@@ -65,15 +66,11 @@ let test_parse_unavailable _ =
 let test_check_handle_live _ =
   try
     with_public_timeout (fun () ->
-        let check =
-          Temp.check_handle_availability ~handle:"jay.bsky.team" ()
-        in
+        let check = Temp.check_handle_availability ~handle:"jay.bsky.team" () in
         OUnit2.assert_equal ~printer:(fun x -> x) "jay.bsky.team" check.handle;
-        match check.result with
-        | `Unavailable _ | `Available | `Unknown _ -> ())
+        match check.result with `Unavailable _ | `Available | `Unknown _ -> ())
   with exn ->
-    skip_if true
-      ("checkHandleAvailability skipped: " ^ Printexc.to_string exn)
+    skip_if true ("checkHandleAvailability skipped: " ^ Printexc.to_string exn)
 
 let suite =
   "temp"
