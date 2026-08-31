@@ -58,6 +58,7 @@ module Embed = struct
     video : video_blob;
     alt : string option;
     aspect_ratio : aspect_ratio option;
+    presentation : string option;
   }
 
   type video_view_embed = {
@@ -67,7 +68,11 @@ module Embed = struct
     thumbnail : string option;
     alt : string option;
     aspect_ratio : aspect_ratio option;
+    presentation : string option;
   }
+
+  let video_presentation_default = "default"
+  let video_presentation_gif = "gif"
 
   type gallery_image = {
     image : image;
@@ -329,6 +334,7 @@ module Embed = struct
       video = json |> member "video" |> parse_video_blob;
       alt = string_opt json "alt";
       aspect_ratio = parse_aspect_ratio (json |> member "aspectRatio");
+      presentation = string_opt json "presentation";
     }
 
   let parse_video_view_embed json : video_view_embed =
@@ -340,6 +346,7 @@ module Embed = struct
       alt = string_opt json "alt";
       aspect_ratio =
         parse_aspect_ratio (Yojson.Safe.Util.member "aspectRatio" json);
+      presentation = string_opt json "presentation";
     }
 
   let parse_to_correct_external_type json =
@@ -721,9 +728,12 @@ module Embed = struct
                 ~size:e.video.size () );
           ]
           @ (match e.alt with Some a -> [ ("alt", `String a) ] | None -> [])
+          @ (match e.aspect_ratio with
+            | Some a -> [ ("aspectRatio", aspect_ratio_to_json a) ]
+            | None -> [])
           @
-          match e.aspect_ratio with
-          | Some a -> [ ("aspectRatio", aspect_ratio_to_json a) ]
+          match e.presentation with
+          | Some p -> [ ("presentation", `String p) ]
           | None -> []
         in
         `Assoc fields
@@ -738,9 +748,12 @@ module Embed = struct
             | Some t -> [ ("thumbnail", `String t) ]
             | None -> [])
           @ (match e.alt with Some a -> [ ("alt", `String a) ] | None -> [])
+          @ (match e.aspect_ratio with
+            | Some a -> [ ("aspectRatio", aspect_ratio_to_json a) ]
+            | None -> [])
           @
-          match e.aspect_ratio with
-          | Some a -> [ ("aspectRatio", aspect_ratio_to_json a) ]
+          match e.presentation with
+          | Some p -> [ ("presentation", `String p) ]
           | None -> []
         in
         `Assoc fields

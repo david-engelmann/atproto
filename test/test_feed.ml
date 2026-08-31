@@ -380,6 +380,59 @@ let test_parse_reply_ref_not_found _ =
   | `Post p -> OUnit2.assert_equal ~printer:(fun x -> x) "parent" p.record.text
   | _ -> OUnit2.assert_failure "expected parent post"
 
+let test_parse_known_likers _ =
+  let json =
+    post_view_json
+      ~uri:"at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k"
+      ~text:"liked" ()
+    |> function
+    | `Assoc fields ->
+        `Assoc
+          (fields
+          @ [
+              ( "viewer",
+                `Assoc
+                  [
+                    ( "like",
+                      `String
+                        "at://did:plc:abc123xyz0001112223333/app.bsky.feed.like/1"
+                    );
+                    ( "knownLikers",
+                      `Assoc
+                        [
+                          ("count", `Int 12);
+                          ( "actors",
+                            `List
+                              [
+                                `Assoc
+                                  [
+                                    ( "did",
+                                      `String "did:plc:abc123xyz0001112223333"
+                                    );
+                                    ("handle", `String "alice.test");
+                                    ("displayName", `String "Alice");
+                                  ];
+                              ] );
+                        ] );
+                  ] );
+            ])
+    | other -> other
+  in
+  let post = Feed.parse_post json in
+  (match post.known_likers with
+  | Some kl ->
+      OUnit2.assert_equal 12 kl.count;
+      OUnit2.assert_equal 1 (List.length kl.actors);
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "alice.test" (List.hd kl.actors).handle;
+      OUnit2.assert_equal (Some "Alice") (List.hd kl.actors).display_name
+  | None -> OUnit2.assert_failure "expected knownLikers on post viewer");
+  let view = Feed.parse_post_view json in
+  match view.known_likers with
+  | Some kl -> OUnit2.assert_equal 12 kl.count
+  | None -> OUnit2.assert_failure "expected knownLikers on post_view"
+
 let test_parse_post_view_embed _ =
   let json =
     `Assoc
@@ -482,6 +535,7 @@ let suite =
          >:: test_parse_thread_view_with_embed;
          "test_parse_blocked_thread" >:: test_parse_blocked_thread;
          "test_parse_reply_ref_not_found" >:: test_parse_reply_ref_not_found;
+         "test_parse_known_likers" >:: test_parse_known_likers;
          "test_parse_post_view_embed" >:: test_parse_post_view_embed;
          "test_send_interactions_body" >:: test_send_interactions_body;
          "test_get_feed_generator_live" >:: test_get_feed_generator_live;

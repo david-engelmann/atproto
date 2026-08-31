@@ -69,10 +69,16 @@ let () =
         ("size", `Int 8);
       ]
   in
-  let embed = Video.video_embed_json ~video:blob ~alt:"demo" () in
+  let embed =
+    Video.video_embed_json ~video:blob ~alt:"demo" ~presentation:"gif" ()
+  in
   assert (
     match Yojson.Safe.Util.member "$type" embed with
     | `String "app.bsky.embed.video" -> true
+    | _ -> false);
+  assert (
+    match Yojson.Safe.Util.member "presentation" embed with
+    | `String "gif" -> true
     | _ -> false);
   let start =
     Video.start_upload_body ~size_bytes:1_048_576 ~mime_type:"video/mp4"
@@ -163,6 +169,54 @@ let () =
   assert (
     match Yojson.Safe.Util.member "$type" status with
     | `String "app.bsky.actor.status" -> true
+    | _ -> false);
+  let liked =
+    Feed.parse_post
+      (`Assoc
+        [
+          ( "uri",
+            `String "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k"
+          );
+          ("cid", `String "bafyreiabc");
+          ( "author",
+            `Assoc
+              [
+                ("did", `String "did:plc:abc123xyz0001112223333");
+                ("handle", `String "alice.test");
+              ] );
+          ("record", `Assoc [ ("text", `String "hi") ]);
+          ("indexedAt", `String "2024-01-01T00:00:00.000Z");
+          ( "viewer",
+            `Assoc
+              [
+                ( "knownLikers",
+                  `Assoc
+                    [
+                      ("count", `Int 1);
+                      ( "actors",
+                        `List
+                          [
+                            `Assoc
+                              [
+                                ("did", `String "did:plc:abc123xyz0001112223333");
+                                ("handle", `String "alice.test");
+                              ];
+                          ] );
+                    ] );
+              ] );
+        ])
+  in
+  (match liked.known_likers with
+  | Some kl -> assert (kl.count = 1)
+  | None -> assert false);
+  let schema =
+    Records.lexicon_schema ~id:"com.example.ping"
+      ~defs:(`Assoc [ ("main", `Assoc [ ("type", `String "query") ]) ])
+      ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "$type" schema with
+    | `String "com.atproto.lexicon.schema" -> true
     | _ -> false);
   let v2 =
     Feed.parse_search_posts_v2

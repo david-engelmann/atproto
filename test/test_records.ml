@@ -242,7 +242,30 @@ let test_remaining_record_builders _ =
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "app.bsky.labeler.service"
-    (labeler |> member "$type" |> to_string)
+    (labeler |> member "$type" |> to_string);
+  let schema =
+    Records.lexicon_schema ~id:"com.example.ping"
+      ~description:"tiny ping lexicon"
+      ~defs:
+        (`Assoc
+          [
+            ( "main",
+              `Assoc
+                [
+                  ("type", `String "query");
+                  ("parameters", `Assoc [ ("type", `String "params") ]);
+                ] );
+          ])
+      ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "com.atproto.lexicon.schema"
+    (schema |> member "$type" |> to_string);
+  OUnit2.assert_equal 1 (schema |> member "lexicon" |> to_int);
+  let parsed = Records.parse_lexicon_schema schema in
+  OUnit2.assert_equal 1 parsed.lexicon;
+  OUnit2.assert_equal (Some "com.example.ping") parsed.id
 
 let suite =
   "records"
