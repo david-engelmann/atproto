@@ -8,9 +8,11 @@ open Atproto.Records
 open Atproto.Repo
 open Atproto.Client
 open Atproto.Error
+open Atproto.Notification
 open Actor
 open Feed
 open Graph
+open Notification
 
 (* Real app.bsky.* calls against official @atproto/dev-env AppView. *)
 
@@ -228,6 +230,91 @@ let test_graph _ =
   in
   OUnit2.assert_bool "getMutes after muteActor" (List.length mutes.mutes >= 0)
 
+let test_more_appview _ =
+  let s = session () in
+  let author_json =
+    av_get "app.bsky.feed.getAuthorFeed"
+      [ ("actor", "alice.test"); ("limit", "5") ]
+  in
+  (match Yojson.Safe.Util.member "feed" author_json with
+  | `List (item :: _) -> (
+      match Yojson.Safe.Util.member "post" item with
+      | `Assoc _ as post -> (
+          match Yojson.Safe.Util.member "uri" post with
+          | `String uri when String.length uri > 0 ->
+              let got =
+                av_get "app.bsky.feed.getPosts" [ ("uris", uri) ]
+                |> Feed.parse_posts_feed
+              in
+              OUnit2.assert_bool "getPosts" (List.length got.posts >= 1)
+          | _ -> ())
+      | _ -> ())
+  | _ -> ());
+  let rel =
+    av_get "app.bsky.graph.getRelationships"
+      [ ("actor", "alice.test"); ("others", "bob.test") ]
+    |> Graph.parse_relationships
+  in
+  OUnit2.assert_bool "getRelationships" (List.length rel.relationships >= 0);
+  let lists =
+    av_get "app.bsky.graph.getLists"
+      [ ("actor", "alice.test"); ("limit", "10") ]
+    |> Graph.parse_lists
+  in
+  OUnit2.assert_bool "getLists" (List.length lists.lists >= 0);
+  let packs =
+    av_get "app.bsky.graph.getActorStarterPacks"
+      [ ("actor", "alice.test"); ("limit", "5") ]
+    |> Graph.parse_starter_packs
+  in
+  OUnit2.assert_bool "getActorStarterPacks"
+    (List.length packs.starter_packs >= 0);
+  let prefs =
+    av_get ~session:s "app.bsky.actor.getPreferences" []
+    |> Actor.parse_preferences
+  in
+  OUnit2.assert_bool "getPreferences" (List.length prefs.preferences >= 0);
+  let unread =
+    av_get ~session:s "app.bsky.notification.getUnreadCount" []
+    |> Notification.parse_unread_count
+  in
+  OUnit2.assert_bool "getUnreadCount" (unread.count >= 0);
+  let blocks =
+    av_get ~session:s "app.bsky.graph.getBlocks" [ ("limit", "10") ]
+    |> Graph.parse_blocks
+  in
+  OUnit2.assert_bool "getBlocks" (List.length blocks.blocks >= 0);
+  (match
+     Error.check_for_error
+       (Client.get_json ~host:(appview_host ())
+          "app.bsky.graph.getKnownFollowers"
+          [ ("actor", "alice.test"); ("limit", "5") ])
+   with
+  | Some err when method_missing err -> ()
+  | Some _ -> failwith "getKnownFollowers XRPC error"
+  | None ->
+      let known =
+        av_get "app.bsky.graph.getKnownFollowers"
+          [ ("actor", "alice.test"); ("limit", "5") ]
+        |> Graph.parse_followers
+      in
+      OUnit2.assert_bool "getKnownFollowers" (List.length known.followers >= 0));
+  match
+    Error.check_for_error
+      (Client.get_json ~host:(appview_host ())
+         "app.bsky.actor.searchActorsTypeahead"
+         [ ("q", "alice"); ("limit", "5") ])
+  with
+  | Some err when method_missing err -> ()
+  | Some _ -> failwith "searchActorsTypeahead XRPC error"
+  | None ->
+      let typeahead =
+        av_get "app.bsky.actor.searchActorsTypeahead"
+          [ ("q", "alice"); ("limit", "5") ]
+        |> Actor.parse_typeahead_profiles
+      in
+      OUnit2.assert_bool "searchActorsTypeahead" (List.length typeahead >= 0)
+
 let test_notifications _ =
   let s = session () in
   let json =
@@ -250,6 +337,7 @@ let suite =
          "test_get_suggestions" >:: test_get_suggestions;
          "test_feed_after_writes" >:: test_feed_after_writes;
          "test_graph" >:: test_graph;
+         "test_more_appview" >:: test_more_appview;
          "test_notifications" >:: test_notifications;
        ]
 

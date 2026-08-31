@@ -98,27 +98,37 @@ module Server = struct
     in
     `Assoc fields
 
+  (* com.atproto.server.createAppPassword#appPassword — password is only
+     present on create; listAppPasswords omits the secret. *)
+  type app_password = {
+    name : string;
+    password : string option;
+    created_at : string;
+    privileged : bool option;
+  }
+
+  let parse_app_password json : app_password =
+    let open Yojson.Safe.Util in
+    {
+      name = (match json |> member "name" with `String s -> s | _ -> "");
+      password =
+        (match json |> member "password" with `String s -> Some s | _ -> None);
+      created_at =
+        (match json |> member "createdAt" with `String s -> s | _ -> "");
+      privileged =
+        (match json |> member "privileged" with `Bool b -> Some b | _ -> None);
+    }
+
+  let parse_app_passwords json : app_password list =
+    match Yojson.Safe.Util.member "passwords" json with
+    | `List xs -> List.map parse_app_password xs
+    | _ -> []
+
   let create_app_password (s : Session.session) ?privileged (name : string) :
       string =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let create_app_password_url =
-      App.create_endpoint_url base_url
-        (create_server_endpoint "createAppPassword")
-    in
-    let data =
-      Yojson.Safe.to_string (create_app_password_body ~name ?privileged ())
-    in
-    let created_app_password =
-      Lwt_main.run
-        (Cohttp_client.post_data_with_headers create_app_password_url data
-           headers)
-    in
-    created_app_password
+    Client.Client.post_json ~session:s "com.atproto.server.createAppPassword"
+      (Yojson.Safe.to_string (create_app_password_body ~name ?privileged ()))
+    |> Yojson.Safe.to_string
 
   let get_account_invite_codes (s : Session.session) (include_used : bool)
       (create_available : bool) : string =
@@ -146,53 +156,36 @@ module Server = struct
     in
     account_invite_codes
 
-  let create_invite_code (s : Session.session) (use_count : int) : string =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
+  let create_invite_code_body ~use_count ?for_account () : Yojson.Safe.t =
+    let fields =
+      ("useCount", `Int use_count)
+      ::
+      (match for_account with
+      | Some did -> [ ("forAccount", `String did) ]
+      | None -> [])
     in
-    let base_url = App.create_base_url s in
-    let create_invite_code_url =
-      App.create_endpoint_url base_url
-        (create_server_endpoint "createInviteCode")
-    in
-    let body =
-      Cohttp_client.create_body_from_pairs
-        [ ("useCount", string_of_int use_count) ]
-    in
-    let account_invite_code =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers create_invite_code_url
-           body headers)
-    in
-    account_invite_code
+    `Assoc fields
 
-  let create_invite_codes (s : Session.session) (code_count : int)
+  let create_invite_code ?for_account (s : Session.session) (use_count : int) :
+      string =
+    Client.Client.post_json ~session:s "com.atproto.server.createInviteCode"
+      (Yojson.Safe.to_string
+         (create_invite_code_body ~use_count ?for_account ()))
+    |> Yojson.Safe.to_string
+
+  let create_invite_codes ?for_accounts (s : Session.session) (code_count : int)
       (use_count : int) : string =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
+    let accounts = Option.value ~default:[] for_accounts in
+    let fields =
+      [ ("codeCount", `Int code_count); ("useCount", `Int use_count) ]
+      @
+      match accounts with
+      | [] -> []
+      | xs -> [ ("forAccounts", `List (List.map (fun d -> `String d) xs)) ]
     in
-    let base_url = App.create_base_url s in
-    let create_invite_codes_url =
-      App.create_endpoint_url base_url
-        (create_server_endpoint "createInviteCodes")
-    in
-    let body =
-      Cohttp_client.create_body_from_pairs
-        [
-          ("codeCount", string_of_int code_count);
-          ("useCount", string_of_int use_count);
-        ]
-    in
-    let account_invite_codes =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers create_invite_codes_url
-           body headers)
-    in
-    account_invite_codes
+    Client.Client.post_json ~session:s "com.atproto.server.createInviteCodes"
+      (Yojson.Safe.to_string (`Assoc fields))
+    |> Yojson.Safe.to_string
 
   let list_app_passwords (s : Session.session) : string =
     let bearer_token = Session.bearer_token_from_session s in
@@ -211,105 +204,51 @@ module Server = struct
     in
     app_passwords
 
+  let request_account_delete_body () : Yojson.Safe.t = `Assoc []
+
+  let request_password_reset_body ~email : Yojson.Safe.t =
+    `Assoc [ ("email", `String email) ]
+
+  let delete_account_body ~did ~password ~token : Yojson.Safe.t =
+    `Assoc
+      [
+        ("did", `String did);
+        ("password", `String password);
+        ("token", `String token);
+      ]
+
+  let reset_password_body ~token ~password : Yojson.Safe.t =
+    `Assoc [ ("token", `String token); ("password", `String password) ]
+
+  let revoke_app_password_body ~name : Yojson.Safe.t =
+    `Assoc [ ("name", `String name) ]
+
   let request_account_delete (s : Session.session) : string =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let request_account_delete_url =
-      App.create_endpoint_url base_url
-        (create_server_endpoint "requestAccountDelete")
-    in
-    let account_delete =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_headers request_account_delete_url
-           headers)
-    in
-    account_delete
+    Client.Client.post_json ~session:s "com.atproto.server.requestAccountDelete"
+      (Yojson.Safe.to_string (request_account_delete_body ()))
+    |> Yojson.Safe.to_string
 
   let request_password_reset (s : Session.session) (email : string) : string =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let request_password_reset_url =
-      App.create_endpoint_url base_url
-        (create_server_endpoint "requestPasswordReset")
-    in
-    let body = Cohttp_client.create_body_from_pairs [ ("email", email) ] in
-    let password_reset =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers
-           request_password_reset_url body headers)
-    in
-    password_reset
+    Client.Client.post_json ~session:s "com.atproto.server.requestPasswordReset"
+      (Yojson.Safe.to_string (request_password_reset_body ~email))
+    |> Yojson.Safe.to_string
 
   let delete_account (s : Session.session) (did : string) (password : string)
       (token : string) =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let delete_account_url =
-      App.create_endpoint_url base_url (create_server_endpoint "deleteAccount")
-    in
-    let body =
-      Cohttp_client.create_body_from_pairs
-        [ ("did", did); ("password", password); ("token", token) ]
-    in
-    let delete_account =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers delete_account_url body
-           headers)
-    in
-    delete_account
+    Client.Client.post_json ~session:s "com.atproto.server.deleteAccount"
+      (Yojson.Safe.to_string (delete_account_body ~did ~password ~token))
+    |> Yojson.Safe.to_string
 
   let reset_password (s : Session.session) (token : string) (password : string)
       : string =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let reset_password_url =
-      App.create_endpoint_url base_url (create_server_endpoint "resetPassword")
-    in
-    let body =
-      Cohttp_client.create_body_from_pairs
-        [ ("token", token); ("password", password) ]
-    in
-    let reset_password =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers reset_password_url body
-           headers)
-    in
-    reset_password
+    Client.Client.post_json ~session:s "com.atproto.server.resetPassword"
+      (Yojson.Safe.to_string (reset_password_body ~token ~password))
+    |> Yojson.Safe.to_string
 
   let revoke_app_password (s : Session.session) (name : string) : string =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let revoke_app_password_url =
-      App.create_endpoint_url base_url
-        (create_server_endpoint "revokeAppPassword")
-    in
-    let body = Cohttp_client.create_body_from_pairs [ ("name", name) ] in
-    let revoke_app_password =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers revoke_app_password_url
-           body headers)
-    in
-    revoke_app_password
+    Client.Client.post_json ~session:s "com.atproto.server.revokeAppPassword"
+      (Yojson.Safe.to_string (revoke_app_password_body ~name))
+    |> Yojson.Safe.to_string
 
   type service_auth = { token : string }
 

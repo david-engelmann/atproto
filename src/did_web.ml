@@ -27,7 +27,7 @@ module Did_web = struct
 
   let parse_document = Did_plc.parse_document
 
-  let resolve (did : string) : did_document =
+  let resolve_json (did : string) : Yojson.Safe.t =
     let url = document_url did in
     let headers =
       Cohttp_client.create_headers_from_pairs
@@ -38,5 +38,7 @@ module Did_web = struct
     in
     match Error.Error.of_body body with
     | Some e -> failwith ("Did_web.resolve: " ^ Error.Error.to_string e)
-    | None -> parse_document (Yojson.Safe.from_string body)
+    | None -> Yojson.Safe.from_string body
+
+  let resolve (did : string) : did_document = parse_document (resolve_json did)
 end

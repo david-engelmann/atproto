@@ -35,6 +35,31 @@ module Did_plc = struct
 
   let default_directory = "plc.directory"
 
+  let strip_trailing_slash (s : string) : string =
+    let n = String.length s in
+    if n > 0 && s.[n - 1] = '/' then String.sub s 0 (n - 1) else s
+
+  let starts_with prefix s =
+    let n = String.length prefix in
+    String.length s >= n && String.sub s 0 n = prefix
+
+  (* Host ("plc.directory") or full origin ("http://localhost:2582"). *)
+  let origin_of_directory (directory : string) : string =
+    let d = String.trim directory in
+    if starts_with "http://" d || starts_with "https://" d then
+      strip_trailing_slash d
+    else "https://" ^ d
+
+  let origin_from_env () : string =
+    match Sys.getenv_opt "PLC_ORIGIN" with
+    | Some o when String.trim o <> "" -> strip_trailing_slash (String.trim o)
+    | _ -> origin_of_directory default_directory
+
+  let plc_origin ?directory () : string =
+    match directory with
+    | Some d -> origin_of_directory d
+    | None -> origin_from_env ()
+
   let is_plc_did (did : string) : bool =
     String.length did > 8 && String.sub did 0 8 = "did:plc:"
 
@@ -188,11 +213,9 @@ module Did_plc = struct
     | keys -> keys
 
   let directory_url ?(directory = default_directory) (did : string) : string =
-    Printf.sprintf "https://%s/%s" directory did
+    origin_of_directory directory ^ "/" ^ did
 
-  let resolve ?(directory = default_directory) (did : string) : did_document =
-    validate_plc_did did;
-    let url = directory_url ~directory did in
+  let fetch_json (url : string) : Yojson.Safe.t =
     let headers =
       Cohttp_client.create_headers_from_pairs
         [ Cohttp_client.application_json_setting_tuple ]
@@ -202,20 +225,19 @@ module Did_plc = struct
     in
     match Error.Error.of_body body with
     | Some e -> failwith ("Did_plc.resolve: " ^ Error.Error.to_string e)
-    | None -> parse_document (Yojson.Safe.from_string body)
+    | None -> Yojson.Safe.from_string body
 
-  let resolve_log ?(directory = default_directory) (did : string) :
-      operation list =
+  let resolve_json ?directory (did : string) : Yojson.Safe.t =
     validate_plc_did did;
-    let url = Printf.sprintf "https://%s/%s/log" directory did in
-    let headers =
-      Cohttp_client.create_headers_from_pairs
-        [ Cohttp_client.application_json_setting_tuple ]
-    in
-    let body =
-      Lwt_main.run (Cohttp_client.get_request_with_headers url headers)
-    in
-    match Yojson.Safe.from_string body with
+    fetch_json (plc_origin ?directory () ^ "/" ^ did)
+
+  let resolve ?directory (did : string) : did_document =
+    parse_document (resolve_json ?directory did)
+
+  let resolve_log ?directory (did : string) : operation list =
+    validate_plc_did did;
+    let url = plc_origin ?directory () ^ "/" ^ did ^ "/log" in
+    match fetch_json url with
     | `List items -> List.map parse_operation items
     | _ -> failwith "Did_plc.resolve_log: expected a JSON array"
 

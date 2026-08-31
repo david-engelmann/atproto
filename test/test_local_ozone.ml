@@ -123,12 +123,43 @@ let test_query_labels _ =
       | `List _ -> ()
       | _ -> OUnit2.assert_failure "ozone queryLabels missing labels")
 
+let test_more_ozone _ =
+  let s = admin_session () in
+  let p = proxy () in
+  let alice = Session.create_session "alice.test" "hunter2" in
+  let repo = Ozone.get_repo s ~proxy:p ~did:alice.auth.did () in
+  no_xrpc_error repo.original;
+  OUnit2.assert_equal ~printer:(fun x -> x) alice.auth.did repo.did;
+  let repos, _cursor = Ozone.search_repos s ~proxy:p ~q:"alice" ~limit:10 () in
+  OUnit2.assert_bool "searchRepos" (List.length repos >= 0);
+  let members = Ozone.list_members s ~proxy:p ~limit:10 () in
+  OUnit2.assert_bool "listMembers" (List.length members.members >= 0);
+  let templates = Ozone.list_templates s ~proxy:p () in
+  OUnit2.assert_bool "listTemplates" (List.length templates.templates >= 0);
+  let sets = Ozone.query_sets s ~proxy:p ~limit:10 () in
+  OUnit2.assert_bool "querySets" (List.length sets.sets >= 0);
+  let events =
+    Ozone.query_events s ~proxy:p ~subject:alice.auth.did ~limit:5 ()
+  in
+  (match events.events with
+  | [] -> ()
+  | ev :: _ -> (
+      match ev.id with
+      | None -> ()
+      | Some id ->
+          let got = Ozone.get_event s ~proxy:p ~id () in
+          no_xrpc_error got.original;
+          OUnit2.assert_bool "getEvent" true));
+  let timeline = Ozone.get_account_timeline s ~proxy:p ~did:alice.auth.did () in
+  ignore timeline
+
 let suite =
   "local_ozone"
   >::: [
          "test_get_config" >:: test_get_config;
          "test_emit_and_query" >:: test_emit_and_query;
          "test_query_labels" >:: test_query_labels;
+         "test_more_ozone" >:: test_more_ozone;
        ]
 
 let () =

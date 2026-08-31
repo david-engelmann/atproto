@@ -30,6 +30,18 @@ let test_to_string _ =
     "Nope: bad"
     (Error.to_string { error = "Nope"; message = "bad" })
 
+let test_is_not_implemented _ =
+  OUnit2.assert_bool "MethodNotImplemented"
+    (Error.is_not_implemented
+       { error = "MethodNotImplemented"; message = "nope" });
+  OUnit2.assert_bool "MethodNotFound"
+    (Error.is_not_implemented { error = "MethodNotFound"; message = "" });
+  OUnit2.assert_bool "other"
+    (not (Error.is_not_implemented { error = "HandleNotFound"; message = "" }));
+  OUnit2.assert_bool "json"
+    (Error.is_not_implemented_json
+       (`Assoc [ ("error", `String "MethodNotImplemented") ]))
+
 let suite =
   "error"
   >::: [
@@ -37,6 +49,7 @@ let suite =
          "test_of_body_ok" >:: test_of_body_ok;
          "test_of_body_error" >:: test_of_body_error;
          "test_to_string" >:: test_to_string;
+         "test_is_not_implemented" >:: test_is_not_implemented;
        ]
 
 let () = run_test_tt_main suite
