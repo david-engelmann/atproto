@@ -9,7 +9,8 @@ Create a `.env` (see `sample.env`) with at least:
 - `ATP_AUTH` : `EmailAddress:AppPassword`
   - Use an [App Password](https://bsky.app/settings/app-passwords) (email as the username).
 - `ATP_HOST` : `bsky.social`
-  - PDS / entryway host **without** a scheme.
+  - PDS / entryway host **without** a scheme (`localhost:2583` for the local compose stack).
+- `ATP_SCHEME` : `https` (default) or `http` for a local PDS without TLS.
 
 Optional:
 
@@ -28,6 +29,40 @@ dune runtest
 `dune build` also typechecks `examples/offline.ml` against the current public API (no network, no credentials).
 
 Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to a real `email:app-password` pair (placeholder values in `sample.env` do not count). Public-network tests (handle resolve, PLC directory, `getLatestCommit`, `subscribeRepos`, AppView feed/search/labeler reads) run without auth and skip only if the request itself fails.
+
+## Local PDS (real protocol, not fixtures)
+
+CI and `make test-pds` start the official Bluesky PDS image plus a local PLC directory, create a test account, and run OCaml tests against `com.atproto.*` on that instance. This is a **separate** GitHub Actions job on the runner VM (Docker is available there). The existing `build` job stays inside `ocaml/opam:ubuntu-22.04` and does not start Docker.
+
+```shell
+# start official PDS + PLC, create alice.test, run integration tests
+make test-pds
+
+# or step by step
+make pds-up
+./scripts/local-pds.sh account
+eval "$(./scripts/local-pds.sh env)"
+export ATP_REQUIRE_LOCAL_PDS=1
+dune exec -- test/test_local_pds.exe
+
+make pds-down
+```
+
+Docker Compose file: `docker/pds/compose.yaml`
+
+- PDS: `ghcr.io/bluesky-social/pds:0.4` on `http://localhost:2583`
+- PLC: official `did-method-plc` directory server on `http://localhost:2582` (needed for `did:plc` `createAccount`)
+- Account created in-process: handle `alice.test`, password `local-pds-ci-password` (not a production Bluesky credential)
+
+Point the client at the local stack with:
+
+- `ATP_HOST=localhost:2583` (host **without** a scheme)
+- `ATP_SCHEME=http` (local compose has no TLS; production stays `https`)
+- `ATP_AUTH=alice.test:local-pds-ci-password`
+
+`test/test_local_pds.ml` calls `createAccount`, `createSession`, identity resolve, repo describe/getRecord/listRecords/createRecord/putRecord/deleteRecord/applyWrites, blob upload, and sync `getLatestCommit` / `getRepo` / `listBlobs`. If the local PDS is up, a failed protocol call **fails the test**. The suite skips only when it is not aimed at a local host (typical laptop `dune runtest` without Docker). In CI, `ATP_REQUIRE_LOCAL_PDS=1` is set and Docker is required.
+
+AppView / chat / ozone / Jetstream are **not** a single PDS. `app.bsky.*`, `chat.bsky.*`, `tools.ozone.*`, and Jetstream still need a live AppView or those services. Existing skippable public Bluesky tests cover those product APIs.
 
 ## What this library covers
 
@@ -79,7 +114,7 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 These are product-level, not missing protocol cores:
 
 - Hosting a public **client-metadata document** and completing a **live browser login** against a PDS (the protocol core — metadata, PAR + DPoP-nonce retry, authorize URL, redirect `code`/`state`/`iss`, token parse — is implemented and tested with fixtures)
-- A hosted PDS, hosted Tap service, hosted video transcoder, or live Ozone operator session (client request/response types, video byte-upload + job poll, TAP-like repo sync helpers, and proxy headers are implemented)
+- A hosted Tap service, hosted video transcoder, or live Ozone operator session (client request/response types, video byte-upload + job poll, TAP-like repo sync helpers, and proxy headers are implemented). A **local PDS + PLC** stack is included for `com.atproto.*` integration tests; it is not a public host.
 - Jetstream Network Replay / HTTP snapshot **download** against Bluesky's gated archive (planner, `listSegments` types, cutover cursor, Range resume, skippable unauthenticated HTTP, and `.jss` v1 decode are implemented; a live archive download still needs an operator token this library does not invent, and zstd frames need an injected decompressor)
 - Permissioned data / spaces / LtHash (no stable public spec to implement yet)
 - Official `com.atproto.sync.getRepo` **lexicon** still has no `collection` parameter (client-side subset export from a full CAR is implemented; servers that reject unknown query params are unchanged)

@@ -1,0 +1,56 @@
+# Local AT Protocol stack for library integration tests.
+# PDS image: official Bluesky ghcr.io/bluesky-social/pds (documented compose image).
+# PLC: official did-method-plc directory server (required for did:plc createAccount).
+# AppView / chat / ozone / Jetstream are not part of this stack.
+
+services:
+  plc-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: plc
+      POSTGRES_PASSWORD: plc
+      POSTGRES_DB: plc
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U plc -d plc"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - plc_db:/var/lib/postgresql/data
+
+  plc:
+    # Reference implementation that runs https://plc.directory
+    # https://github.com/did-method-plc/did-method-plc
+    build:
+      context: https://github.com/did-method-plc/did-method-plc.git#aab49e5db7d92dc3bc08f75ca17e1b229206a9c9
+      dockerfile: packages/server/Dockerfile
+    image: atproto-local-plc:aab49e5
+    ports:
+      - "2582:3000"
+    environment:
+      DB_CREDS_JSON: '{"username":"plc","password":"plc","host":"plc-db","port":"5432","database":"plc"}'
+      DB_MIGRATE_CREDS_JSON: '{"username":"plc","password":"plc","host":"plc-db","port":"5432","database":"plc"}'
+      ENABLE_MIGRATIONS: "true"
+      PORT: "3000"
+      LOG_ENABLED: "true"
+      LOG_LEVEL: "info"
+    depends_on:
+      plc-db:
+        condition: service_healthy
+
+  pds:
+    image: ghcr.io/bluesky-social/pds:0.4
+    ports:
+      - "2583:3000"
+    env_file:
+      - pds.env
+    environment:
+      PDS_DID_PLC_URL: http://plc:3000
+    volumes:
+      - pds_data:/pds
+    depends_on:
+      - plc
+
+volumes:
+  plc_db:
+  pds_data:

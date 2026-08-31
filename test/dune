@@ -33,6 +33,7 @@
   test_label
   test_labeler
   test_lexicon
+  test_local_pds
   test_moderation
   test_mst
   test_notification
@@ -59,7 +60,7 @@
   test_download_image
   test_video
   test_xrpc)
- (libraries
+ (libraries)
   async
   core
   uri
@@ -116,6 +117,7 @@
   test_label
   test_labeler
   test_lexicon
+  test_local_pds
   test_moderation
   test_mst
   test_notification

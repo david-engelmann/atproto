@@ -135,6 +135,21 @@ let test_reserve_signing_key_body _ =
     "did:plc:abc123xyz0001112223333"
     (body |> member "did" |> to_string)
 
+let test_create_account_at_url_uses_host _ =
+  let body =
+    Server.create_account_body ~handle:"bob.test" ~email:"bob@test.local"
+      ~password:"secret" ()
+  in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "bob.test"
+    (body |> member "handle" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "bob@test.local"
+    (body |> member "email" |> to_string)
+
 let test_create_account_and_app_password_bodies _ =
   let open Yojson.Safe.Util in
   let acct =
@@ -222,6 +237,8 @@ let suite =
          "test_parse_describe_server_missing_contact"
          >:: test_parse_describe_server_missing_contact;
          "test_reserve_signing_key_body" >:: test_reserve_signing_key_body;
+         "test_create_account_at_url_uses_host"
+         >:: test_create_account_at_url_uses_host;
          "test_create_account_and_app_password_bodies"
          >:: test_create_account_and_app_password_bodies;
          "test_email_and_account_bodies" >:: test_email_and_account_bodies;

@@ -70,6 +70,24 @@ module Server = struct
     in
     created_account
 
+  (* Public signup — createAccount is unauthenticated on an open PDS. *)
+  let create_account_at ?session ?host ~handle ~email ~password ?invite_code
+      ?recovery_key ?did ?verification_code ?verification_phone ?plc_op () :
+      Yojson.Safe.t =
+    let host =
+      match host with
+      | Some h -> h
+      | None -> (
+          match session with
+          | Some s -> s.Session.atp_host
+          | None -> Session.atp_host_from_env)
+    in
+    Client.Client.post_json ?session ~host "com.atproto.server.createAccount"
+      (Yojson.Safe.to_string
+         (create_account_body ~handle ~email ?did ?invite_code
+            ?verification_code ?verification_phone ~password ?recovery_key
+            ?plc_op ()))
+
   let create_app_password_body ~name ?privileged () : Yojson.Safe.t =
     let fields =
       ("name", `String name)

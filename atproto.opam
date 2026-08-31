@@ -67,6 +67,11 @@ document, browser login, or video transcoder.
 Configure a .env (see sample.env) with:
 - ATP_AUTH : EmailAddress:AppPassword (app password, not the account password)
 - ATP_HOST : bsky.social (PDS / entryway host without a scheme)
+- ATP_SCHEME : https (default) or http for a local PDS without TLS
+
+A docker-compose stack under docker/pds/ runs the official Bluesky PDS
+image plus a local PLC so com.atproto.* integration tests can hit a real
+instance. AppView / chat / ozone / Jetstream are not included.
 
 Authenticated helpers skip live tests unless ATP_AUTH is a real credential
 pair. Public identity, PLC, firehose, and AppView reads do not require it.

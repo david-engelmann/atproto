@@ -128,3 +128,63 @@ jobs:
 
       - name: Lint fmt
         uses: ocaml/setup-ocaml/lint-fmt@v3
+
+  # Runs on the GitHub-hosted VM (Docker available). Not inside ocaml/opam.
+  local-pds:
+    runs-on: ubuntu-22.04
+    env:
+      ATP_SCHEME: http
+      ATP_HOST: localhost:2583
+      ATP_AUTH: alice.test:local-pds-ci-password
+      ATP_LOCAL_PDS: "1"
+      ATP_REQUIRE_LOCAL_PDS: "1"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start official PDS + PLC
+        run: ./scripts/local-pds.sh up
+
+      - name: Create local test account
+        run: ./scripts/local-pds.sh account
+
+      - name: Use OCaml 4.14.1
+        uses: ocaml/setup-ocaml@v3
+        with:
+          dune-cache: true
+          ocaml-compiler: 4.14.1
+          opam-disable-sandboxing: true
+
+      - name: Cache opam dependencies
+        uses: actions/cache@v4
+        id: opam-cache
+        with:
+          path: ~/.opam
+          key: ${{ runner.os }}-opam-pds-${{ hashFiles('**/*.opam') }}
+          restore-keys: |
+            ${{ runner.os }}-opam-pds-
+            ${{ runner.os }}-opam-
+
+      - name: Install Common Libs
+        run: opam install async base core uri yojson ptime cohttp cohttp-lwt-unix cohttp-async h2 httpaf httpaf-lwt-unix h2-lwt-unix lwt core_kernel ssl lwt_ssl jose digestif mirage-crypto-ec mirage-crypto-rng zarith ounit ounit2 ppx_jane qcheck dune ocamlformat
+
+      - name: Dune Build
+        run: opam exec -- dune build
+
+      - name: Local PDS integration tests
+        run: |
+          set -o pipefail
+          opam exec -- dune exec -- test/test_local_pds.exe 2>&1 | tee local_pds_runtest.log
+
+      - name: PDS logs
+        if: always()
+        run: ./scripts/local-pds.sh logs
+
+      - name: Upload Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: local_pds_runtest
+          path: local_pds_runtest.log
+          if-no-files-found: warn

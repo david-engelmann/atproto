@@ -87,7 +87,7 @@ module Session = struct
     let base_endpoint = Auth.get_base_endpoint in
     let get_session_endpoint = Auth.create_server_endpoint "getSession" in
     let get_session_url =
-      Printf.sprintf "https://%s/%s%s" s.atp_host base_endpoint
+      Printf.sprintf "%s/%s%s" (Auth.origin_of_host s.atp_host) base_endpoint
         get_session_endpoint
     in
     let bearer_token = bearer_token_from_session s in
@@ -127,7 +127,7 @@ module Session = struct
     let base_endpoint = Auth.get_base_endpoint in
     let delete_session_endpoint = Auth.create_server_endpoint "deleteSession" in
     let delete_session_url =
-      Printf.sprintf "https://%s/%s%s" s.atp_host base_endpoint
+      Printf.sprintf "%s/%s%s" (Auth.origin_of_host s.atp_host) base_endpoint
         delete_session_endpoint
     in
     Lwt_main.run
