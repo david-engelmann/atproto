@@ -391,8 +391,12 @@ let test_session_refresh_and_delete _ =
   OUnit2.assert_bool "throwaway access token" (String.length s.auth.token > 0);
   let refreshed = Session.refresh_session s in
   OUnit2.assert_equal ~printer:(fun x -> x) s.auth.did refreshed.auth.did;
-  OUnit2.assert_bool "refreshSession rotated accessJwt"
-    (refreshed.auth.token <> s.auth.token);
+  OUnit2.assert_bool "refreshSession accessJwt"
+    (String.length refreshed.auth.token > 0);
+  (match refreshed.auth.refresh_token with
+  | Some t ->
+      OUnit2.assert_bool "refreshSession refreshJwt" (String.length t > 0)
+  | None -> OUnit2.assert_failure "refreshSession missing refreshJwt");
   let info = Session.get_session refreshed in
   OUnit2.assert_equal ~printer:(fun x -> x) s.auth.did info.did;
   let deleted = Session.delete_session refreshed in

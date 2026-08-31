@@ -59,6 +59,30 @@ let test_follows_order_and_reorder _ =
   OUnit2.assert_equal [ "a"; "b"; "c" ]
     (List.map (fun (b : Car.block) -> b.data) ordered.blocks)
 
+let index_of_sub hay needle =
+  let n = String.length needle in
+  let rec find i =
+    if i + n > String.length hay then failwith ("missing " ^ needle)
+    else if String.sub hay i n = needle then i
+    else find (i + 1)
+  in
+  find 0
+
+let test_dag_cbor_ipld_key_sort _ =
+  (* Encoded-key order: prev (4) and type (4) before alsoKnownAs (11). *)
+  let encoded =
+    Dag_cbor.encode
+      (Dag_cbor.Map
+         [
+           ("alsoKnownAs", Dag_cbor.Array []);
+           ("prev", Dag_cbor.Null);
+           ("type", Dag_cbor.Text "plc_operation");
+         ])
+  in
+  let prev_at = index_of_sub encoded "prev" in
+  let aka_at = index_of_sub encoded "alsoKnownAs" in
+  OUnit2.assert_bool "IPLD sorts shorter encoded keys first" (prev_at < aka_at)
+
 let test_dag_cbor_cid_tag _ =
   let cid = Cid.of_digest (String.make 32 '\x02') in
   let encoded = Dag_cbor.encode (Dag_cbor.Cid cid) in
@@ -94,9 +118,9 @@ let test_dag_cbor_hard_types _ =
         (List.length (Dag_cbor.as_array (Dag_cbor.require "items" fields)));
       OUnit2.assert_equal 1_000_000_000_000L
         (Dag_cbor.as_int64 (Dag_cbor.require "big" fields));
-      (* DAG-CBOR map keys are sorted: big, blob, empty, flag, items *)
+      (* IPLD DAG-CBOR: shorter encoded keys first, then lexicographic *)
       OUnit2.assert_equal
-        [ "big"; "blob"; "empty"; "flag"; "items" ]
+        [ "big"; "blob"; "flag"; "empty"; "items" ]
         (List.map fst fields)
   | _ -> OUnit2.assert_failure "expected map");
   (try
@@ -116,6 +140,7 @@ let suite =
          "test_car_with_block" >:: test_car_with_block;
          "test_follows_order_and_reorder" >:: test_follows_order_and_reorder;
          "test_dag_cbor_map" >:: test_dag_cbor_map;
+         "test_dag_cbor_ipld_key_sort" >:: test_dag_cbor_ipld_key_sort;
          "test_dag_cbor_cid_tag" >:: test_dag_cbor_cid_tag;
          "test_dag_cbor_hard_types" >:: test_dag_cbor_hard_types;
        ]

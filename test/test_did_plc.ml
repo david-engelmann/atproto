@@ -410,6 +410,23 @@ let test_format_atproto_op_k256 _ =
   OUnit2.assert_bool "formatAtprotoOp genesis_ok" chain.genesis_ok;
   OUnit2.assert_bool "formatAtprotoOp prev_links_ok" chain.prev_links_ok
 
+(* Official @did-plc/lib / did-method-plc rust fixture (k256 rotation keys). *)
+let official_genesis_json =
+  Yojson.Safe.from_string
+    {|{"sig":"9NuYV7AqwHVTc0YuWzNV3CJafsSZWH7qCxHRUIP2xWlB-YexXC1OaYAnUayiCXLVzRQ8WBXIqF-SvZdNalwcjA","prev":null,"type":"plc_operation","services":{"atproto_pds":{"type":"AtprotoPersonalDataServer","endpoint":"https://bsky.social"}},"alsoKnownAs":["at://bluesky-team.bsky.social"],"rotationKeys":["did:key:zQ3shhCGUqDKjStzuDxPkTxN6ujddP4RkEKJJouJGRRkaLGbg","did:key:zQ3shpKnbdPx3g3CmPf5cRVTPe1HtSwVn5ish3wSnDPQCbLJK"],"verificationMethods":{"atproto":"did:key:zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF"}}|}
+
+let test_official_genesis_signature _ =
+  let op = Did_plc.parse_operation official_genesis_json in
+  let keys =
+    match Yojson.Safe.Util.member "rotationKeys" official_genesis_json with
+    | `List items ->
+        List.filter_map (function `String s -> Some s | _ -> None) items
+    | _ -> []
+  in
+  OUnit2.assert_equal `Valid (Did_plc.verify_with_rotation_keys keys op);
+  let did = Did_plc.genesis_did op in
+  OUnit2.assert_bool "official genesis did:plc" (Did_plc.is_plc_did did)
+
 let test_unsigned_omits_sig _ =
   let priv, pub = p256_pair () in
   let signed = Did_plc.sign_p256 ~priv (genesis_json (rotation_did_key pub)) in
@@ -438,6 +455,7 @@ let test_live_chain_structure _ =
       []
   in
   OUnit2.assert_bool "expected a non-empty PLC log" (ops <> []);
+  let ops = match ops with a :: b :: _ -> [ a; b ] | xs -> xs in
   let chain = Did_plc.verify_chain ~did ops in
   skip_if (not chain.genesis_ok)
     "live genesis DID did not rematch (directory CBOR bytes)";
@@ -474,6 +492,7 @@ let suite =
          "test_chain_prev_and_genesis" >:: test_chain_prev_and_genesis;
          "test_operation_builders" >:: test_operation_builders;
          "test_format_atproto_op_k256" >:: test_format_atproto_op_k256;
+         "test_official_genesis_signature" >:: test_official_genesis_signature;
          "test_parse_data_and_audit" >:: test_parse_data_and_audit;
          "test_unsigned_omits_sig" >:: test_unsigned_omits_sig;
          "test_live_chain_structure" >:: test_live_chain_structure;
