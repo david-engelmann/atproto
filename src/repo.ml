@@ -314,7 +314,11 @@ module Repo = struct
     parse_blob_ref (Yojson.Safe.from_string body)
 
   type missing_blob = { cid : string; record_uri : string }
-  type list_missing_blobs = { cursor : string option; blobs : missing_blob list }
+
+  type list_missing_blobs = {
+    cursor : string option;
+    blobs : missing_blob list;
+  }
 
   let parse_missing_blob json : missing_blob =
     let open Yojson.Safe.Util in

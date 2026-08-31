@@ -246,8 +246,7 @@ module Sync = struct
     let open Yojson.Safe.Util in
     {
       did = json |> member "did" |> to_string;
-      active =
-        (match json |> member "active" with `Bool b -> b | _ -> false);
+      active = (match json |> member "active" with `Bool b -> b | _ -> false);
       status = string_opt json "status";
       rev = string_opt json "rev";
     }
@@ -263,7 +262,9 @@ module Sync = struct
         | `Intlit s -> Some (Int64.of_string s)
         | _ -> None);
       account_count =
-        (match json |> member "accountCount" with `Int n -> Some n | _ -> None);
+        (match json |> member "accountCount" with
+        | `Int n -> Some n
+        | _ -> None);
       status = string_opt json "status";
     }
 

@@ -130,8 +130,8 @@ let test_parse_list_repos_by_collection _ =
         ( "repos",
           `List
             [
-              `Assoc [ ("did", `String "did:plc:aaaa"); ];
-              `Assoc [ ("did", `String "did:plc:bbbb"); ];
+              `Assoc [ ("did", `String "did:plc:aaaa") ];
+              `Assoc [ ("did", `String "did:plc:bbbb") ];
             ] );
       ]
   in
@@ -146,8 +146,7 @@ let test_get_repo_status_public _ =
         let host = public_pds_host ident in
         let st = Sync.get_repo_status ~host ident.did in
         OUnit2.assert_equal ~printer:(fun x -> x) ident.did st.did)
-  with exn ->
-    skip_if true ("getRepoStatus skipped: " ^ Printexc.to_string exn)
+  with exn -> skip_if true ("getRepoStatus skipped: " ^ Printexc.to_string exn)
 
 let suite =
   "sync"

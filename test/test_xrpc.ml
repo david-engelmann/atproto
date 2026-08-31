@@ -39,9 +39,7 @@ let test_labelers _ =
   OUnit2.assert_bool "redact unioned" (List.hd merged).redact;
   let h, v = Xrpc.accept_labelers_header merged in
   OUnit2.assert_equal "atproto-accept-labelers" h;
-  OUnit2.assert_equal
-    ~printer:(fun x -> x)
-    "did:web:mod.example.com;redact" v
+  OUnit2.assert_equal ~printer:(fun x -> x) "did:web:mod.example.com;redact" v
 
 let test_rate_limit _ =
   let rl =
@@ -81,9 +79,7 @@ let test_service_auth_jwt _ =
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "did:plc:ewvi7nxzyoun6zhxrhs64oiz" claims.iss;
-  OUnit2.assert_equal
-    ~printer:(fun x -> x)
-    "did:web:mod.example.com" claims.aud;
+  OUnit2.assert_equal ~printer:(fun x -> x) "did:web:mod.example.com" claims.aud;
   OUnit2.assert_equal (Some "com.atproto.moderation.createReport") claims.lxm;
   let body =
     Xrpc.service_auth_body ~aud:"did:web:mod.example.com"

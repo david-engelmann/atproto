@@ -191,7 +191,8 @@ module Label = struct
     | Some sig_ ->
         let unsigned = Dag_cbor.decode (encode_unsigned l) in
         let fields = Dag_cbor.get_map unsigned in
-        Dag_cbor.encode (Dag_cbor.Map (fields @ [ ("sig", Dag_cbor.Bytes sig_) ]))
+        Dag_cbor.encode
+          (Dag_cbor.Map (fields @ [ ("sig", Dag_cbor.Bytes sig_) ]))
 
   type sig_status =
     [ `Valid | `Invalid | `Unsupported_curve of string | `Missing ]
@@ -236,8 +237,9 @@ module Label = struct
                       | _ -> None)
                     parsed
                 in
-                match other with Some c -> `Unsupported_curve c | None -> `Invalid
-                )
+                match other with
+                | Some c -> `Unsupported_curve c
+                | None -> `Invalid)
             | k :: rest -> (
                 match k.Did_key.curve with
                 | Did_key.P256 -> (
@@ -266,9 +268,7 @@ module Label = struct
   let json_of_label (l : label) : Yojson.Safe.t =
     let fields =
       [
-        ("src", `String l.src);
-        ("uri", `String l.uri);
-        ("val", `String l.val_);
+        ("src", `String l.src); ("uri", `String l.uri); ("val", `String l.val_);
       ]
       @ (match l.ver with Some n -> [ ("ver", `Int n) ] | None -> [])
       @ (match l.cid with Some c -> [ ("cid", `String c) ] | None -> [])
@@ -286,7 +286,6 @@ module Label = struct
   (* ---- subscribeLabels ------------------------------------------------- *)
 
   type header = { op : int; t : string option }
-
   type labels_msg = { seq : int64; labels : label list }
   type info = { name : string; message : string option }
 

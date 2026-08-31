@@ -103,15 +103,23 @@ let test_nsid_spec_examples _ =
     ];
   List.iter
     (fun n -> assert_bad n Syntax.is_valid_nsid)
-    [ "com.example"; "com.example.3"; "example.com/foo"; "foo"; "8.example.foo" ];
+    [
+      "com.example"; "com.example.3"; "example.com/foo"; "foo"; "8.example.foo";
+    ];
   let nsid = Syntax.parse_nsid "com.example.fooBar" in
   OUnit2.assert_equal ~printer:(fun x -> x) "fooBar" (Syntax.nsid_name nsid);
-  OUnit2.assert_equal ~printer:(fun x -> x) "example.com"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "example.com"
     (Syntax.nsid_authority nsid);
-  OUnit2.assert_equal ~printer:(fun x -> x) "com.example"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "com.example"
     (Syntax.nsid_authority_nsid nsid);
   let created = Syntax.create_nsid ~authority:"example.com" ~name:"fooBar" in
-  OUnit2.assert_equal ~printer:(fun x -> x) "com.example.fooBar"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "com.example.fooBar"
     (Syntax.nsid_to_string created)
 
 let test_nsid_glob_and_ref _ =
@@ -135,11 +143,12 @@ let test_record_key _ =
     [ "3jzfcijpj2z2a"; "self"; "literal:self"; "a"; String.make 512 'a' ];
   List.iter
     (fun k -> assert_bad k Syntax.is_valid_record_key)
-    [ ""; "."; ".."; "alpha/beta"; "#extra"; "@handle"; "any space"; "any+space" ]
+    [
+      ""; "."; ".."; "alpha/beta"; "#extra"; "@handle"; "any space"; "any+space";
+    ]
 
 let test_at_identifier _ =
-  OUnit2.assert_bool "handle"
-    (Syntax.is_valid_at_identifier "jay.bsky.team");
+  OUnit2.assert_bool "handle" (Syntax.is_valid_at_identifier "jay.bsky.team");
   OUnit2.assert_bool "did"
     (Syntax.is_valid_at_identifier "did:plc:ewvi7nxzyoun6zhxrhs64oiz");
   OUnit2.assert_bool "neither" (not (Syntax.is_valid_at_identifier "not an id"))
@@ -185,12 +194,15 @@ let test_datetime_spec_examples _ =
     ];
   OUnit2.assert_bool "leap day 2024"
     (Syntax.is_valid_datetime "2024-02-29T00:00:00.000Z");
-  OUnit2.assert_bool "now is valid" (Syntax.is_valid_datetime (Syntax.now_datetime ()))
+  OUnit2.assert_bool "now is valid"
+    (Syntax.is_valid_datetime (Syntax.now_datetime ()))
 
 let test_language _ =
   List.iter
     (fun t -> assert_ok t Syntax.is_valid_language)
-    [ "ja"; "ban"; "pt-BR"; "hy-Latn-IT-arevela"; "zh-Hans"; "de-CH-1996"; "en" ];
+    [
+      "ja"; "ban"; "pt-BR"; "hy-Latn-IT-arevela"; "zh-Hans"; "de-CH-1996"; "en";
+    ];
   List.iter
     (fun t -> assert_bad t Syntax.is_valid_language)
     [ ""; "1"; "toolonglanguage"; "en--US"; "en-" ]
@@ -200,16 +212,14 @@ let test_handle_resolution_helpers _ =
     ~printer:(fun x -> x)
     "_atproto.user.example.com"
     (Syntax.handle_txt_name "user.example.com");
-  OUnit2.assert_equal
-    (Some "did:plc:ewvi7nxzyoun6zhxrhs64oiz")
+  OUnit2.assert_equal (Some "did:plc:ewvi7nxzyoun6zhxrhs64oiz")
     (Syntax.parse_txt_did "did=did:plc:ewvi7nxzyoun6zhxrhs64oiz");
   OUnit2.assert_equal None (Syntax.parse_txt_did "not-a-did");
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "https://user.example.app/.well-known/atproto-did"
     (Syntax.handle_well_known_url "user.example.app");
-  OUnit2.assert_equal
-    (Some "did:plc:ewvi7nxzyoun6zhxrhs64oiz")
+  OUnit2.assert_equal (Some "did:plc:ewvi7nxzyoun6zhxrhs64oiz")
     (Syntax.parse_well_known_did "  did:plc:ewvi7nxzyoun6zhxrhs64oiz \n")
 
 let suite =

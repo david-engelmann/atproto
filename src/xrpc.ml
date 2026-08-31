@@ -28,8 +28,7 @@ module Xrpc = struct
     if hi <= lo then "" else String.sub s lo (hi - lo)
 
   let split_commas s =
-    String.split_on_char ',' s
-    |> List.map trim
+    String.split_on_char ',' s |> List.map trim
     |> List.filter (fun p -> p <> "")
 
   (* ---- atproto-proxy --------------------------------------------------- *)
@@ -67,9 +66,7 @@ module Xrpc = struct
     | did :: params ->
         if not (Syntax.Syntax.is_valid_did did) then
           fail ("labeler DID is invalid: " ^ did);
-        let redact =
-          List.exists (fun p -> ascii_lower p = "redact") params
-        in
+        let redact = List.exists (fun p -> ascii_lower p = "redact") params in
         { did; redact }
 
   let parse_labelers (value : string) : labeler list =
@@ -86,15 +83,12 @@ module Xrpc = struct
             order := l.did :: !order
         | Some prev -> Hashtbl.replace acc l.did (prev || l.redact))
       parsed;
-    List.rev_map
-      (fun did -> { did; redact = Hashtbl.find acc did })
-      !order
+    List.rev_map (fun did -> { did; redact = Hashtbl.find acc did }) !order
 
   let labelers_to_string (ls : labeler list) : string =
     String.concat ", "
       (List.map
-         (fun (l : labeler) ->
-           if l.redact then l.did ^ ";redact" else l.did)
+         (fun (l : labeler) -> if l.redact then l.did ^ ";redact" else l.did)
          ls)
 
   let accept_labelers_header (ls : labeler list) : string * string =
@@ -118,11 +112,8 @@ module Xrpc = struct
       (fun (k, v) -> if ascii_lower k = lower then Some (trim v) else None)
       headers
 
-  let int_opt s =
-    try Some (int_of_string s) with _ -> None
-
-  let int64_opt s =
-    try Some (Int64.of_string s) with _ -> None
+  let int_opt s = try Some (int_of_string s) with _ -> None
+  let int64_opt s = try Some (Int64.of_string s) with _ -> None
 
   let parse_rate_limit (headers : (string * string) list) : rate_limit =
     {

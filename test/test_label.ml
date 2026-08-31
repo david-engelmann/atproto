@@ -126,8 +126,9 @@ let test_json_sig_roundtrip _ =
         ("cts", `String "2024-01-01T00:00:00.000Z");
         ( "sig",
           `Assoc
-            [ ("$bytes", `String (Atproto.Base64url.Base64url.encode_std "abcd")) ]
-        );
+            [
+              ("$bytes", `String (Atproto.Base64url.Base64url.encode_std "abcd"));
+            ] );
       ]
   in
   let l = Label.parse_label json in

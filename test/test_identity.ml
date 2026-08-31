@@ -69,7 +69,8 @@ let test_parse_identity_info _ =
 let test_plc_operation_bodies _ =
   let signed =
     Identity.sign_plc_operation_body ~token:"email-token"
-      ~rotation_keys:[ "did:key:zDnaerDaTF5BXEavCrfUZPJjEBhG8KNmk45G65Kd8uKbVhcwK" ]
+      ~rotation_keys:
+        [ "did:key:zDnaerDaTF5BXEavCrfUZPJjEBhG8KNmk45G65Kd8uKbVhcwK" ]
       ~also_known_as:[ "at://alice.test" ] ()
   in
   let open Yojson.Safe.Util in
@@ -86,8 +87,11 @@ let test_recommended_did_credentials _ =
     `Assoc
       [
         ( "rotationKeys",
-          `List [ `String "did:key:zDnaerDaTF5BXEavCrfUZPJjEBhG8KNmk45G65Kd8uKbVhcwK" ]
-        );
+          `List
+            [
+              `String
+                "did:key:zDnaerDaTF5BXEavCrfUZPJjEBhG8KNmk45G65Kd8uKbVhcwK";
+            ] );
         ("alsoKnownAs", `List [ `String "at://alice.test" ]);
         ("verificationMethods", `Assoc []);
         ("services", `Assoc []);
@@ -95,11 +99,11 @@ let test_recommended_did_credentials _ =
   in
   let creds = Identity.parse_recommended_did_credentials json in
   OUnit2.assert_equal 1 (List.length creds.rotation_keys);
-  OUnit2.assert_equal (Some "at://alice.test") (List.nth_opt creds.also_known_as 0)
+  OUnit2.assert_equal (Some "at://alice.test")
+    (List.nth_opt creds.also_known_as 0)
 
 let test_handle_txt_helpers _ =
-  OUnit2.assert_equal
-    (Some "did:plc:ewvi7nxzyoun6zhxrhs64oiz")
+  OUnit2.assert_equal (Some "did:plc:ewvi7nxzyoun6zhxrhs64oiz")
     (Identity.parse_txt_did "did=did:plc:ewvi7nxzyoun6zhxrhs64oiz");
   OUnit2.assert_equal
     ~printer:(fun x -> x)

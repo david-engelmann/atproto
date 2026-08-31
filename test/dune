@@ -36,7 +36,7 @@
   test_blocks
   test_download_image
   test_xrpc)
- (libraries)
+ (libraries
   async
   core
   uri

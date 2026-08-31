@@ -8,17 +8,14 @@ module Syntax = struct
   exception Invalid of string
 
   let fail msg = raise (Invalid msg)
-
   let is_ascii_letter = function 'a' .. 'z' | 'A' .. 'Z' -> true | _ -> false
   let is_ascii_digit = function '0' .. '9' -> true | _ -> false
   let is_ascii_alpha = function 'a' .. 'z' | 'A' .. 'Z' -> true | _ -> false
-
   let is_ascii_alnum c = is_ascii_alpha c || is_ascii_digit c
 
   let ascii_lower s =
     String.map
-      (function
-        | 'A' .. 'Z' as c -> Char.chr (Char.code c + 32) | c -> c)
+      (function 'A' .. 'Z' as c -> Char.chr (Char.code c + 32) | c -> c)
       s
 
   let starts_with s prefix =
@@ -97,8 +94,7 @@ module Syntax = struct
   let did_max_len = 2048
 
   let is_did_char = function
-    | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '.' | '_' | ':' | '%' | '-' ->
-        true
+    | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '.' | '_' | ':' | '%' | '-' -> true
     | _ -> false
 
   let is_lower_letters s =
@@ -106,8 +102,7 @@ module Syntax = struct
     &&
     let rec loop i =
       if i >= String.length s then true
-      else
-        match s.[i] with 'a' .. 'z' -> loop (i + 1) | _ -> false
+      else match s.[i] with 'a' .. 'z' -> loop (i + 1) | _ -> false
     in
     loop 0
 
@@ -144,9 +139,7 @@ module Syntax = struct
       | _ -> None
 
   let is_blessed_did s =
-    match did_method s with
-    | Some "plc" | Some "web" -> true
-    | _ -> false
+    match did_method s with Some "plc" | Some "web" -> true | _ -> false
 
   (* ---- NSID ------------------------------------------------------------ *)
 
@@ -245,8 +238,7 @@ module Syntax = struct
   let record_key_max = 512
 
   let is_record_key_char = function
-    | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' | '~' | '.' | ':' | '-' ->
-        true
+    | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' | '~' | '.' | ':' | '-' -> true
     | _ -> false
 
   let is_valid_record_key (input : string) : bool =
@@ -269,16 +261,12 @@ module Syntax = struct
   let is_valid_at_identifier s = is_valid_did s || is_valid_handle s
 
   let ensure_at_identifier s =
-    if not (is_valid_at_identifier s) then
-      fail ("invalid at-identifier " ^ s)
+    if not (is_valid_at_identifier s) then fail ("invalid at-identifier " ^ s)
 
   (* ---- Datetime -------------------------------------------------------- *)
 
   let datetime_max_len = 64
-
-  let parse_int_slice s off len =
-    int_of_string (String.sub s off len)
-
+  let parse_int_slice s off len = int_of_string (String.sub s off len)
   let is_leap_year y = y mod 4 = 0 && (y mod 100 <> 0 || y mod 400 = 0)
 
   let days_in_month y m =
@@ -302,8 +290,7 @@ module Syntax = struct
     else if ends_with input "-00:00" then false
     else if
       not
-        (len >= 19
-        && is_digit_range input 0 4
+        (len >= 19 && is_digit_range input 0 4
         && input.[4] = '-'
         && is_digit_range input 5 2
         && input.[7] = '-'
@@ -346,9 +333,9 @@ module Syntax = struct
           in
           let frac_ok =
             frac = ""
-            || (String.length frac >= 2
+            || String.length frac >= 2
                && frac.[0] = '.'
-               && is_digit_range frac 1 (String.length frac - 1))
+               && is_digit_range frac 1 (String.length frac - 1)
           in
           if not frac_ok then false
           else
@@ -416,8 +403,7 @@ module Syntax = struct
     in
     loop 0
 
-  let is_digit_len s n =
-    String.length s = n && is_digit_range s 0 n
+  let is_digit_len s n = String.length s = n && is_digit_range s 0 n
 
   let grandfathered_tags =
     [
@@ -461,9 +447,7 @@ module Syntax = struct
         | first :: rest ->
             let private_only = ascii_lower first = "x" in
             let lang_ok =
-              private_only
-              || is_alpha_len first 2 3
-              || is_alpha_len first 4 4
+              private_only || is_alpha_len first 2 3 || is_alpha_len first 4 4
               || is_alpha_len first 5 8
             in
             if not lang_ok then false
@@ -492,19 +476,19 @@ module Syntax = struct
                     | `Variant_or_later ->
                         if
                           is_alnum_len p 5 8
-                          || (String.length p = 4 && is_ascii_digit p.[0]
-                             && is_alnum_len (String.sub p 1 3) 3 3)
+                          || String.length p = 4
+                             && is_ascii_digit p.[0]
+                             && is_alnum_len (String.sub p 1 3) 3 3
                         then consume `Variant_or_later ps
                         else consume `Extension_or_later (p :: ps)
                     | `Extension_or_later ->
-                        if String.length p = 1 && ascii_lower p <> "x"
-                        then consume (`Extension_rest 0) ps
+                        if String.length p = 1 && ascii_lower p <> "x" then
+                          consume (`Extension_rest 0) ps
                         else consume `Private (p :: ps)
                     | `Extension_rest n ->
                         if is_alnum_len p 2 8 then
                           consume (`Extension_rest (n + 1)) ps
-                        else if n >= 1 then
-                          consume `Extension_or_later (p :: ps)
+                        else if n >= 1 then consume `Extension_or_later (p :: ps)
                         else false
                     | `Private ->
                         if ascii_lower p = "x" then consume (`Private_rest 0) ps
@@ -515,8 +499,7 @@ module Syntax = struct
                         else false)
               in
               if private_only then consume (`Private_rest 0) rest
-              else if is_alpha_len first 2 3 then
-                consume `Extlang_or_later rest
+              else if is_alpha_len first 2 3 then consume `Extlang_or_later rest
               else consume `Script_or_later rest
 
   let ensure_language s =

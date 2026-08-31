@@ -132,8 +132,7 @@ module Identity = struct
     let open Yojson.Safe.Util in
     {
       did = json |> member "did" |> to_string;
-      handle =
-        (match json |> member "handle" with `String s -> s | _ -> "");
+      handle = (match json |> member "handle" with `String s -> s | _ -> "");
       did_doc =
         (match json |> member "didDoc" with
         | `Null -> None
@@ -186,8 +185,7 @@ module Identity = struct
       @ (match verification_methods with
         | Some v -> [ ("verificationMethods", v) ]
         | None -> [])
-      @
-      match services with Some s -> [ ("services", s) ] | None -> []
+      @ match services with Some s -> [ ("services", s) ] | None -> []
     in
     `Assoc fields
 

@@ -279,12 +279,8 @@ module Server = struct
 
   let get_service_auth_url ~aud ?lxm ?exp (s : Session.session) : string =
     let pairs =
-      ("aud", aud)
-      :: (match lxm with Some n -> [ ("lxm", n) ] | None -> [])
-      @
-      match exp with
-      | Some n -> [ ("exp", Int64.to_string n) ]
-      | None -> []
+      (("aud", aud) :: (match lxm with Some n -> [ ("lxm", n) ] | None -> []))
+      @ match exp with Some n -> [ ("exp", Int64.to_string n) ] | None -> []
     in
     let base =
       App.create_endpoint_url (App.create_base_url s)
@@ -321,9 +317,13 @@ module Server = struct
       valid_did =
         (match json |> member "validDid" with `Bool b -> Some b | _ -> None);
       expected_blobs =
-        (match json |> member "expectedBlobs" with `Int n -> Some n | _ -> None);
+        (match json |> member "expectedBlobs" with
+        | `Int n -> Some n
+        | _ -> None);
       imported_blobs =
-        (match json |> member "importedBlobs" with `Int n -> Some n | _ -> None);
+        (match json |> member "importedBlobs" with
+        | `Int n -> Some n
+        | _ -> None);
     }
 
   let deactivate_account_url (s : Session.session) : string =
