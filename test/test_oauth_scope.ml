@@ -33,7 +33,10 @@ let test_rpc_double_wildcard_rejected _ =
 let test_repo_glob_rejected _ =
   OUnit2.assert_raises
     (Oauth_scope.Invalid "repo collection globs are not allowed") (fun () ->
-      ignore (Oauth_scope.parse_one "repo:app.bsky.*"))
+      ignore (Oauth_scope.parse_one "repo:app.bsky.*"));
+  OUnit2.assert_raises
+    (Oauth_scope.Invalid "repo collection must be an NSID or *: not-a-nsid")
+    (fun () -> ignore (Oauth_scope.parse_one "repo:not-a-nsid"))
 
 let test_blob_and_include _ =
   let blob = Oauth_scope.parse_one "blob:*/*" in

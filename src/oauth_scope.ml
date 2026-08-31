@@ -106,10 +106,10 @@ module Oauth_scope = struct
     | Repo ->
         List.iter
           (fun c ->
+            if c <> "*" && String.length c > 0 && c.[String.length c - 1] = '*'
+            then fail "repo collection globs are not allowed";
             if (not (is_wildcard c)) && not (Syntax.Syntax.is_valid_nsid c) then
-              fail ("repo collection must be an NSID or *: " ^ c);
-            if String.length c > 2 && c.[String.length c - 1] = '*' && c <> "*"
-            then fail "repo collection globs are not allowed")
+              fail ("repo collection must be an NSID or *: " ^ c))
           (collections_of s);
         List.iter
           (fun a ->
