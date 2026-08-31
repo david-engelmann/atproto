@@ -384,8 +384,7 @@ let test_parse_known_likers _ =
   let json =
     post_view_json
       ~uri:"at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k"
-      ~text:"liked"
-      ()
+      ~text:"liked" ()
     |> function
     | `Assoc fields ->
         `Assoc
@@ -408,8 +407,8 @@ let test_parse_known_likers _ =
                                 `Assoc
                                   [
                                     ( "did",
-                                      `String
-                                        "did:plc:abc123xyz0001112223333" );
+                                      `String "did:plc:abc123xyz0001112223333"
+                                    );
                                     ("handle", `String "alice.test");
                                     ("displayName", `String "Alice");
                                   ];

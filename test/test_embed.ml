@@ -63,14 +63,15 @@ let test_parse_video _ =
       ]
   in
   match Embed.parse_embed json with
-  | `Video e ->
+  | `Video e -> (
       OUnit2.assert_equal ~printer:(fun x -> x) "video/mp4" e.video.mime_type;
       OUnit2.assert_equal (Some "clip") e.alt;
       OUnit2.assert_equal (Some { Embed.width = 16; height = 9 }) e.aspect_ratio;
       OUnit2.assert_equal (Some Embed.video_presentation_gif) e.presentation;
-      (match Embed.embed_to_json (`Video e) with
+      match Embed.embed_to_json (`Video e) with
       | `Assoc fields ->
-          OUnit2.assert_equal (Some (`String "gif"))
+          OUnit2.assert_equal
+            (Some (`String "gif"))
             (List.assoc_opt "presentation" fields)
       | _ -> OUnit2.assert_failure "expected video json")
   | _ -> OUnit2.assert_failure "expected video embed"

@@ -70,7 +70,8 @@ let () =
       ]
   in
   let embed =
-    Video.video_embed_json ~video:blob ~alt:"demo" ~presentation:"gif" () in
+    Video.video_embed_json ~video:blob ~alt:"demo" ~presentation:"gif" ()
+  in
   assert (
     match Yojson.Safe.Util.member "$type" embed with
     | `String "app.bsky.embed.video" -> true
@@ -174,8 +175,8 @@ let () =
       (`Assoc
         [
           ( "uri",
-            `String
-              "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k" );
+            `String "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k"
+          );
           ("cid", `String "bafyreiabc");
           ( "author",
             `Assoc
@@ -197,8 +198,7 @@ let () =
                           [
                             `Assoc
                               [
-                                ( "did",
-                                  `String "did:plc:abc123xyz0001112223333" );
+                                ("did", `String "did:plc:abc123xyz0001112223333");
                                 ("handle", `String "alice.test");
                               ];
                           ] );

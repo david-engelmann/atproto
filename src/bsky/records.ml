@@ -396,8 +396,7 @@ module Records = struct
     let open Yojson.Safe.Util in
     {
       lexicon = (match json |> member "lexicon" with `Int n -> n | _ -> 1);
-      id =
-        (match json |> member "id" with `String s -> Some s | _ -> None);
+      id = (match json |> member "id" with `String s -> Some s | _ -> None);
       description =
         (match json |> member "description" with
         | `String s -> Some s
