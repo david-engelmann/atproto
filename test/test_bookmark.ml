@@ -36,6 +36,24 @@ let test_parse_bookmarks _ =
                           `String
                             "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k2"
                         );
+                        ( "cid",
+                          `String
+                            "bafyreiarimgpoqvxxnf3sg4h52gvfzvmyeybxk2xgy6v3dra7zuldy73aq"
+                        );
+                        ( "author",
+                          `Assoc
+                            [
+                              ("did", `String "did:plc:abc123xyz0001112223333");
+                              ("handle", `String "alice.test");
+                            ] );
+                        ( "record",
+                          `Assoc
+                            [
+                              ("$type", `String "app.bsky.feed.post");
+                              ("text", `String "hi");
+                              ("createdAt", `String "2024-01-01T00:00:00.000Z");
+                            ] );
+                        ("indexedAt", `String "2024-01-01T00:00:00.000Z");
                       ] );
                 ];
             ] );

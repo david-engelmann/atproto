@@ -23,7 +23,17 @@ module Bookmark = struct
       cid = Client.string_member json "cid";
     }
 
-  let parse_bookmark_item json : bookmark_item = Feed.parse_reply_ref_item json
+  let parse_bookmark_item json : bookmark_item =
+    try Feed.parse_reply_ref_item json
+    with Yojson.Safe.Util.Type_error _ ->
+      `NotFound
+        {
+          uri = Client.string_member json "uri";
+          not_found =
+            (match Yojson.Safe.Util.member "notFound" json with
+            | `Bool b -> b
+            | _ -> true);
+        }
 
   let parse_bookmark_view json : bookmark_view =
     let subject =
