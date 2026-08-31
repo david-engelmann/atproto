@@ -32,6 +32,12 @@ open Atproto.Varint
 open Atproto.Syntax
 open Atproto.Temp
 open Atproto.Graph
+open Atproto.Site
+open Atproto.Germnetwork
+open Atproto.Admin
+open Atproto.Request
+open Atproto.Response
+open Atproto.Http_client
 
 let () =
   (* TID used as record keys and commit revs *)
@@ -510,6 +516,45 @@ let () =
   assert (Cid.is_blessed (Cid.create "{\"v\":1}"));
   let start, finish = Mst.collection_range "app.bsky.feed.post" in
   assert (start = "app.bsky.feed.post/" && finish = "app.bsky.feed.post0");
+  let site_doc =
+    Site.document ~site:"https://standard.site" ~title:"Notes"
+      ~published_at:"2026-01-01T00:00:00.000Z" ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "$type" site_doc with
+    | `String "site.standard.document" -> true
+    | _ -> false);
+  let germ =
+    Germnetwork.declaration ~version:"1.0.0" ~current_key:"key-bytes" ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "$type" germ with
+    | `String "com.germnetwork.declaration" -> true
+    | _ -> false);
+  let signing =
+    Admin.update_account_signing_key_body ~did:"did:plc:abc123xyz0001112223333"
+      ~signing_key:"did:key:z6Mkexample" ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "did" signing with
+    | `String _ -> true
+    | _ -> false);
+  (match Embed.join_link ~code:"join-1" () with
+  | `JoinLink e -> assert (e.code = "join-1")
+  | _ -> assert false);
+  let req =
+    Request.get
+      (Http_client.xrpc_url ~host:"public.api.bsky.app"
+         "com.atproto.identity.resolveHandle"
+         ~query:[ ("handle", "bsky.app") ]
+         ())
+      ()
+  in
+  assert (req.url <> "");
+  let parsed = Http_client.parse_url req.url in
+  assert (parsed.host = "public.api.bsky.app");
+  let fake = Response.of_string ~status_code:200 "{}" in
+  assert fake.success;
   let jss_hdr =
     Jetstream.Jss.parse_header
       (Jetstream.Jss.encode_header

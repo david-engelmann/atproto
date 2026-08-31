@@ -1109,6 +1109,72 @@ module Ozone = struct
            | None -> []))))
     |> parse_url_rule
 
+  type safelink_event = {
+    id : int;
+    event_type : string;
+    url : string;
+    pattern : string option;
+    action : string option;
+    reason : string option;
+    created_by : string;
+    created_at : string;
+    comment : string option;
+    original : Yojson.Safe.t;
+  }
+
+  type safelink_events = {
+    cursor : string option;
+    events : safelink_event list;
+  }
+
+  let parse_safelink_event json : safelink_event =
+    {
+      id = Client.int_member json "id";
+      event_type = Client.string_member json "eventType";
+      url = Client.string_member json "url";
+      pattern =
+        (match Client.string_opt json "pattern" with
+        | Some s -> Some s
+        | None -> Client.string_opt json "patternType");
+      action = Client.string_opt json "action";
+      reason = Client.string_opt json "reason";
+      created_by = Client.string_member json "createdBy";
+      created_at = Client.string_member json "createdAt";
+      comment = Client.string_opt json "comment";
+      original = json;
+    }
+
+  let parse_safelink_events json : safelink_events =
+    {
+      cursor = Client.string_opt json "cursor";
+      events = List.map parse_safelink_event (Client.list_member json "events");
+    }
+
+  let query_safelink_events_body ?cursor ?limit ?(urls = []) ?pattern_type
+      ?sort_direction () : Yojson.Safe.t =
+    `Assoc
+      ((match cursor with Some c -> [ ("cursor", `String c) ] | None -> [])
+      @ (match limit with Some n -> [ ("limit", `Int n) ] | None -> [])
+      @ (match urls with
+        | [] -> []
+        | xs -> [ ("urls", `List (List.map (fun u -> `String u) xs)) ])
+      @ (match pattern_type with
+        | Some p -> [ ("patternType", `String p) ]
+        | None -> [])
+      @
+      match sort_direction with
+      | Some d -> [ ("sortDirection", `String d) ]
+      | None -> [])
+
+  let query_safelink_events (s : Session.session) ~proxy ?cursor ?limit
+      ?(urls = []) ?pattern_type ?sort_direction () : safelink_events =
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.safelink.queryEvents"
+      (Yojson.Safe.to_string
+         (query_safelink_events_body ?cursor ?limit ~urls ?pattern_type
+            ?sort_direction ()))
+    |> parse_safelink_events
+
   type related_account = { did : string; original : Yojson.Safe.t }
 
   type related_accounts = {

@@ -52,6 +52,7 @@
   Facet
   Feed
   Firehose
+  Germnetwork
   Graph
   Hash
   Http_client
@@ -75,6 +76,7 @@
   Response
   Server
   Session
+  Site
   Sync
   Syntax
   Temp

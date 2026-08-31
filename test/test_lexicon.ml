@@ -213,11 +213,21 @@ let test_union_codegen_and_official_bundle _ =
       in
       match Lexicon.main list_doc with
       | None -> OUnit2.assert_failure "missing list main"
-      | Some main -> (
-          match List.assoc_opt "labels" main.properties with
+      | Some main ->
+          (match List.assoc_opt "labels" main.properties with
           | Some (Lexicon.Union refs) ->
               OUnit2.assert_equal [ "com.atproto.label.defs#selfLabels" ] refs
-          | _ -> OUnit2.assert_failure "list labels should be a union"))
+          | _ -> OUnit2.assert_failure "list labels should be a union");
+          let ids = List.map (fun (d : Lexicon.document) -> d.id) docs in
+          List.iter
+            (fun id -> OUnit2.assert_bool ("bundled " ^ id) (List.mem id ids))
+            [
+              "site.standard.graph.recommend";
+              "com.germnetwork.declaration";
+              "tools.ozone.safelink.queryEvents";
+              "chat.bsky.embed.joinLink";
+              "com.atproto.admin.updateAccountSigningKey";
+            ])
 
 let test_parse_resolved_lexicon _ =
   let json =

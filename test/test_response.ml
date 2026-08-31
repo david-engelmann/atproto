@@ -44,6 +44,18 @@ let test_sample_response_headers _ =
       | (param_name, _) :: _ -> OUnit2.assert_equal "User-Agent" param_name
       | _ -> OUnit2.assert_equal 0 1)
 
+let test_of_string_and_header _ =
+  let r =
+    Response.of_string ~status_code:429
+      ~headers:[ ("RateLimit-Remaining", "0") ]
+      "{\"error\":\"RateLimitExceeded\"}"
+  in
+  OUnit2.assert_equal false r.success;
+  OUnit2.assert_equal (Some "0") (Response.header r "ratelimit-remaining");
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "{\"error\":\"RateLimitExceeded\"}" (Response.body_string r)
+
 let suite =
   "suite"
   >::: [
@@ -51,6 +63,7 @@ let suite =
          "test_sample_response_status_code" >:: test_sample_response_status_code;
          "test_sample_response_content" >:: test_sample_response_content;
          "test_sample_response_headers" >:: test_sample_response_headers;
+         "test_of_string_and_header" >:: test_of_string_and_header;
        ]
 
 let () = run_test_tt_main suite

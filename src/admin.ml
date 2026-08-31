@@ -207,4 +207,113 @@ module Admin = struct
     Client.post_json ~session:s "com.atproto.admin.sendEmail"
       (Yojson.Safe.to_string
          (send_email_body ~recipient_did ~content ?subject ?sender_did ()))
+
+  type invite_code_use = { used_by : string; used_at : string }
+
+  type invite_code = {
+    code : string;
+    available : int;
+    disabled : bool;
+    for_account : string;
+    created_by : string;
+    created_at : string;
+    uses : invite_code_use list;
+    original : Yojson.Safe.t;
+  }
+
+  type invite_codes = { cursor : string option; codes : invite_code list }
+
+  let parse_invite_code_use json : invite_code_use =
+    {
+      used_by = Client.string_member json "usedBy";
+      used_at = Client.string_member json "usedAt";
+    }
+
+  let parse_invite_code json : invite_code =
+    {
+      code = Client.string_member json "code";
+      available = Client.int_member json "available";
+      disabled = Client.bool_member json "disabled";
+      for_account = Client.string_member json "forAccount";
+      created_by = Client.string_member json "createdBy";
+      created_at = Client.string_member json "createdAt";
+      uses = List.map parse_invite_code_use (Client.list_member json "uses");
+      original = json;
+    }
+
+  let parse_invite_codes json : invite_codes =
+    {
+      cursor = Client.string_opt json "cursor";
+      codes = List.map parse_invite_code (Client.list_member json "codes");
+    }
+
+  let disable_invite_codes_body ?(codes = []) ?(accounts = []) () :
+      Yojson.Safe.t =
+    let fields =
+      (match codes with
+      | [] -> []
+      | xs -> [ ("codes", `List (List.map (fun s -> `String s) xs)) ])
+      @
+      match accounts with
+      | [] -> []
+      | xs -> [ ("accounts", `List (List.map (fun s -> `String s) xs)) ]
+    in
+    `Assoc fields
+
+  let delete_account_body ~did () : Yojson.Safe.t =
+    `Assoc [ ("did", `String did) ]
+
+  let update_account_email_body ~account ~email () : Yojson.Safe.t =
+    `Assoc [ ("account", `String account); ("email", `String email) ]
+
+  let update_account_handle_body ~did ~handle () : Yojson.Safe.t =
+    `Assoc [ ("did", `String did); ("handle", `String handle) ]
+
+  let update_account_password_body ~did ~password () : Yojson.Safe.t =
+    `Assoc [ ("did", `String did); ("password", `String password) ]
+
+  let update_account_signing_key_body ~did ~signing_key () : Yojson.Safe.t =
+    `Assoc [ ("did", `String did); ("signingKey", `String signing_key) ]
+
+  let get_invite_codes (s : Session.session) ?sort ?limit ?cursor () :
+      invite_codes =
+    Client.get_json ~session:s "com.atproto.admin.getInviteCodes"
+      (Client.opt_pair "sort" sort
+      @ Client.opt_int "limit" limit
+      @ Client.opt_pair "cursor" cursor)
+    |> parse_invite_codes
+
+  let disable_invite_codes (s : Session.session) ?(codes = []) ?(accounts = [])
+      () : unit =
+    ignore
+      (Client.post_json ~session:s "com.atproto.admin.disableInviteCodes"
+         (Yojson.Safe.to_string (disable_invite_codes_body ~codes ~accounts ())))
+
+  let delete_account (s : Session.session) ~did () : unit =
+    ignore
+      (Client.post_json ~session:s "com.atproto.admin.deleteAccount"
+         (Yojson.Safe.to_string (delete_account_body ~did ())))
+
+  let update_account_email (s : Session.session) ~account ~email () : unit =
+    ignore
+      (Client.post_json ~session:s "com.atproto.admin.updateAccountEmail"
+         (Yojson.Safe.to_string (update_account_email_body ~account ~email ())))
+
+  let update_account_handle (s : Session.session) ~did ~handle () : unit =
+    ignore
+      (Client.post_json ~session:s "com.atproto.admin.updateAccountHandle"
+         (Yojson.Safe.to_string (update_account_handle_body ~did ~handle ())))
+
+  let update_account_password (s : Session.session) ~did ~password () : unit =
+    ignore
+      (Client.post_json ~session:s "com.atproto.admin.updateAccountPassword"
+         (Yojson.Safe.to_string
+            (update_account_password_body ~did ~password ())))
+
+  let update_account_signing_key (s : Session.session) ~did ~signing_key () :
+      unit =
+    ignore
+      (Client.post_json ~session:s "com.atproto.admin.updateAccountSigningKey"
+         (Yojson.Safe.to_string
+            (update_account_signing_key_body ~did ~signing_key ())))
 end

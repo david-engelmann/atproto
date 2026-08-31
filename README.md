@@ -70,7 +70,9 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | Notifications | `Notification` | All `listNotifications` known reasons; prefs / prefs-v2 / activity subscriptions / register+unregister push |
 | User reports | `Moderation` | `com.atproto.moderation.createReport` (strongRef / repoRef, optional `modTool`, reason-type constants) |
 | Crypto / codecs | `K256`, `Base32`, `Base58`, `Base64url`, `Hash`, `Varint` | secp256k1, multibase, CID/CAR varints |
-| HTTP helpers | `App`, `Client`, `Cohttp_client`, `Http_client`, `Http_method`, `Request`, `Response`, `User` | Endpoint URLs, shared XRPC GET/POST, method enum |
+| HTTP helpers | `App`, `Client`, `Cohttp_client`, `Http_client`, `Http_method`, `Request`, `Response`, `User` | Endpoint URLs, shared XRPC GET/POST (Cohttp), **HTTP/2 TLS** GET/POST via `Http_client` that returns status + headers (rate-limit / `atproto-repo-rev`). Requires HTTPS + ALPN `h2` |
+| Sites | `Site` | Official `site.standard` records: document, publication, theme.basic/color, graph recommend + subscription |
+| Germ Network | `Germnetwork` | `com.germnetwork.declaration` record (`$bytes` keys, `messageMe` policy) |
 
 ## Remaining gaps
 
@@ -82,15 +84,18 @@ These are product-level, not missing protocol cores:
 - Permissioned data / spaces / LtHash (no stable public spec to implement yet)
 - Official `com.atproto.sync.getRepo` **lexicon** still has no `collection` parameter (client-side subset export from a full CAR is implemented; servers that reject unknown query params are unchanged)
 
-#70–#81 covered protocol core, AppView/chat/ozone, Jetstream, video, OAuth scopes, and thread v2 / drafts / contacts / remaining preference kinds.
+#70–#83 covered protocol core, AppView/chat/ozone/temp, Jetstream, video, OAuth scopes, thread v2 / drafts / contacts, remaining preference kinds, and ozone queue/report.
 
-This stack fills remaining *library* XRPC vs current public lexicons: `tools.ozone.queue.*`, `tools.ozone.report.*`, and the remaining testable `com.atproto.temp.*` procedures/queries (`checkSignupQueue`, `dereferenceScope`, reserved-handle / phone-verification / revoke-credentials clients). Privileged Ozone/temp writes still need a real operator session and are not invented here.
+This stack fills remaining *library* gaps vs current public lexicons: `site.standard.*` records, `com.germnetwork.declaration`, leftover `com.atproto.admin` procedures (`getInviteCodes`, `disableInviteCodes`, `deleteAccount`, `updateAccountEmail` / `Handle` / `Password` / `SigningKey`), `tools.ozone.safelink.queryEvents`, and `chat.bsky.embed.joinLink`. `Http_client` is a real HTTP/2 TLS transport (not a stub) that keeps status and response headers.
+
+Privileged admin/ozone writes still need a real operator session and are not invented here.
 
 Still leftover vs current lexicons (not invented here):
 
 - Deprecated `com.atproto.temp.fetchLabels` (use `Label.query_labels` / `subscribeLabels`)
+- Deprecated `com.atproto.sync.getCheckout` / `getHead` (use `getRepo` / `getLatestCommit`)
 - `app.bsky.auth*` / `chat.bsky.authFullChatClient` permission documents (OAuth scope tokens, not XRPC clients)
-- `Http_client` H2 stub and unused `Request`/`Response` types
+- `internal.bsky.actor.getProfiles` (service-to-service AppView query, not a public client surface)
 
 Open PR `#69` (`de-sync-types`) is superseded by this work: it still targeted the removed `getCheckout` API and left CAR/CBOR unfinished.
 
@@ -174,4 +179,15 @@ let bookmarks = Bookmark.get_bookmarks session ~limit:10 ()
 (* chat + ozone always need atproto-proxy (defaults shown) *)
 let convos = Chat.list_convos session ~limit:10 ()
 let chat_status = Chat.get_actor_status session ()
+
+(* site.standard + germnetwork records — local builders, no network *)
+let article =
+  Site.document ~site:"https://standard.site" ~title:"hello"
+    ~published_at:"2026-01-01T00:00:00.000Z" ()
+let germ = Germnetwork.declaration ~version:"1.0.0" ~current_key:"key" ()
+
+(* HTTP/2 XRPC GET that keeps status + rate-limit headers (skips if ALPN h2 fails) *)
+let _h2 =
+  Http_client.xrpc_url ~host:"public.api.bsky.app"
+    "com.atproto.identity.resolveHandle" ~query:[ ("handle", "bsky.app") ] ()
 ```

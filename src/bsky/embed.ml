@@ -76,6 +76,12 @@ module Embed = struct
   }
 
   type gallery_embed = { embed_type : string; items : gallery_image list }
+  type join_link_embed = { embed_type : string; code : string }
+
+  type join_link_view_embed = {
+    embed_type : string;
+    join_link_preview : Yojson.Safe.t;
+  }
 
   type gallery_view_image = {
     thumbnail : string;
@@ -159,6 +165,8 @@ module Embed = struct
     | `VideoView of video_view_embed
     | `Gallery of gallery_embed
     | `GalleryView of gallery_view_embed
+    | `JoinLink of join_link_embed
+    | `JoinLinkView of join_link_view_embed
     | `Unknown of Yojson.Safe.t ]
 
   type embed_external_view = {
@@ -538,6 +546,20 @@ module Embed = struct
     then parse_to_correct_external_type json
     else if typ = "app.bsky.embed.external#view" then
       `ExternalView (parse_ext_view_embed json)
+    else if
+      typ = "chat.bsky.embed.joinLink" || typ = "chat.bsky.embed.joinLink#main"
+    then
+      `JoinLink
+        {
+          embed_type = (if typ = "" then "chat.bsky.embed.joinLink" else typ);
+          code = string_member json "code";
+        }
+    else if typ = "chat.bsky.embed.joinLink#view" then
+      `JoinLinkView
+        {
+          embed_type = typ;
+          join_link_preview = Yojson.Safe.Util.member "joinLinkPreview" json;
+        }
     else if check_for_field "images" json then parse_to_correct_image_type json
     else if check_for_field "items" json then parse_to_correct_gallery_type json
     else if check_for_field "external" json then
@@ -556,6 +578,9 @@ module Embed = struct
       then `RecordView (parse_record_view_embed json)
       else `Record (parse_record_embed json)
     else `Unknown json
+
+  let join_link ~code () : embed =
+    `JoinLink { embed_type = "chat.bsky.embed.joinLink"; code }
 
   let parse_embed_option json : embed option =
     let open Yojson.Safe.Util in
@@ -764,6 +789,24 @@ module Embed = struct
                      in
                      `Assoc fields)
                    e.items) );
+          ]
+    | `JoinLink (e : join_link_embed) ->
+        `Assoc
+          [
+            ( "$type",
+              `String
+                (if e.embed_type = "" then "chat.bsky.embed.joinLink"
+                 else e.embed_type) );
+            ("code", `String e.code);
+          ]
+    | `JoinLinkView (e : join_link_view_embed) ->
+        `Assoc
+          [
+            ( "$type",
+              `String
+                (if e.embed_type = "" then "chat.bsky.embed.joinLink#view"
+                 else e.embed_type) );
+            ("joinLinkPreview", e.join_link_preview);
           ]
     | `Unknown json -> json
 

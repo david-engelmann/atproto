@@ -23,6 +23,7 @@
   test_facet
   test_feed
   test_firehose
+  test_germnetwork
   test_graph
   test_hash
   test_http_client
@@ -45,6 +46,7 @@
   test_response
   test_server
   test_session
+  test_site
   test_sync
   test_syntax
   test_temp
@@ -104,6 +106,7 @@
   test_facet
   test_feed
   test_firehose
+  test_germnetwork
   test_graph
   test_hash
   test_http_client
@@ -126,6 +129,7 @@
   test_response
   test_server
   test_session
+  test_site
   test_sync
   test_syntax
   test_temp
