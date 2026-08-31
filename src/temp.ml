@@ -54,4 +54,64 @@ module Temp = struct
       ((("handle", handle) :: Client.opt_pair "email" email)
       @ Client.opt_pair "birthDate" birth_date)
     |> parse_handle_check
+
+  type signup_queue = {
+    activated : bool;
+    place_in_queue : int option;
+    estimated_time_ms : int option;
+    original : Yojson.Safe.t;
+  }
+
+  type scope_deref = { scope : string; original : Yojson.Safe.t }
+
+  let parse_signup_queue json : signup_queue =
+    {
+      activated = Client.bool_member json "activated";
+      place_in_queue = Client.int_opt json "placeInQueue";
+      estimated_time_ms = Client.int_opt json "estimatedTimeMs";
+      original = json;
+    }
+
+  let parse_scope_deref json : scope_deref =
+    { scope = Client.string_member json "scope"; original = json }
+
+  let check_signup_queue ?session ?host () : signup_queue =
+    Client.get_json ?session ?host "com.atproto.temp.checkSignupQueue" []
+    |> parse_signup_queue
+
+  let dereference_scope ?session ?host ~scope () : scope_deref =
+    Client.get_json ?session ?host "com.atproto.temp.dereferenceScope"
+      [ ("scope", scope) ]
+    |> parse_scope_deref
+
+  let add_reserved_handle_body ~handle () : Yojson.Safe.t =
+    `Assoc [ ("handle", `String handle) ]
+
+  let request_phone_verification_body ~phone_number () : Yojson.Safe.t =
+    `Assoc [ ("phoneNumber", `String phone_number) ]
+
+  let revoke_account_credentials_body ~account () : Yojson.Safe.t =
+    `Assoc [ ("account", `String account) ]
+
+  (* Privileged / hosted-PDS flows: clients only. Live calls need a real
+     operator session and are not invented here. fetchLabels is deprecated
+     in favor of Label.query_labels. *)
+
+  let add_reserved_handle ?session ?host ~handle () : unit =
+    ignore
+      (Client.post_json ?session ?host "com.atproto.temp.addReservedHandle"
+         (Yojson.Safe.to_string (add_reserved_handle_body ~handle ())))
+
+  let request_phone_verification ?session ?host ~phone_number () : unit =
+    ignore
+      (Client.post_json ?session ?host
+         "com.atproto.temp.requestPhoneVerification"
+         (Yojson.Safe.to_string
+            (request_phone_verification_body ~phone_number ())))
+
+  let revoke_account_credentials ?session ?host ~account () : unit =
+    ignore
+      (Client.post_json ?session ?host
+         "com.atproto.temp.revokeAccountCredentials"
+         (Yojson.Safe.to_string (revoke_account_credentials_body ~account ())))
 end

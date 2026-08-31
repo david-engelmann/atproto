@@ -189,6 +189,29 @@ let () =
         ])
   in
   (match handle_check.result with `Available -> () | _ -> assert false);
+  let signup =
+    Temp.parse_signup_queue
+      (`Assoc [ ("activated", `Bool true); ("placeInQueue", `Int 1) ])
+  in
+  assert signup.activated;
+  let reserved = Temp.add_reserved_handle_body ~handle:"admin.bsky.social" () in
+  assert (
+    match Yojson.Safe.Util.member "handle" reserved with
+    | `String "admin.bsky.social" -> true
+    | _ -> false);
+  let queue_body =
+    Ozone.create_queue_body ~name:"spam" ~subject_types:[ "account" ] ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "name" queue_body with
+    | `String "spam" -> true
+    | _ -> false);
+  (match
+     Ozone.parse_report_activity
+       (`Assoc [ ("$type", `String "tools.ozone.report.defs#noteActivity") ])
+   with
+  | `Note -> ()
+  | _ -> assert false);
   let resolved =
     Lexicon.parse_resolved_lexicon
       (`Assoc

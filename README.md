@@ -43,7 +43,7 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | Unspecced | `Unspecced` | Popular generators, search skeletons, trending topics + `getTrends` / `getTrendsSkeleton`, tagged suggestions, unspecced age-assurance state, suggestion / feed / starter-pack / onboarding / discover / explore / seeMore skeletons, `getPostThreadV2` / `getPostThreadOtherV2`, config |
 | Labeler | `Labeler` | `app.bsky.labeler.getServices` |
 | Chat / DMs | `Chat` | `chat.bsky.convo.*` including typed message facets/reactions/embeds, lock/unlock, `getConvoMembers`; `chat.bsky.group` create/add/remove/edit + join links / join requests / mutual groups; notification prefs; actor status / declaration / export / delete; moderation views + `subscribeModEvents`; `atproto-proxy: did:web:api.bsky.chat#bsky_chat` |
-| Ozone | `Ozone` | `tools.ozone.moderation.*` including typed event/subject unions, subjects/repos/records, timeline, reporter stats, scheduled actions; plus communication templates, sets, settings, team, safelink, signature, verification, hosting history + `getConfig`; requires `atproto-proxy` |
+| Ozone | `Ozone` | `tools.ozone.moderation.*` including typed event/subject unions, subjects/repos/records, timeline, reporter stats, scheduled actions; plus communication templates, sets, settings, team, safelink, signature, verification, hosting history + `getConfig`; `tools.ozone.queue.*` (list/create/update/delete, moderator assign, `routeReports`) and `tools.ozone.report.*` (query/get, activities, assignments, stats, close/reassign); requires `atproto-proxy` |
 | Admin | `Admin` | `com.atproto.admin` subject status, account info, invites, email |
 | Repo writes | `Repo`, `Records` | `createRecord` / `putRecord` / `deleteRecord` / `applyWrites` bodies; typed `describeRepo` / `getRecord` / `listRecords` parsers; builders for post/like/repost/follow/block/listblock/list/listitem/starterpack/profile/status/contentVisibility/verification/threadgate/postgate/generator/labeler/notification declaration |
 | Server | `Server` | describe server (typed), app passwords, invites, `reserveSigningKey`, account activate/status, `getServiceAuth` (aud may be `did#service`) |
@@ -56,7 +56,7 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | TID | `Tid` | Record-key / commit-rev identifiers (base32-sortable, official syntax) |
 | AT URI | `At_uri` | `at://` parse / serialize |
 | Lexicon | `Lexicon` | Parse lexicon-1 JSON (parameters + procedure input/output schemas), `to_ocaml` codegen (unions emit polymorphic variants), JSON validate, `resolveLexicon` client, small bundled official lexicon documents |
-| Temp | `Temp` | `com.atproto.temp.checkHandleAvailability` (available / suggestions union) |
+| Temp | `Temp` | `com.atproto.temp.checkHandleAvailability` (available / suggestions union), `checkSignupQueue`, `dereferenceScope`, plus privileged `addReservedHandle` / `requestPhoneVerification` / `revokeAccountCredentials` clients (no invented operator session). Deprecated `fetchLabels` remains `Label.query_labels` |
 | Firehose | `Firehose`, `Websocket` | RFC 6455 client + `subscribeRepos` frame decode (`#commit`/`#sync`/`#identity`/`#account`/`#info`) |
 | OAuth / DPoP | `Oauth`, `Oauth_scope` | PKCE S256, DPoP ES256 + nonce, client metadata, PAR/token loop; granular scope grammar (`repo:`/`rpc:`/`blob:`/`include:`/`transition:`) |
 | Labels | `Label` | `queryLabels` + label / query parse (`ver`, `exp`) + `#selfLabels` |
@@ -84,12 +84,11 @@ These are product-level, not missing protocol cores:
 
 #70–#81 covered protocol core, AppView/chat/ozone, Jetstream, video, OAuth scopes, and thread v2 / drafts / contacts / remaining preference kinds.
 
-This PR fills remaining *library* gaps vs current public lexicons: `searchPostsV2` / `searchStarterPacksV2`, list/starter-pack membership queries, remaining `chat.bsky.group` join-link APIs + `getConvoMembers`, leftover record builders, `refreshIdentity`, `resolveLexicon`, `checkHandleAvailability`, and remaining Ozone operator namespaces (communication / set / setting / team / safelink / signature / verification / hosting).
+This stack fills remaining *library* XRPC vs current public lexicons: `tools.ozone.queue.*`, `tools.ozone.report.*`, and the remaining testable `com.atproto.temp.*` procedures/queries (`checkSignupQueue`, `dereferenceScope`, reserved-handle / phone-verification / revoke-credentials clients). Privileged Ozone/temp writes still need a real operator session and are not invented here.
 
 Still leftover vs current lexicons (not invented here):
 
-- `tools.ozone.queue.*` and `tools.ozone.report.*` operator workflows
-- `com.atproto.temp.*` besides `checkHandleAvailability` (reserved handles, signup queue, dereferenceScope, phone verification, revoke credentials)
+- Deprecated `com.atproto.temp.fetchLabels` (use `Label.query_labels` / `subscribeLabels`)
 - `app.bsky.auth*` / `chat.bsky.authFullChatClient` permission documents (OAuth scope tokens, not XRPC clients)
 - `Http_client` H2 stub and unused `Request`/`Response` types
 
