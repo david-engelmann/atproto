@@ -548,4 +548,232 @@ module Chat = struct
       "chat.bsky.notification.putPreferences"
       (Yojson.Safe.to_string (`Assoc fields))
     |> parse_notification_preferences
+
+  (* chat.bsky.actor — viewer status, declaration record, account export/delete. *)
+
+  type actor_status = {
+    chat_disabled : bool;
+    can_create_groups : bool;
+    group_member_limit : int;
+  }
+
+  type declaration = {
+    allow_incoming : string;
+    allow_group_invites : string option;
+  }
+
+  let parse_actor_status json : actor_status =
+    {
+      chat_disabled = Client.bool_member json "chatDisabled";
+      can_create_groups = Client.bool_member json "canCreateGroups";
+      group_member_limit = Client.int_member json "groupMemberLimit";
+    }
+
+  let parse_declaration json : declaration =
+    {
+      allow_incoming =
+        (match Client.string_opt json "allowIncoming" with
+        | Some s -> s
+        | None -> "all");
+      allow_group_invites = Client.string_opt json "allowGroupInvites";
+    }
+
+  let declaration_json ~allow_incoming ?allow_group_invites () : Yojson.Safe.t =
+    let fields =
+      [
+        ("$type", `String "chat.bsky.actor.declaration");
+        ("allowIncoming", `String allow_incoming);
+      ]
+      @
+      match allow_group_invites with
+      | Some s -> [ ("allowGroupInvites", `String s) ]
+      | None -> []
+    in
+    `Assoc fields
+
+  let get_actor_status (s : Session.session) ?proxy () : actor_status =
+    Client.get_json ~session:s ~extra:(proxy_headers ?proxy ())
+      "chat.bsky.actor.getStatus" []
+    |> parse_actor_status
+
+  let delete_account (s : Session.session) ?proxy () : unit =
+    ignore
+      (Client.post_json ~session:s ~extra:(proxy_headers ?proxy ())
+         "chat.bsky.actor.deleteAccount" "{}")
+
+  let export_account_data (s : Session.session) ?proxy () : string =
+    Client.get_text ~session:s ~extra:(proxy_headers ?proxy ())
+      "chat.bsky.actor.exportAccountData" []
+
+  (* chat.bsky.moderation — operator views of convos / actor access. *)
+
+  type actor_metadata_window = {
+    messages_sent : int;
+    messages_received : int;
+    convos : int;
+    convos_started : int;
+  }
+
+  type actor_metadata = {
+    day : actor_metadata_window;
+    month : actor_metadata_window;
+    all : actor_metadata_window;
+  }
+
+  type mod_group = {
+    created_at : string;
+    join_request_count : int;
+    lock_status : string option;
+    member_count : int;
+    member_limit : int;
+    name : string;
+  }
+
+  type mod_convo_kind =
+    [ `Direct | `Group of mod_group | `Unknown of Yojson.Safe.t ]
+
+  type mod_convo = {
+    id : string;
+    rev : string;
+    kind : mod_convo_kind;
+    original : Yojson.Safe.t;
+  }
+
+  type mod_members = { cursor : string option; members : member list }
+
+  let parse_metadata_window json : actor_metadata_window =
+    {
+      messages_sent = Client.int_member json "messagesSent";
+      messages_received = Client.int_member json "messagesReceived";
+      convos = Client.int_member json "convos";
+      convos_started = Client.int_member json "convosStarted";
+    }
+
+  let parse_actor_metadata json : actor_metadata =
+    let window field =
+      match Yojson.Safe.Util.member field json with
+      | `Assoc _ as w -> parse_metadata_window w
+      | _ ->
+          {
+            messages_sent = 0;
+            messages_received = 0;
+            convos = 0;
+            convos_started = 0;
+          }
+    in
+    { day = window "day"; month = window "month"; all = window "all" }
+
+  let parse_lock_status json : string option =
+    match Yojson.Safe.Util.member "lockStatus" json with
+    | `String s -> Some s
+    | `Assoc _ as o -> (
+        match Client.string_opt o "status" with
+        | Some s -> Some s
+        | None -> Client.string_opt o "$type")
+    | _ -> None
+
+  let parse_mod_group json : mod_group =
+    {
+      created_at = Client.string_member json "createdAt";
+      join_request_count = Client.int_member json "joinRequestCount";
+      lock_status = parse_lock_status json;
+      member_count = Client.int_member json "memberCount";
+      member_limit = Client.int_member json "memberLimit";
+      name = Client.string_member json "name";
+    }
+
+  let parse_mod_kind json : mod_convo_kind =
+    match Yojson.Safe.Util.member "kind" json with
+    | `Assoc _ as k ->
+        let ty = Client.string_opt k "$type" |> Option.value ~default:"" in
+        if
+          let n = String.length ty in
+          n >= 10 && String.sub ty (n - 10) 10 = "groupConvo"
+        then `Group (parse_mod_group k)
+        else if
+          let n = String.length ty in
+          n >= 11 && String.sub ty (n - 11) 11 = "directConvo"
+        then `Direct
+        else if Client.string_member k "name" <> "" then
+          `Group (parse_mod_group k)
+        else `Unknown k
+    | _ -> `Direct
+
+  let parse_mod_convo json : mod_convo =
+    {
+      id = Client.string_member json "id";
+      rev = Client.string_member json "rev";
+      kind = parse_mod_kind json;
+      original = json;
+    }
+
+  let unwrap_mod_convo json : mod_convo =
+    match Yojson.Safe.Util.member "convo" json with
+    | `Assoc _ as c -> parse_mod_convo c
+    | _ -> parse_mod_convo json
+
+  let parse_mod_convos json : mod_convo list =
+    List.map parse_mod_convo (Client.list_member json "convos")
+
+  let parse_mod_members json : mod_members =
+    {
+      cursor = Client.string_opt json "cursor";
+      members = List.map parse_member (Client.list_member json "members");
+    }
+
+  let update_actor_access_body ~actor ~allow_access ?ref () : Yojson.Safe.t =
+    let fields =
+      [ ("actor", `String actor); ("allowAccess", `Bool allow_access) ]
+      @ match ref with Some r -> [ ("ref", `String r) ] | None -> []
+    in
+    `Assoc fields
+
+  let get_actor_metadata (s : Session.session) ?proxy ~actor () : actor_metadata
+      =
+    Client.get_json ~session:s ~extra:(proxy_headers ?proxy ())
+      "chat.bsky.moderation.getActorMetadata"
+      [ ("actor", actor) ]
+    |> parse_actor_metadata
+
+  let get_mod_convo (s : Session.session) ?proxy ~convo_id () : mod_convo =
+    Client.get_json ~session:s ~extra:(proxy_headers ?proxy ())
+      "chat.bsky.moderation.getConvo"
+      [ ("convoId", convo_id) ]
+    |> unwrap_mod_convo
+
+  let get_mod_convos (s : Session.session) ?proxy ~convo_ids () : mod_convo list
+      =
+    Client.get_json ~session:s ~extra:(proxy_headers ?proxy ())
+      "chat.bsky.moderation.getConvos"
+      (Client.repeat_param "convoIds" convo_ids)
+    |> parse_mod_convos
+
+  let get_mod_convo_members (s : Session.session) ?proxy ~convo_id ?limit
+      ?cursor () : mod_members =
+    Client.get_json ~session:s ~extra:(proxy_headers ?proxy ())
+      "chat.bsky.moderation.getConvoMembers"
+      ([ ("convoId", convo_id) ]
+      @ Client.opt_int "limit" limit
+      @ Client.opt_pair "cursor" cursor)
+    |> parse_mod_members
+
+  let get_message_context (s : Session.session) ?proxy ~message_id ?convo_id
+      ?before ?after ?max_interleaved_system_messages () : message list =
+    Client.get_json ~session:s ~extra:(proxy_headers ?proxy ())
+      "chat.bsky.moderation.getMessageContext"
+      ([ ("messageId", message_id) ]
+      @ Client.opt_pair "convoId" convo_id
+      @ Client.opt_int "before" before
+      @ Client.opt_int "after" after
+      @ Client.opt_int "maxInterleavedSystemMessages"
+          max_interleaved_system_messages)
+    |> fun json -> List.map parse_message (Client.list_member json "messages")
+
+  let update_actor_access (s : Session.session) ?proxy ~actor ~allow_access ?ref
+      () : unit =
+    ignore
+      (Client.post_json ~session:s ~extra:(proxy_headers ?proxy ())
+         "chat.bsky.moderation.updateActorAccess"
+         (Yojson.Safe.to_string
+            (update_actor_access_body ~actor ~allow_access ?ref ())))
 end

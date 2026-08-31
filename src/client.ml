@@ -76,6 +76,13 @@ module Client = struct
     in
     Yojson.Safe.from_string resp
 
+  let get_text ?session ?host ?(extra = []) nsid pairs =
+    let headers = request_headers ?session ~extra () in
+    let url = nsid_url ?session ?host nsid in
+    let body = Cohttp_client.create_body_from_pairs pairs in
+    Lwt_main.run
+      (Cohttp_client.get_request_with_body_and_headers url body headers)
+
   let post_json ?session ?host ?(extra = []) nsid data =
     let headers = request_headers ?session ~extra () in
     let url = nsid_url ?session ?host nsid in

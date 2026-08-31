@@ -248,6 +248,75 @@ let test_upload_headers _ =
     [ ("Authorization", "Bearer svc"); ("Content-Type", "video/mp4") ]
     pairs
 
+let test_multipart_parsers _ =
+  let sess =
+    Video.parse_upload_session
+      (`Assoc
+        [
+          ("jobId", `String "job-m");
+          ("partSizeBytes", `Int 5_242_880);
+          ("partCount", `Int 3);
+          ("expiresAt", `String "2026-01-01T00:00:00.000Z");
+        ])
+  in
+  OUnit2.assert_equal 3 sess.part_count;
+  OUnit2.assert_equal (Some 5_242_880)
+    (Video.expected_part_size sess ~part_number:1);
+  OUnit2.assert_equal None (Video.expected_part_size sess ~part_number:9);
+  let body =
+    Video.start_upload_body ~size_bytes:10_000 ~mime_type:"video/mp4"
+      ~name:"clip.mp4" ~width:1920 ~height:1080 ()
+  in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal 10000 (body |> member "sizeBytes" |> to_int);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "video/mp4"
+    (body |> member "mimeType" |> to_string);
+  let st =
+    Video.parse_upload_status
+      (`Assoc
+        [
+          ("jobId", `String "job-m");
+          ("partSizeBytes", `Int 100);
+          ("partCount", `Int 3);
+          ("receivedParts", `List [ `Int 1; `Int 3 ]);
+          ("expiresAt", `String "2026-01-01T00:00:00.000Z");
+          ("state", `String "created");
+        ])
+  in
+  OUnit2.assert_equal Video.Phase_created st.state;
+  OUnit2.assert_equal [ 2 ] (Video.missing_parts st);
+  let abort =
+    Video.parse_abort_result
+      (`Assoc
+        [ ("state", `String "aborted"); ("failureReason", `String "user") ])
+  in
+  OUnit2.assert_equal Video.Abort_aborted abort.state;
+  let finish =
+    Video.parse_finish_result
+      (`Assoc
+        [
+          ("completedJobId", `String "job-done");
+          ( "jobStatus",
+            `Assoc
+              [
+                ("jobId", `String "job-done");
+                ("did", `String "did:plc:abc123xyz0001112223333");
+                ("state", `String "JOB_STATE_CREATED");
+              ] );
+        ])
+  in
+  OUnit2.assert_equal ~printer:(fun x -> x) "job-done" finish.completed_job_id;
+  let url = Video.upload_part_url ~job_id:"job-m" ~part_number:2 () in
+  OUnit2.assert_bool "uploadPart nsid"
+    (let needle = "app.bsky.video.uploadPart" in
+     let rec contains i =
+       i + String.length needle <= String.length url
+       && (String.sub url i (String.length needle) = needle || contains (i + 1))
+     in
+     contains 0)
+
 let test_upload_limits_auth_skipped _ =
   skip_if
     (not Auth.has_live_credentials)
@@ -272,6 +341,7 @@ let suite =
          "test_ensure_blob_short_circuit" >:: test_ensure_blob_short_circuit;
          "test_video_embed_json" >:: test_video_embed_json;
          "test_upload_headers" >:: test_upload_headers;
+         "test_multipart_parsers" >:: test_multipart_parsers;
          "test_upload_limits_auth_skipped" >:: test_upload_limits_auth_skipped;
        ]
 

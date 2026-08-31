@@ -14,6 +14,7 @@ module Records = struct
   let nsid_listitem = "app.bsky.graph.listitem"
   let nsid_starterpack = "app.bsky.graph.starterpack"
   let nsid_profile = "app.bsky.actor.profile"
+  let nsid_chat_declaration = "chat.bsky.actor.declaration"
   let purpose_modlist = "app.bsky.graph.defs#modlist"
   let purpose_curatelist = "app.bsky.graph.defs#curatelist"
   let purpose_referencelist = "app.bsky.graph.defs#referencelist"
@@ -191,6 +192,19 @@ module Records = struct
     in
     `Assoc fields
 
+  let chat_declaration ~allow_incoming ?allow_group_invites () : Yojson.Safe.t =
+    let fields =
+      [
+        ("$type", `String nsid_chat_declaration);
+        ("allowIncoming", `String allow_incoming);
+      ]
+      @
+      match allow_group_invites with
+      | Some s -> [ ("allowGroupInvites", `String s) ]
+      | None -> []
+    in
+    `Assoc fields
+
   type like_record = {
     subject : Embed.strong_ref;
     created_at : string;
@@ -227,6 +241,11 @@ module Records = struct
     description_facets : Facet.facet list option;
     feeds : string list;
     created_at : string;
+  }
+
+  type chat_declaration_record = {
+    allow_incoming : string;
+    allow_group_invites : string option;
   }
 
   let parse_via json : Embed.strong_ref option =
@@ -315,5 +334,18 @@ module Records = struct
       feeds;
       created_at =
         (match json |> member "createdAt" with `String s -> s | _ -> "");
+    }
+
+  let parse_chat_declaration json : chat_declaration_record =
+    let open Yojson.Safe.Util in
+    {
+      allow_incoming =
+        (match json |> member "allowIncoming" with
+        | `String s -> s
+        | _ -> "all");
+      allow_group_invites =
+        (match json |> member "allowGroupInvites" with
+        | `String s -> Some s
+        | _ -> None);
     }
 end

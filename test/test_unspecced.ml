@@ -79,6 +79,125 @@ let test_parse_popular _ =
     ~printer:(fun x -> x)
     "Discover" (List.hd gens.feeds).display_name
 
+let test_parse_tagged_and_age _ =
+  let tagged =
+    Unspecced.parse_tagged_suggestions
+      (`Assoc
+        [
+          ( "suggestions",
+            `List
+              [
+                `Assoc
+                  [
+                    ("tag", `String "news");
+                    ("subjectType", `String "feed");
+                    ( "subject",
+                      `String
+                        "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot"
+                    );
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal 1 (List.length tagged.suggestions);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "news" (List.hd tagged.suggestions).tag;
+  let aa =
+    Unspecced.parse_age_assurance_state
+      (`Assoc
+        [
+          ("status", `String "pending");
+          ("lastInitiatedAt", `String "2026-01-01T00:00:00.000Z");
+        ])
+  in
+  OUnit2.assert_equal ~printer:(fun x -> x) "pending" aa.status;
+  let body =
+    Unspecced.init_age_assurance_body ~email:"user@example.com" ~language:"en"
+      ~country_code:"US"
+  in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "US"
+    (body |> member "countryCode" |> to_string)
+
+let test_parse_trends_and_skeletons _ =
+  let trends =
+    Unspecced.parse_trends
+      (`Assoc
+        [
+          ( "trends",
+            `List
+              [
+                `Assoc
+                  [
+                    ("topic", `String "atproto");
+                    ("displayName", `String "AT Protocol");
+                    ("link", `String "/topic/atproto");
+                    ("startedAt", `String "2026-01-01T00:00:00.000Z");
+                    ("postCount", `Int 42);
+                    ("status", `String "hot");
+                    ( "actors",
+                      `List
+                        [
+                          `Assoc
+                            [
+                              ("did", `String "did:plc:abc123xyz0001112223333");
+                            ];
+                        ] );
+                  ];
+              ] );
+          ("recIdStr", `String "snow-1");
+        ])
+  in
+  OUnit2.assert_equal 1 (List.length trends.trends);
+  OUnit2.assert_equal 42 (List.hd trends.trends).post_count;
+  OUnit2.assert_equal (Some "snow-1") trends.rec_id_str;
+  let skel =
+    Unspecced.parse_trends_skeleton
+      (`Assoc
+        [
+          ( "trends",
+            `List
+              [
+                `Assoc
+                  [
+                    ("topic", `String "ocaml");
+                    ("displayName", `String "OCaml");
+                    ("link", `String "/topic/ocaml");
+                    ("startedAt", `String "2026-01-01T00:00:00.000Z");
+                    ("postCount", `Int 3);
+                    ("dids", `List [ `String "did:plc:abc123xyz0001112223333" ]);
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal 1 (List.length (List.hd skel.trends).dids);
+  let feeds =
+    Unspecced.parse_uri_list
+      (`Assoc
+        [
+          ( "feeds",
+            `List
+              [
+                `String
+                  "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot";
+              ] );
+        ])
+      "feeds"
+  in
+  OUnit2.assert_equal 1 (List.length feeds.uris);
+  let dids =
+    Unspecced.parse_did_skeleton
+      (`Assoc
+        [
+          ("dids", `List [ `String "did:plc:abc123xyz0001112223333" ]);
+          ("recIdStr", `String "r2");
+        ])
+  in
+  OUnit2.assert_equal (Some "r2") dids.rec_id_str
+
 let test_popular_live _ =
   try
     with_public_timeout (fun () ->
@@ -108,6 +227,8 @@ let suite =
          "test_parse_skeleton_posts" >:: test_parse_skeleton_posts;
          "test_parse_trending" >:: test_parse_trending;
          "test_parse_popular" >:: test_parse_popular;
+         "test_parse_tagged_and_age" >:: test_parse_tagged_and_age;
+         "test_parse_trends_and_skeletons" >:: test_parse_trends_and_skeletons;
          "test_popular_live" >:: test_popular_live;
          "test_search_posts_skeleton_live" >:: test_search_posts_skeleton_live;
        ]

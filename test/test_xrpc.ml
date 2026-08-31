@@ -214,6 +214,34 @@ let test_service_jwt_rejects _ =
   OUnit2.assert_bool "replayed jti"
     (Xrpc.remember_jti ~now:1_700_000_010.0 cache claims)
 
+let test_jti_cache_eviction _ =
+  let cache = Xrpc.create_jti_cache ~cap:2 () in
+  let claim jti : Xrpc.service_auth =
+    {
+      alg = "ES256";
+      typ = "JWT";
+      kid = "#atproto";
+      iss = "did:plc:ewvi7nxzyoun6zhxrhs64oiz";
+      aud = "did:web:api.bsky.app#bsky_appview";
+      aud_did = "did:web:api.bsky.app";
+      aud_service = Some "bsky_appview";
+      exp = Some 2_000_000_000L;
+      iat = Some 1_700_000_000L;
+      lxm = Some "app.bsky.feed.getFeedSkeleton";
+      jti = Some jti;
+      raw = "";
+    }
+  in
+  OUnit2.assert_bool "a new"
+    (not (Xrpc.remember_jti ~now:1_700_000_010.0 cache (claim "a")));
+  OUnit2.assert_bool "b new"
+    (not (Xrpc.remember_jti ~now:1_700_000_010.0 cache (claim "b")));
+  OUnit2.assert_bool "c evicts a"
+    (not (Xrpc.remember_jti ~now:1_700_000_010.0 cache (claim "c")));
+  OUnit2.assert_bool "a evicted" (not (Xrpc.jti_seen cache "a"));
+  OUnit2.assert_bool "b kept" (Xrpc.jti_seen cache "b");
+  OUnit2.assert_bool "c kept" (Xrpc.jti_seen cache "c")
+
 let suite =
   "xrpc"
   >::: [
@@ -225,6 +253,7 @@ let suite =
          "test_service_jwt_p256_roundtrip" >:: test_service_jwt_p256_roundtrip;
          "test_service_jwt_k256_roundtrip" >:: test_service_jwt_k256_roundtrip;
          "test_service_jwt_rejects" >:: test_service_jwt_rejects;
+         "test_jti_cache_eviction" >:: test_jti_cache_eviction;
        ]
 
 let () = run_test_tt_main suite

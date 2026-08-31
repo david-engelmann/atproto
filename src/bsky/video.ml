@@ -217,4 +217,205 @@ module Video = struct
       | None -> []
     in
     `Assoc fields
+
+  (* Multipart upload — start / part / finish / abort / status.
+     Client only; the hosted transcoder still lives on video.bsky.app. *)
+
+  type upload_session = {
+    job_id : string;
+    part_size_bytes : int;
+    part_count : int;
+    expires_at : string;
+  }
+
+  type part_ack = { part_number : int; size_bytes : int }
+  type finish_result = { completed_job_id : string; job_status : job_status }
+
+  type abort_state =
+    | Abort_aborted
+    | Abort_completed
+    | Abort_failed
+    | Abort_expired
+    | Abort_other of string
+
+  type abort_result = {
+    state : abort_state;
+    completed_job_id : string option;
+    failure_reason : string option;
+  }
+
+  type upload_phase =
+    | Phase_created
+    | Phase_finishing
+    | Phase_completed
+    | Phase_failed
+    | Phase_aborted
+    | Phase_expired
+    | Phase_other of string
+
+  type upload_status = {
+    job_id : string;
+    part_size_bytes : int;
+    part_count : int;
+    received_parts : int list;
+    expires_at : string;
+    state : upload_phase;
+    completed_job_id : string option;
+    job_status : job_status option;
+    failure_reason : string option;
+  }
+
+  let parse_abort_state (s : string) : abort_state =
+    match String.lowercase_ascii s with
+    | "aborted" -> Abort_aborted
+    | "completed" -> Abort_completed
+    | "failed" -> Abort_failed
+    | "expired" -> Abort_expired
+    | other -> Abort_other other
+
+  let parse_upload_phase (s : string) : upload_phase =
+    match String.lowercase_ascii s with
+    | "created" -> Phase_created
+    | "finishing" -> Phase_finishing
+    | "completed" -> Phase_completed
+    | "failed" -> Phase_failed
+    | "aborted" -> Phase_aborted
+    | "expired" -> Phase_expired
+    | other -> Phase_other other
+
+  let parse_upload_session json : upload_session =
+    {
+      job_id = Client.string_member json "jobId";
+      part_size_bytes = Client.int_member json "partSizeBytes";
+      part_count = Client.int_member json "partCount";
+      expires_at = Client.string_member json "expiresAt";
+    }
+
+  let parse_part_ack json : part_ack =
+    {
+      part_number = Client.int_member json "partNumber";
+      size_bytes = Client.int_member json "sizeBytes";
+    }
+
+  let parse_finish_result json : finish_result =
+    {
+      completed_job_id = Client.string_member json "completedJobId";
+      job_status = parse_job_status_response json;
+    }
+
+  let parse_abort_result json : abort_result =
+    {
+      state = parse_abort_state (Client.string_member json "state");
+      completed_job_id = Client.string_opt json "completedJobId";
+      failure_reason = Client.string_opt json "failureReason";
+    }
+
+  let int_list json field =
+    List.filter_map
+      (function
+        | `Int n -> Some n
+        | `Intlit s -> ( try Some (int_of_string s) with _ -> None)
+        | _ -> None)
+      (Client.list_member json field)
+
+  let parse_upload_status json : upload_status =
+    {
+      job_id = Client.string_member json "jobId";
+      part_size_bytes = Client.int_member json "partSizeBytes";
+      part_count = Client.int_member json "partCount";
+      received_parts = int_list json "receivedParts";
+      expires_at = Client.string_member json "expiresAt";
+      state = parse_upload_phase (Client.string_member json "state");
+      completed_job_id = Client.string_opt json "completedJobId";
+      job_status =
+        (match Yojson.Safe.Util.member "jobStatus" json with
+        | `Assoc _ as st -> Some (parse_job_status st)
+        | _ -> None);
+      failure_reason = Client.string_opt json "failureReason";
+    }
+
+  let start_upload_body ~size_bytes ~mime_type ?name ?duration_ms ?width ?height
+      () : Yojson.Safe.t =
+    let fields =
+      [ ("sizeBytes", `Int size_bytes); ("mimeType", `String mime_type) ]
+      @ (match name with Some n -> [ ("name", `String n) ] | None -> [])
+      @ (match duration_ms with
+        | Some n -> [ ("durationMs", `Int n) ]
+        | None -> [])
+      @ (match width with Some n -> [ ("width", `Int n) ] | None -> [])
+      @ match height with Some n -> [ ("height", `Int n) ] | None -> []
+    in
+    `Assoc fields
+
+  let job_id_body ~job_id : Yojson.Safe.t = `Assoc [ ("jobId", `String job_id) ]
+
+  let bearer_extra ?token () =
+    match token with
+    | Some t -> [ ("Authorization", "Bearer " ^ t) ]
+    | None -> []
+
+  let start_upload ?session ?host ?token ~size_bytes ~mime_type ?name
+      ?duration_ms ?width ?height () : upload_session =
+    Client.post_json ?session ~host:(video_host ?host ())
+      ~extra:(bearer_extra ?token ()) "app.bsky.video.startUpload"
+      (Yojson.Safe.to_string
+         (start_upload_body ~size_bytes ~mime_type ?name ?duration_ms ?width
+            ?height ()))
+    |> parse_upload_session
+
+  let upload_part_url ?host ~job_id ~part_number () =
+    let base =
+      Client.nsid_url ~host:(video_host ?host ()) "app.bsky.video.uploadPart"
+    in
+    let qs =
+      Cohttp_client.Cohttp_client.create_body_from_pairs
+        [ ("jobId", job_id); ("partNumber", string_of_int part_number) ]
+    in
+    if qs = "" then base else base ^ "?" ^ qs
+
+  let upload_part ?host ~token ~job_id ~part_number
+      ?(content_type = "application/octet-stream") (bytes : string) : part_ack =
+    let url = upload_part_url ?host ~job_id ~part_number () in
+    let headers =
+      Cohttp_client.Cohttp_client.create_headers_from_pairs
+        (upload_header_pairs ~token ~content_type)
+    in
+    let body =
+      Lwt_main.run
+        (Cohttp_client.Cohttp_client.post_data_with_headers url bytes headers)
+    in
+    parse_part_ack (Yojson.Safe.from_string body)
+
+  let finish_upload ?session ?host ?token ~job_id () : finish_result =
+    Client.post_json ?session ~host:(video_host ?host ())
+      ~extra:(bearer_extra ?token ()) "app.bsky.video.finishUpload"
+      (Yojson.Safe.to_string (job_id_body ~job_id))
+    |> parse_finish_result
+
+  let abort_upload ?session ?host ?token ~job_id () : abort_result =
+    Client.post_json ?session ~host:(video_host ?host ())
+      ~extra:(bearer_extra ?token ()) "app.bsky.video.abortUpload"
+      (Yojson.Safe.to_string (job_id_body ~job_id))
+    |> parse_abort_result
+
+  let get_upload_status ?session ?host ?token ~job_id () : upload_status =
+    Client.get_json ?session ~host:(video_host ?host ())
+      ~extra:(bearer_extra ?token ()) "app.bsky.video.getUploadStatus"
+      [ ("jobId", job_id) ]
+    |> parse_upload_status
+
+  let expected_part_size (sess : upload_session) ~part_number : int option =
+    if part_number < 1 || part_number > sess.part_count then None
+    else if part_number < sess.part_count then Some sess.part_size_bytes
+    else
+      (* last part may be shorter; callers that know the total size can compute it *)
+      Some sess.part_size_bytes
+
+  let missing_parts (st : upload_status) : int list =
+    let rec loop i acc =
+      if i > st.part_count then List.rev acc
+      else if List.mem i st.received_parts then loop (i + 1) acc
+      else loop (i + 1) (i :: acc)
+    in
+    loop 1 []
 end

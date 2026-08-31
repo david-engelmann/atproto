@@ -42,7 +42,21 @@ let test_report_bodies _ =
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "com.atproto.admin.defs#repoRef"
-    (repo_json |> member "subject" |> member "$type" |> to_string)
+    (repo_json |> member "subject" |> member "$type" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    Moderation.reason_spam "com.atproto.moderation.defs#reasonSpam";
+  let with_tool =
+    Moderation.create_report_data_from_strong_ref Moderation.reason_other
+      ~reason:"context"
+      ~mod_tool:{ name = "atproto-ocaml/test"; meta = None }
+      sample_strong_ref
+  in
+  let tool_json = Yojson.Safe.from_string with_tool in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "atproto-ocaml/test"
+    (tool_json |> member "modTool" |> member "name" |> to_string)
 
 let test_parse_report_response _ =
   let json =
