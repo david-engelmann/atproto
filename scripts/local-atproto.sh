@@ -48,14 +48,16 @@ node_available() {
   [[ "${major}" -ge 22 ]]
 }
 
+# Connection success is enough. PLC serves 404 on /, Ozone 401 without JWT.
 wait_http() {
   local url="$1"
   local label="$2"
   local attempts="${3:-90}"
-  local i
+  local i code
   for i in $(seq 1 "${attempts}"); do
-    if curl -fsS --max-time 3 "${url}" >/dev/null 2>&1; then
-      log "${label} ready (${url})"
+    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 3 "${url}" 2>/dev/null || true)"
+    if [[ "${code}" =~ ^[0-9]{3}$ ]]; then
+      log "${label} ready (${url} HTTP ${code})"
       return 0
     fi
     sleep 2
@@ -161,12 +163,8 @@ cmd_wait() {
   wait_http "${APPVIEW_ORIGIN}/xrpc/_health" "AppView" 30 \
     || wait_http "${APPVIEW_ORIGIN}/xrpc/app.bsky.actor.getProfile?actor=${ACCOUNT_HANDLE}" "AppView getProfile" 30 \
     || die "AppView not reachable at ${APPVIEW_ORIGIN}"
-  # Ozone may 401 on unauthenticated _health; TCP/HTTP response is enough.
-  if ! curl -sS --max-time 3 "${OZONE_ORIGIN}/xrpc/tools.ozone.server.getConfig" >/dev/null 2>&1; then
-    if ! curl -sS --max-time 3 -o /dev/null -w '' "${OZONE_ORIGIN}/" >/dev/null 2>&1; then
-      log "ozone probe returned an error (expected without auth); port is up if curl connected"
-    fi
-  fi
+  wait_http "${OZONE_ORIGIN}/xrpc/tools.ozone.server.getConfig" "Ozone" 15 \
+    || die "Ozone not reachable at ${OZONE_ORIGIN}"
   local ozone_did
   ozone_did="$(parse_ozone_did)"
   write_env "${ozone_did}"
