@@ -35,8 +35,7 @@ module Auth = struct
         if s = "http" then "http" else "https"
     | None -> "https"
 
-  let origin_of_host (host : string) : string =
-    scheme_from_env ^ "://" ^ host
+  let origin_of_host (host : string) : string = scheme_from_env ^ "://" ^ host
 
   let print_auth (a : auth) : unit =
     Printf.printf "exp: %d\n" a.exp;
