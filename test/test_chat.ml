@@ -216,6 +216,105 @@ let test_lock_unlock_and_group_bodies _ =
   in
   OUnit2.assert_equal 1 (body |> member "facets" |> to_list |> List.length)
 
+let test_actor_status_and_declaration _ =
+  let st =
+    Chat.parse_actor_status
+      (`Assoc
+        [
+          ("chatDisabled", `Bool false);
+          ("canCreateGroups", `Bool true);
+          ("groupMemberLimit", `Int 50);
+        ])
+  in
+  OUnit2.assert_equal false st.chat_disabled;
+  OUnit2.assert_equal true st.can_create_groups;
+  OUnit2.assert_equal 50 st.group_member_limit;
+  let dec =
+    Chat.parse_declaration
+      (`Assoc
+        [
+          ("allowIncoming", `String "following");
+          ("allowGroupInvites", `String "none");
+        ])
+  in
+  OUnit2.assert_equal ~printer:(fun x -> x) "following" dec.allow_incoming;
+  OUnit2.assert_equal (Some "none") dec.allow_group_invites;
+  let body = Chat.declaration_json ~allow_incoming:"all" () in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "chat.bsky.actor.declaration"
+    (body |> member "$type" |> to_string)
+
+let test_moderation_parsers _ =
+  let meta =
+    Chat.parse_actor_metadata
+      (`Assoc
+        [
+          ( "day",
+            `Assoc
+              [
+                ("messagesSent", `Int 1);
+                ("messagesReceived", `Int 2);
+                ("convos", `Int 3);
+                ("convosStarted", `Int 1);
+              ] );
+          ( "month",
+            `Assoc
+              [
+                ("messagesSent", `Int 10);
+                ("messagesReceived", `Int 20);
+                ("convos", `Int 4);
+                ("convosStarted", `Int 2);
+              ] );
+          ( "all",
+            `Assoc
+              [
+                ("messagesSent", `Int 100);
+                ("messagesReceived", `Int 200);
+                ("convos", `Int 8);
+                ("convosStarted", `Int 5);
+              ] );
+        ])
+  in
+  OUnit2.assert_equal 1 meta.day.messages_sent;
+  OUnit2.assert_equal 200 meta.all.messages_received;
+  let convo =
+    Chat.parse_mod_convo
+      (`Assoc
+        [
+          ("id", `String "c9");
+          ("rev", `String "r9");
+          ( "kind",
+            `Assoc
+              [
+                ("$type", `String "chat.bsky.moderation.defs#groupConvo");
+                ("createdAt", `String "2024-01-01T00:00:00.000Z");
+                ("joinRequestCount", `Int 2);
+                ("lockStatus", `String "unlocked");
+                ("memberCount", `Int 4);
+                ("memberLimit", `Int 50);
+                ("name", `String "mods");
+              ] );
+        ])
+  in
+  OUnit2.assert_equal ~printer:(fun x -> x) "c9" convo.id;
+  (match convo.kind with
+  | `Group g ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "mods" g.name;
+      OUnit2.assert_equal 4 g.member_count
+  | _ -> OUnit2.assert_failure "expected group convo");
+  let body =
+    Chat.update_actor_access_body ~actor:"did:plc:abc123xyz0001112223333"
+      ~allow_access:false ~ref:"ticket-1" ()
+  in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal false (body |> member "allowAccess" |> to_bool);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "ticket-1"
+    (body |> member "ref" |> to_string)
+
 let test_list_convos_auth_skipped _ =
   skip_if
     (not Auth.has_live_credentials)
@@ -238,6 +337,9 @@ let suite =
          >:: test_parse_message_facets_reactions_embed;
          "test_lock_unlock_and_group_bodies"
          >:: test_lock_unlock_and_group_bodies;
+         "test_actor_status_and_declaration"
+         >:: test_actor_status_and_declaration;
+         "test_moderation_parsers" >:: test_moderation_parsers;
          "test_list_convos_auth_skipped" >:: test_list_convos_auth_skipped;
        ]
 

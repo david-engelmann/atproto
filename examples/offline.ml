@@ -16,6 +16,7 @@ open Atproto.Mst
 open Atproto.Oauth
 open Atproto.Xrpc
 open Atproto.Jetstream
+open Atproto.Unspecced
 open Atproto.Oauth_scope
 open Atproto.Repo_sync
 open Atproto.Cid
@@ -61,6 +62,27 @@ let () =
     match Yojson.Safe.Util.member "$type" embed with
     | `String "app.bsky.embed.video" -> true
     | _ -> false);
+  let start =
+    Video.start_upload_body ~size_bytes:1_048_576 ~mime_type:"video/mp4"
+      ~name:"clip.mp4" ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "sizeBytes" start with
+    | `Int 1048576 -> true
+    | _ -> false);
+  let upload_st =
+    Video.parse_upload_status
+      (`Assoc
+        [
+          ("jobId", `String "job-m");
+          ("partSizeBytes", `Int 100);
+          ("partCount", `Int 2);
+          ("receivedParts", `List [ `Int 1 ]);
+          ("expiresAt", `String "2026-01-01T00:00:00.000Z");
+          ("state", `String "created");
+        ])
+  in
+  assert (Video.missing_parts upload_st = [ 2 ]);
   (match
      Embed.parse_embed
        (`Assoc
@@ -167,6 +189,41 @@ let () =
         ])
   in
   assert chat_prefs.chat.push;
+  let actor_st =
+    Chat.parse_actor_status
+      (`Assoc
+        [
+          ("chatDisabled", `Bool false);
+          ("canCreateGroups", `Bool true);
+          ("groupMemberLimit", `Int 50);
+        ])
+  in
+  assert (actor_st.group_member_limit = 50);
+  let decl = Records.chat_declaration ~allow_incoming:"following" () in
+  assert (
+    match Yojson.Safe.Util.member "$type" decl with
+    | `String "chat.bsky.actor.declaration" -> true
+    | _ -> false);
+  let tagged =
+    Unspecced.parse_tagged_suggestions
+      (`Assoc
+        [
+          ( "suggestions",
+            `List
+              [
+                `Assoc
+                  [
+                    ("tag", `String "news");
+                    ("subjectType", `String "feed");
+                    ( "subject",
+                      `String
+                        "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot"
+                    );
+                  ];
+              ] );
+        ])
+  in
+  assert (List.length tagged.suggestions = 1);
   (match
      Ozone.parse_subject
        (`Assoc

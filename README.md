@@ -37,12 +37,12 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | AppView actor | `Actor` | Profiles, search, suggestions, get/put preferences |
 | AppView feed | `Feed` | Timeline, `getPostThread` (`threadViewPost` / `notFoundPost` / `blockedPost`, optional parent, top-level embed + quote/bookmark counts), generators, `searchPosts`, quotes, list feed, interactions |
 | AppView graph | `Graph` | Follows/blocks/mutes, lists, starter packs, relationships, known followers |
-| Bookmarks | `Bookmark` | `createBookmark` / `deleteBookmark` / `getBookmarks` |
+| Bookmarks | `Bookmark` | `createBookmark` / `deleteBookmark` / `getBookmarks`; bookmark `item` is the feed `#postView` / `#notFoundPost` / `#blockedPost` union |
 | Jetstream | `Jetstream` | v2 live tail, collection/DID/kind filters, seq + unix-µs cursors, reconnect/dedupe, v1 `/subscribe` compat; Network Replay planner + skippable unauthenticated HTTP (no invented archive token); `.jss` v1 header / block-index / columnar decode (zstd via injected callback) |
-| Video | `Video` | `getJobStatus`, `getUploadLimits`, byte upload (`uploadVideo` URL + POST), service-auth audience (`did:web:<pds>` + `uploadBlob` lxm), injectable job poll, `video_embed_json`. Client only — no hosted transcoder |
-| Unspecced | `Unspecced` | Popular generators, search skeletons, trending topics, config |
+| Video | `Video` | `getJobStatus`, `getUploadLimits`, byte upload (`uploadVideo` URL + POST), multipart `startUpload` / `uploadPart` / `finishUpload` / `abortUpload` / `getUploadStatus`, service-auth audience (`did:web:<pds>` + `uploadBlob` lxm), injectable job poll, `video_embed_json`. Client only — no hosted transcoder |
+| Unspecced | `Unspecced` | Popular generators, search skeletons, trending topics + `getTrends` / `getTrendsSkeleton`, tagged suggestions, age-assurance state, suggestion / feed / starter-pack skeletons, config |
 | Labeler | `Labeler` | `app.bsky.labeler.getServices` |
-| Chat / DMs | `Chat` | `chat.bsky.convo.*` including typed message facets/reactions/embeds, lock/unlock, `chat.bsky.group` add/remove/edit, `chat.bsky.notification.getPreferences` / `putPreferences`; `atproto-proxy: did:web:api.bsky.chat#bsky_chat` |
+| Chat / DMs | `Chat` | `chat.bsky.convo.*` including typed message facets/reactions/embeds, lock/unlock, `chat.bsky.group` add/remove/edit, `chat.bsky.notification.getPreferences` / `putPreferences`, `chat.bsky.actor.getStatus` / declaration / export / delete, `chat.bsky.moderation.*` actor metadata + convo/message-context views (not `subscribeModEvents`); `atproto-proxy: did:web:api.bsky.chat#bsky_chat` |
 | Ozone | `Ozone` | `tools.ozone.moderation.*` including typed event/subject unions (repoRef / strongRef / messageRef / convoRef), subjects/repos/records, account timeline, reporter stats, scheduled actions + `getConfig`; requires `atproto-proxy` |
 | Admin | `Admin` | `com.atproto.admin` subject status, account info, invites, email |
 | Repo writes | `Repo`, `Records` | `createRecord` / `putRecord` / `deleteRecord` / `applyWrites` bodies; typed `describeRepo` / `getRecord` / `listRecords` parsers; builders for post/like/repost/follow/block/listblock/list/listitem/starterpack/profile |
@@ -64,7 +64,7 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | Syntax | `Syntax` | Handle, DID, NSID, record-key, datetime, language validators |
 | Embeds / facets | `Embed`, `Facet` | Images, external, record, recordWithMedia, video, **gallery**, record `#view` union; `getEmbedExternalView`; mention / link / tag parse **and serialize** |
 | Notifications | `Notification` | All `listNotifications` known reasons; prefs / prefs-v2 / activity subscriptions / register+unregister push |
-| User reports | `Moderation` | `com.atproto.moderation.createReport` (strongRef / repoRef) |
+| User reports | `Moderation` | `com.atproto.moderation.createReport` (strongRef / repoRef, optional `modTool`, reason-type constants) |
 | Crypto / codecs | `K256`, `Base32`, `Base58`, `Base64url`, `Hash`, `Varint` | secp256k1, multibase, CID/CAR varints |
 | HTTP helpers | `App`, `Client`, `Cohttp_client`, `Http_client`, `Http_method`, `Request`, `Response`, `User` | Endpoint URLs, shared XRPC GET/POST, method enum |
 
@@ -78,17 +78,15 @@ These are product-level, not missing protocol cores:
 - Permissioned data / spaces / LtHash (no stable public spec to implement yet)
 - Official `com.atproto.sync.getRepo` **lexicon** still has no `collection` parameter (client-side subset export from a full CAR is implemented; servers that reject unknown query params are unchanged)
 
-Service-auth JWT mint/verify, TAP-like `Repo_sync`, Sync 1.1 pre-order CAR encode/verify + collection-subset proofs, `.jss` v1 columnar decode, blessed CID / repo-path / firehose size+future-rev checks landed in #70–#77. This slice adds current-lexicon AppView record/embed parsers (gallery + record views), typed repo reads, Bluesky record builders, notification prefs/push, and remaining chat/ozone XRPC clients.
+Service-auth JWT mint/verify, TAP-like `Repo_sync`, Sync 1.1 pre-order CAR encode/verify + collection-subset proofs, `.jss` v1 columnar decode, blessed CID / repo-path / firehose size+future-rev checks landed in #70–#77. Lexicon-accurate AppView record/embed parsers, typed repo reads, Bluesky record builders, notification prefs/push, and remaining chat/ozone XRPC clients landed in #78–#79.
 
 Still thin vs current lexicons (library leftovers, not product work):
 
-- Feed thread types remain the original (sometimes inaccurate) shapes; `post` / `thread_post` views still omit top-level embed
-- Chat message facets/reactions/attachments stay on `original` JSON; lock/unlock/group-admin convo methods are not wrapped
-- Ozone event/subject payloads remain `Yojson.Safe.t` (query/emit clients exist)
-- `Lexicon.to_ocaml` still emits unions as `Yojson.Safe.t`; no bundled official lexicon JSON
+- `app.bsky.unspecced.getPostThreadV2` / `getPostThreadOtherV2` and the many onboarding/discover/explore/seeMore suggestion variants
+- `chat.bsky.moderation.subscribeModEvents` (operator firehose)
+- `app.bsky.draft` / `app.bsky.contact` / `app.bsky.ageassurance` namespaces
+- Actor preference kinds beyond adult-content / content-label / saved-feeds-v2 / interests / hidden-posts (`original` JSON is kept)
 - `Http_client` H2 stub and unused `Request`/`Response` types
-- `chat.bsky.notification.*` preference endpoints (moved off `app.bsky.notification` in 2026)
-- Graph list/starter-pack **record** builders beyond follow/block/listblock
 
 Open PR `#69` (`de-sync-types`) is superseded by this work: it still targeted the removed `getCheckout` API and left CAR/CBOR unfinished.
 
@@ -104,6 +102,7 @@ let discover =
     ()
 let posts = Feed.search_posts ~q:"atproto" ~limit:5 ()
 let popular = Unspecced.get_popular_feed_generators ~limit:5 ()
+let trends = Unspecced.get_trends ~limit:5 ()
 let services =
   Labeler.get_services ~dids:[ "did:plc:ar7c4by46qjdydhdevvrndac" ] ()
 
@@ -133,6 +132,9 @@ let embed =
   Video.video_embed_json
     ~video:(`Assoc [ ("$type", `String "blob"); ("mimeType", `String "video/mp4") ])
     ~alt:"demo" ()
+let start =
+  Video.start_upload_body ~size_bytes:1_048_576 ~mime_type:"video/mp4"
+    ~name:"clip.mp4" ()
 
 (* firehose: one subscribeRepos frame from the public relay *)
 let _header, msg = Firehose.subscribe_one ()
@@ -165,4 +167,5 @@ let prefs = Actor.get_preferences session
 let bookmarks = Bookmark.get_bookmarks session ~limit:10 ()
 (* chat + ozone always need atproto-proxy (defaults shown) *)
 let convos = Chat.list_convos session ~limit:10 ()
+let chat_status = Chat.get_actor_status session ()
 ```

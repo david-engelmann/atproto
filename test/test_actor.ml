@@ -87,7 +87,13 @@ let test_parse_preferences _ =
   OUnit2.assert_equal 2 (List.length prefs.preferences);
   OUnit2.assert_equal
     ~printer:(fun x -> x)
-    "app.bsky.actor.defs#adultContentPref" (List.hd prefs.preferences).type_
+    "app.bsky.actor.defs#adultContentPref" (List.hd prefs.preferences).type_;
+  (match (List.hd prefs.preferences).kind with
+  | `Adult_content a -> OUnit2.assert_equal false a.enabled
+  | _ -> OUnit2.assert_failure "expected adultContentPref");
+  match (List.nth prefs.preferences 1).kind with
+  | `Saved_feeds_v2 s -> OUnit2.assert_equal 0 (List.length s.items)
+  | _ -> OUnit2.assert_failure "expected savedFeedsPrefV2"
 
 let test_get_preferences_auth_skipped _ =
   skip_if

@@ -45,7 +45,10 @@ let test_parse_bookmarks _ =
   OUnit2.assert_equal (Some "abc") page.cursor;
   OUnit2.assert_equal 1 (List.length page.bookmarks);
   OUnit2.assert_bool "bookmark uri"
-    (String.length (List.hd page.bookmarks).uri > 10)
+    (String.length (List.hd page.bookmarks).uri > 10);
+  match (List.hd page.bookmarks).item with
+  | `Post p -> OUnit2.assert_bool "item uri" (String.length p.uri > 10)
+  | `NotFound _ | `Blocked _ -> OUnit2.assert_failure "expected post view item"
 
 let test_create_bookmark_body _ =
   let body =
@@ -57,6 +60,38 @@ let test_create_bookmark_body _ =
     ~printer:(fun x -> x)
     "at://did:plc:x/app.bsky.feed.post/1"
     (body |> member "uri" |> to_string)
+
+let test_parse_bookmark_item_unions _ =
+  let not_found =
+    Bookmark.parse_bookmark_item
+      (`Assoc
+        [
+          ("$type", `String "app.bsky.feed.defs#notFoundPost");
+          ( "uri",
+            `String "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k"
+          );
+          ("notFound", `Bool true);
+        ])
+  in
+  (match not_found with
+  | `NotFound n -> OUnit2.assert_equal true n.not_found
+  | _ -> OUnit2.assert_failure "expected notFound item");
+  let blocked =
+    Bookmark.parse_bookmark_item
+      (`Assoc
+        [
+          ("$type", `String "app.bsky.feed.defs#blockedPost");
+          ( "uri",
+            `String "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k"
+          );
+          ("blocked", `Bool true);
+          ( "author",
+            `Assoc [ ("did", `String "did:plc:abc123xyz0001112223333") ] );
+        ])
+  in
+  match blocked with
+  | `Blocked b -> OUnit2.assert_equal true b.blocked
+  | _ -> OUnit2.assert_failure "expected blocked item"
 
 let test_get_bookmarks_auth_skipped _ =
   skip_if
@@ -71,6 +106,7 @@ let suite =
   >::: [
          "test_parse_bookmarks" >:: test_parse_bookmarks;
          "test_create_bookmark_body" >:: test_create_bookmark_body;
+         "test_parse_bookmark_item_unions" >:: test_parse_bookmark_item_unions;
          "test_get_bookmarks_auth_skipped" >:: test_get_bookmarks_auth_skipped;
        ]
 

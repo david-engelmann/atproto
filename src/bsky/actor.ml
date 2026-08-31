@@ -320,17 +320,92 @@ module Actor = struct
     in
     profiles |> convert_body_to_json |> parse_typeahead_profiles
 
-  type preference = { type_ : string; original : Yojson.Safe.t }
+  type saved_feed = {
+    id : string;
+    type_ : string;
+    value : string;
+    pinned : bool;
+  }
+
+  type adult_content_pref = { enabled : bool }
+
+  type content_label_pref = {
+    label : string;
+    visibility : string;
+    labeler_did : string option;
+  }
+
+  type saved_feeds_v2_pref = { items : saved_feed list }
+  type interests_pref = { tags : string list }
+  type hidden_posts_pref = { items : string list }
+
+  type preference_kind =
+    [ `Adult_content of adult_content_pref
+    | `Content_label of content_label_pref
+    | `Saved_feeds_v2 of saved_feeds_v2_pref
+    | `Interests of interests_pref
+    | `Hidden_posts of hidden_posts_pref
+    | `Other ]
+
+  type preference = {
+    type_ : string;
+    kind : preference_kind;
+    original : Yojson.Safe.t;
+  }
+
   type preferences = { preferences : preference list }
 
-  let parse_preference json : preference =
+  let ends_with suffix s =
+    let n = String.length s and m = String.length suffix in
+    n >= m && String.sub s (n - m) m = suffix
+
+  let parse_saved_feed json : saved_feed =
     {
-      type_ =
-        (match Yojson.Safe.Util.member "$type" json with
-        | `String s -> s
-        | _ -> "");
-      original = json;
+      id = Client.Client.string_member json "id";
+      type_ = Client.Client.string_member json "type";
+      value = Client.Client.string_member json "value";
+      pinned = Client.Client.bool_member json "pinned";
     }
+
+  let parse_preference_kind ~type_ json : preference_kind =
+    if ends_with "adultContentPref" type_ then
+      `Adult_content { enabled = Client.Client.bool_member json "enabled" }
+    else if ends_with "contentLabelPref" type_ then
+      `Content_label
+        {
+          label = Client.Client.string_member json "label";
+          visibility = Client.Client.string_member json "visibility";
+          labeler_did = Client.Client.string_opt json "labelerDid";
+        }
+    else if ends_with "savedFeedsPrefV2" type_ then
+      `Saved_feeds_v2
+        {
+          items =
+            List.map parse_saved_feed (Client.Client.list_member json "items");
+        }
+    else if ends_with "interestsPref" type_ then
+      `Interests
+        {
+          tags =
+            List.filter_map
+              (function `String s -> Some s | _ -> None)
+              (Client.Client.list_member json "tags");
+        }
+    else if ends_with "hiddenPostsPref" type_ then
+      `Hidden_posts
+        {
+          items =
+            List.filter_map
+              (function `String s -> Some s | _ -> None)
+              (Client.Client.list_member json "items");
+        }
+    else `Other
+
+  let parse_preference json : preference =
+    let type_ =
+      match Yojson.Safe.Util.member "$type" json with `String s -> s | _ -> ""
+    in
+    { type_; kind = parse_preference_kind ~type_ json; original = json }
 
   let parse_preferences json : preferences =
     {

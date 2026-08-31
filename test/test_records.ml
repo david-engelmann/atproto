@@ -123,7 +123,18 @@ let test_list_and_starterpack_builders _ =
     "did:plc:alice000111222333444555666" parsed_item.subject;
   let parsed_pack = Records.parse_starterpack pack in
   OUnit2.assert_equal ~printer:(fun x -> x) "Start here" parsed_pack.name;
-  OUnit2.assert_equal 1 (List.length parsed_pack.feeds)
+  OUnit2.assert_equal 1 (List.length parsed_pack.feeds);
+  let decl =
+    Records.chat_declaration ~allow_incoming:"following"
+      ~allow_group_invites:"none" ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "chat.bsky.actor.declaration"
+    (decl |> member "$type" |> to_string);
+  let parsed = Records.parse_chat_declaration decl in
+  OUnit2.assert_equal ~printer:(fun x -> x) "following" parsed.allow_incoming;
+  OUnit2.assert_equal (Some "none") parsed.allow_group_invites
 
 let test_parse_like_and_follow _ =
   let like =
