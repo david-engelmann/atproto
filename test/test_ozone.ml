@@ -130,6 +130,68 @@ let test_parse_timeline_and_schedule _ =
     "tools.ozone.moderation.scheduleAction#takedown"
     (body |> member "action" |> member "$type" |> to_string)
 
+let test_parse_typed_event_and_subject _ =
+  let ev =
+    Ozone.parse_mod_event
+      (`Assoc
+        [
+          ("id", `Int 9);
+          ( "event",
+            `Assoc
+              [
+                ("$type", `String "tools.ozone.moderation.defs#modEventReport");
+                ("comment", `String "spam");
+                ("reportType", `String "com.atproto.moderation.defs#reasonSpam");
+              ] );
+          ( "subject",
+            `Assoc
+              [
+                ("$type", `String "com.atproto.admin.defs#repoRef");
+                ("did", `String "did:plc:abc123xyz0001112223333");
+              ] );
+          ("createdBy", `String "did:plc:mod000111222333444555666");
+          ("createdAt", `String "2024-01-01T00:00:00.000Z");
+        ])
+  in
+  (match ev.event with
+  | `Report r ->
+      OUnit2.assert_equal (Some "spam") r.comment;
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "com.atproto.moderation.defs#reasonSpam" r.report_type
+  | _ -> OUnit2.assert_failure "expected report event");
+  (match ev.subject with
+  | `Repo_ref r ->
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "did:plc:abc123xyz0001112223333" r.did
+  | _ -> OUnit2.assert_failure "expected repoRef");
+  let msg_subj =
+    Ozone.parse_subject
+      (`Assoc
+        [
+          ("$type", `String "chat.bsky.convo.defs#messageRef");
+          ("did", `String "did:plc:abc123xyz0001112223333");
+          ("convoId", `String "c1");
+          ("messageId", `String "m1");
+        ])
+  in
+  (match msg_subj with
+  | `Message_ref m -> OUnit2.assert_equal ~printer:(fun x -> x) "c1" m.convo_id
+  | _ -> OUnit2.assert_failure "expected messageRef");
+  let label =
+    Ozone.parse_event
+      (`Assoc
+        [
+          ("$type", `String "tools.ozone.moderation.defs#modEventLabel");
+          ("createLabelVals", `List [ `String "spam" ]);
+          ("negateLabelVals", `List []);
+        ])
+  in
+  match label with
+  | `Label l -> OUnit2.assert_equal [ "spam" ] l.create_label_vals
+  | _ -> OUnit2.assert_failure "expected label event"
+
 let test_query_statuses_auth_skipped _ =
   skip_if
     (not Auth.has_live_credentials)
@@ -150,6 +212,8 @@ let suite =
          "test_emit_event_body" >:: test_emit_event_body;
          "test_takedown_event" >:: test_takedown_event;
          "test_parse_timeline_and_schedule" >:: test_parse_timeline_and_schedule;
+         "test_parse_typed_event_and_subject"
+         >:: test_parse_typed_event_and_subject;
          "test_query_statuses_auth_skipped" >:: test_query_statuses_auth_skipped;
        ]
 

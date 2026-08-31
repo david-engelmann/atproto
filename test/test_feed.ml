@@ -40,11 +40,11 @@ let test_get_post_thread _ =
     Feed.get_post_thread test_session
       "at://did:plc:xov3uvxfd4to6ev3ak5g5uxk/app.bsky.feed.post/3jyf6gx25eb27" 1
   in
-  match post_thread with
-  | { thread; _ } -> (
-      match thread with
-      | { thread_type; _ } ->
-          OUnit2.assert_bool "Post Thread Feed is empty" (thread_type <> ""))
+  match post_thread.thread with
+  | `Thread t ->
+      OUnit2.assert_bool "Post Thread Feed is empty" (t.thread_type <> "")
+  | `NotFound _ -> OUnit2.assert_failure "thread not found"
+  | `Blocked _ -> OUnit2.assert_failure "thread blocked"
 
 let test_get_posts _ =
   skip_if
@@ -210,6 +210,165 @@ let test_parse_post_record_embed_and_tags _ =
   | Some (`Gallery g) -> OUnit2.assert_equal 1 (List.length g.items)
   | _ -> OUnit2.assert_failure "expected gallery embed on post record"
 
+let post_view_json ~uri ~text ?embed () =
+  `Assoc
+    ([
+       ("uri", `String uri);
+       ("cid", `String "bafyreiabc");
+       ( "author",
+         `Assoc
+           [
+             ("did", `String "did:plc:abc123xyz0001112223333");
+             ("handle", `String "alice.test");
+           ] );
+       ( "record",
+         `Assoc
+           [
+             ("$type", `String "app.bsky.feed.post");
+             ("text", `String text);
+             ("createdAt", `String "2024-01-01T00:00:00.000Z");
+           ] );
+       ("indexedAt", `String "2024-01-01T00:00:00.000Z");
+       ("replyCount", `Int 2);
+       ("repostCount", `Int 1);
+       ("likeCount", `Int 4);
+       ("quoteCount", `Int 3);
+       ("bookmarkCount", `Int 5);
+     ]
+    @ match embed with Some e -> [ ("embed", e) ] | None -> [])
+
+let test_parse_thread_view_with_embed _ =
+  let embed =
+    `Assoc
+      [
+        ("$type", `String "app.bsky.embed.external#view");
+        ( "external",
+          `Assoc
+            [
+              ("uri", `String "https://atproto.com");
+              ("title", `String "AT Protocol");
+              ("description", `String "docs");
+              ("thumb", `String "https://cdn.example/t.jpg");
+            ] );
+      ]
+  in
+  let root =
+    `Assoc
+      [
+        ("$type", `String "app.bsky.feed.defs#threadViewPost");
+        ( "post",
+          post_view_json
+            ~uri:"at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/root"
+            ~text:"root post" ~embed () );
+        ( "replies",
+          `List
+            [
+              `Assoc
+                [
+                  ("$type", `String "app.bsky.feed.defs#threadViewPost");
+                  ( "post",
+                    post_view_json
+                      ~uri:
+                        "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/reply"
+                      ~text:"a reply" () );
+                ];
+              `Assoc
+                [
+                  ("$type", `String "app.bsky.feed.defs#notFoundPost");
+                  ( "uri",
+                    `String
+                      "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/gone"
+                  );
+                  ("notFound", `Bool true);
+                ];
+            ] );
+      ]
+  in
+  let feed =
+    Feed.parse_thread_feed
+      (`Assoc
+        [
+          ("thread", root);
+          ( "threadgate",
+            `Assoc
+              [
+                ( "uri",
+                  `String
+                    "at://did:plc:abc123xyz0001112223333/app.bsky.feed.threadgate/1"
+                );
+              ] );
+        ])
+  in
+  match feed.thread with
+  | `Thread t -> (
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "app.bsky.feed.defs#threadViewPost" t.thread_type;
+      OUnit2.assert_equal None t.parent;
+      OUnit2.assert_equal (Some 3) t.post.quote_count;
+      OUnit2.assert_equal (Some 5) t.post.bookmark_count;
+      (match t.post.embed with
+      | Some (`ExternalView e) ->
+          OUnit2.assert_equal
+            ~printer:(fun x -> x)
+            "https://atproto.com" e.ext.uri
+      | _ -> OUnit2.assert_failure "expected top-level external view embed");
+      OUnit2.assert_equal 2 (List.length t.replies);
+      match List.nth t.replies 1 with
+      | `NotFound n -> OUnit2.assert_bool "not found" n.not_found
+      | _ -> OUnit2.assert_failure "expected notFound reply")
+  | _ -> OUnit2.assert_failure "expected thread view"
+
+let test_parse_blocked_thread _ =
+  let json =
+    `Assoc
+      [
+        ( "thread",
+          `Assoc
+            [
+              ("$type", `String "app.bsky.feed.defs#blockedPost");
+              ( "uri",
+                `String
+                  "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/x" );
+              ("blocked", `Bool true);
+              ( "author",
+                `Assoc [ ("did", `String "did:plc:abc123xyz0001112223333") ] );
+            ] );
+      ]
+  in
+  match (Feed.parse_thread_feed json).thread with
+  | `Blocked b ->
+      OUnit2.assert_equal (Some "did:plc:abc123xyz0001112223333") b.author_did
+  | _ -> OUnit2.assert_failure "expected blocked thread"
+
+let test_parse_reply_ref_not_found _ =
+  let json =
+    `Assoc
+      [
+        ( "root",
+          `Assoc
+            [
+              ("$type", `String "app.bsky.feed.defs#notFoundPost");
+              ( "uri",
+                `String
+                  "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/root"
+              );
+              ("notFound", `Bool true);
+            ] );
+        ( "parent",
+          post_view_json
+            ~uri:"at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/p"
+            ~text:"parent" () );
+      ]
+  in
+  let reply = Feed.parse_reply json in
+  (match reply.root with
+  | `NotFound n -> OUnit2.assert_bool "root missing" n.not_found
+  | _ -> OUnit2.assert_failure "expected notFound root");
+  match reply.parent with
+  | `Post p -> OUnit2.assert_equal ~printer:(fun x -> x) "parent" p.record.text
+  | _ -> OUnit2.assert_failure "expected parent post"
+
 let test_parse_post_view_embed _ =
   let json =
     `Assoc
@@ -298,6 +457,10 @@ let suite =
          "test_parse_search_posts" >:: test_parse_search_posts;
          "test_parse_post_record_embed_and_tags"
          >:: test_parse_post_record_embed_and_tags;
+         "test_parse_thread_view_with_embed"
+         >:: test_parse_thread_view_with_embed;
+         "test_parse_blocked_thread" >:: test_parse_blocked_thread;
+         "test_parse_reply_ref_not_found" >:: test_parse_reply_ref_not_found;
          "test_parse_post_view_embed" >:: test_parse_post_view_embed;
          "test_send_interactions_body" >:: test_send_interactions_body;
          "test_get_feed_generator_live" >:: test_get_feed_generator_live;

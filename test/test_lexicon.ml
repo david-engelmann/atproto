@@ -139,6 +139,54 @@ let test_validate_errors _ =
       | Error _ -> ()
       | Ok () -> OUnit2.assert_failure "wrong type accepted")
 
+let test_union_codegen_and_official_bundle _ =
+  let docs = Lexicon.official_documents () in
+  OUnit2.assert_bool "bundled lexicons" (List.length docs >= 5);
+  List.iter
+    (fun (doc : Lexicon.document) ->
+      OUnit2.assert_equal 1 doc.lexicon;
+      OUnit2.assert_bool "id" (String.length doc.id > 3))
+    docs;
+  let thread =
+    List.find
+      (fun (d : Lexicon.document) -> d.id = "app.bsky.feed.getPostThread")
+      docs
+  in
+  match Lexicon.main thread with
+  | None -> OUnit2.assert_failure "missing main"
+  | Some main -> (
+      (match List.assoc_opt "thread" main.output.properties with
+      | Some (Lexicon.Union refs) ->
+          OUnit2.assert_bool "thread union refs"
+            (List.exists
+               (fun r ->
+                 let n = String.length r in
+                 n >= 14 && String.sub r (n - 14) 14 = "threadViewPost")
+               refs);
+          let ocaml = Lexicon.to_ocaml thread in
+          OUnit2.assert_bool "codegen emits union variant"
+            (let needle = "threadViewPost" in
+             let rec contains i =
+               i + String.length needle <= String.length ocaml
+               && (String.sub ocaml i (String.length needle) = needle
+                  || contains (i + 1))
+             in
+             contains 0)
+      | Some _ -> OUnit2.assert_failure "thread is not a union"
+      | None -> OUnit2.assert_failure "missing thread output property");
+      let list_doc =
+        List.find
+          (fun (d : Lexicon.document) -> d.id = "app.bsky.graph.list")
+          docs
+      in
+      match Lexicon.main list_doc with
+      | None -> OUnit2.assert_failure "missing list main"
+      | Some main -> (
+          match List.assoc_opt "labels" main.properties with
+          | Some (Lexicon.Union refs) ->
+              OUnit2.assert_equal [ "com.atproto.label.defs#selfLabels" ] refs
+          | _ -> OUnit2.assert_failure "list labels should be a union"))
+
 let suite =
   "lexicon"
   >::: [
@@ -148,6 +196,8 @@ let suite =
          >:: test_nested_parameters_and_codegen;
          "test_procedure_input_output" >:: test_procedure_input_output;
          "test_validate_errors" >:: test_validate_errors;
+         "test_union_codegen_and_official_bundle"
+         >:: test_union_codegen_and_official_bundle;
        ]
 
 let () = run_test_tt_main suite

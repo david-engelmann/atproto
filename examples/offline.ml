@@ -6,6 +6,9 @@ open Atproto.Embed
 open Atproto.Facet
 open Atproto.Records
 open Atproto.Notification
+open Atproto.Feed
+open Atproto.Chat
+open Atproto.Ozone
 open Atproto.Identity
 open Atproto.Lexicon
 open Atproto.Tid
@@ -119,6 +122,63 @@ let () =
     Records.post ~text:"hello" ~created_at:"2024-01-01T00:00:00.000Z"
       ~tags:[ "atp" ] ()
   in
+  let list =
+    Records.list ~name:"Friends" ~purpose:Records.purpose_curatelist
+      ~created_at:"2024-01-01T00:00:00.000Z" ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "$type" list with
+    | `String "app.bsky.graph.list" -> true
+    | _ -> false);
+  let pack =
+    Records.starterpack ~name:"Start"
+      ~list:"at://did:plc:abc123xyz0001112223333/app.bsky.graph.list/3k"
+      ~created_at:"2024-01-01T00:00:00.000Z" ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "$type" pack with
+    | `String "app.bsky.graph.starterpack" -> true
+    | _ -> false);
+  (match
+     Feed.parse_thread_feed
+       (`Assoc
+         [
+           ( "thread",
+             `Assoc
+               [
+                 ("$type", `String "app.bsky.feed.defs#notFoundPost");
+                 ( "uri",
+                   `String
+                     "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k"
+                 );
+                 ("notFound", `Bool true);
+               ] );
+         ])
+   with
+  | { thread = `NotFound n; _ } -> assert n.not_found
+  | _ -> assert false);
+  let chat_prefs =
+    Chat.parse_notification_preferences
+      (`Assoc
+        [
+          ("chat", `Assoc [ ("include", `String "all"); ("push", `Bool true) ]);
+          ( "chatRequest",
+            `Assoc [ ("include", `String "follows"); ("push", `Bool false) ] );
+        ])
+  in
+  assert chat_prefs.chat.push;
+  (match
+     Ozone.parse_subject
+       (`Assoc
+         [
+           ("$type", `String "com.atproto.admin.defs#repoRef");
+           ("did", `String "did:plc:abc123xyz0001112223333");
+         ])
+   with
+  | `Repo_ref r -> assert (r.did <> "")
+  | _ -> assert false);
+  let lex_docs = Lexicon.official_documents () in
+  assert (List.length lex_docs >= 5);
   assert (
     match Yojson.Safe.Util.member "$type" post with
     | `String "app.bsky.feed.post" -> true

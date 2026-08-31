@@ -7,8 +7,77 @@ module Ozone = struct
   let labeler_proxy (did : string) : Xrpc.proxy = Xrpc.labeler_proxy did
   let proxy_headers proxy = [ Xrpc.proxy_header proxy ]
 
+  type repo_ref = { did : string }
+  type strong_ref = { uri : string; cid : string }
+  type message_ref = { did : string; convo_id : string; message_id : string }
+  type convo_ref = { did : string; convo_id : string }
+
+  type subject =
+    [ `Repo_ref of repo_ref
+    | `Strong_ref of strong_ref
+    | `Message_ref of message_ref
+    | `Convo_ref of convo_ref
+    | `Unknown of Yojson.Safe.t ]
+
+  type comment_event = { comment : string; sticky : bool option }
+
+  type acknowledge_event = {
+    comment : string option;
+    acknowledge_account_subjects : bool option;
+  }
+
+  type takedown_event = {
+    comment : string option;
+    duration_in_hours : int option;
+    acknowledge_account_subjects : bool option;
+    policies : string list;
+  }
+
+  type comment_only_event = { comment : string option }
+  type report_event = { comment : string option; report_type : string }
+
+  type label_event = {
+    comment : string option;
+    create_label_vals : string list;
+    negate_label_vals : string list;
+    duration_in_hours : int option;
+  }
+
+  type mute_event = { comment : string option; duration_in_hours : int option }
+
+  type email_event = {
+    subject_line : string;
+    content : string option;
+    comment : string option;
+  }
+
+  type tag_event = {
+    add : string list;
+    remove : string list;
+    comment : string option;
+  }
+
+  type priority_score_event = { comment : string option; score : int }
+  type unknown_event = { type_ : string; original : Yojson.Safe.t }
+
+  type event =
+    [ `Comment of comment_event
+    | `Acknowledge of acknowledge_event
+    | `Takedown of takedown_event
+    | `Reverse_takedown of comment_only_event
+    | `Report of report_event
+    | `Label of label_event
+    | `Escalate of comment_only_event
+    | `Mute of mute_event
+    | `Unmute of comment_only_event
+    | `Email of email_event
+    | `Tag of tag_event
+    | `Resolve_appeal of comment_only_event
+    | `Priority_score of priority_score_event
+    | `Unknown of unknown_event ]
+
   type subject_status = {
-    subject : Yojson.Safe.t;
+    subject : subject;
     subject_repo_handle : string option;
     updated_at : string option;
     created_at : string option;
@@ -25,8 +94,8 @@ module Ozone = struct
 
   type mod_event = {
     id : int option;
-    event : Yojson.Safe.t;
-    subject : Yojson.Safe.t;
+    event : event;
+    subject : subject;
     created_by : string option;
     created_at : string option;
     original : Yojson.Safe.t;
@@ -56,9 +125,132 @@ module Ozone = struct
     original : Yojson.Safe.t;
   }
 
+  let string_list json field =
+    List.filter_map
+      (function `String s -> Some s | _ -> None)
+      (Client.list_member json field)
+
+  let type_name json =
+    match Yojson.Safe.Util.member "$type" json with `String s -> s | _ -> ""
+
+  let ends_with suffix s =
+    let n = String.length suffix in
+    let m = String.length s in
+    m >= n && String.sub s (m - n) n = suffix
+
+  let parse_subject json : subject =
+    let t = type_name json in
+    let has_did =
+      match Yojson.Safe.Util.member "did" json with
+      | `String _ -> true
+      | _ -> false
+    in
+    let has_uri =
+      match Yojson.Safe.Util.member "uri" json with
+      | `String _ -> true
+      | _ -> false
+    in
+    let has_message =
+      match Yojson.Safe.Util.member "messageId" json with
+      | `String _ -> true
+      | _ -> false
+    in
+    let has_convo =
+      match Yojson.Safe.Util.member "convoId" json with
+      | `String _ -> true
+      | _ -> false
+    in
+    if ends_with "messageRef" t || (has_message && has_convo) then
+      `Message_ref
+        {
+          did = Client.string_member json "did";
+          convo_id = Client.string_member json "convoId";
+          message_id = Client.string_member json "messageId";
+        }
+    else if ends_with "convoRef" t || (has_convo && has_did && not has_message)
+    then
+      `Convo_ref
+        {
+          did = Client.string_member json "did";
+          convo_id = Client.string_member json "convoId";
+        }
+    else if ends_with "strongRef" t || (has_uri && not has_did) then
+      `Strong_ref
+        {
+          uri = Client.string_member json "uri";
+          cid = Client.string_member json "cid";
+        }
+    else if ends_with "repoRef" t || has_did then
+      `Repo_ref { did = Client.string_member json "did" }
+    else `Unknown json
+
+  let parse_event json : event =
+    let t = type_name json in
+    let comment = Client.string_opt json "comment" in
+    if ends_with "modEventComment" t then
+      `Comment
+        {
+          comment = Option.value comment ~default:"";
+          sticky = Client.bool_opt json "sticky";
+        }
+    else if ends_with "modEventAcknowledge" t then
+      `Acknowledge
+        {
+          comment;
+          acknowledge_account_subjects =
+            Client.bool_opt json "acknowledgeAccountSubjects";
+        }
+    else if ends_with "modEventTakedown" t then
+      `Takedown
+        {
+          comment;
+          duration_in_hours = Client.int_opt json "durationInHours";
+          acknowledge_account_subjects =
+            Client.bool_opt json "acknowledgeAccountSubjects";
+          policies = string_list json "policies";
+        }
+    else if ends_with "modEventReverseTakedown" t then
+      `Reverse_takedown { comment }
+    else if ends_with "modEventReport" t then
+      `Report { comment; report_type = Client.string_member json "reportType" }
+    else if ends_with "modEventLabel" t then
+      `Label
+        {
+          comment;
+          create_label_vals = string_list json "createLabelVals";
+          negate_label_vals = string_list json "negateLabelVals";
+          duration_in_hours = Client.int_opt json "durationInHours";
+        }
+    else if ends_with "modEventEscalate" t then `Escalate { comment }
+    else if ends_with "modEventMute" t then
+      `Mute
+        { comment; duration_in_hours = Client.int_opt json "durationInHours" }
+    else if ends_with "modEventUnmute" t then `Unmute { comment }
+    else if ends_with "modEventEmail" t then
+      `Email
+        {
+          subject_line = Client.string_member json "subjectLine";
+          content = Client.string_opt json "content";
+          comment;
+        }
+    else if ends_with "modEventTag" t then
+      `Tag
+        {
+          add = string_list json "add";
+          remove = string_list json "remove";
+          comment;
+        }
+    else if ends_with "modEventResolveAppeal" t then `Resolve_appeal { comment }
+    else if ends_with "modEventPriorityScore" t then
+      `Priority_score { comment; score = Client.int_member json "score" }
+    else `Unknown { type_ = t; original = json }
+
   let parse_subject_status json : subject_status =
     {
-      subject = Yojson.Safe.Util.member "subject" json;
+      subject =
+        (match Yojson.Safe.Util.member "subject" json with
+        | `Assoc _ as s -> parse_subject s
+        | other -> `Unknown other);
       subject_repo_handle = Client.string_opt json "subjectRepoHandle";
       updated_at = Client.string_opt json "updatedAt";
       created_at = Client.string_opt json "createdAt";
@@ -79,8 +271,14 @@ module Ozone = struct
   let parse_mod_event json : mod_event =
     {
       id = Client.int_opt json "id";
-      event = Yojson.Safe.Util.member "event" json;
-      subject = Yojson.Safe.Util.member "subject" json;
+      event =
+        (match Yojson.Safe.Util.member "event" json with
+        | `Assoc _ as e -> parse_event e
+        | other -> `Unknown { type_ = ""; original = other });
+      subject =
+        (match Yojson.Safe.Util.member "subject" json with
+        | `Assoc _ as s -> parse_subject s
+        | other -> `Unknown other);
       created_by = Client.string_opt json "createdBy";
       created_at = Client.string_opt json "createdAt";
       original = json;

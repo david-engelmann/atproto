@@ -35,17 +35,17 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | --- | --- | --- |
 | Session / JWT | `Auth`, `Session` | `createSession` URL uses `ATP_HOST` + `BASE_ENDPOINT` |
 | AppView actor | `Actor` | Profiles, search, suggestions, get/put preferences |
-| AppView feed | `Feed` | Timeline, threads, generators (`getFeed` / `getFeedGenerator` / `getActorFeeds`), `searchPosts`, quotes, list feed, interactions |
+| AppView feed | `Feed` | Timeline, `getPostThread` (`threadViewPost` / `notFoundPost` / `blockedPost`, optional parent, top-level embed + quote/bookmark counts), generators, `searchPosts`, quotes, list feed, interactions |
 | AppView graph | `Graph` | Follows/blocks/mutes, lists, starter packs, relationships, known followers |
 | Bookmarks | `Bookmark` | `createBookmark` / `deleteBookmark` / `getBookmarks` |
 | Jetstream | `Jetstream` | v2 live tail, collection/DID/kind filters, seq + unix-µs cursors, reconnect/dedupe, v1 `/subscribe` compat; Network Replay planner + skippable unauthenticated HTTP (no invented archive token); `.jss` v1 header / block-index / columnar decode (zstd via injected callback) |
 | Video | `Video` | `getJobStatus`, `getUploadLimits`, byte upload (`uploadVideo` URL + POST), service-auth audience (`did:web:<pds>` + `uploadBlob` lxm), injectable job poll, `video_embed_json`. Client only — no hosted transcoder |
 | Unspecced | `Unspecced` | Popular generators, search skeletons, trending topics, config |
 | Labeler | `Labeler` | `app.bsky.labeler.getServices` |
-| Chat / DMs | `Chat` | `chat.bsky.convo.*` including reactions, requests, leave/accept, log, unread counts, batch send, `updateAllRead`; `atproto-proxy: did:web:api.bsky.chat#bsky_chat` |
-| Ozone | `Ozone` | `tools.ozone.moderation.*` including subjects/repos/records, account timeline, reporter stats, scheduled actions + `getConfig`; requires `atproto-proxy` |
+| Chat / DMs | `Chat` | `chat.bsky.convo.*` including typed message facets/reactions/embeds, lock/unlock, `chat.bsky.group` add/remove/edit, `chat.bsky.notification.getPreferences` / `putPreferences`; `atproto-proxy: did:web:api.bsky.chat#bsky_chat` |
+| Ozone | `Ozone` | `tools.ozone.moderation.*` including typed event/subject unions (repoRef / strongRef / messageRef / convoRef), subjects/repos/records, account timeline, reporter stats, scheduled actions + `getConfig`; requires `atproto-proxy` |
 | Admin | `Admin` | `com.atproto.admin` subject status, account info, invites, email |
-| Repo writes | `Repo`, `Records` | `createRecord` / `putRecord` / `deleteRecord` / `applyWrites` bodies; typed `describeRepo` / `getRecord` / `listRecords` parsers; builders for post/like/repost/follow/block/listblock/profile |
+| Repo writes | `Repo`, `Records` | `createRecord` / `putRecord` / `deleteRecord` / `applyWrites` bodies; typed `describeRepo` / `getRecord` / `listRecords` parsers; builders for post/like/repost/follow/block/listblock/list/listitem/starterpack/profile |
 | Server | `Server` | describe server (typed), app passwords, invites, `reserveSigningKey`, account activate/status, `getServiceAuth` (aud may be `did#service`) |
 | Identity | `Identity`, `Did_plc`, `Did_web`, `Did_key` | resolve + typed `resolveDid` DID document + updateHandle / PLC operation helpers |
 | PLC chain | `Did_plc` | Genesis DID, prev CID links, p256 **and k256** ECDSA (low-S, IEEE P1363) |
@@ -55,7 +55,7 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | Repo sync (TAP-like) | `Repo_sync` | Library-shaped backfill: open/verify repo CAR, walk records, `getRecord` inclusion proof (partial CAR), record-table apply of firehose ops, `#sync` desync, MST-level `apply_commit_tree`, Sync 1.1 pre-order export + collection-subset CAR. Not a hosted Tap service |
 | TID | `Tid` | Record-key / commit-rev identifiers (base32-sortable, official syntax) |
 | AT URI | `At_uri` | `at://` parse / serialize |
-| Lexicon | `Lexicon` | Parse lexicon-1 JSON (parameters + procedure input/output schemas), `to_ocaml` codegen, JSON validate |
+| Lexicon | `Lexicon` | Parse lexicon-1 JSON (parameters + procedure input/output schemas), `to_ocaml` codegen (unions emit polymorphic variants), JSON validate, small bundled official lexicon documents |
 | Firehose | `Firehose`, `Websocket` | RFC 6455 client + `subscribeRepos` frame decode (`#commit`/`#sync`/`#identity`/`#account`/`#info`) |
 | OAuth / DPoP | `Oauth`, `Oauth_scope` | PKCE S256, DPoP ES256 + nonce, client metadata, PAR/token loop; granular scope grammar (`repo:`/`rpc:`/`blob:`/`include:`/`transition:`) |
 | Labels | `Label` | `queryLabels` + label / query parse (`ver`, `exp`) + `#selfLabels` |

@@ -1,6 +1,8 @@
 open Session
 open Client
 open Xrpc
+open Facet
+open Embed
 
 (** chat.bsky.convo — DMs. Requests must include atproto-proxy for the chat service. *)
 module Chat = struct
@@ -15,6 +17,8 @@ module Chat = struct
     display_name : string option;
   }
 
+  type reaction = { value : string; sender_did : string; created_at : string }
+
   type message = {
     id : string;
     rev : string;
@@ -22,6 +26,10 @@ module Chat = struct
     sender_did : string option;
     sent_at : string;
     deleted : bool;
+    facets : Facet.facet list;
+    reactions : reaction list;
+    embed : Embed.embed option;
+    reply_to_id : string option;
     original : Yojson.Safe.t;
   }
 
@@ -46,6 +54,30 @@ module Chat = struct
       display_name = Client.string_opt json "displayName";
     }
 
+  let parse_reaction json : reaction =
+    let sender_did =
+      match Yojson.Safe.Util.member "sender" json with
+      | `Assoc _ as s -> Client.string_member s "did"
+      | _ -> Client.string_member json "sender"
+    in
+    {
+      value = Client.string_member json "value";
+      sender_did;
+      created_at = Client.string_member json "createdAt";
+    }
+
+  let parse_message_facets json : Facet.facet list =
+    List.map Facet.parse_facet (Client.list_member json "facets")
+
+  let parse_reply_to_id json : string option =
+    match Yojson.Safe.Util.member "replyTo" json with
+    | `Assoc _ as r -> (
+        match Client.string_opt r "messageId" with
+        | Some id -> Some id
+        | None -> Client.string_opt r "id")
+    | `String s -> Some s
+    | _ -> None
+
   let parse_message json : message =
     let ty = Client.string_opt json "$type" in
     let deleted =
@@ -69,6 +101,10 @@ module Chat = struct
       sender_did;
       sent_at = Client.string_member json "sentAt";
       deleted;
+      facets = parse_message_facets json;
+      reactions = List.map parse_reaction (Client.list_member json "reactions");
+      embed = Embed.parse_embed_option json;
+      reply_to_id = parse_reply_to_id json;
       original = json;
     }
 
@@ -99,10 +135,15 @@ module Chat = struct
       messages = List.map parse_message (Client.list_member json "messages");
     }
 
-  let message_input ?facets ?reply_to text : Yojson.Safe.t =
+  let message_input ?facets ?embed ?reply_to text : Yojson.Safe.t =
     let fields =
       [ ("text", `String text) ]
-      @ (match facets with Some f -> [ ("facets", f) ] | None -> [])
+      @ (match facets with
+        | Some fs -> [ ("facets", Facet.facets_to_json fs) ]
+        | None -> [])
+      @ (match embed with
+        | Some e -> [ ("embed", Embed.embed_to_json e) ]
+        | None -> [])
       @
       match reply_to with
       | Some id -> [ ("replyTo", `Assoc [ ("messageId", `String id) ]) ]
@@ -110,11 +151,12 @@ module Chat = struct
     in
     `Assoc fields
 
-  let send_message_body ~convo_id ~text ?facets ?reply_to () : Yojson.Safe.t =
+  let send_message_body ~convo_id ~text ?facets ?embed ?reply_to () :
+      Yojson.Safe.t =
     `Assoc
       [
         ("convoId", `String convo_id);
-        ("message", message_input ?facets ?reply_to text);
+        ("message", message_input ?facets ?embed ?reply_to text);
       ]
 
   let update_read_body ~convo_id ?message_id () : Yojson.Safe.t =
@@ -165,12 +207,12 @@ module Chat = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_messages
 
-  let send_message (s : Session.session) ?proxy ~convo_id ~text ?facets
+  let send_message (s : Session.session) ?proxy ~convo_id ~text ?facets ?embed
       ?reply_to () : message =
     Client.post_json ~session:s ~extra:(proxy_headers ?proxy ())
       "chat.bsky.convo.sendMessage"
       (Yojson.Safe.to_string
-         (send_message_body ~convo_id ~text ?facets ?reply_to ()))
+         (send_message_body ~convo_id ~text ?facets ?embed ?reply_to ()))
     |> parse_message
 
   let update_read (s : Session.session) ?proxy ~convo_id ?message_id () : convo
@@ -231,7 +273,8 @@ module Chat = struct
   type batch_item = {
     convo_id : string;
     text : string;
-    facets : Yojson.Safe.t option;
+    facets : Facet.facet list option;
+    embed : Embed.embed option;
     reply_to : string option;
   }
 
@@ -368,8 +411,8 @@ module Chat = struct
                      [
                        ("convoId", `String i.convo_id);
                        ( "message",
-                         message_input ?facets:i.facets ?reply_to:i.reply_to
-                           i.text );
+                         message_input ?facets:i.facets ?embed:i.embed
+                           ?reply_to:i.reply_to i.text );
                      ])
                  items) );
         ]
@@ -392,12 +435,117 @@ module Chat = struct
     | `Int n -> n
     | _ -> 0
 
-  let message_input_with_facets ?facets ?reply_to text : Yojson.Safe.t =
-    let facets_json =
-      match facets with
-      | Some (`List _ as f) -> Some f
-      | Some f -> Some f
-      | None -> None
+  let message_input_with_facets ?facets ?embed ?reply_to text : Yojson.Safe.t =
+    message_input ?facets ?embed ?reply_to text
+
+  let lock_convo (s : Session.session) ?proxy ~convo_id () : convo =
+    Client.post_json ~session:s ~extra:(proxy_headers ?proxy ())
+      "chat.bsky.convo.lockConvo"
+      (Yojson.Safe.to_string (convo_id_body convo_id))
+    |> unwrap_convo
+
+  let unlock_convo (s : Session.session) ?proxy ~convo_id () : convo =
+    Client.post_json ~session:s ~extra:(proxy_headers ?proxy ())
+      "chat.bsky.convo.unlockConvo"
+      (Yojson.Safe.to_string (convo_id_body convo_id))
+    |> unwrap_convo
+
+  type add_members_result = { convo : convo; added_members : member list }
+
+  let add_members (s : Session.session) ?proxy ~convo_id ~members () :
+      add_members_result =
+    let json =
+      Client.post_json ~session:s ~extra:(proxy_headers ?proxy ())
+        "chat.bsky.group.addMembers"
+        (Yojson.Safe.to_string
+           (`Assoc
+             [
+               ("convoId", `String convo_id);
+               ("members", `List (List.map (fun d -> `String d) members));
+             ]))
     in
-    message_input ?facets:facets_json ?reply_to text
+    {
+      convo = unwrap_convo json;
+      added_members =
+        List.map parse_member (Client.list_member json "addedMembers");
+    }
+
+  let remove_members (s : Session.session) ?proxy ~convo_id ~members () : convo
+      =
+    Client.post_json ~session:s ~extra:(proxy_headers ?proxy ())
+      "chat.bsky.group.removeMembers"
+      (Yojson.Safe.to_string
+         (`Assoc
+           [
+             ("convoId", `String convo_id);
+             ("members", `List (List.map (fun d -> `String d) members));
+           ]))
+    |> unwrap_convo
+
+  let edit_group (s : Session.session) ?proxy ~convo_id ~name () : convo =
+    Client.post_json ~session:s ~extra:(proxy_headers ?proxy ())
+      "chat.bsky.group.editGroup"
+      (Yojson.Safe.to_string
+         (`Assoc [ ("convoId", `String convo_id); ("name", `String name) ]))
+    |> unwrap_convo
+
+  type chat_pref = { include_ : string; push : bool }
+
+  type notification_preferences = {
+    chat : chat_pref;
+    chat_request : chat_pref;
+    original : Yojson.Safe.t;
+  }
+
+  let parse_chat_pref json : chat_pref =
+    {
+      include_ =
+        (match Client.string_opt json "include" with
+        | Some s -> s
+        | None -> "all");
+      push = Client.bool_member json "push";
+    }
+
+  let chat_pref_to_json (p : chat_pref) : Yojson.Safe.t =
+    `Assoc [ ("include", `String p.include_); ("push", `Bool p.push) ]
+
+  let parse_notification_preferences json : notification_preferences =
+    let prefs =
+      match Yojson.Safe.Util.member "preferences" json with
+      | `Assoc _ as p -> p
+      | _ -> json
+    in
+    {
+      chat =
+        (match Yojson.Safe.Util.member "chat" prefs with
+        | `Assoc _ as c -> parse_chat_pref c
+        | _ -> { include_ = "all"; push = false });
+      chat_request =
+        (match Yojson.Safe.Util.member "chatRequest" prefs with
+        | `Assoc _ as c -> parse_chat_pref c
+        | _ -> { include_ = "all"; push = false });
+      original = prefs;
+    }
+
+  let get_notification_preferences (s : Session.session) ?proxy () :
+      notification_preferences =
+    Client.get_json ~session:s ~extra:(proxy_headers ?proxy ())
+      "chat.bsky.notification.getPreferences" []
+    |> parse_notification_preferences
+
+  let put_notification_preferences (s : Session.session) ?proxy ?chat
+      ?chat_request () : notification_preferences =
+    let fields =
+      (match chat with
+      | Some p -> [ ("chat", chat_pref_to_json p) ]
+      | None -> [])
+      @
+      match chat_request with
+      | Some p -> [ ("chatRequest", chat_pref_to_json p) ]
+      | None -> []
+    in
+    Client.post_json ~session:s ~extra:(proxy_headers ?proxy ())
+      "chat.bsky.notification.putPreferences"
+      (Yojson.Safe.to_string (`Assoc fields))
+    |> parse_notification_preferences
 end

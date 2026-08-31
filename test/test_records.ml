@@ -76,6 +76,55 @@ let test_graph_and_like_builders _ =
     "Ada"
     (profile |> member "displayName" |> to_string)
 
+let test_list_and_starterpack_builders _ =
+  let list =
+    Records.list ~name:"Friends" ~purpose:Records.purpose_curatelist
+      ~created_at:"2024-01-01T00:00:00.000Z" ~description:"pals"
+      ~self_labels:[ "graphic-media" ] ()
+  in
+  let item =
+    Records.listitem ~subject:"did:plc:alice000111222333444555666"
+      ~list:"at://did:plc:alice000111222333444555666/app.bsky.graph.list/3k"
+      ~created_at:"2024-01-01T00:00:00.000Z" ()
+  in
+  let pack =
+    Records.starterpack ~name:"Start here"
+      ~list:"at://did:plc:alice000111222333444555666/app.bsky.graph.list/3k"
+      ~created_at:"2024-01-01T00:00:00.000Z"
+      ~feeds:
+        [
+          "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot";
+        ]
+      ()
+  in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "app.bsky.graph.list"
+    (list |> member "$type" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "app.bsky.graph.defs#curatelist"
+    (list |> member "purpose" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "app.bsky.graph.listitem"
+    (item |> member "$type" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "app.bsky.graph.starterpack"
+    (pack |> member "$type" |> to_string);
+  OUnit2.assert_equal 1 (pack |> member "feeds" |> to_list |> List.length);
+  let parsed_list = Records.parse_list list in
+  OUnit2.assert_equal ~printer:(fun x -> x) "Friends" parsed_list.name;
+  let parsed_item = Records.parse_listitem item in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:alice000111222333444555666" parsed_item.subject;
+  let parsed_pack = Records.parse_starterpack pack in
+  OUnit2.assert_equal ~printer:(fun x -> x) "Start here" parsed_pack.name;
+  OUnit2.assert_equal 1 (List.length parsed_pack.feeds)
+
 let test_parse_like_and_follow _ =
   let like =
     Records.parse_like
@@ -113,6 +162,8 @@ let suite =
   >::: [
          "test_post_builder" >:: test_post_builder;
          "test_graph_and_like_builders" >:: test_graph_and_like_builders;
+         "test_list_and_starterpack_builders"
+         >:: test_list_and_starterpack_builders;
          "test_parse_like_and_follow" >:: test_parse_like_and_follow;
        ]
 
