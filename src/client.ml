@@ -90,6 +90,11 @@ module Client = struct
       (App.create_public_base_url ~host:(host_of ?session ?host ()) ())
       nsid
 
+  (* XRPC procedures with no output lexicon return an empty body. *)
+  let json_of_body (body : string) : Yojson.Safe.t =
+    let body = String.trim body in
+    if body = "" then `Assoc [] else Yojson.Safe.from_string body
+
   let get_json ?session ?host ?bearer ?(extra = []) nsid pairs =
     let headers = request_headers ?session ?bearer ~extra () in
     let url = nsid_url ?session ?host nsid in
@@ -98,7 +103,7 @@ module Client = struct
       Lwt_main.run
         (Cohttp_client.get_request_with_body_and_headers url body headers)
     in
-    Yojson.Safe.from_string resp
+    json_of_body resp
 
   let get_text ?session ?host ?bearer ?(extra = []) nsid pairs =
     let headers = request_headers ?session ?bearer ~extra () in
@@ -113,7 +118,7 @@ module Client = struct
     let resp =
       Lwt_main.run (Cohttp_client.post_data_with_headers url data headers)
     in
-    Yojson.Safe.from_string resp
+    json_of_body resp
 
   let header_pairs ?session ?bearer ?(extra = []) () =
     Cohttp_client.application_json_setting_tuple
@@ -136,7 +141,7 @@ module Client = struct
       let headers = header_pairs ?session ?bearer ~extra () in
       let url = Http_client.xrpc_url ~host nsid ~query:pairs () in
       let resp = Http_client.run (Http_client.get url ~headers ()) in
-      Yojson.Safe.from_string (Response.body_string resp)
+      json_of_body (Response.body_string resp)
 
   (* PDS accessJwt is at+jwt. AppView requires a service-auth JWT
      (com.atproto.server.getServiceAuth, aud=AppView DID, lxm=NSID). *)

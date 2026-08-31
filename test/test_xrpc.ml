@@ -1,5 +1,6 @@
 open OUnit2
 open Atproto.Xrpc
+open Atproto.Client
 open Atproto.Base64url
 open Atproto.Hash
 open Atproto.Did_key
@@ -242,6 +243,13 @@ let test_jti_cache_eviction _ =
   OUnit2.assert_bool "b kept" (Xrpc.jti_seen cache "b");
   OUnit2.assert_bool "c kept" (Xrpc.jti_seen cache "c")
 
+let test_json_of_empty_xrpc_body _ =
+  OUnit2.assert_equal (`Assoc []) (Client.json_of_body "");
+  OUnit2.assert_equal (`Assoc []) (Client.json_of_body "  \n");
+  OUnit2.assert_equal
+    (`Assoc [ ("ok", `Bool true) ])
+    (Client.json_of_body {|{"ok":true}|})
+
 let suite =
   "xrpc"
   >::: [
@@ -254,6 +262,7 @@ let suite =
          "test_service_jwt_k256_roundtrip" >:: test_service_jwt_k256_roundtrip;
          "test_service_jwt_rejects" >:: test_service_jwt_rejects;
          "test_jti_cache_eviction" >:: test_jti_cache_eviction;
+         "test_json_of_empty_xrpc_body" >:: test_json_of_empty_xrpc_body;
        ]
 
 let () = run_test_tt_main suite
