@@ -76,6 +76,37 @@ let test_dpop_ath _ =
   OUnit2.assert_equal (Some ath) claims.ath;
   OUnit2.assert_bool "ath proof verifies" (Oauth.verify_dpop ~pub proof)
 
+let client_id = "https://client.example/client-metadata.json"
+let redirect_uri = "https://client.example/cb"
+
+let sample_as_json =
+  `Assoc
+    [
+      ("issuer", `String "https://bsky.social");
+      ("authorization_endpoint", `String "https://bsky.social/oauth/authorize");
+      ("token_endpoint", `String "https://bsky.social/oauth/token");
+      ( "pushed_authorization_request_endpoint",
+        `String "https://bsky.social/oauth/par" );
+      ("response_types_supported", `List [ `String "code" ]);
+      ( "grant_types_supported",
+        `List [ `String "authorization_code"; `String "refresh_token" ] );
+      ("code_challenge_methods_supported", `List [ `String "S256" ]);
+      ( "token_endpoint_auth_methods_supported",
+        `List [ `String "none"; `String "private_key_jwt" ] );
+      ("token_endpoint_auth_signing_alg_values_supported", `List [ `String "ES256" ]);
+      ( "scopes_supported",
+        `List
+          [
+            `String "atproto";
+            `String "transition:generic";
+            `String "transition:chat.bsky";
+          ] );
+      ("dpop_signing_alg_values_supported", `List [ `String "ES256" ]);
+      ("require_pushed_authorization_requests", `Bool true);
+      ("authorization_response_iss_parameter_supported", `Bool true);
+      ("client_id_metadata_document_supported", `Bool true);
+    ]
+
 let test_par_and_token_shapes _ =
   let pkce = Oauth.pkce_s256 ~verifier:rfc7636_verifier () in
   let par =
@@ -90,7 +121,7 @@ let test_par_and_token_shapes _ =
   let token =
     Oauth.token_body ~client_id:"https://client.example/client-metadata.json"
       ~redirect_uri:"https://client.example/cb" ~code:"authz-code"
-      ~code_verifier:pkce.verifier
+      ~code_verifier:pkce.verifier ()
   in
   OUnit2.assert_equal (Some "authorization_code")
     (List.assoc_opt "grant_type" token);
@@ -99,6 +130,339 @@ let test_par_and_token_shapes _ =
     "https://bsky.social/oauth/par" (Oauth.par_url ());
   let encoded = Oauth.form_encode par in
   OUnit2.assert_bool "form body includes challenge" (String.length encoded > 20)
+
+let test_client_metadata_public _ =
+  let meta =
+    Oauth.public_metadata ~client_id ~redirect_uris:[ redirect_uri ]
+      ~client_name:"Example" ()
+  in
+  Oauth.validate_metadata meta;
+  let again = Oauth.metadata_of_json (Oauth.metadata_to_json meta) in
+  OUnit2.assert_equal ~printer:(fun x -> x) client_id again.client_id;
+  OUnit2.assert_equal ~printer:(fun x -> x) "none"
+    again.token_endpoint_auth_method;
+  OUnit2.assert_bool "dpop bound" again.dpop_bound_access_tokens;
+  OUnit2.assert_bool "atproto"
+    (Oauth.contains_scope ~scope:again.scope "atproto")
+
+let test_client_metadata_confidential _ =
+  let priv, pub = p256_pair () in
+  let jwks = Oauth.jwks_of_pub pub in
+  let meta =
+    Oauth.confidential_metadata ~client_id ~redirect_uris:[ redirect_uri ] ~jwks
+      ()
+  in
+  Oauth.validate_metadata meta;
+  OUnit2.assert_equal ~printer:(fun x -> x) "private_key_jwt"
+    meta.token_endpoint_auth_method;
+  ignore priv
+
+let test_client_metadata_rejects_private_jwk _ =
+  let bad =
+    Oauth.confidential_metadata ~client_id ~redirect_uris:[ redirect_uri ]
+      ~jwks:
+        (`Assoc
+          [
+            ( "keys",
+              `List
+                [
+                  `Assoc
+                    [
+                      ("kty", `String "EC");
+                      ("crv", `String "P-256");
+                      ("x", `String "aa");
+                      ("y", `String "bb");
+                      ("d", `String "secret");
+                    ];
+                ] );
+          ])
+      ()
+  in
+  OUnit2.assert_bool "private d accepted"
+    (try
+       Oauth.validate_metadata bad;
+       false
+     with Failure _ -> true)
+
+let test_localhost_client_metadata _ =
+  let id =
+    "http://localhost?redirect_uri=http://127.0.0.1:8080/cb&scope=atproto%20transition:generic"
+  in
+  let meta = Oauth.localhost_metadata id in
+  Oauth.validate_metadata meta;
+  OUnit2.assert_equal ~printer:(fun x -> x) "native" meta.application_type;
+  OUnit2.assert_equal [ "http://127.0.0.1:8080/cb" ] meta.redirect_uris;
+  OUnit2.assert_equal ~printer:(fun x -> x) "atproto transition:generic"
+    meta.scope
+
+let test_as_and_resource_metadata _ =
+  let as_ = Oauth.parse_as_metadata sample_as_json in
+  Oauth.validate_as_metadata as_;
+  OUnit2.assert_equal ~printer:(fun x -> x) "https://bsky.social" as_.issuer;
+  let resource =
+    Oauth.parse_resource_metadata
+      (`Assoc
+        [
+          ("resource", `String "https://morel.us-east.host.bsky.network");
+          ("authorization_servers", `List [ `String "https://bsky.social" ]);
+        ])
+  in
+  OUnit2.assert_equal [ "https://bsky.social" ] resource.authorization_servers;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "https://bsky.social/.well-known/oauth-protected-resource"
+    (Oauth.protected_resource_url ());
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "https://bsky.social/.well-known/oauth-authorization-server"
+    (Oauth.authorization_server_url ())
+
+let test_as_metadata_rejects_missing_par _ =
+  let bad =
+    match sample_as_json with
+    | `Assoc fields ->
+        `Assoc
+          (List.map
+             (fun (k, v) ->
+               if k = "require_pushed_authorization_requests" then (k, `Bool false)
+               else (k, v))
+             fields)
+    | _ -> sample_as_json
+  in
+  OUnit2.assert_bool "missing PAR accepted"
+    (try
+       Oauth.validate_as_metadata (Oauth.parse_as_metadata bad);
+       false
+     with Failure _ -> true)
+
+let test_redirect_and_authorize_url _ =
+  match
+    Oauth.parse_redirect
+      "https://client.example/cb?code=splendid&state=abc&iss=https%3A%2F%2Fbsky.social"
+  with
+  | Oauth.Authorized { code; state; iss } ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "splendid" code;
+      OUnit2.assert_equal ~printer:(fun x -> x) "abc" state;
+      OUnit2.assert_equal (Some "https://bsky.social") iss;
+      Oauth.expect_state ~expected:"abc"
+        (Oauth.Authorized { code; state; iss });
+      Oauth.expect_issuer ~expected:"https://bsky.social"
+        (Oauth.Authorized { code; state; iss });
+      let url =
+        Oauth.authorize_redirect_url
+          ~authorization_endpoint:"https://bsky.social/oauth/authorize"
+          ~client_id ~request_uri:"urn:ietf:params:oauth:request_uri:abc"
+      in
+      OUnit2.assert_bool url (String.contains url '?');
+      OUnit2.assert_bool url
+        (let needle = "request_uri=" in
+         let rec find i =
+           i + String.length needle <= String.length url
+           && (String.sub url i (String.length needle) = needle
+              || find (i + 1))
+         in
+         find 0)
+  | Oauth.Denied _ -> OUnit2.assert_failure "expected authorized redirect"
+
+let test_redirect_denied _ =
+  match
+    Oauth.parse_redirect
+      "https://client.example/cb?error=access_denied&error_description=nope&state=abc"
+  with
+  | Oauth.Denied { error; description; state } ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "access_denied" error;
+      OUnit2.assert_equal (Some "nope") description;
+      OUnit2.assert_equal (Some "abc") state
+  | Oauth.Authorized _ -> OUnit2.assert_failure "expected denied redirect"
+
+let test_redirect_state_mismatch _ =
+  OUnit2.assert_bool "state mismatch accepted"
+    (try
+       Oauth.expect_state ~expected:"nope"
+         (Oauth.Authorized
+            { code = "x"; state = "abc"; iss = Some "https://bsky.social" });
+       false
+     with Failure _ -> true)
+
+let test_token_response_guards _ =
+  let good =
+    Oauth.parse_token_response
+      (`Assoc
+        [
+          ("access_token", `String "tok");
+          ("token_type", `String "DPoP");
+          ("expires_in", `Int 300);
+          ("refresh_token", `String "rt");
+          ("scope", `String "atproto transition:generic");
+          ("sub", `String "did:plc:7iza6de2dwap2sbkpav7c6c6");
+        ])
+  in
+  OUnit2.assert_equal ~printer:(fun x -> x) "tok" good.access_token;
+  OUnit2.assert_equal ~printer:(fun x -> x)
+    "did:plc:7iza6de2dwap2sbkpav7c6c6" good.sub;
+  let rejects json =
+    try
+      ignore (Oauth.parse_token_response json);
+      false
+    with Failure _ -> true
+  in
+  OUnit2.assert_bool "bearer accepted"
+    (rejects
+       (`Assoc
+         [
+           ("access_token", `String "tok");
+           ("token_type", `String "Bearer");
+           ("scope", `String "atproto");
+           ("sub", `String "did:plc:7iza6de2dwap2sbkpav7c6c6");
+         ]));
+  OUnit2.assert_bool "missing atproto accepted"
+    (rejects
+       (`Assoc
+         [
+           ("access_token", `String "tok");
+           ("token_type", `String "DPoP");
+           ("scope", `String "transition:generic");
+           ("sub", `String "did:plc:7iza6de2dwap2sbkpav7c6c6");
+         ]));
+  OUnit2.assert_bool "missing sub accepted"
+    (rejects
+       (`Assoc
+         [
+           ("access_token", `String "tok");
+           ("token_type", `String "DPoP");
+           ("scope", `String "atproto");
+         ]))
+
+let test_client_assertion _ =
+  let priv, pub = p256_pair () in
+  let jwt =
+    Oauth.client_assertion ~priv ~pub ~client_id ~issuer:"https://bsky.social"
+      ~kid:"oauth-client" ~jti:"assert-jti" ~iat:1_700_000_000L ()
+  in
+  let h, p, _ = Oauth.split_jwt jwt in
+  let header = Yojson.Safe.from_string (Atproto.Base64url.Base64url.decode h) in
+  let payload = Yojson.Safe.from_string (Atproto.Base64url.Base64url.decode p) in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal ~printer:(fun x -> x) "ES256"
+    (header |> member "alg" |> to_string);
+  OUnit2.assert_equal ~printer:(fun x -> x) client_id
+    (payload |> member "iss" |> to_string);
+  OUnit2.assert_equal ~printer:(fun x -> x) "https://bsky.social"
+    (payload |> member "aud" |> to_string);
+  OUnit2.assert_bool "assertion verifies" (Oauth.verify_dpop ~pub jwt)
+
+let test_dpop_nonce_claim _ =
+  let priv, pub = p256_pair () in
+  let proof =
+    Oauth.dpop_proof ~priv ~pub ~htm:"POST"
+      ~htu:"https://bsky.social/oauth/par" ~nonce:"server-nonce" ~jti:"n1"
+      ~iat:1L ()
+  in
+  let claims = Oauth.parse_dpop proof in
+  OUnit2.assert_equal (Some "server-nonce") claims.nonce;
+  OUnit2.assert_bool "nonce proof verifies" (Oauth.verify_dpop ~pub proof)
+
+let test_par_token_loop_retries_nonce _ =
+  let priv, pub = p256_pair () in
+  let par_hits = ref 0 in
+  let seen_nonce = ref None in
+  let http ~url ~headers ~body:_ =
+    let dpop = List.assoc "DPoP" headers in
+    let claims = Oauth.parse_dpop dpop in
+    if url = "https://bsky.social/oauth/par" then (
+      incr par_hits;
+      if !par_hits = 1 then
+        {
+          Oauth.status = 400;
+          headers = [ ("DPoP-Nonce", "server-nonce-1") ];
+          body =
+            {|{"error":"use_dpop_nonce","error_description":"retry with nonce"}|};
+        }
+      else (
+        seen_nonce := claims.nonce;
+        {
+          Oauth.status = 201;
+          headers = [ ("DPoP-Nonce", "server-nonce-2") ];
+          body =
+            {|{"request_uri":"urn:ietf:params:oauth:request_uri:abc","expires_in":90}|};
+        }))
+    else if url = "https://bsky.social/oauth/token" then
+      {
+        Oauth.status = 200;
+        headers = [];
+        body =
+          {|{"access_token":"tok","token_type":"DPoP","expires_in":300,"refresh_token":"rt","scope":"atproto transition:generic","sub":"did:plc:7iza6de2dwap2sbkpav7c6c6"}|};
+      }
+    else failwith ("unexpected url " ^ url)
+  in
+  let pkce = Oauth.pkce_s256 ~verifier:rfc7636_verifier () in
+  let par_form =
+    Oauth.pushed_authorization_body ~client_id ~redirect_uri
+      ~code_challenge:pkce.challenge ~state:"abc" ()
+  in
+  let par, nonce =
+    Oauth.push_authorization ~http ~priv ~pub
+      ~par_url:"https://bsky.social/oauth/par" ~form:par_form ()
+  in
+  OUnit2.assert_equal 2 !par_hits;
+  OUnit2.assert_equal (Some "server-nonce-1") !seen_nonce;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "urn:ietf:params:oauth:request_uri:abc" par.request_uri;
+  OUnit2.assert_equal (Some 90) par.expires_in;
+  OUnit2.assert_equal (Some "server-nonce-2") nonce;
+  let token_form =
+    Oauth.token_body ~client_id ~redirect_uri ~code:"authz-code"
+      ~code_verifier:pkce.verifier ()
+  in
+  let token, _ =
+    Oauth.exchange_code ~http ~priv ~pub
+      ~token_url:"https://bsky.social/oauth/token" ~form:token_form ()
+  in
+  OUnit2.assert_equal ~printer:(fun x -> x)
+    "did:plc:7iza6de2dwap2sbkpav7c6c6" token.sub;
+  let headers =
+    Oauth.resource_request_headers ~priv ~pub ~htm:"GET"
+      ~htu:"https://pds.example/xrpc/com.atproto.repo.getRecord"
+      ~access_token:token.access_token ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "DPoP tok"
+    (List.assoc "Authorization" headers)
+
+let test_live_as_metadata _ =
+  let old =
+    Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
+  in
+  ignore (Unix.alarm 20);
+  Fun.protect
+    ~finally:(fun () ->
+      ignore (Unix.alarm 0);
+      Sys.set_signal Sys.sigalrm old)
+    (fun () ->
+      try
+        let url = Oauth.authorization_server_url () in
+        let headers =
+          Atproto.Cohttp_client.Cohttp_client.create_headers_from_pairs
+            [
+              Atproto.Cohttp_client.Cohttp_client
+              .application_json_setting_tuple;
+            ]
+        in
+        let body =
+          Lwt_main.run
+            (Atproto.Cohttp_client.Cohttp_client.get_request_with_headers url
+               headers)
+        in
+        let meta = Oauth.parse_as_metadata (Yojson.Safe.from_string body) in
+        Oauth.validate_as_metadata meta;
+        OUnit2.assert_equal ~printer:(fun x -> x) "https://bsky.social"
+          meta.issuer
+      with exn ->
+        skip_if true
+          ("oauth authorization-server metadata skipped: "
+         ^ Printexc.to_string exn))
 
 let suite =
   "oauth"
@@ -109,6 +473,24 @@ let suite =
          "test_dpop_sign_and_verify" >:: test_dpop_sign_and_verify;
          "test_dpop_ath" >:: test_dpop_ath;
          "test_par_and_token_shapes" >:: test_par_and_token_shapes;
+         "test_client_metadata_public" >:: test_client_metadata_public;
+         "test_client_metadata_confidential"
+         >:: test_client_metadata_confidential;
+         "test_client_metadata_rejects_private_jwk"
+         >:: test_client_metadata_rejects_private_jwk;
+         "test_localhost_client_metadata" >:: test_localhost_client_metadata;
+         "test_as_and_resource_metadata" >:: test_as_and_resource_metadata;
+         "test_as_metadata_rejects_missing_par"
+         >:: test_as_metadata_rejects_missing_par;
+         "test_redirect_and_authorize_url" >:: test_redirect_and_authorize_url;
+         "test_redirect_denied" >:: test_redirect_denied;
+         "test_redirect_state_mismatch" >:: test_redirect_state_mismatch;
+         "test_token_response_guards" >:: test_token_response_guards;
+         "test_client_assertion" >:: test_client_assertion;
+         "test_dpop_nonce_claim" >:: test_dpop_nonce_claim;
+         "test_par_token_loop_retries_nonce"
+         >:: test_par_token_loop_retries_nonce;
+         "test_live_as_metadata" >:: test_live_as_metadata;
        ]
 
 let () = run_test_tt_main suite
