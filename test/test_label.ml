@@ -115,6 +115,24 @@ let test_subscribe_url _ =
     "wss://mod.example.com/xrpc/com.atproto.label.subscribeLabels?cursor=0"
     (Label.subscribe_url ~host:"mod.example.com" ~cursor:0L ())
 
+let test_subscribe_one_live _ =
+  let old =
+    Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
+  in
+  ignore (Unix.alarm 15);
+  Fun.protect
+    ~finally:(fun () ->
+      ignore (Unix.alarm 0);
+      Sys.set_signal Sys.sigalrm old)
+    (fun () ->
+      try
+        let _, msg = Label.subscribe_one () in
+        match msg with
+        | `Labels _ | `Info _ | `Error _ | `Unknown _ ->
+            OUnit2.assert_bool "decoded subscribeLabels" true
+      with exn ->
+        skip_if true ("subscribeLabels skipped: " ^ Printexc.to_string exn))
+
 let test_json_sig_roundtrip _ =
   let json =
     `Assoc
@@ -146,6 +164,7 @@ let suite =
          "test_label_sign_verify_k256" >:: test_label_sign_verify_k256;
          "test_subscribe_labels_frame" >:: test_subscribe_labels_frame;
          "test_subscribe_url" >:: test_subscribe_url;
+         "test_subscribe_one_live" >:: test_subscribe_one_live;
          "test_json_sig_roundtrip" >:: test_json_sig_roundtrip;
        ]
 

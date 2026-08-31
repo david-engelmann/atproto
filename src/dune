@@ -66,6 +66,7 @@
   Oauth_scope
   Ozone
   Repo
+  Repo_sync
   Request
   Response
   Server

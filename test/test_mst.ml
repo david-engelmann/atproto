@@ -248,6 +248,84 @@ let test_invert_create_update_delete _ =
   | Some c -> OUnit2.assert_bool "delete inverted to va" (Cid.equal c va)
   | None -> OUnit2.assert_failure "delete invert did not restore key"
 
+let test_apply_create_update_delete _ =
+  let store = Mst.store_of_get (fun _ -> None) in
+  let t0 = Mst.empty_tree store in
+  let va = value_cid "rec-a"
+  and vb = value_cid "rec-b"
+  and vc = value_cid "rec-c" in
+  let t, _ = Mst.insert t0 "app.bsky.feed.post/aaa" va in
+  let before = Mst.root_cid t in
+  let created =
+    Mst.apply_ops t
+      [
+        {
+          Mst.action = "create";
+          path = "app.bsky.feed.post/bbb";
+          cid = Some vb;
+          prev = None;
+        };
+      ]
+  in
+  (match Mst.get created "app.bsky.feed.post/bbb" with
+  | Some c -> OUnit2.assert_bool "create applied" (Cid.equal c vb)
+  | None -> OUnit2.assert_failure "create did not insert");
+  let inverted =
+    Mst.invert_ops created
+      [
+        {
+          Mst.action = "create";
+          path = "app.bsky.feed.post/bbb";
+          cid = Some vb;
+          prev = None;
+        };
+      ]
+  in
+  OUnit2.assert_bool "apply then invert"
+    (Cid.equal (Mst.root_cid inverted) before);
+  let updated =
+    Mst.apply_op created
+      {
+        Mst.action = "update";
+        path = "app.bsky.feed.post/bbb";
+        cid = Some vc;
+        prev = Some vb;
+      }
+  in
+  (match Mst.get updated "app.bsky.feed.post/bbb" with
+  | Some c -> OUnit2.assert_bool "update applied" (Cid.equal c vc)
+  | None -> OUnit2.assert_failure "update dropped key");
+  let deleted =
+    Mst.apply_op updated
+      {
+        Mst.action = "delete";
+        path = "app.bsky.feed.post/aaa";
+        cid = None;
+        prev = Some va;
+      }
+  in
+  OUnit2.assert_equal None (Mst.get deleted "app.bsky.feed.post/aaa");
+  let walked = Mst.walk deleted in
+  OUnit2.assert_equal [ "app.bsky.feed.post/bbb" ] (List.map fst walked)
+
+let test_apply_create_conflict _ =
+  let store = Mst.store_of_get (fun _ -> None) in
+  let t = Mst.empty_tree store in
+  let va = value_cid "rec-a" in
+  let t, _ = Mst.insert t "app.bsky.feed.post/aaa" va in
+  OUnit2.assert_bool "duplicate create accepted"
+    (try
+       ignore
+         (Mst.apply_op t
+            {
+              Mst.action = "create";
+              path = "app.bsky.feed.post/aaa";
+              cid = Some va;
+              prev = None;
+            });
+       false
+     with Mst.Verify_error _ -> true)
+
 let test_invert_create_mismatch _ =
   let store = Mst.store_of_get (fun _ -> None) in
   let t = Mst.empty_tree store in
@@ -383,6 +461,8 @@ let suite =
          "test_insert_lookup_remove" >:: test_insert_lookup_remove;
          "test_insert_replace_returns_prev" >:: test_insert_replace_returns_prev;
          "test_invert_create_update_delete" >:: test_invert_create_update_delete;
+         "test_apply_create_update_delete" >:: test_apply_create_update_delete;
+         "test_apply_create_conflict" >:: test_apply_create_conflict;
          "test_invert_create_mismatch" >:: test_invert_create_mismatch;
          "test_sign_verify_commit_p256" >:: test_sign_verify_commit_p256;
          "test_sign_verify_commit_k256" >:: test_sign_verify_commit_k256;

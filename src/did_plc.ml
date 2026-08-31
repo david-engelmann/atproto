@@ -144,6 +144,29 @@ module Did_plc = struct
         && String.sub id (String.length id - 8) 8 = "#atproto")
       doc.verification_method
 
+  let did_key_of_method (m : verification_method) : string option =
+    match m.public_key_multibase with
+    | Some mb when String.length mb > 8 && String.sub mb 0 8 = "did:key:" ->
+        Some mb
+    | Some mb when String.length mb > 0 && (mb.[0] = 'z' || mb.[0] = 'Z') ->
+        Some ("did:key:" ^ mb)
+    | _ -> None
+
+  let is_atproto_key_id (id : string) : bool =
+    let n = String.length id in
+    n >= 8 && String.sub id (n - 8) 8 = "#atproto"
+
+  let atproto_signing_keys (doc : did_document) : string list =
+    List.filter_map
+      (fun (m : verification_method) ->
+        if is_atproto_key_id m.id then did_key_of_method m else None)
+      doc.verification_method
+
+  let signing_keys_of_document (doc : did_document) : string list =
+    match atproto_signing_keys doc with
+    | [] -> List.filter_map did_key_of_method doc.verification_method
+    | keys -> keys
+
   let directory_url ?(directory = default_directory) (did : string) : string =
     Printf.sprintf "https://%s/%s" directory did
 

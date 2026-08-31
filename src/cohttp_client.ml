@@ -133,6 +133,21 @@ module Cohttp_client = struct
     (*Printf.printf "Body of length: %d\n" (String.length body);*)
     body
 
+  let get_with_status (url : string) headers : (int * string) Lwt.t =
+    let open Lwt.Infix in
+    Cohttp_lwt_unix.Client.get ~headers (Uri.of_string url)
+    >>= fun (resp, body) ->
+    let code = resp |> Response.status |> Code.code_of_status in
+    body |> Cohttp_lwt.Body.to_string >|= fun body -> (code, body)
+
+  let post_with_status (url : string) data headers : (int * string) Lwt.t =
+    let open Lwt.Infix in
+    let body = Cohttp_lwt.Body.of_string data in
+    Cohttp_lwt_unix.Client.post ~headers ~body (Uri.of_string url)
+    >>= fun (resp, body) ->
+    let code = resp |> Response.status |> Code.code_of_status in
+    body |> Cohttp_lwt.Body.to_string >|= fun body -> (code, body)
+
   let post_request_with_headers (url : string) headers =
     let open Lwt.Infix in
     Cohttp_lwt_unix.Client.post ~headers (Uri.of_string url)

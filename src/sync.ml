@@ -202,6 +202,12 @@ module Sync = struct
       (("did", did) :: ("collection", collection) :: ("rkey", rkey)
       :: optional_pairs [ ("commit", commit) ])
 
+  let get_record_car ?host ?session ?commit (did : string) (collection : string)
+      (rkey : string) : Car.t =
+    Car.parse (get_record ?host ?session ?commit did collection rkey)
+
+  let record_path ~collection ~rkey = collection ^ "/" ^ rkey
+
   let list_blobs ?host ?session ?since ?cursor ?limit (did : string) :
       list_blobs =
     request_json ?host ?session

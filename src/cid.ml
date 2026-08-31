@@ -71,4 +71,30 @@ module Cid = struct
 
   let create ?(codec = Dag_cbor) (data : string) : t =
     of_digest ~codec (sha256 data)
+
+  (* Blobs are raw + SHA-256; repo records / MST nodes are dag-cbor. *)
+  let of_blob (bytes : string) : t = create ~codec:Raw bytes
+
+  let verify_blob ?(expected : t option) (bytes : string) : t =
+    let got = of_blob bytes in
+    match expected with
+    | None -> got
+    | Some cid ->
+        if equal cid got then got
+        else
+          failwith
+            (Printf.sprintf "Cid.verify_blob: expected %s got %s"
+               (to_string cid) (to_string got))
+
+  let verify_block ?(expected : t option) ?(codec = Dag_cbor) (bytes : string) :
+      t =
+    let got = create ~codec bytes in
+    match expected with
+    | None -> got
+    | Some cid ->
+        if equal cid got then got
+        else
+          failwith
+            (Printf.sprintf "Cid.verify_block: expected %s got %s"
+               (to_string cid) (to_string got))
 end

@@ -38,7 +38,7 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | AppView feed | `Feed` | Timeline, threads, generators (`getFeed` / `getFeedGenerator` / `getActorFeeds`), `searchPosts`, quotes, list feed, interactions |
 | AppView graph | `Graph` | Follows/blocks/mutes, lists, starter packs, relationships, known followers |
 | Bookmarks | `Bookmark` | `createBookmark` / `deleteBookmark` / `getBookmarks` |
-| Jetstream | `Jetstream` | v2 live tail (`wss://jetstream.us-west/east.bsky.network/xrpc/network.bsky.jetstream.subscribeEvents`), collection/DID/kind filters, seq + unix-µs cursors, reconnect/dedupe, v1 `/subscribe` compat, snapshot/replay URL+plan types (no archive token) |
+| Jetstream | `Jetstream` | v2 live tail, collection/DID/kind filters, seq + unix-µs cursors, reconnect/dedupe, v1 `/subscribe` compat; Network Replay planner (`planSnapshot`/`planBackfill`/`listSegments` types, page window, download jobs, live cutover `?cursor=sealedTipSeq`, Range resume) + skippable unauthenticated HTTP (no invented archive token) |
 | Video | `Video` | `getJobStatus`, `getUploadLimits`, byte upload (`uploadVideo` URL + POST), service-auth audience (`did:web:<pds>` + `uploadBlob` lxm), injectable job poll, `video_embed_json`. Client only — no hosted transcoder |
 | Unspecced | `Unspecced` | Popular generators, search skeletons, trending topics, config |
 | Labeler | `Labeler` | `app.bsky.labeler.getServices` |
@@ -46,19 +46,20 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | Ozone | `Ozone` | `tools.ozone.moderation.*` + `getConfig`; requires `atproto-proxy` |
 | Admin | `Admin` | `com.atproto.admin` subject status, account info, invites, email |
 | Repo writes | `Repo` | `createRecord` / `putRecord` / `deleteRecord` / `applyWrites` bodies; `uploadBlob` parse |
-| Server | `Server` | describe server (typed), app passwords, invites, `reserveSigningKey`, account activate/status, `getServiceAuth` |
+| Server | `Server` | describe server (typed), app passwords, invites, `reserveSigningKey`, account activate/status, `getServiceAuth` (aud may be `did#service`) |
 | Identity | `Identity`, `Did_plc`, `Did_web`, `Did_key` | resolve + updateHandle / PLC operation helpers |
 | PLC chain | `Did_plc` | Genesis DID, prev CID links, p256 **and k256** ECDSA (low-S, IEEE P1363) |
 | Sync | `Sync` | `getLatestCommit`, `getRepo` (CAR), public `getBlocks` (bytes/CAR), `listBlobs`, `listRepos`, host/repo status |
 | CID / CAR | `Cid`, `Car`, `Dag_cbor` | CIDv1 (including SHA-256 `Cid.create`) + CARv1 |
-| MST | `Mst` | Layer/prefix rules, node parse, CID verify, lookup, insert/delete, firehose-diff inversion, p256/k256 commit sign+verify |
+| MST | `Mst` | Layer/prefix rules, node parse, CID verify, lookup, insert/delete/walk, firehose-diff inversion **and** forward apply, p256/k256 commit sign+verify |
+| Repo sync (TAP-like) | `Repo_sync` | Library-shaped backfill: open/verify repo CAR, walk records, `getRecord` inclusion proof, record-table apply of firehose ops, `#sync` desync, MST-level `apply_commit_tree`. Not a hosted Tap service |
 | TID | `Tid` | Record-key / commit-rev identifiers (base32-sortable, official syntax) |
 | AT URI | `At_uri` | `at://` parse / serialize |
 | Lexicon | `Lexicon` | Parse lexicon-1 JSON (parameters + procedure input/output schemas), `to_ocaml` codegen, JSON validate |
 | Firehose | `Firehose`, `Websocket` | RFC 6455 client + `subscribeRepos` frame decode (`#commit`/`#sync`/`#identity`/`#account`/`#info`) |
 | OAuth / DPoP | `Oauth`, `Oauth_scope` | PKCE S256, DPoP ES256 + nonce, client metadata, PAR/token loop; granular scope grammar (`repo:`/`rpc:`/`blob:`/`include:`/`transition:`) |
 | Labels | `Label` | `queryLabels` + label / query parse (`ver`, `exp`) |
-| XRPC headers | `Xrpc` | `atproto-proxy`, accept-labelers, rate-limit, service-auth JWT; chat + appview proxies |
+| XRPC headers | `Xrpc` | `atproto-proxy`, accept-labelers, rate-limit; service-auth JWT mint/verify (ES256/ES256K, `kid`/`jti`/`iat`/`lxm`, `did#service` aud, replay cache) |
 | Errors | `Error` | XRPC `{error, message}` including rate limits |
 | Syntax | `Syntax` | Handle, DID, NSID, record-key, datetime, language validators |
 | Embeds / facets | `Embed`, `Facet` | Images, external, record, recordWithMedia, video; mention / link / tag |
@@ -72,11 +73,12 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 These are product-level, not missing protocol cores:
 
 - Hosting a public **client-metadata document** and completing a **live browser login** against a PDS (the protocol core — metadata, PAR + DPoP-nonce retry, authorize URL, redirect `code`/`state`/`iss`, token parse — is implemented and tested with fixtures)
-- A hosted PDS, hosted video transcoder, or live Ozone operator session (client request/response types, video byte-upload + job poll, and proxy headers are implemented)
-- Jetstream Network Replay / HTTP snapshot download against Bluesky's gated archive (plan/segment/block URLs and JSON types are implemented; live download needs an operator token this library does not invent)
+- A hosted PDS, hosted Tap service, hosted video transcoder, or live Ozone operator session (client request/response types, video byte-upload + job poll, TAP-like repo sync helpers, and proxy headers are implemented)
+- Jetstream Network Replay / HTTP snapshot **download** against Bluesky's gated archive (planner, `listSegments` types, cutover cursor, Range resume, and skippable unauthenticated HTTP are implemented; a live archive download still needs an operator token this library does not invent)
 - Permissioned data / spaces / LtHash (no stable public spec to implement yet)
+- Defined CAR block ordering and collection-subset repo exports (Sync 1.1 leftovers; no stable export layout to implement yet)
 
-Jetstream v2, granular OAuth scopes, Sync v1.1 `getBlocks` (public), live-shaped firehose MST verify, and the video byte-upload pipeline are in this slice. #70–#74 already landed identity/MST/OAuth-core/AppView/Ozone.
+Service-auth JWT mint/verify (`jti`/`kid`/`iat`, `did#service` audience, ES256/ES256K), TAP-like `Repo_sync` (CAR walk, record-table apply, `#sync` resync, MST forward apply), blob CID verify, and skippable Jetstream snapshot HTTP are in this slice. #70–#75 already landed identity/MST/OAuth-core/AppView/Ozone/Jetstream/video.
 
 Open PR `#69` (`de-sync-types`) is superseded by this work: it still targeted the removed `getCheckout` API and left CAR/CBOR unfinished.
 
@@ -129,6 +131,12 @@ let _js =
         kinds = [ Jetstream.Commit ];
       }
     ()
+
+(* TAP-like local indexer: backfill a CAR, then apply firehose ops *)
+let acct =
+  Repo_sync.create_account ~did:"did:plc:abc123xyz0001112223333"
+    ~collections:[ "app.bsky.feed.post" ] ()
+let _ = acct.Repo_sync.status
 
 (* granular OAuth scopes (atproto remains mandatory) *)
 let scopes = Oauth_scope.parse "atproto repo:app.bsky.feed.post"

@@ -254,6 +254,36 @@ let test_verify_live_shaped_cbor_frame _ =
         | None -> false)
   | _ -> OUnit2.assert_failure "expected #commit frame"
 
+let test_verify_sync_commit_object _ =
+  let commit = synthetic_inverted_commit () in
+  let sync =
+    {
+      Firehose.seq = 9L;
+      did = commit.repo;
+      blocks = commit.blocks;
+      raw_blocks = commit.raw_blocks;
+      rev = commit.rev;
+      time = commit.time;
+    }
+  in
+  let signed = Firehose.verify_sync sync in
+  OUnit2.assert_equal ~printer:(fun x -> x) commit.repo signed.did;
+  OUnit2.assert_equal ~printer:(fun x -> x) commit.rev signed.rev
+
+let test_apply_commit_matches_invert _ =
+  let commit = synthetic_inverted_commit () in
+  let signed = Firehose.verify_commit_object commit in
+  let store = Mst.store_of_car commit.blocks in
+  let current = Mst.tree_of_root store signed.data in
+  let prev_root = Firehose.invert_commit commit in
+  (* rebuild the previous tree by inverting, then apply forward *)
+  let prev_tree = Mst.invert_ops current (Firehose.record_ops commit.ops) in
+  OUnit2.assert_bool "invert root"
+    (Cid.equal (Mst.root_cid prev_tree) prev_root);
+  let applied = Firehose.apply_commit ~prev_tree commit in
+  OUnit2.assert_bool "apply returns to commit.data"
+    (Cid.equal (Mst.root_cid applied) signed.data)
+
 let test_invert_rejects_wrong_op _ =
   let commit = synthetic_inverted_commit () in
   let bad =
@@ -427,6 +457,8 @@ let suite =
          "test_decode_update_and_delete_ops"
          >:: test_decode_update_and_delete_ops;
          "test_invert_synthetic_commit" >:: test_invert_synthetic_commit;
+         "test_apply_commit_matches_invert" >:: test_apply_commit_matches_invert;
+         "test_verify_sync_commit_object" >:: test_verify_sync_commit_object;
          "test_verify_live_shaped_cbor_frame"
          >:: test_verify_live_shaped_cbor_frame;
          "test_invert_rejects_wrong_op" >:: test_invert_rejects_wrong_op;

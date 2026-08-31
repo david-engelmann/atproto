@@ -49,7 +49,13 @@ let test_parse_document _ =
   OUnit2.assert_equal (Some "https://example2.com") (Did_plc.pds_endpoint doc);
   match Did_plc.signing_key doc with
   | None -> OUnit2.assert_failure "missing #atproto key"
-  | Some key -> OUnit2.assert_equal ~printer:(fun x -> x) "Multikey" key.type_
+  | Some key ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "Multikey" key.type_;
+      let keys = Did_plc.atproto_signing_keys doc in
+      OUnit2.assert_equal 1 (List.length keys);
+      OUnit2.assert_bool "did:key prefix"
+        (String.length (List.hd keys) > 8
+        && String.sub (List.hd keys) 0 8 = "did:key:")
 
 let test_directory_url _ =
   OUnit2.assert_equal

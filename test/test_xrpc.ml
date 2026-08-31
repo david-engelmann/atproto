@@ -1,6 +1,9 @@
 open OUnit2
 open Atproto.Xrpc
 open Atproto.Base64url
+open Atproto.Hash
+open Atproto.Did_key
+open Atproto.K256
 
 let test_proxy _ =
   let p = Xrpc.parse_proxy "did:plc:abc123xyz0001112223333#atproto_labeler" in
@@ -97,7 +100,119 @@ let test_service_auth_jwt _ =
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "did:web:mod.example.com"
-    (body |> member "aud" |> to_string)
+    (body |> member "aud" |> to_string);
+  let frag =
+    Xrpc.service_auth_body ~aud:"did:web:video.bsky.app#bsky_transcode"
+      ~lxm:"com.atproto.repo.uploadBlob" ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:web:video.bsky.app#bsky_transcode"
+    (frag |> member "aud" |> to_string)
+
+let rfc6979_p256_priv =
+  Hash.hex_decode
+    "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721"
+
+let p256_pair () =
+  match Mirage_crypto_ec.P256.Dsa.priv_of_octets rfc6979_p256_priv with
+  | Error _ -> failwith "could not load RFC 6979 P-256 private key"
+  | Ok priv -> (priv, Mirage_crypto_ec.P256.Dsa.pub_of_priv priv)
+
+let p256_did_key pub =
+  Did_key.to_string
+    (Did_key.of_p256_octets
+       (Mirage_crypto_ec.P256.Dsa.pub_to_octets ~compress:true pub))
+
+let test_service_jwt_p256_roundtrip _ =
+  let priv, pub = p256_pair () in
+  let jwt =
+    Xrpc.sign_service_jwt_p256 ~priv ~iss:"did:plc:ewvi7nxzyoun6zhxrhs64oiz"
+      ~aud:"did:web:video.bsky.app#bsky_transcode"
+      ~lxm:"com.atproto.repo.uploadBlob" ~exp:2_000_000_000L ~iat:1_700_000_000L
+      ~jti:"aabbccddeeff00112233445566778899" ~now:1_700_000_000.0 ()
+  in
+  let claims =
+    Xrpc.verify_service_jwt
+      ~keys:[ p256_did_key pub ]
+      ~aud:"did:web:video.bsky.app#bsky_transcode"
+      ~lxm:"com.atproto.repo.uploadBlob" ~now:1_700_000_010.0 jwt
+  in
+  OUnit2.assert_equal ~printer:(fun x -> x) "ES256" claims.alg;
+  OUnit2.assert_equal ~printer:(fun x -> x) "#atproto" claims.kid;
+  OUnit2.assert_equal (Some "aabbccddeeff00112233445566778899") claims.jti;
+  OUnit2.assert_equal (Some "bsky_transcode") claims.aud_service;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:web:video.bsky.app" claims.aud_did;
+  let h, v = Xrpc.service_auth_header jwt in
+  OUnit2.assert_equal "Authorization" h;
+  OUnit2.assert_bool "bearer"
+    (String.length v > 7 && String.sub v 0 7 = "Bearer ")
+
+let test_service_jwt_k256_roundtrip _ =
+  match K256.priv_of_octets (Hash.hex_decode (String.make 63 '0' ^ "3")) with
+  | Error _ -> OUnit2.assert_failure "k256 priv rejected"
+  | Ok priv ->
+      let pub = K256.pub_of_priv priv in
+      let key =
+        Did_key.to_string
+          (Did_key.of_k256_octets (K256.pub_to_octets ~compress:true pub))
+      in
+      let jwt =
+        Xrpc.sign_service_jwt_k256 ~priv ~iss:"did:plc:ewvi7nxzyoun6zhxrhs64oiz"
+          ~aud:"did:web:api.bsky.app#bsky_appview"
+          ~lxm:"app.bsky.feed.getFeedSkeleton" ~exp:2_000_000_000L
+          ~iat:1_700_000_000L ~jti:"k256nonce" ()
+      in
+      let claims =
+        Xrpc.verify_service_jwt ~keys:[ key ]
+          ~aud:"did:web:api.bsky.app#bsky_appview" ~now:1_700_000_000.0 jwt
+      in
+      OUnit2.assert_equal ~printer:(fun x -> x) "ES256K" claims.alg;
+      OUnit2.assert_equal (Some "k256nonce") claims.jti
+
+let test_service_jwt_rejects _ =
+  let priv, pub = p256_pair () in
+  let key = p256_did_key pub in
+  let jwt =
+    Xrpc.sign_service_jwt_p256 ~priv ~iss:"did:plc:ewvi7nxzyoun6zhxrhs64oiz"
+      ~aud:"did:web:mod.example.com#atproto_labeler"
+      ~lxm:"com.atproto.moderation.createReport" ~exp:1_700_000_060L
+      ~iat:1_700_000_000L ~jti:"once" ()
+  in
+  OUnit2.assert_bool "wrong aud accepted"
+    (try
+       ignore
+         (Xrpc.verify_service_jwt ~keys:[ key ] ~aud:"did:web:other.example"
+            ~now:1_700_000_010.0 jwt);
+       false
+     with Xrpc.Invalid _ -> true);
+  OUnit2.assert_bool "expired accepted"
+    (try
+       ignore (Xrpc.verify_service_jwt ~keys:[ key ] ~now:1_700_000_200.0 jwt);
+       false
+     with Xrpc.Invalid _ -> true);
+  OUnit2.assert_bool "wrong lxm accepted"
+    (try
+       ignore
+         (Xrpc.verify_service_jwt ~keys:[ key ]
+            ~lxm:"com.atproto.server.createSession" ~now:1_700_000_010.0 jwt);
+       false
+     with Xrpc.Invalid _ -> true);
+  OUnit2.assert_bool "bare aud is not a wildcard"
+    (try
+       ignore
+         (Xrpc.verify_service_jwt ~keys:[ key ] ~aud:"did:web:mod.example.com"
+            ~now:1_700_000_010.0 jwt);
+       false
+     with Xrpc.Invalid _ -> true);
+  let cache = Xrpc.create_jti_cache () in
+  let claims = Xrpc.parse_service_auth jwt in
+  OUnit2.assert_bool "first jti is new"
+    (not (Xrpc.remember_jti ~now:1_700_000_010.0 cache claims));
+  OUnit2.assert_bool "replayed jti"
+    (Xrpc.remember_jti ~now:1_700_000_010.0 cache claims)
 
 let suite =
   "xrpc"
@@ -107,6 +222,9 @@ let suite =
          "test_rate_limit" >:: test_rate_limit;
          "test_repo_rev" >:: test_repo_rev;
          "test_service_auth_jwt" >:: test_service_auth_jwt;
+         "test_service_jwt_p256_roundtrip" >:: test_service_jwt_p256_roundtrip;
+         "test_service_jwt_k256_roundtrip" >:: test_service_jwt_k256_roundtrip;
+         "test_service_jwt_rejects" >:: test_service_jwt_rejects;
        ]
 
 let () = run_test_tt_main suite

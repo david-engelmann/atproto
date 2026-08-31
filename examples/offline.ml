@@ -11,6 +11,8 @@ open Atproto.Oauth
 open Atproto.Xrpc
 open Atproto.Jetstream
 open Atproto.Oauth_scope
+open Atproto.Repo_sync
+open Atproto.Cid
 open Atproto.Repo
 open Atproto.Server
 open Atproto.Http_method
@@ -138,4 +140,13 @@ let () =
         ])
   in
   (match ev with `Commit _ -> () | _ -> assert false);
+  let aud = Syntax.parse_did_ref "did:web:video.bsky.app#bsky_transcode" in
+  assert (aud.fragment = Some "bsky_transcode");
+  let blob_cid = Cid.of_blob "clip-bytes" in
+  assert (blob_cid.codec = Cid.Raw);
+  let acct =
+    Repo_sync.create_account ~did:"did:plc:abc123xyz0001112223333"
+      ~collections:[ "app.bsky.feed.post" ] ()
+  in
+  assert (acct.status = Repo_sync.Desynchronized);
   print_endline "examples/offline: public API typechecks and fixtures pass"
