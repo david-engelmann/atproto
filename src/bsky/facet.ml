@@ -71,4 +71,91 @@ module Facet = struct
     else
       let features = List.map parse_link_feature features_json in
       `Link { facet_index; features }
+
+  let index_to_json (i : facet_index) : Yojson.Safe.t =
+    `Assoc [ ("byteStart", `Int i.byte_start); ("byteEnd", `Int i.byte_end) ]
+
+  let mention_feature_to_json (f : mention_feature) : Yojson.Safe.t =
+    `Assoc
+      [
+        ( "$type",
+          `String
+            (if f.mention_type = "" then "app.bsky.richtext.facet#mention"
+             else f.mention_type) );
+        ("did", `String f.did);
+      ]
+
+  let link_feature_to_json (f : link_feature) : Yojson.Safe.t =
+    let fields =
+      [
+        ( "$type",
+          `String
+            (if f.link_type = "" then "app.bsky.richtext.facet#link"
+             else f.link_type) );
+        ("uri", `String f.uri);
+      ]
+      @ if f.cid = "" then [] else [ ("cid", `String f.cid) ]
+    in
+    `Assoc fields
+
+  let tag_feature_to_json (f : tag_feature) : Yojson.Safe.t =
+    `Assoc
+      [
+        ( "$type",
+          `String
+            (if f.tag_type = "" then "app.bsky.richtext.facet#tag"
+             else f.tag_type) );
+        ("tag", `String f.tag);
+      ]
+
+  let facet_to_json (f : facet) : Yojson.Safe.t =
+    match f with
+    | `Mention m ->
+        let fields =
+          [ ("index", index_to_json m.facet_index) ]
+          @ (if m.facet_type = "" then []
+             else [ ("$type", `String m.facet_type) ])
+          @ [
+              ("features", `List (List.map mention_feature_to_json m.features));
+            ]
+        in
+        `Assoc fields
+    | `Link l ->
+        `Assoc
+          [
+            ("index", index_to_json l.facet_index);
+            ("features", `List (List.map link_feature_to_json l.features));
+          ]
+    | `Tag t ->
+        `Assoc
+          [
+            ("index", index_to_json t.facet_index);
+            ("features", `List (List.map tag_feature_to_json t.features));
+          ]
+
+  let facets_to_json (fs : facet list) : Yojson.Safe.t =
+    `List (List.map facet_to_json fs)
+
+  let mention ~byte_start ~byte_end did : facet =
+    `Mention
+      {
+        facet_type = "";
+        facet_index = { byte_start; byte_end };
+        features = [ { did; mention_type = "app.bsky.richtext.facet#mention" } ];
+      }
+
+  let link ~byte_start ~byte_end uri : facet =
+    `Link
+      {
+        facet_index = { byte_start; byte_end };
+        features =
+          [ { uri; cid = ""; link_type = "app.bsky.richtext.facet#link" } ];
+      }
+
+  let tag ~byte_start ~byte_end tag : facet =
+    `Tag
+      {
+        facet_index = { byte_start; byte_end };
+        features = [ { tag; tag_type = "app.bsky.richtext.facet#tag" } ];
+      }
 end

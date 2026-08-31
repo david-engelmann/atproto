@@ -107,6 +107,43 @@ module Label = struct
         if vals = [] then None else Some vals
     | _ -> None
 
+  let self_label_values json : string list =
+    match json with
+    | `List items ->
+        List.filter_map
+          (function
+            | `String s -> Some s
+            | `Assoc _ as obj -> (
+                match Yojson.Safe.Util.member "val" obj with
+                | `String s -> Some s
+                | _ -> None)
+            | _ -> None)
+          items
+    | _ -> []
+
+  (* com.atproto.label.defs#selfLabels — author-applied values on a record. *)
+  let parse_self_labels json : string list option =
+    match json with
+    | `Null -> None
+    | `Assoc _ -> (
+        match Yojson.Safe.Util.member "values" json with
+        | `List _ as values ->
+            let vals = self_label_values values in
+            if vals = [] then None else Some vals
+        | _ -> None)
+    | `List _ as values ->
+        let vals = self_label_values values in
+        if vals = [] then None else Some vals
+    | _ -> None
+
+  let self_labels_to_json (vals : string list) : Yojson.Safe.t =
+    `Assoc
+      [
+        ("$type", `String "com.atproto.label.defs#selfLabels");
+        ( "values",
+          `List (List.map (fun v -> `Assoc [ ("val", `String v) ]) vals) );
+      ]
+
   let create_label_endpoint (query_name : string) : string =
     "com.atproto.label" ^ "." ^ query_name
 

@@ -110,6 +110,28 @@ let test_update_handle_body _ =
     "alice.test"
     (body |> member "handle" |> to_string)
 
+let test_parse_did_resolution _ =
+  let json =
+    `Assoc
+      [
+        ( "didDoc",
+          `Assoc
+            [
+              ("id", `String "did:plc:ewvi7nxzyoun6zhxrhs64oiz");
+              ("alsoKnownAs", `List [ `String "at://jay.bsky.team" ]);
+              ("verificationMethod", `List []);
+              ("service", `List []);
+            ] );
+      ]
+  in
+  let resolved = Identity.parse_did_resolution json in
+  match resolved.document with
+  | Some doc ->
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "did:plc:ewvi7nxzyoun6zhxrhs64oiz" doc.id
+  | None -> OUnit2.assert_failure "expected parsed DID document"
+
 let test_handle_txt_helpers _ =
   OUnit2.assert_equal (Some "did:plc:ewvi7nxzyoun6zhxrhs64oiz")
     (Identity.parse_txt_did "did=did:plc:ewvi7nxzyoun6zhxrhs64oiz");
@@ -127,6 +149,7 @@ let suite =
          "test_resolve_handle_live" >:: test_resolve_handle_live;
          "test_resolve_actor_live" >:: test_resolve_actor_live;
          "test_parse_identity_info" >:: test_parse_identity_info;
+         "test_parse_did_resolution" >:: test_parse_did_resolution;
          "test_plc_operation_bodies" >:: test_plc_operation_bodies;
          "test_recommended_did_credentials" >:: test_recommended_did_credentials;
          "test_handle_txt_helpers" >:: test_handle_txt_helpers;

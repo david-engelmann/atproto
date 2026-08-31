@@ -75,10 +75,28 @@ module Identity = struct
       [ ("handle", handle) ]
     |> parse_resolved_handle
 
+  type did_resolution = {
+    did_doc : Yojson.Safe.t;
+    document : Did_plc.Did_plc.did_document option;
+  }
+
+  let parse_did_resolution json : did_resolution =
+    let open Yojson.Safe.Util in
+    let did_doc =
+      match json |> member "didDoc" with `Null -> json | other -> other
+    in
+    let document =
+      try Some (Did_plc.Did_plc.parse_document did_doc) with _ -> None
+    in
+    { did_doc; document }
+
   let resolve_did ?host ?session (did : string) : Yojson.Safe.t =
     get_json ?host ?session
       (create_identity_endpoint "resolveDid")
       [ ("did", did) ]
+
+  let resolve_did_parsed ?host ?session (did : string) : did_resolution =
+    resolve_did ?host ?session did |> parse_did_resolution
 
   let resolve ?host ?session (actor : string) : resolved_identity =
     if String.length actor >= 4 && String.sub actor 0 4 = "did:" then

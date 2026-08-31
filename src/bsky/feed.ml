@@ -4,6 +4,7 @@ open App
 open Actor
 open Notification
 open Facet
+open Embed
 
 module Feed = struct
   (* Authors feed comes with either "post" "post"+"reply" or "post"+"reason"
@@ -23,6 +24,9 @@ module Feed = struct
     record_type : string;
     langs : string list option;
     facets : Facet.facet list option;
+    embed : Embed.embed option;
+    tags : string list option;
+    self_labels : string list option;
     created_at : string;
   }
 
@@ -158,14 +162,25 @@ module Feed = struct
     try Some (json |> member "facets" |> to_list |> List.map Facet.parse_facet)
     with Type_error _ -> None
 
+  let extract_tags_option json : string list option =
+    let open Yojson.Safe.Util in
+    try Some (json |> member "tags" |> to_list |> List.map to_string)
+    with Type_error _ -> None
+
+  let extract_self_labels_option json : string list option =
+    Label.Label.parse_self_labels (Yojson.Safe.Util.member "labels" json)
+
   let parse_post_record json : post_record =
     let open Yojson.Safe.Util in
     let text = json |> member "text" |> to_string in
     let record_type = json |> member "$type" |> to_string in
     let langs = extract_langs_option json in
     let facets = extract_facets_option json in
+    let embed = Embed.parse_embed_option json in
+    let tags = extract_tags_option json in
+    let self_labels = extract_self_labels_option json in
     let created_at = json |> member "createdAt" |> to_string in
-    { text; record_type; langs; facets; created_at }
+    { text; record_type; langs; facets; embed; tags; self_labels; created_at }
 
   let parse_reply_record json : reply_record =
     let open Yojson.Safe.Util in
@@ -659,9 +674,12 @@ module Feed = struct
     author_did : string option;
     author_handle : string option;
     text : string option;
+    embed : Embed.embed option;
+    tags : string list option;
     indexed_at : string;
     reply_count : int option;
     like_count : int option;
+    quote_count : int option;
     original : Yojson.Safe.t;
   }
 
@@ -825,12 +843,19 @@ module Feed = struct
         (match author |> member "handle" with `String s -> Some s | _ -> None);
       text =
         (match record |> member "text" with `String s -> Some s | _ -> None);
+      embed =
+        (match Embed.parse_embed_option json with
+        | Some e -> Some e
+        | None -> Embed.parse_embed_option record);
+      tags = extract_tags_option record;
       indexed_at =
         (match json |> member "indexedAt" with `String s -> s | _ -> "");
       reply_count =
         (match json |> member "replyCount" with `Int n -> Some n | _ -> None);
       like_count =
         (match json |> member "likeCount" with `Int n -> Some n | _ -> None);
+      quote_count =
+        (match json |> member "quoteCount" with `Int n -> Some n | _ -> None);
       original = json;
     }
 

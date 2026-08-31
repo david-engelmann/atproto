@@ -42,12 +42,12 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | Video | `Video` | `getJobStatus`, `getUploadLimits`, byte upload (`uploadVideo` URL + POST), service-auth audience (`did:web:<pds>` + `uploadBlob` lxm), injectable job poll, `video_embed_json`. Client only — no hosted transcoder |
 | Unspecced | `Unspecced` | Popular generators, search skeletons, trending topics, config |
 | Labeler | `Labeler` | `app.bsky.labeler.getServices` |
-| Chat / DMs | `Chat` | `chat.bsky.convo.*` with `atproto-proxy: did:web:api.bsky.chat#bsky_chat` |
-| Ozone | `Ozone` | `tools.ozone.moderation.*` + `getConfig`; requires `atproto-proxy` |
+| Chat / DMs | `Chat` | `chat.bsky.convo.*` including reactions, requests, leave/accept, log, unread counts, batch send, `updateAllRead`; `atproto-proxy: did:web:api.bsky.chat#bsky_chat` |
+| Ozone | `Ozone` | `tools.ozone.moderation.*` including subjects/repos/records, account timeline, reporter stats, scheduled actions + `getConfig`; requires `atproto-proxy` |
 | Admin | `Admin` | `com.atproto.admin` subject status, account info, invites, email |
-| Repo writes | `Repo` | `createRecord` / `putRecord` / `deleteRecord` / `applyWrites` bodies; `uploadBlob` parse |
+| Repo writes | `Repo`, `Records` | `createRecord` / `putRecord` / `deleteRecord` / `applyWrites` bodies; typed `describeRepo` / `getRecord` / `listRecords` parsers; builders for post/like/repost/follow/block/listblock/profile |
 | Server | `Server` | describe server (typed), app passwords, invites, `reserveSigningKey`, account activate/status, `getServiceAuth` (aud may be `did#service`) |
-| Identity | `Identity`, `Did_plc`, `Did_web`, `Did_key` | resolve + updateHandle / PLC operation helpers |
+| Identity | `Identity`, `Did_plc`, `Did_web`, `Did_key` | resolve + typed `resolveDid` DID document + updateHandle / PLC operation helpers |
 | PLC chain | `Did_plc` | Genesis DID, prev CID links, p256 **and k256** ECDSA (low-S, IEEE P1363) |
 | Sync | `Sync` | `getLatestCommit`, `getRepo` (CAR), public `getBlocks` (bytes/CAR), `listBlobs`, `listRepos`, host/repo status |
 | CID / CAR | `Cid`, `Car`, `Dag_cbor` | CIDv1 (including SHA-256 `Cid.create`) + CARv1, blessed CID check, Sync 1.1 streamable pre-order |
@@ -58,12 +58,12 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | Lexicon | `Lexicon` | Parse lexicon-1 JSON (parameters + procedure input/output schemas), `to_ocaml` codegen, JSON validate |
 | Firehose | `Firehose`, `Websocket` | RFC 6455 client + `subscribeRepos` frame decode (`#commit`/`#sync`/`#identity`/`#account`/`#info`) |
 | OAuth / DPoP | `Oauth`, `Oauth_scope` | PKCE S256, DPoP ES256 + nonce, client metadata, PAR/token loop; granular scope grammar (`repo:`/`rpc:`/`blob:`/`include:`/`transition:`) |
-| Labels | `Label` | `queryLabels` + label / query parse (`ver`, `exp`) |
+| Labels | `Label` | `queryLabels` + label / query parse (`ver`, `exp`) + `#selfLabels` |
 | XRPC headers | `Xrpc` | `atproto-proxy`, accept-labelers, rate-limit; service-auth JWT mint/verify (ES256/ES256K, `kid`/`jti`/`iat`/`lxm`, `did#service` aud, replay cache) |
 | Errors | `Error` | XRPC `{error, message}` including rate limits |
 | Syntax | `Syntax` | Handle, DID, NSID, record-key, datetime, language validators |
-| Embeds / facets | `Embed`, `Facet` | Images, external, record, recordWithMedia, video; mention / link / tag |
-| Notifications | `Notification` | Unread count, list, updateSeen; unknown reasons parse as `` `Other `` |
+| Embeds / facets | `Embed`, `Facet` | Images, external, record, recordWithMedia, video, **gallery**, record `#view` union; `getEmbedExternalView`; mention / link / tag parse **and serialize** |
+| Notifications | `Notification` | All `listNotifications` known reasons; prefs / prefs-v2 / activity subscriptions / register+unregister push |
 | User reports | `Moderation` | `com.atproto.moderation.createReport` (strongRef / repoRef) |
 | Crypto / codecs | `K256`, `Base32`, `Base58`, `Base64url`, `Hash`, `Varint` | secp256k1, multibase, CID/CAR varints |
 | HTTP helpers | `App`, `Client`, `Cohttp_client`, `Http_client`, `Http_method`, `Request`, `Response`, `User` | Endpoint URLs, shared XRPC GET/POST, method enum |
@@ -78,7 +78,17 @@ These are product-level, not missing protocol cores:
 - Permissioned data / spaces / LtHash (no stable public spec to implement yet)
 - Official `com.atproto.sync.getRepo` **lexicon** still has no `collection` parameter (client-side subset export from a full CAR is implemented; servers that reject unknown query params are unchanged)
 
-Service-auth JWT mint/verify, TAP-like `Repo_sync`, Sync 1.1 pre-order CAR encode/verify + collection-subset proofs, `.jss` v1 columnar decode, blessed CID / repo-path / firehose size+future-rev checks are in this slice. #70–#76 already landed identity/MST/OAuth-core/AppView/Ozone/Jetstream/video/service-auth.
+Service-auth JWT mint/verify, TAP-like `Repo_sync`, Sync 1.1 pre-order CAR encode/verify + collection-subset proofs, `.jss` v1 columnar decode, blessed CID / repo-path / firehose size+future-rev checks landed in #70–#77. This slice adds current-lexicon AppView record/embed parsers (gallery + record views), typed repo reads, Bluesky record builders, notification prefs/push, and remaining chat/ozone XRPC clients.
+
+Still thin vs current lexicons (library leftovers, not product work):
+
+- Feed thread types remain the original (sometimes inaccurate) shapes; `post` / `thread_post` views still omit top-level embed
+- Chat message facets/reactions/attachments stay on `original` JSON; lock/unlock/group-admin convo methods are not wrapped
+- Ozone event/subject payloads remain `Yojson.Safe.t` (query/emit clients exist)
+- `Lexicon.to_ocaml` still emits unions as `Yojson.Safe.t`; no bundled official lexicon JSON
+- `Http_client` H2 stub and unused `Request`/`Response` types
+- `chat.bsky.notification.*` preference endpoints (moved off `app.bsky.notification` in 2026)
+- Graph list/starter-pack **record** builders beyond follow/block/listblock
 
 Open PR `#69` (`de-sync-types`) is superseded by this work: it still targeted the removed `getCheckout` API and left CAR/CBOR unfinished.
 
@@ -102,6 +112,12 @@ let () = assert (Mst.layer_for_key "blue" = 1)
 
 (* TID used as record keys and commit revs *)
 let () = assert (Tid.is_valid "3jzfcijpj2z2a")
+
+(* typed Bluesky record builders + facet serialize *)
+let post =
+  Records.post ~text:"hello #atproto" ~created_at:"2024-01-01T00:00:00.000Z"
+    ~facets:[ Facet.tag ~byte_start:6 ~byte_end:14 "atproto" ]
+    ()
 
 (* OAuth client metadata + authorize URL (no hosted client required) *)
 let meta =

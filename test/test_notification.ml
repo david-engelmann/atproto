@@ -34,10 +34,141 @@ let test_parse_unread_and_like _ =
         "app.bsky.feed.like" r.record_type
   | _ -> OUnit2.assert_failure "expected like");
   match
-    Notification.parse_record (`Assoc [ ("text", `String "hi") ]) "quote"
+    Notification.parse_record
+      (`Assoc
+        [
+          ("$type", `String "app.bsky.feed.post");
+          ("text", `String "hi");
+          ("createdAt", `String "2024-01-01T00:00:00.000Z");
+        ])
+      "quote"
   with
-  | `Other o -> OUnit2.assert_equal ~printer:(fun x -> x) "quote" o.reason
-  | _ -> OUnit2.assert_failure "expected other record for quote"
+  | `Quote q -> OUnit2.assert_equal ~printer:(fun x -> x) "hi" q.text
+  | _ -> OUnit2.assert_failure "expected quote record"
+
+let test_parse_mention_and_via_repost _ =
+  (match
+     Notification.parse_record
+       (`Assoc
+         [
+           ("$type", `String "app.bsky.feed.post");
+           ("text", `String "@alice hello");
+           ("createdAt", `String "2024-01-01T00:00:00.000Z");
+         ])
+       "mention"
+   with
+  | `Mention m ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "@alice hello" m.text
+  | _ -> OUnit2.assert_failure "expected mention");
+  (match
+     Notification.parse_record
+       (`Assoc
+         [
+           ("$type", `String "app.bsky.feed.like");
+           ( "subject",
+             `Assoc
+               [
+                 ( "uri",
+                   `String "at://did:plc:alice/app.bsky.feed.post/3jzfcijpj2z2a"
+                 );
+                 ( "cid",
+                   `String "bafyreihdummy000000000000000000000000000000000" );
+               ] );
+           ("createdAt", `String "2024-01-01T00:00:00.000Z");
+         ])
+       "like-via-repost"
+   with
+  | `Like_via_repost _ -> ()
+  | _ -> OUnit2.assert_failure "expected like-via-repost");
+  match Notification.parse_record (`Assoc []) "unknown-reason" with
+  | `Other o ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "unknown-reason" o.reason
+  | _ -> OUnit2.assert_failure "expected other"
+
+let test_parse_preferences _ =
+  let json =
+    `Assoc
+      [
+        ( "preferences",
+          `Assoc
+            [
+              ( "chat",
+                `Assoc [ ("include", `String "all"); ("push", `Bool true) ] );
+              ( "follow",
+                `Assoc
+                  [
+                    ("include", `String "all");
+                    ("list", `Bool true);
+                    ("push", `Bool false);
+                  ] );
+              ( "like",
+                `Assoc
+                  [
+                    ("include", `String "follows");
+                    ("list", `Bool true);
+                    ("push", `Bool true);
+                  ] );
+              ( "likeViaRepost",
+                `Assoc
+                  [
+                    ("include", `String "all");
+                    ("list", `Bool false);
+                    ("push", `Bool false);
+                  ] );
+              ( "mention",
+                `Assoc
+                  [
+                    ("include", `String "all");
+                    ("list", `Bool true);
+                    ("push", `Bool true);
+                  ] );
+              ( "quote",
+                `Assoc
+                  [
+                    ("include", `String "all");
+                    ("list", `Bool true);
+                    ("push", `Bool true);
+                  ] );
+              ( "reply",
+                `Assoc
+                  [
+                    ("include", `String "all");
+                    ("list", `Bool true);
+                    ("push", `Bool true);
+                  ] );
+              ( "repost",
+                `Assoc
+                  [
+                    ("include", `String "all");
+                    ("list", `Bool true);
+                    ("push", `Bool false);
+                  ] );
+              ( "repostViaRepost",
+                `Assoc
+                  [
+                    ("include", `String "all");
+                    ("list", `Bool false);
+                    ("push", `Bool false);
+                  ] );
+              ( "starterpackJoined",
+                `Assoc [ ("list", `Bool true); ("push", `Bool false) ] );
+              ( "subscribedPost",
+                `Assoc [ ("list", `Bool true); ("push", `Bool true) ] );
+              ( "unverified",
+                `Assoc [ ("list", `Bool true); ("push", `Bool false) ] );
+              ("verified", `Assoc [ ("list", `Bool true); ("push", `Bool true) ]);
+            ] );
+      ]
+  in
+  let prefs = Notification.parse_preferences json in
+  OUnit2.assert_equal ~printer:(fun x -> x) "follows" prefs.like.include_;
+  OUnit2.assert_equal true prefs.verified.push;
+  let encoded = Notification.preferences_to_json prefs in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "follows"
+    (encoded |> member "like" |> member "include" |> to_string)
 
 let test_get_unread_count _ =
   skip_if
@@ -78,6 +209,9 @@ let suite =
   "suite"
   >::: [
          "test_parse_unread_and_like" >:: test_parse_unread_and_like;
+         "test_parse_mention_and_via_repost"
+         >:: test_parse_mention_and_via_repost;
+         "test_parse_preferences" >:: test_parse_preferences;
          "test_get_unread_count" >:: test_get_unread_count;
          "test_list_notifications" >:: test_list_notifications;
          "test_update_seen" >:: test_update_seen;

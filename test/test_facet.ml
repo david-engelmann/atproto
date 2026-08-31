@@ -71,12 +71,34 @@ let test_parse_tag _ =
         "atproto" (List.hd t.features).tag
   | _ -> OUnit2.assert_failure "expected tag"
 
+let test_builders_and_serialize _ =
+  let mention =
+    Facet.mention ~byte_start:0 ~byte_end:5 "did:plc:abc123xyz0001112223333"
+  in
+  let link = Facet.link ~byte_start:6 ~byte_end:20 "https://atproto.com" in
+  let tag = Facet.tag ~byte_start:21 ~byte_end:29 "atproto" in
+  (match mention with
+  | `Mention m ->
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "did:plc:abc123xyz0001112223333" (List.hd m.features).did
+  | _ -> OUnit2.assert_failure "expected mention builder");
+  let json = Facet.facets_to_json [ mention; link; tag ] in
+  match json with
+  | `List xs -> (
+      OUnit2.assert_equal 3 (List.length xs);
+      match Facet.parse_facet (List.hd xs) with
+      | `Mention _ -> ()
+      | _ -> OUnit2.assert_failure "roundtrip mention")
+  | _ -> OUnit2.assert_failure "expected list"
+
 let suite =
   "facet"
   >::: [
          "test_parse_mention" >:: test_parse_mention;
          "test_parse_link" >:: test_parse_link;
          "test_parse_tag" >:: test_parse_tag;
+         "test_builders_and_serialize" >:: test_builders_and_serialize;
        ]
 
 let () = run_test_tt_main suite

@@ -70,6 +70,51 @@ let test_send_message_body _ =
     "hi"
     (body |> member "message" |> member "text" |> to_string)
 
+let test_parse_unread_and_logs _ =
+  let counts =
+    Chat.parse_unread_counts
+      (`Assoc
+        [ ("unreadAcceptedConvos", `Int 3); ("unreadRequestConvos", `Int 1) ])
+  in
+  OUnit2.assert_equal 3 counts.unread_accepted;
+  OUnit2.assert_equal 1 counts.unread_request;
+  let logs =
+    Chat.parse_logs
+      (`Assoc
+        [
+          ( "logs",
+            `List
+              [
+                `Assoc
+                  [
+                    ("$type", `String "chat.bsky.convo.defs#logCreateMessage");
+                    ("convoId", `String "c1");
+                    ("rev", `String "r2");
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal 1 (List.length logs.logs);
+  let accept = Chat.parse_accept (`Assoc [ ("rev", `String "r9") ]) in
+  OUnit2.assert_equal (Some "r9") accept.rev;
+  let avail =
+    Chat.parse_availability
+      (`Assoc
+        [
+          ("canChat", `Bool true);
+          ( "convo",
+            `Assoc
+              [
+                ("id", `String "c2");
+                ("rev", `String "r0");
+                ("muted", `Bool false);
+                ("unreadCount", `Int 0);
+                ("members", `List []);
+              ] );
+        ])
+  in
+  OUnit2.assert_equal true avail.can_chat
+
 let test_list_convos_auth_skipped _ =
   skip_if
     (not Auth.has_live_credentials)
@@ -87,6 +132,7 @@ let suite =
          "test_default_proxy" >:: test_default_proxy;
          "test_parse_convos" >:: test_parse_convos;
          "test_send_message_body" >:: test_send_message_body;
+         "test_parse_unread_and_logs" >:: test_parse_unread_and_logs;
          "test_list_convos_auth_skipped" >:: test_list_convos_auth_skipped;
        ]
 
