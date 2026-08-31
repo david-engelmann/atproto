@@ -119,6 +119,20 @@ let embed =
 (* firehose: one subscribeRepos frame from the public relay *)
 let _header, msg = Firehose.subscribe_one ()
 
+(* Jetstream v2 JSON tail — URL only here; subscribe_one talks to the public WS *)
+let _js =
+  Jetstream.subscribe_url
+    ~filter:
+      {
+        Jetstream.empty_filter with
+        collections = [ "app.bsky.feed.post" ];
+        kinds = [ Jetstream.Commit ];
+      }
+    ()
+
+(* granular OAuth scopes (atproto remains mandatory) *)
+let scopes = Oauth_scope.parse "atproto repo:app.bsky.feed.post"
+
 (* authenticated writes / private surfaces *)
 let username, password = Auth.username_and_password_from_env
 let session = Session.create_session username password

@@ -162,7 +162,9 @@ let test_already_exists _ =
   let st = Video.parse_upload_response json in
   OUnit2.assert_equal ~printer:(fun x -> x) "job-dup" st.job_id;
   OUnit2.assert_bool "already_exists" (Video.already_exists st);
-  OUnit2.assert_bool "blob present" (Video.blob_ready st)
+  OUnit2.assert_bool "blob present" (Video.blob_ready st);
+  OUnit2.assert_bool "not failed" (not (Video.is_failed st));
+  OUnit2.assert_bool "completed via blob" (Video.is_completed st)
 
 let test_poll_until_blob _ =
   let n = ref 0 in

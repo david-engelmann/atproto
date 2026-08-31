@@ -99,22 +99,25 @@ module Video = struct
         state
     in
     if upper = "JOB_STATE_COMPLETED" || upper = "COMPLETED" then Completed
-    else if
-      upper = "JOB_STATE_FAILED" || upper = "FAILED" || upper = "ALREADY_EXISTS"
-    then Failed
+    else if upper = "JOB_STATE_FAILED" || upper = "FAILED" then Failed
     else In_progress
 
-  let is_completed (st : job_status) : bool =
-    classify_state st.state = Completed
+  let blob_ready (st : job_status) : bool = Option.is_some st.blob
 
-  let is_failed (st : job_status) : bool = classify_state st.state = Failed
+  (* already_exists is not a hard failure — the tutorial notes the job
+     may still carry a blob ref that can be embedded. *)
+  let is_completed (st : job_status) : bool =
+    classify_state st.state = Completed || blob_ready st
+
+  let is_failed (st : job_status) : bool =
+    classify_state st.state = Failed && not (blob_ready st)
 
   let is_terminal (st : job_status) : bool =
+    blob_ready st
+    ||
     match classify_state st.state with
     | Completed | Failed -> true
     | In_progress -> false
-
-  let blob_ready (st : job_status) : bool = Option.is_some st.blob
 
   let already_exists (st : job_status) : bool =
     match st.error with

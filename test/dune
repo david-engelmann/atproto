@@ -5,6 +5,7 @@
   test_admin
   test_at_uri
   test_auth
+  test_base32
   test_base64url
   test_bookmark
   test_car
@@ -79,6 +80,7 @@
   test_admin
   test_at_uri
   test_auth
+  test_base32
   test_base64url
   test_bookmark
   test_car

@@ -158,6 +158,14 @@ let test_cursor_magnitude _ =
       OUnit2.assert_equal ~printer:Int64.to_string 1724084535744408L n
   | Jetstream.Seq _ -> OUnit2.assert_failure "expected time_us cursor"
 
+let test_collection_wildcard_allowed _ =
+  Jetstream.validate_filter
+    {
+      Jetstream.empty_filter with
+      collections = [ "app.bsky.feed.*" ];
+      kinds = [ Jetstream.Commit ];
+    }
+
 let test_filter_limits _ =
   OUnit2.assert_raises (Jetstream.Invalid_filter "collections cap is 100")
     (fun () ->
@@ -279,6 +287,7 @@ let suite =
          "test_subscribe_url_filters" >:: test_subscribe_url_filters;
          "test_v1_url" >:: test_v1_url;
          "test_cursor_magnitude" >:: test_cursor_magnitude;
+         "test_collection_wildcard_allowed" >:: test_collection_wildcard_allowed;
          "test_filter_limits" >:: test_filter_limits;
          "test_dedupe" >:: test_dedupe;
          "test_reconnect_cursor" >:: test_reconnect_cursor;
