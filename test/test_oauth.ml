@@ -51,7 +51,17 @@ let test_dpop_sign_and_verify _ =
   OUnit2.assert_bool "DPoP signature must verify" (Oauth.verify_dpop ~pub proof);
   let tampered = proof ^ "x" in
   OUnit2.assert_bool "tampered DPoP accepted"
-    (not (Oauth.verify_dpop ~pub tampered))
+    (not (Oauth.verify_dpop ~pub tampered));
+  let h, p, s = Oauth.split_jwt proof in
+  let raw = Atproto.Base64url.Base64url.decode s in
+  let r = String.sub raw 0 32 in
+  let t = String.sub raw 32 32 in
+  let high = Oauth.sub_be Oauth.p256_n t in
+  let high_proof =
+    h ^ "." ^ p ^ "." ^ Atproto.Base64url.Base64url.encode (r ^ high)
+  in
+  OUnit2.assert_bool "high-S DPoP accepted"
+    (not (Oauth.verify_dpop ~pub high_proof))
 
 let test_dpop_ath _ =
   let priv, pub = p256_pair () in

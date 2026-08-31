@@ -6,6 +6,8 @@ open Base64url
 open Hash
 open Did_key
 
+let ensure_rng = lazy (Mirage_crypto_rng_unix.use_default ())
+
 (** did:plc documents and directory resolution — https://web.plc.directory/spec/v0.1/did-plc *)
 module Did_plc = struct
   type verification_method = {
@@ -247,8 +249,14 @@ module Did_plc = struct
   type sig_status =
     [ `Valid | `Invalid | `Unsupported_curve of string | `Missing ]
 
+  let k256_n = K256.K256.n_octets
+  let k256_n_half = K256.K256.n_half_octets
+  let low_s_k256 = K256.K256.low_s
+  let is_low_s_k256 = K256.K256.is_low_s
+
   let sign_p256 ~(priv : Mirage_crypto_ec.P256.Dsa.priv) (json : Yojson.Safe.t)
       : Yojson.Safe.t =
+    Lazy.force ensure_rng;
     let unsigned = strip_sig json in
     let digest = Hash.sha256 (cbor_of_json unsigned) in
     let r, s = Mirage_crypto_ec.P256.Dsa.sign ~key:priv digest in
@@ -275,6 +283,30 @@ module Did_plc = struct
               `Valid
             else `Invalid
 
+  let sign_k256 ~(priv : K256.K256.priv) (json : Yojson.Safe.t) : Yojson.Safe.t
+      =
+    let unsigned = strip_sig json in
+    let digest = Hash.sha256 (cbor_of_json unsigned) in
+    let r, s = K256.K256.sign ~key:priv digest in
+    let sig_b64 = Base64url.encode (r ^ s) in
+    match unsigned with
+    | `Assoc fields -> `Assoc (fields @ [ ("sig", `String sig_b64) ])
+    | _ -> failwith "Did_plc.sign_k256: expected a JSON object"
+
+  let verify_k256 ~(pub : K256.K256.pub) (op : operation) : sig_status =
+    match op.sig_ with
+    | None -> `Missing
+    | Some b64 ->
+        let raw = Base64url.decode b64 in
+        if String.length raw <> 64 then `Invalid
+        else
+          let r = String.sub raw 0 32 in
+          let s = String.sub raw 32 32 in
+          if not (is_low_s_k256 s) then `Invalid
+          else
+            let digest = Hash.sha256 (unsigned_bytes op) in
+            if K256.K256.verify ~key:pub (r, s) digest then `Valid else `Invalid
+
   let verify_with_rotation_keys (keys : string list) (op : operation) :
       sig_status =
     let parsed =
@@ -282,21 +314,36 @@ module Did_plc = struct
         (fun k -> try Some (Did_key.of_string k) with _ -> None)
         keys
     in
-    let p256s = List.filter (fun k -> k.Did_key.curve = Did_key.P256) parsed in
-    let has_k256 =
-      List.exists (fun k -> k.Did_key.curve = Did_key.K256) parsed
-    in
-    let rec try_p256 = function
-      | [] -> if has_k256 then `Unsupported_curve "k256" else `Invalid
+    let rec try_keys = function
+      | [] -> (
+          let other =
+            List.find_map
+              (fun k ->
+                match k.Did_key.curve with
+                | Did_key.Other n -> Some (Printf.sprintf "0x%x" n)
+                | _ -> None)
+              parsed
+          in
+          match other with Some c -> `Unsupported_curve c | None -> `Invalid)
       | k :: rest -> (
-          match Did_key.p256_pub k with
-          | Some pub -> (
-              match verify_p256 ~pub op with
-              | `Valid -> `Valid
-              | _ -> try_p256 rest)
-          | None -> try_p256 rest)
+          match k.Did_key.curve with
+          | Did_key.P256 -> (
+              match Did_key.p256_pub k with
+              | Some pub -> (
+                  match verify_p256 ~pub op with
+                  | `Valid -> `Valid
+                  | _ -> try_keys rest)
+              | None -> try_keys rest)
+          | Did_key.K256 -> (
+              match Did_key.k256_pub k with
+              | Some pub -> (
+                  match verify_k256 ~pub op with
+                  | `Valid -> `Valid
+                  | _ -> try_keys rest)
+              | None -> try_keys rest)
+          | Did_key.Other _ -> try_keys rest)
     in
-    try_p256 p256s
+    try_keys parsed
 
   type chain_result = {
     genesis_ok : bool;

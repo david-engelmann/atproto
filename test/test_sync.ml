@@ -10,6 +10,17 @@ let skip_without_auth () =
     (not Auth.has_live_credentials)
     "ATP_AUTH not configured; live Bluesky test skipped"
 
+let with_public_timeout ?(seconds = 20) f =
+  let old =
+    Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
+  in
+  ignore (Unix.alarm seconds);
+  Fun.protect
+    ~finally:(fun () ->
+      ignore (Unix.alarm 0);
+      Sys.set_signal Sys.sigalrm old)
+    f
+
 let create_test_session _ =
   let username, password = Auth.username_and_password_from_env in
   Session.create_session username password
@@ -23,21 +34,25 @@ let public_pds_host ident =
 
 let test_get_latest_commit_public _ =
   try
-    let ident = public_actor () in
-    let host = public_pds_host ident in
-    let commit = Sync.get_latest_commit ~host ident.did in
-    OUnit2.assert_bool "latest commit cid empty" (String.length commit.cid > 0);
-    OUnit2.assert_bool "latest commit rev empty" (String.length commit.rev > 0)
+    with_public_timeout (fun () ->
+        let ident = public_actor () in
+        let host = public_pds_host ident in
+        let commit = Sync.get_latest_commit ~host ident.did in
+        OUnit2.assert_bool "latest commit cid empty"
+          (String.length commit.cid > 0);
+        OUnit2.assert_bool "latest commit rev empty"
+          (String.length commit.rev > 0))
   with exn ->
     skip_if true ("getLatestCommit skipped: " ^ Printexc.to_string exn)
 
 let test_list_blobs_public _ =
   try
-    let ident = public_actor () in
-    let host = public_pds_host ident in
-    let blobs = Sync.list_blobs ~host ~limit:5 ident.did in
-    OUnit2.assert_bool "listBlobs should return a list"
-      (List.length blobs.cids >= 0)
+    with_public_timeout (fun () ->
+        let ident = public_actor () in
+        let host = public_pds_host ident in
+        let blobs = Sync.list_blobs ~host ~limit:5 ident.did in
+        OUnit2.assert_bool "listBlobs should return a list"
+          (List.length blobs.cids >= 0))
   with exn -> skip_if true ("listBlobs skipped: " ^ Printexc.to_string exn)
 
 let test_get_head _ =

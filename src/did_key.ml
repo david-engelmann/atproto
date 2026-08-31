@@ -1,5 +1,6 @@
 open Base58
 open Varint
+open K256
 
 (** did:key encoding for AT Protocol rotation and signing keys (p256 / k256). *)
 module Did_key = struct
@@ -39,11 +40,19 @@ module Did_key = struct
     "did:key:z" ^ Base58.encode (Varint.encode code ^ k.public_key)
 
   let of_p256_octets (public_key : string) : t = { curve = P256; public_key }
+  let of_k256_octets (public_key : string) : t = { curve = K256; public_key }
 
   let p256_pub (k : t) : Mirage_crypto_ec.P256.Dsa.pub option =
     if k.curve <> P256 then None
     else
       match Mirage_crypto_ec.P256.Dsa.pub_of_octets k.public_key with
+      | Ok pub -> Some pub
+      | Error _ -> None
+
+  let k256_pub (k : t) : K256.pub option =
+    if k.curve <> K256 then None
+    else
+      match K256.pub_of_octets k.public_key with
       | Ok pub -> Some pub
       | Error _ -> None
 end

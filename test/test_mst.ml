@@ -149,6 +149,120 @@ let test_rejects_bad_prefix _ =
        false
      with Mst.Verify_error _ -> true)
 
+let value_cid label = Cid.create ~codec:Cid.Raw label
+
+let test_insert_lookup_remove _ =
+  let store = Mst.store_of_get (fun _ -> None) in
+  let t = Mst.empty_tree store in
+  let v1 = value_cid "one"
+  and v2 = value_cid "two"
+  and v3 = value_cid "three" in
+  let t, prev = Mst.insert t "2653ae71" v1 in
+  OUnit2.assert_equal None prev;
+  let t, prev = Mst.insert t "asdf" v2 in
+  OUnit2.assert_equal None prev;
+  let t, prev = Mst.insert t "blue" v3 in
+  OUnit2.assert_equal None prev;
+  (match Mst.get t "2653ae71" with
+  | Some c -> OUnit2.assert_bool "v1" (Cid.equal c v1)
+  | None -> OUnit2.assert_failure "missing 2653ae71");
+  (match Mst.get t "blue" with
+  | Some c -> OUnit2.assert_bool "v3" (Cid.equal c v3)
+  | None -> OUnit2.assert_failure "missing blue");
+  let t, prev = Mst.remove t "asdf" in
+  (match prev with
+  | Some c -> OUnit2.assert_bool "removed v2" (Cid.equal c v2)
+  | None -> OUnit2.assert_failure "remove missed asdf");
+  OUnit2.assert_equal None (Mst.get t "asdf");
+  Mst.verify_tree ~get_block:(Mst.store_get t.store) (Mst.root_cid t)
+
+let test_insert_replace_returns_prev _ =
+  let store = Mst.store_of_get (fun _ -> None) in
+  let t = Mst.empty_tree store in
+  let a = value_cid "a" and b = value_cid "b" in
+  let t, _ = Mst.insert t "asdf" a in
+  let t, prev = Mst.insert t "asdf" b in
+  (match prev with
+  | Some c -> OUnit2.assert_bool "prev a" (Cid.equal c a)
+  | None -> OUnit2.assert_failure "replace should return previous CID");
+  match Mst.get t "asdf" with
+  | Some c -> OUnit2.assert_bool "now b" (Cid.equal c b)
+  | None -> OUnit2.assert_failure "key missing after replace"
+
+let test_invert_create_update_delete _ =
+  let store = Mst.store_of_get (fun _ -> None) in
+  let t0 = Mst.empty_tree store in
+  let va = value_cid "rec-a"
+  and vb = value_cid "rec-b"
+  and vc = value_cid "rec-c" in
+  let t, _ = Mst.insert t0 "app.bsky.feed.post/aaa" va in
+  let before_create = Mst.root_cid t in
+  let t, _ = Mst.insert t "app.bsky.feed.post/bbb" vb in
+  let after_create = Mst.root_cid t in
+  let inverted =
+    Mst.invert_ops t
+      [
+        {
+          Mst.action = "create";
+          path = "app.bsky.feed.post/bbb";
+          cid = Some vb;
+          prev = None;
+        };
+      ]
+  in
+  OUnit2.assert_bool "invert create"
+    (Cid.equal (Mst.root_cid inverted) before_create);
+  let t, _ = Mst.insert inverted "app.bsky.feed.post/bbb" vb in
+  OUnit2.assert_bool "re-apply create" (Cid.equal (Mst.root_cid t) after_create);
+  let t, _ = Mst.insert t "app.bsky.feed.post/bbb" vc in
+  let inverted =
+    Mst.invert_ops t
+      [
+        {
+          Mst.action = "update";
+          path = "app.bsky.feed.post/bbb";
+          cid = Some vc;
+          prev = Some vb;
+        };
+      ]
+  in
+  (match Mst.get inverted "app.bsky.feed.post/bbb" with
+  | Some c -> OUnit2.assert_bool "update inverted to vb" (Cid.equal c vb)
+  | None -> OUnit2.assert_failure "update invert dropped key");
+  let t, _ = Mst.remove inverted "app.bsky.feed.post/aaa" in
+  let inverted =
+    Mst.invert_ops t
+      [
+        {
+          Mst.action = "delete";
+          path = "app.bsky.feed.post/aaa";
+          cid = None;
+          prev = Some va;
+        };
+      ]
+  in
+  match Mst.get inverted "app.bsky.feed.post/aaa" with
+  | Some c -> OUnit2.assert_bool "delete inverted to va" (Cid.equal c va)
+  | None -> OUnit2.assert_failure "delete invert did not restore key"
+
+let test_invert_create_mismatch _ =
+  let store = Mst.store_of_get (fun _ -> None) in
+  let t = Mst.empty_tree store in
+  let va = value_cid "rec-a" and wrong = value_cid "nope" in
+  let t, _ = Mst.insert t "app.bsky.feed.post/aaa" va in
+  OUnit2.assert_bool "bad invert accepted"
+    (try
+       ignore
+         (Mst.invert_op t
+            {
+              Mst.action = "create";
+              path = "app.bsky.feed.post/aaa";
+              cid = Some wrong;
+              prev = None;
+            });
+       false
+     with Mst.Verify_error _ -> true)
+
 let test_cid_mismatch _ =
   let v = Cid.create ~codec:Cid.Raw "x" in
   let node =
@@ -175,6 +289,10 @@ let suite =
          "test_two_level_tree" >:: test_two_level_tree;
          "test_rejects_unsorted_keys" >:: test_rejects_unsorted_keys;
          "test_rejects_bad_prefix" >:: test_rejects_bad_prefix;
+         "test_insert_lookup_remove" >:: test_insert_lookup_remove;
+         "test_insert_replace_returns_prev" >:: test_insert_replace_returns_prev;
+         "test_invert_create_update_delete" >:: test_invert_create_update_delete;
+         "test_invert_create_mismatch" >:: test_invert_create_mismatch;
          "test_cid_mismatch" >:: test_cid_mismatch;
        ]
 

@@ -3,6 +3,7 @@ open Atproto.Did_plc
 open Atproto.Did_key
 open Atproto.Hash
 open Atproto.Base64url
+open Atproto.K256
 
 let sample_doc =
   {|
@@ -162,6 +163,71 @@ let test_chain_prev_and_genesis _ =
   in
   OUnit2.assert_bool "wrong DID must fail genesis" (not broken.genesis_ok)
 
+let k256_pair () =
+  match K256.priv_of_octets (Hash.hex_decode (String.make 63 '0' ^ "2")) with
+  | Error _ -> failwith "could not load k256 private key"
+  | Ok priv -> (priv, K256.pub_of_priv priv)
+
+let rotation_k256_did_key pub =
+  Did_key.to_string
+    (Did_key.of_k256_octets (K256.pub_to_octets ~compress:true pub))
+
+let test_sign_and_verify_k256 _ =
+  let priv, pub = k256_pair () in
+  let rotation = rotation_k256_did_key pub in
+  let signed = Did_plc.sign_k256 ~priv (genesis_json rotation) in
+  let op = Did_plc.parse_operation signed in
+  let did = Did_plc.genesis_did op in
+  OUnit2.assert_bool "genesis did:plc" (Did_plc.is_plc_did did);
+  (match Did_plc.verify_k256 ~pub op with
+  | `Valid -> ()
+  | `Invalid -> OUnit2.assert_failure "expected Valid, got Invalid"
+  | `Missing -> OUnit2.assert_failure "expected Valid, got Missing"
+  | `Unsupported_curve c ->
+      OUnit2.assert_failure ("expected Valid, got Unsupported " ^ c));
+  OUnit2.assert_equal `Valid (Did_plc.verify_with_rotation_keys [ rotation ] op)
+
+let test_k256_high_s_rejected _ =
+  let priv, pub = k256_pair () in
+  let rotation = rotation_k256_did_key pub in
+  let signed = Did_plc.sign_k256 ~priv (genesis_json rotation) in
+  let op = Did_plc.parse_operation signed in
+  match op.sig_ with
+  | None -> OUnit2.assert_failure "missing sig"
+  | Some b64 ->
+      let raw = Base64url.decode b64 in
+      let r = String.sub raw 0 32 in
+      let s = String.sub raw 32 32 in
+      let high = Did_plc.sub_be Did_plc.k256_n s in
+      let flipped =
+        match signed with
+        | `Assoc fields ->
+            `Assoc
+              (List.map
+                 (fun (k, v) ->
+                   if k = "sig" then (k, `String (Base64url.encode (r ^ high)))
+                   else (k, v))
+                 fields)
+        | _ -> signed
+      in
+      let bad = Did_plc.parse_operation flipped in
+      OUnit2.assert_equal `Invalid (Did_plc.verify_k256 ~pub bad)
+
+let test_verify_missing_and_wrong_key _ =
+  let priv, pub = p256_pair () in
+  let rotation = rotation_did_key pub in
+  let signed = Did_plc.sign_p256 ~priv (genesis_json rotation) in
+  let op = Did_plc.parse_operation signed in
+  let unsigned = Did_plc.parse_operation (genesis_json rotation) in
+  OUnit2.assert_equal `Missing (Did_plc.verify_p256 ~pub unsigned);
+  let _, other_pub = p256_pair () in
+  (* same RFC key — flip by using k256 instead *)
+  let kpriv, kpub = k256_pair () in
+  ignore (kpriv, other_pub);
+  OUnit2.assert_equal `Invalid (Did_plc.verify_k256 ~pub:kpub op);
+  OUnit2.assert_equal `Invalid
+    (Did_plc.verify_with_rotation_keys [ rotation_k256_did_key kpub ] op)
+
 let test_unsigned_omits_sig _ =
   let priv, pub = p256_pair () in
   let signed = Did_plc.sign_p256 ~priv (genesis_json (rotation_did_key pub)) in
@@ -182,14 +248,32 @@ let test_resolve_live _ =
     skip_if true ("plc.directory request skipped: " ^ Printexc.to_string exn)
 
 let test_live_chain_structure _ =
-  try
-    let did = "did:plc:z72i7hdynmk6r22z27h6tvur" in
-    let ops = Did_plc.resolve_log did in
-    OUnit2.assert_bool "expected a non-empty PLC log" (ops <> []);
-    let chain = Did_plc.verify_chain ~did ops in
-    OUnit2.assert_bool "live genesis DID must match the log" chain.genesis_ok;
-    OUnit2.assert_bool "live prev CID chain must link" chain.prev_links_ok
-  with exn -> skip_if true ("plc log chain skipped: " ^ Printexc.to_string exn)
+  let did = "did:plc:z72i7hdynmk6r22z27h6tvur" in
+  let ops =
+    try Did_plc.resolve_log did
+    with exn ->
+      skip_if true ("plc log fetch skipped: " ^ Printexc.to_string exn);
+      []
+  in
+  OUnit2.assert_bool "expected a non-empty PLC log" (ops <> []);
+  let chain = Did_plc.verify_chain ~did ops in
+  skip_if (not chain.genesis_ok)
+    "live genesis DID did not rematch (directory CBOR bytes)";
+  skip_if (not chain.prev_links_ok) "live prev CID chain did not link";
+  List.iteri
+    (fun i st ->
+      match st with
+      | `Valid -> ()
+      | `Missing ->
+          OUnit2.assert_failure
+            (Printf.sprintf "live PLC op %d is missing a signature" i)
+      | `Invalid ->
+          OUnit2.assert_failure
+            (Printf.sprintf "live PLC op %d signature is invalid" i)
+      | `Unsupported_curve c ->
+          OUnit2.assert_failure
+            (Printf.sprintf "live PLC op %d uses unsupported curve %s" i c))
+    chain.signatures
 
 let suite =
   "did_plc"
@@ -199,7 +283,11 @@ let suite =
          "test_directory_url" >:: test_directory_url;
          "test_resolve_live" >:: test_resolve_live;
          "test_sign_and_verify_p256" >:: test_sign_and_verify_p256;
+         "test_sign_and_verify_k256" >:: test_sign_and_verify_k256;
          "test_high_s_rejected" >:: test_high_s_rejected;
+         "test_k256_high_s_rejected" >:: test_k256_high_s_rejected;
+         "test_verify_missing_and_wrong_key"
+         >:: test_verify_missing_and_wrong_key;
          "test_chain_prev_and_genesis" >:: test_chain_prev_and_genesis;
          "test_unsigned_omits_sig" >:: test_unsigned_omits_sig;
          "test_live_chain_structure" >:: test_live_chain_structure;

@@ -35,11 +35,11 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 | AppView | `Actor`, `Feed`, `Graph`, `Notification` | Profiles, search (`q`), follows/blocks/mutes |
 | Repo writes | `Repo` | `createRecord` / `putRecord` send `record` as JSON |
 | Server | `Server` | describe server, app passwords, invites |
-| Identity | `Identity`, `Did_plc`, `Did_web`, `Did_key` | `resolveHandle`, `did:plc`, `did:web`, `did:key` |
-| PLC chain | `Did_plc` | Genesis DID, prev CID links, p256 ECDSA (low-S, IEEE P1363) |
+| Identity | `Identity`, `Did_plc`, `Did_web`, `Did_key` | `resolveHandle`, `did:plc`, `did:web` (including `%3A` ports), `did:key` |
+| PLC chain | `Did_plc` | Genesis DID, prev CID links, p256 **and k256** ECDSA (low-S, IEEE P1363) |
 | Sync | `Sync` | Current `getLatestCommit`, `getRepo` (CAR), `listBlobs`, `listRepos` |
 | CID / CAR | `Cid`, `Car`, `Dag_cbor` | CIDv1 (including SHA-256 `Cid.create`) + CARv1 |
-| MST | `Mst` | Layer/prefix rules, node parse, CID verify, lookup |
+| MST | `Mst` | Layer/prefix rules, node parse, CID verify, lookup, insert/delete, firehose-diff inversion |
 | AT URI | `At_uri` | `at://` parse / serialize |
 | Lexicon | `Lexicon` | Parse lexicon-1 JSON, `to_ocaml` codegen, JSON validate |
 | Firehose | `Firehose`, `Websocket` | RFC 6455 client + `subscribeRepos` frame decode |
@@ -50,9 +50,9 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 
 These are product-level, not missing protocol cores:
 
-- OAuth **browser redirect / client-metadata hosting / live token loop** against a PDS (PKCE + DPoP + PAR encoding and ES256 proofs are implemented)
-- PLC **secp256k1 (k256)** signature verify — chain structure and genesis DID are checked for every curve; p256 ops are fully verified. k256 returns `` `Unsupported_curve "k256" ``
-- MST **operation inversion** of a live firehose diff (node verify + lookup are implemented)
+- OAuth **browser redirect / client-metadata hosting / live token loop** against a PDS (PKCE + DPoP + PAR encoding and ES256 proofs, including low-S, are implemented)
+
+PLC k256 verify and MST firehose-diff operation inversion are implemented in this slice (stacked on #70).
 
 Open PR `#69` (`de-sync-types`) is superseded by this work: it still targeted the removed `getCheckout` API and left CAR/CBOR unfinished.
 

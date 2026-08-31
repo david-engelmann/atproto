@@ -22,9 +22,11 @@ module Firehose = struct
     commit : Cid.t;
     rev : string;
     since : string option;
+    prev_data : Cid.t option;
     blocks : Car.t;
     raw_blocks : string;
     ops : repo_op list;
+    blobs : Cid.t list;
     time : string;
   }
 
@@ -129,11 +131,22 @@ module Firehose = struct
         (match Dag_cbor.find "since" fields with
         | Some s -> Dag_cbor.as_text_opt s
         | None -> None);
+      prev_data =
+        (match Dag_cbor.find "prevData" fields with
+        | None | Some Dag_cbor.Null -> None
+        | Some c -> Some (Dag_cbor.as_cid c));
       blocks;
       raw_blocks;
       ops =
         (match Dag_cbor.find "ops" fields with
         | Some a -> List.map parse_repo_op (Dag_cbor.as_array a)
+        | None -> []);
+      blobs =
+        (match Dag_cbor.find "blobs" fields with
+        | Some a ->
+            List.filter_map
+              (function Dag_cbor.Null -> None | v -> Some (Dag_cbor.as_cid v))
+              (Dag_cbor.as_array a)
         | None -> []);
       time = Dag_cbor.as_text (Dag_cbor.require "time" fields);
     }
@@ -241,6 +254,50 @@ module Firehose = struct
               | Websocket.Ping _ | Websocket.Pong _ -> loop n)
         in
         loop 0)
+
+  let record_ops (ops : repo_op list) : Mst.Mst.record_op list =
+    List.map
+      (fun (op : repo_op) ->
+        {
+          Mst.Mst.action = op.action;
+          path = op.path;
+          cid = op.cid;
+          prev = op.prev;
+        })
+      ops
+
+  let repo_commit_of (c : commit) : Mst.Mst.repo_commit =
+    match Car.find_block c.blocks c.commit with
+    | None -> failwith "Firehose: commit block missing from CAR"
+    | Some block -> Mst.Mst.parse_repo_commit (Dag_cbor.decode block.data)
+
+  let invert_commit (c : commit) : Cid.t =
+    if c.too_big then
+      failwith "Firehose.invert_commit: tooBig (CAR is incomplete)";
+    if c.rebase then failwith "Firehose.invert_commit: rebase is not invertible";
+    let repo = repo_commit_of c in
+    let store = Mst.Mst.store_of_car c.blocks in
+    let tree = Mst.Mst.tree_of_root store repo.data in
+    List.iter (Mst.Mst.check_op tree) (record_ops c.ops);
+    let inverted = Mst.Mst.invert_ops tree (record_ops c.ops) in
+    Mst.Mst.root_cid inverted
+
+  let verify_commit (c : commit) : unit =
+    match (c.too_big, c.rebase, c.ops) with
+    | true, _, _ | _, true, _ -> ()
+    | _, _, [] ->
+        (* identity / empty diff: inversion is a no-op when ops are empty. *)
+        ()
+    | _ -> (
+        let inverted = invert_commit c in
+        match c.prev_data with
+        | Some expected ->
+            if not (Cid.equal inverted expected) then
+              failwith
+                (Printf.sprintf
+                   "Firehose.verify_commit: inverted MST %s != prevData %s"
+                   (Cid.to_string inverted) (Cid.to_string expected))
+        | None -> ())
 
   let subscribe_one ?host ?cursor () : header * message =
     let cell = ref None in

@@ -8,7 +8,6 @@ on:
   push:
     branches: [ "main" ]
   pull_request:
-    branches: [ "main" ]
 
   #  schedule:
   #    - cron: '15 * * * *'
@@ -59,7 +58,7 @@ jobs:
             ${{ runner.os }}-opam-
 
       - name: Install Common Libs
-        run: opam install async base core uri yojson ptime cohttp cohttp-lwt-unix cohttp-async h2 httpaf httpaf-lwt-unix h2-lwt-unix lwt core_kernel ssl lwt_ssl jose digestif mirage-crypto-ec ounit ounit2 ppx_jane qcheck dune ocamlformat
+        run: opam install async base core uri yojson ptime cohttp cohttp-lwt-unix cohttp-async h2 httpaf httpaf-lwt-unix h2-lwt-unix lwt core_kernel ssl lwt_ssl jose digestif mirage-crypto-ec mirage-crypto-rng zarith ounit ounit2 ppx_jane qcheck dune ocamlformat
 #      - name: Install Repo
 #        run: opam install . --deps-only --with-doc --with-test
       - name: Dune Build
