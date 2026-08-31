@@ -27,6 +27,16 @@ module Auth = struct
     in
     base_endpoint
 
+  (* Local PDS stacks speak HTTP. Production hosts stay on HTTPS. *)
+  let scheme_from_env : string =
+    match Sys.getenv_opt "ATP_SCHEME" with
+    | Some s ->
+        let s = String.lowercase_ascii (String.trim s) in
+        if s = "http" then "http" else "https"
+    | None -> "https"
+
+  let origin_of_host (host : string) : string = scheme_from_env ^ "://" ^ host
+
   let print_auth (a : auth) : unit =
     Printf.printf "exp: %d\n" a.exp;
     Printf.printf "iat: %d\n" a.iat;
@@ -112,8 +122,9 @@ module Auth = struct
   let create_session_url (personal_data_server : string) : string =
     let base_endpoint = get_base_endpoint in
     let create_session_endpoint = create_server_endpoint "createSession" in
-    Printf.sprintf "https://%s/%s%s" personal_data_server base_endpoint
-      create_session_endpoint
+    Printf.sprintf "%s/%s%s"
+      (origin_of_host personal_data_server)
+      base_endpoint create_session_endpoint
 
   let create_session_body ~identifier ~password ?auth_factor_token
       ?allow_takendown () : Yojson.Safe.t =
@@ -146,8 +157,9 @@ module Auth = struct
     let base_endpoint = get_base_endpoint in
     let refresh_endpoint = create_server_endpoint "refreshSession" in
     let url =
-      Printf.sprintf "https://%s/%s%s" personal_data_server base_endpoint
-        refresh_endpoint
+      Printf.sprintf "%s/%s%s"
+        (origin_of_host personal_data_server)
+        base_endpoint refresh_endpoint
     in
     let data =
       Printf.sprintf

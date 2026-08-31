@@ -27,3 +27,9 @@ setup.log
 
 # Local OPAM switch
 _opam/
+
+# Official @atproto/dev-env runtime (started by scripts/local-atproto.sh)
+docker/dev-env/node_modules/
+docker/dev-env/dev-env.log
+docker/dev-env/dev-env.pid
+docker/dev-env/generated.env

@@ -128,3 +128,93 @@ jobs:
 
       - name: Lint fmt
         uses: ocaml/setup-ocaml/lint-fmt@v3
+
+  # Runs on the GitHub-hosted VM (Docker + Node available). Not inside ocaml/opam.
+  # Official @atproto/dev-env TestNetwork: PLC + PDS + AppView + Ozone + bsync.
+  local-pds:
+    runs-on: ubuntu-22.04
+    env:
+      ATP_SCHEME: http
+      ATP_HOST: localhost:2583
+      ATP_APPVIEW_HOST: localhost:2584
+      ATP_OZONE_HOST: localhost:2587
+      ATP_AUTH: alice.test:hunter2
+      ATP_AUTH_BOB: bob.test:hunter2
+      ATP_AUTH_OZONE: admin-mod.test:admin-mod-pass
+      ATP_LOCAL_PDS: "1"
+      ATP_REQUIRE_LOCAL_PDS: "1"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Cache @atproto/dev-env
+        uses: actions/cache@v4
+        with:
+          path: docker/dev-env/node_modules
+          key: ${{ runner.os }}-dev-env-${{ hashFiles('docker/dev-env/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-dev-env-
+
+      - name: Start official PDS + AppView + Ozone
+        run: ./scripts/local-atproto.sh up
+
+      - name: Confirm mock accounts
+        run: ./scripts/local-atproto.sh account
+
+      - name: Use OCaml 4.14.1
+        uses: ocaml/setup-ocaml@v3
+        with:
+          dune-cache: true
+          ocaml-compiler: 4.14.1
+          opam-disable-sandboxing: true
+
+      - name: Cache opam dependencies
+        uses: actions/cache@v4
+        id: opam-cache
+        with:
+          path: ~/.opam
+          key: ${{ runner.os }}-opam-pds-${{ hashFiles('**/*.opam') }}
+          restore-keys: |
+            ${{ runner.os }}-opam-pds-
+            ${{ runner.os }}-opam-
+
+      - name: Install Common Libs
+        run: opam install async base core uri yojson ptime cohttp cohttp-lwt-unix cohttp-async h2 httpaf httpaf-lwt-unix h2-lwt-unix lwt core_kernel ssl lwt_ssl jose digestif mirage-crypto-ec mirage-crypto-rng zarith ounit ounit2 ppx_jane qcheck dune ocamlformat
+
+      - name: Dune Build
+        run: opam exec -- dune build
+
+      - name: Local PDS + AppView + Ozone integration tests
+        run: |
+          set -euo pipefail
+          if [ -f docker/dev-env/generated.env ]; then
+            set -a
+            # shellcheck disable=SC1091
+            . docker/dev-env/generated.env
+            set +a
+          fi
+          export ATP_REQUIRE_LOCAL_PDS=1
+          export OUNIT_RUNNER=sequential
+          {
+            opam exec -- dune exec -- test/test_local_pds.exe
+            opam exec -- dune exec -- test/test_local_appview.exe
+            opam exec -- dune exec -- test/test_local_ozone.exe
+          } 2>&1 | tee local_pds_runtest.log
+
+      - name: Network logs
+        if: always()
+        run: ./scripts/local-atproto.sh logs
+
+      - name: Upload Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: local_pds_runtest
+          path: local_pds_runtest.log
+          if-no-files-found: warn

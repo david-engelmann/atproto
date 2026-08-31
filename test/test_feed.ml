@@ -126,6 +126,20 @@ let test_parse_generator _ =
   OUnit2.assert_equal ~printer:(fun x -> x) "Discover" info.view.display_name;
   OUnit2.assert_equal true info.is_online
 
+let test_parse_likes_optional_cursor _ =
+  let json =
+    `Assoc
+      [
+        ("uri", `String "at://did:plc:abc/app.bsky.feed.post/1");
+        ("cid", `String "bafyreiabc");
+        ("cursor", `Null);
+        ("likes", `List []);
+      ]
+  in
+  let page = Feed.parse_likes json in
+  OUnit2.assert_equal ~printer:(fun x -> x) "" page.cursor;
+  OUnit2.assert_equal 0 (List.length page.likes)
+
 let test_parse_search_posts _ =
   let json =
     `Assoc
@@ -596,6 +610,7 @@ let suite =
          "test_get_reposted_by" >:: test_get_reposted_by;
          "test_get_timeline" >:: test_get_timeline;
          "test_parse_generator" >:: test_parse_generator;
+         "test_parse_likes_optional_cursor" >:: test_parse_likes_optional_cursor;
          "test_parse_search_posts" >:: test_parse_search_posts;
          "test_parse_post_record_embed_and_tags"
          >:: test_parse_post_record_embed_and_tags;

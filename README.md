@@ -9,11 +9,16 @@ Create a `.env` (see `sample.env`) with at least:
 - `ATP_AUTH` : `EmailAddress:AppPassword`
   - Use an [App Password](https://bsky.app/settings/app-passwords) (email as the username).
 - `ATP_HOST` : `bsky.social`
-  - PDS / entryway host **without** a scheme.
+  - PDS / entryway host **without** a scheme (`localhost:2583` for the official local network).
+- `ATP_SCHEME` : `https` (default) or `http` for a local stack without TLS.
 
 Optional:
 
 - `BASE_ENDPOINT` : `xrpc` (default)
+- `ATP_APPVIEW_HOST` : AppView host without a scheme (`localhost:2584` for `@atproto/dev-env`)
+- `ATP_OZONE_HOST` : Ozone host without a scheme (`localhost:2587`)
+- `ATP_OZONE_DID` : Ozone service DID (printed by `scripts/local-atproto.sh env`)
+- `ATP_AUTH_BOB` / `ATP_AUTH_OZONE` : second PDS account and ozone admin (local network only)
 
 Session creation, repo writes, graph mutes, bookmarks, chat, ozone, and feed helpers need `ATP_AUTH`. Public identity, DID PLC, firehose subscribe, AppView reads (`public.api.bsky.app`), and most `com.atproto.sync.*` reads do **not**.
 
@@ -28,6 +33,59 @@ dune runtest
 `dune build` also typechecks `examples/offline.ml` against the current public API (no network, no credentials).
 
 Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to a real `email:app-password` pair (placeholder values in `sample.env` do not count). Public-network tests (handle resolve, PLC directory, `getLatestCommit`, `subscribeRepos`, AppView feed/search/labeler reads) run without auth and skip only if the request itself fails.
+
+## Local AT Protocol network (PDS + AppView + Ozone)
+
+CI and `make test-pds` start Bluesky's official OSS local network — published [`@atproto/dev-env@0.6.4`](https://www.npmjs.com/package/@atproto/dev-env) (`TestNetwork.create()`, the same stack as `make run-dev-env` in [bluesky-social/atproto](https://github.com/bluesky-social/atproto)). This is a **separate** GitHub Actions job on the runner VM (Docker and Node >= 22 are available there). The existing `build` job stays inside `ocaml/opam:ubuntu-22.04` and does not start Docker.
+
+```shell
+# start Postgres+Redis + official dev-env, then run PDS / AppView / Ozone tests
+make test-pds
+
+# or step by step
+./scripts/local-atproto.sh up
+./scripts/local-atproto.sh account
+eval "$(./scripts/local-atproto.sh env)"
+export ATP_REQUIRE_LOCAL_PDS=1
+dune exec -- test/test_local_pds.exe
+dune exec -- test/test_local_appview.exe
+dune exec -- test/test_local_ozone.exe
+
+./scripts/local-atproto.sh down
+```
+
+`scripts/local-pds.sh` is a back-compat wrapper around `scripts/local-atproto.sh`.
+
+Compose file for Postgres/Redis: `docker/dev-env/compose.yaml` (official `postgres:14.4-alpine` on `5433` and `redis:7.0-alpine` on `6380`, matching atproto `packages/dev-infra`). The Node process then starts:
+
+| Service | Port | Package |
+| --- | --- | --- |
+| PLC | `http://localhost:2582` | `@did-plc/server` |
+| PDS | `http://localhost:2583` | `@atproto/pds` |
+| AppView | `http://localhost:2584` | `@atproto/bsky` (`app.bsky.*`) |
+| Ozone | `http://localhost:2587` | `@atproto/ozone` (`tools.ozone.*`) |
+| bsync | (internal) | `@atproto/bsync` |
+| introspect | `http://localhost:2581` | dev-env |
+
+Mock accounts from official `generateMockSetup` (not production Bluesky credentials):
+
+- `alice.test` / `hunter2` and `bob.test` / `hunter2` (the suite waits until AppView has indexed both)
+- Ozone admin: `admin-mod.test` / `admin-mod-pass` plus the ozone service DID (`ATP_OZONE_DID`)
+- Ozone `ADMIN_PASSWORD` in this stack is `admin-pass`; tests use the PDS session + `atproto-proxy` (the library's existing path)
+
+Point the client at the local stack with:
+
+- `ATP_SCHEME=http`
+- `ATP_HOST=localhost:2583`
+- `ATP_APPVIEW_HOST=localhost:2584`
+- `ATP_OZONE_HOST=localhost:2587`
+- `ATP_AUTH=alice.test:hunter2`
+
+`test/test_local_pds.ml` hits PDS `com.atproto` identity / session / repo / blob / sync. `test/test_local_appview.ml` hits AppView `app.bsky.actor` / `feed` / `graph` (public reads on `:2584` with no session). Authenticated AppView APIs (`getTimeline`, `getMutes`, `listNotifications`) mint `com.atproto.server.getServiceAuth` (`aud` = AppView DID, `lxm` = the XRPC) and send that JWT to AppView — never the PDS `at+jwt` access token (`InvalidToken: Malformed token`). `test/test_local_ozone.ml` hits `tools.ozone.moderation.emitEvent` / `queryEvents` / `queryStatuses`, `tools.ozone.server.getConfig`, and `com.atproto.label.queryLabels` via the PDS + `atproto-proxy` (direct Ozone rejects `at+jwt`). If the local network is up, a failed protocol call **fails the test**. The suite skips only when it is not aimed at a local host (typical laptop `dune runtest` without Docker/Node). In CI, `ATP_REQUIRE_LOCAL_PDS=1` is set and the stack is required.
+
+### Chat (`chat.bsky.*`)
+
+Pinned `@atproto/dev-env@0.6.4` `TestNetwork.create()` does **not** start a `chat.bsky.app` DM service. `packages/dev-env/src/bin.ts` sets `ozone.chatUrl` to `http://localhost:2590` with the comment `must run separate chat service`. There is no official OSS chat backend in that revision, so this repo does not fake one. Existing `test/test_chat.ml` live calls stay skippable (or hit production Bluesky when `ATP_AUTH` is a real app password).
 
 ## What this library covers
 
@@ -79,7 +137,7 @@ Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to
 These are product-level, not missing protocol cores:
 
 - Hosting a public **client-metadata document** and completing a **live browser login** against a PDS (the protocol core — metadata, PAR + DPoP-nonce retry, authorize URL, redirect `code`/`state`/`iss`, token parse — is implemented and tested with fixtures)
-- A hosted PDS, hosted Tap service, hosted video transcoder, or live Ozone operator session (client request/response types, video byte-upload + job poll, TAP-like repo sync helpers, and proxy headers are implemented)
+- A hosted Tap service, hosted video transcoder, or live Ozone operator session (client request/response types, video byte-upload + job poll, TAP-like repo sync helpers, and proxy headers are implemented). A **local PDS + PLC** stack is included for `com.atproto.*` integration tests; it is not a public host.
 - Jetstream Network Replay / HTTP snapshot **download** against Bluesky's gated archive (planner, `listSegments` types, cutover cursor, Range resume, skippable unauthenticated HTTP, and `.jss` v1 decode are implemented; a live archive download still needs an operator token this library does not invent, and zstd frames need an injected decompressor)
 - Permissioned data / spaces / LtHash (no stable public spec to implement yet)
 - Official `com.atproto.sync.getRepo` **lexicon** still has no `collection` parameter (client-side subset export from a full CAR is implemented; servers that reject unknown query params are unchanged)
