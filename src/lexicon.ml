@@ -369,6 +369,24 @@ module Lexicon = struct
   let official_create_group =
     {|{"lexicon":1,"id":"chat.bsky.group.createGroup","defs":{"main":{"type":"procedure","description":"Creates a group convo.","input":{"encoding":"application/json","schema":{"type":"object","required":["members","name"],"properties":{"members":{"type":"array"},"name":{"type":"string"}}}},"output":{"encoding":"application/json","schema":{"type":"object","required":["convo"],"properties":{"convo":{"type":"ref","ref":"chat.bsky.convo.defs#convoView"}}}}}}}|}
 
+  let official_list_queues =
+    {|{"lexicon":1,"id":"tools.ozone.queue.listQueues","defs":{"main":{"type":"query","description":"List all configured moderation queues with statistics.","parameters":{"type":"params","properties":{"enabled":{"type":"boolean"},"limit":{"type":"integer"},"cursor":{"type":"string"}}},"output":{"encoding":"application/json","schema":{"type":"object","required":["queues"],"properties":{"queues":{"type":"array"},"cursor":{"type":"string"}}}}}}}|}
+
+  let official_create_queue =
+    {|{"lexicon":1,"id":"tools.ozone.queue.createQueue","defs":{"main":{"type":"procedure","description":"Create a new moderation queue.","input":{"encoding":"application/json","schema":{"type":"object","required":["name"],"properties":{"name":{"type":"string"},"subjectTypes":{"type":"array"},"reportTypes":{"type":"array"}}}},"output":{"encoding":"application/json","schema":{"type":"object","required":["queue"],"properties":{"queue":{"type":"ref","ref":"tools.ozone.queue.defs#queueView"}}}}}}}|}
+
+  let official_query_reports =
+    {|{"lexicon":1,"id":"tools.ozone.report.queryReports","defs":{"main":{"type":"query","description":"View moderation reports.","parameters":{"type":"params","required":["status"],"properties":{"status":{"type":"string"},"queueId":{"type":"integer"},"limit":{"type":"integer"},"cursor":{"type":"string"}}},"output":{"encoding":"application/json","schema":{"type":"object","required":["reports"],"properties":{"reports":{"type":"array"},"cursor":{"type":"string"}}}}}}}|}
+
+  let official_check_signup =
+    {|{"lexicon":1,"id":"com.atproto.temp.checkSignupQueue","defs":{"main":{"type":"query","description":"Check accounts location in signup queue.","output":{"encoding":"application/json","schema":{"type":"object","required":["activated"],"properties":{"activated":{"type":"boolean"},"placeInQueue":{"type":"integer"},"estimatedTimeMs":{"type":"integer"}}}}}}}|}
+
+  let official_deref_scope =
+    {|{"lexicon":1,"id":"com.atproto.temp.dereferenceScope","defs":{"main":{"type":"query","description":"Allows finding the oauth permission scope from a reference.","parameters":{"type":"params","required":["scope"],"properties":{"scope":{"type":"string"}}},"output":{"encoding":"application/json","schema":{"type":"object","required":["scope"],"properties":{"scope":{"type":"string"}}}}}}}|}
+
+  let official_revoke_creds =
+    {|{"lexicon":1,"id":"com.atproto.temp.revokeAccountCredentials","defs":{"main":{"type":"procedure","description":"Revoke sessions, password, and app passwords associated with account.","input":{"encoding":"application/json","schema":{"type":"object","required":["account"],"properties":{"account":{"type":"string"}}}}}}}|}
+
   let official_lexicons : (string * string) list =
     [
       ("app.bsky.graph.listitem", official_listitem);
@@ -385,6 +403,12 @@ module Lexicon = struct
       ("com.atproto.lexicon.resolveLexicon", official_resolve_lexicon);
       ("com.atproto.temp.checkHandleAvailability", official_check_handle);
       ("chat.bsky.group.createGroup", official_create_group);
+      ("tools.ozone.queue.listQueues", official_list_queues);
+      ("tools.ozone.queue.createQueue", official_create_queue);
+      ("tools.ozone.report.queryReports", official_query_reports);
+      ("com.atproto.temp.checkSignupQueue", official_check_signup);
+      ("com.atproto.temp.dereferenceScope", official_deref_scope);
+      ("com.atproto.temp.revokeAccountCredentials", official_revoke_creds);
     ]
 
   let official_documents () : document list =

@@ -697,9 +697,6 @@ module Ozone = struct
       (Yojson.Safe.to_string (`Assoc fields))
     |> parse_batch_result
 
-  (* Remaining operator namespaces: communication, set, setting, team,
-     safelink, signature, verification, hosting. *)
-
   type template = {
     id : string;
     name : string;
@@ -1258,4 +1255,644 @@ module Ozone = struct
       @ Client.opt_pair "cursor" cursor
       @ Client.opt_int "limit" limit)
     |> parse_account_history
+
+  (* tools.ozone.queue.* and tools.ozone.report.* operator workflows. *)
+
+  let int_list json field =
+    List.filter_map
+      (function
+        | `Int n -> Some n
+        | `Intlit s -> ( try Some (int_of_string s) with _ -> None)
+        | _ -> None)
+      (Client.list_member json field)
+
+  let repeat_int key values =
+    Client.repeat_param key (List.map string_of_int values)
+
+  let opt_json_int k = function Some n -> [ (k, `Int n) ] | None -> []
+  let opt_json_str k = function Some s -> [ (k, `String s) ] | None -> []
+  let opt_json_bool k = function Some b -> [ (k, `Bool b) ] | None -> []
+  let json_strings xs = `List (List.map (fun s -> `String s) xs)
+  let json_ints xs = `List (List.map (fun n -> `Int n) xs)
+
+  type queue_stats = {
+    pending_count : int option;
+    actioned_count : int option;
+    escalated_count : int option;
+    inbound_count : int option;
+    action_rate : int option;
+    avg_handling_time_sec : int option;
+    last_updated : string option;
+  }
+
+  type queue_view = {
+    id : int;
+    name : string;
+    subject_types : string list;
+    collection : string option;
+    report_types : string list;
+    description : string option;
+    recommended_policies : string list;
+    created_by : string option;
+    created_at : string option;
+    updated_at : string option;
+    enabled : bool option;
+    deleted_at : string option;
+    stats : queue_stats option;
+    original : Yojson.Safe.t;
+  }
+
+  type queues = { cursor : string option; queues : queue_view list }
+
+  type assignment_view = {
+    id : int option;
+    did : string;
+    report_id : int option;
+    start_at : string option;
+    end_at : string option;
+    queue : queue_view option;
+    original : Yojson.Safe.t;
+  }
+
+  type assignments = {
+    cursor : string option;
+    assignments : assignment_view list;
+  }
+
+  type delete_queue_result = { deleted : bool; reports_migrated : int option }
+  type route_reports_result = { assigned : int; unmatched : int }
+
+  let parse_queue_stats json : queue_stats =
+    {
+      pending_count = Client.int_opt json "pendingCount";
+      actioned_count = Client.int_opt json "actionedCount";
+      escalated_count = Client.int_opt json "escalatedCount";
+      inbound_count = Client.int_opt json "inboundCount";
+      action_rate = Client.int_opt json "actionRate";
+      avg_handling_time_sec = Client.int_opt json "avgHandlingTimeSec";
+      last_updated = Client.string_opt json "lastUpdated";
+    }
+
+  let parse_queue_view json : queue_view =
+    {
+      id = Client.int_member json "id";
+      name = Client.string_member json "name";
+      subject_types = string_list json "subjectTypes";
+      collection = Client.string_opt json "collection";
+      report_types = string_list json "reportTypes";
+      description = Client.string_opt json "description";
+      recommended_policies = string_list json "recommendedPolicies";
+      created_by = Client.string_opt json "createdBy";
+      created_at = Client.string_opt json "createdAt";
+      updated_at = Client.string_opt json "updatedAt";
+      enabled = Client.bool_opt json "enabled";
+      deleted_at = Client.string_opt json "deletedAt";
+      stats =
+        (match Yojson.Safe.Util.member "stats" json with
+        | `Assoc _ as s -> Some (parse_queue_stats s)
+        | _ -> None);
+      original = json;
+    }
+
+  let parse_queue_result json : queue_view =
+    match Yojson.Safe.Util.member "queue" json with
+    | `Assoc _ as q -> parse_queue_view q
+    | _ -> parse_queue_view json
+
+  let parse_queues json : queues =
+    {
+      cursor = Client.string_opt json "cursor";
+      queues = List.map parse_queue_view (Client.list_member json "queues");
+    }
+
+  let parse_assignment_view json : assignment_view =
+    {
+      id = Client.int_opt json "id";
+      did = Client.string_member json "did";
+      report_id = Client.int_opt json "reportId";
+      start_at = Client.string_opt json "startAt";
+      end_at = Client.string_opt json "endAt";
+      queue =
+        (match Yojson.Safe.Util.member "queue" json with
+        | `Assoc _ as q -> Some (parse_queue_view q)
+        | _ -> None);
+      original = json;
+    }
+
+  let parse_assignments json : assignments =
+    {
+      cursor = Client.string_opt json "cursor";
+      assignments =
+        List.map parse_assignment_view (Client.list_member json "assignments");
+    }
+
+  let parse_delete_queue_result json : delete_queue_result =
+    {
+      deleted = Client.bool_member json "deleted";
+      reports_migrated = Client.int_opt json "reportsMigrated";
+    }
+
+  let parse_route_reports_result json : route_reports_result =
+    {
+      assigned = Client.int_member json "assigned";
+      unmatched = Client.int_member json "unmatched";
+    }
+
+  let create_queue_body ~name ?(subject_types = []) ?collection
+      ?(report_types = []) ?description ?(recommended_policies = []) () :
+      Yojson.Safe.t =
+    `Assoc
+      (("name", `String name)
+       ::
+       (match subject_types with
+       | [] -> []
+       | xs -> [ ("subjectTypes", json_strings xs) ])
+      @ opt_json_str "collection" collection
+      @ (match report_types with
+        | [] -> []
+        | xs -> [ ("reportTypes", json_strings xs) ])
+      @ opt_json_str "description" description
+      @
+      match recommended_policies with
+      | [] -> []
+      | xs -> [ ("recommendedPolicies", json_strings xs) ])
+
+  let update_queue_body ~queue_id ?name ?enabled ?description
+      ?recommended_policies () : Yojson.Safe.t =
+    `Assoc
+      ((("queueId", `Int queue_id) :: opt_json_str "name" name)
+      @ opt_json_bool "enabled" enabled
+      @ opt_json_str "description" description
+      @
+      match recommended_policies with
+      | Some xs -> [ ("recommendedPolicies", json_strings xs) ]
+      | None -> [])
+
+  let delete_queue_body ~queue_id ?migrate_to_queue_id () : Yojson.Safe.t =
+    `Assoc
+      (("queueId", `Int queue_id)
+      :: opt_json_int "migrateToQueueId" migrate_to_queue_id)
+
+  let list_queues (s : Session.session) ~proxy ?enabled ?subject_type
+      ?collection ?(report_types = []) ?limit ?cursor () : queues =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.queue.listQueues"
+      (Client.opt_bool "enabled" enabled
+      @ Client.opt_pair "subjectType" subject_type
+      @ Client.opt_pair "collection" collection
+      @ Client.repeat_param "reportTypes" report_types
+      @ Client.opt_int "limit" limit
+      @ Client.opt_pair "cursor" cursor)
+    |> parse_queues
+
+  let create_queue (s : Session.session) ~proxy ~name ?subject_types ?collection
+      ?report_types ?description ?recommended_policies () : queue_view =
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.queue.createQueue"
+      (Yojson.Safe.to_string
+         (create_queue_body ~name ?subject_types ?collection ?report_types
+            ?description ?recommended_policies ()))
+    |> parse_queue_result
+
+  let update_queue (s : Session.session) ~proxy ~queue_id ?name ?enabled
+      ?description ?recommended_policies () : queue_view =
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.queue.updateQueue"
+      (Yojson.Safe.to_string
+         (update_queue_body ~queue_id ?name ?enabled ?description
+            ?recommended_policies ()))
+    |> parse_queue_result
+
+  let delete_queue (s : Session.session) ~proxy ~queue_id ?migrate_to_queue_id
+      () : delete_queue_result =
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.queue.deleteQueue"
+      (Yojson.Safe.to_string
+         (delete_queue_body ~queue_id ?migrate_to_queue_id ()))
+    |> parse_delete_queue_result
+
+  let assign_queue_moderator (s : Session.session) ~proxy ~queue_id ~did () :
+      assignment_view =
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.queue.assignModerator"
+      (Yojson.Safe.to_string
+         (`Assoc [ ("queueId", `Int queue_id); ("did", `String did) ]))
+    |> parse_assignment_view
+
+  let unassign_queue_moderator (s : Session.session) ~proxy ~queue_id ~did () :
+      unit =
+    ignore
+      (Client.post_json ~session:s ~extra:(proxy_headers proxy)
+         "tools.ozone.queue.unassignModerator"
+         (Yojson.Safe.to_string
+            (`Assoc [ ("queueId", `Int queue_id); ("did", `String did) ])))
+
+  let get_queue_assignments (s : Session.session) ~proxy ?only_active
+      ?(queue_ids = []) ?(dids = []) ?limit ?cursor () : assignments =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.queue.getAssignments"
+      (Client.opt_bool "onlyActive" only_active
+      @ repeat_int "queueIds" queue_ids
+      @ Client.repeat_param "dids" dids
+      @ Client.opt_int "limit" limit
+      @ Client.opt_pair "cursor" cursor)
+    |> parse_assignments
+
+  let route_reports (s : Session.session) ~proxy ~start_report_id ~end_report_id
+      () : route_reports_result =
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.queue.routeReports"
+      (Yojson.Safe.to_string
+         (`Assoc
+           [
+             ("startReportId", `Int start_report_id);
+             ("endReportId", `Int end_report_id);
+           ]))
+    |> parse_route_reports_result
+
+  type report_activity =
+    [ `Queue of string option
+    | `Assignment of string option
+    | `Escalation of string option
+    | `Close of string option
+    | `Reopen of string option
+    | `Note
+    | `Unknown of unknown_event ]
+
+  type report_assignment = {
+    did : string;
+    assigned_at : string option;
+    original : Yojson.Safe.t;
+  }
+
+  type report_view = {
+    id : int;
+    event_id : int option;
+    status : string;
+    subject : Yojson.Safe.t;
+    report_type : string;
+    reported_by : string option;
+    comment : string option;
+    created_at : string option;
+    updated_at : string option;
+    queued_at : string option;
+    action_event_ids : int list;
+    action_note : string option;
+    related_report_count : int option;
+    assignment : report_assignment option;
+    queue : queue_view option;
+    is_muted : bool option;
+    is_automated : bool option;
+    original : Yojson.Safe.t;
+  }
+
+  type reports = { cursor : string option; reports : report_view list }
+
+  type report_activity_view = {
+    id : int option;
+    report_id : int option;
+    activity : report_activity;
+    internal_note : string option;
+    public_note : string option;
+    meta : Yojson.Safe.t option;
+    is_automated : bool option;
+    created_by : string option;
+    created_at : string option;
+    original : Yojson.Safe.t;
+  }
+
+  type report_activities = {
+    cursor : string option;
+    activities : report_activity_view list;
+  }
+
+  type report_stats = {
+    date : string option;
+    pending_count : int option;
+    actioned_count : int option;
+    escalated_count : int option;
+    inbound_count : int option;
+    action_rate : int option;
+    avg_handling_time_sec : int option;
+    last_updated : string option;
+    computed_at : string option;
+    original : Yojson.Safe.t;
+  }
+
+  type historical_stats = { cursor : string option; stats : report_stats list }
+  type close_reports_result = { closed_count : int; report_ids : int list }
+
+  let report_reason name = "tools.ozone.report.defs#" ^ name
+  let reason_appeal = report_reason "reasonAppeal"
+  let reason_other = report_reason "reasonOther"
+  let reason_violence_threats = report_reason "reasonViolenceThreats"
+  let reason_misleading_spam = report_reason "reasonMisleadingSpam"
+
+  let parse_report_activity json : report_activity =
+    let t = type_name json in
+    let previous = Client.string_opt json "previousStatus" in
+    if ends_with "queueActivity" t then `Queue previous
+    else if ends_with "assignmentActivity" t then `Assignment previous
+    else if ends_with "escalationActivity" t then `Escalation previous
+    else if ends_with "closeActivity" t then `Close previous
+    else if ends_with "reopenActivity" t then `Reopen previous
+    else if ends_with "noteActivity" t then `Note
+    else `Unknown { type_ = t; original = json }
+
+  let parse_report_assignment json : report_assignment =
+    {
+      did = Client.string_member json "did";
+      assigned_at = Client.string_opt json "assignedAt";
+      original = json;
+    }
+
+  let parse_report_view json : report_view =
+    {
+      id = Client.int_member json "id";
+      event_id = Client.int_opt json "eventId";
+      status = Client.string_member json "status";
+      subject = Yojson.Safe.Util.member "subject" json;
+      report_type = Client.string_member json "reportType";
+      reported_by = Client.string_opt json "reportedBy";
+      comment = Client.string_opt json "comment";
+      created_at = Client.string_opt json "createdAt";
+      updated_at = Client.string_opt json "updatedAt";
+      queued_at = Client.string_opt json "queuedAt";
+      action_event_ids = int_list json "actionEventIds";
+      action_note = Client.string_opt json "actionNote";
+      related_report_count = Client.int_opt json "relatedReportCount";
+      assignment =
+        (match Yojson.Safe.Util.member "assignment" json with
+        | `Assoc _ as a -> Some (parse_report_assignment a)
+        | _ -> None);
+      queue =
+        (match Yojson.Safe.Util.member "queue" json with
+        | `Assoc _ as q -> Some (parse_queue_view q)
+        | _ -> None);
+      is_muted = Client.bool_opt json "isMuted";
+      is_automated = Client.bool_opt json "isAutomated";
+      original = json;
+    }
+
+  let parse_report_result json : report_view =
+    match Yojson.Safe.Util.member "report" json with
+    | `Assoc _ as r -> parse_report_view r
+    | _ -> parse_report_view json
+
+  let parse_reports json : reports =
+    {
+      cursor = Client.string_opt json "cursor";
+      reports = List.map parse_report_view (Client.list_member json "reports");
+    }
+
+  let parse_report_activity_view json : report_activity_view =
+    {
+      id = Client.int_opt json "id";
+      report_id = Client.int_opt json "reportId";
+      activity =
+        (match Yojson.Safe.Util.member "activity" json with
+        | `Assoc _ as a -> parse_report_activity a
+        | other -> `Unknown { type_ = ""; original = other });
+      internal_note = Client.string_opt json "internalNote";
+      public_note = Client.string_opt json "publicNote";
+      meta =
+        (match Yojson.Safe.Util.member "meta" json with
+        | `Null -> None
+        | other -> Some other);
+      is_automated = Client.bool_opt json "isAutomated";
+      created_by = Client.string_opt json "createdBy";
+      created_at = Client.string_opt json "createdAt";
+      original = json;
+    }
+
+  let parse_activity_result json : report_activity_view =
+    match Yojson.Safe.Util.member "activity" json with
+    | `Assoc _ as a -> parse_report_activity_view a
+    | _ -> parse_report_activity_view json
+
+  let parse_report_activities json : report_activities =
+    {
+      cursor = Client.string_opt json "cursor";
+      activities =
+        List.map parse_report_activity_view
+          (Client.list_member json "activities");
+    }
+
+  let parse_report_stats json : report_stats =
+    {
+      date = Client.string_opt json "date";
+      pending_count = Client.int_opt json "pendingCount";
+      actioned_count = Client.int_opt json "actionedCount";
+      escalated_count = Client.int_opt json "escalatedCount";
+      inbound_count = Client.int_opt json "inboundCount";
+      action_rate = Client.int_opt json "actionRate";
+      avg_handling_time_sec = Client.int_opt json "avgHandlingTimeSec";
+      last_updated = Client.string_opt json "lastUpdated";
+      computed_at = Client.string_opt json "computedAt";
+      original = json;
+    }
+
+  let parse_live_stats json : report_stats =
+    match Yojson.Safe.Util.member "stats" json with
+    | `Assoc _ as s -> parse_report_stats s
+    | _ -> parse_report_stats json
+
+  let parse_historical_stats json : historical_stats =
+    {
+      cursor = Client.string_opt json "cursor";
+      stats = List.map parse_report_stats (Client.list_member json "stats");
+    }
+
+  let parse_close_reports_result json : close_reports_result =
+    {
+      closed_count = Client.int_member json "closedCount";
+      report_ids = int_list json "reportIds";
+    }
+
+  let activity_json kind ?previous_status () : Yojson.Safe.t =
+    `Assoc
+      (("$type", `String ("tools.ozone.report.defs#" ^ kind))
+      :: opt_json_str "previousStatus" previous_status)
+
+  let queue_activity ?previous_status () =
+    activity_json "queueActivity" ?previous_status ()
+
+  let assignment_activity ?previous_status () =
+    activity_json "assignmentActivity" ?previous_status ()
+
+  let escalation_activity ?previous_status () =
+    activity_json "escalationActivity" ?previous_status ()
+
+  let close_activity ?previous_status () =
+    activity_json "closeActivity" ?previous_status ()
+
+  let reopen_activity ?previous_status () =
+    activity_json "reopenActivity" ?previous_status ()
+
+  let note_activity () = activity_json "noteActivity" ()
+
+  let create_activity_body ~activity ?report_id ?event_id ?internal_note
+      ?public_note ?is_automated () : Yojson.Safe.t =
+    `Assoc
+      ((("activity", activity) :: opt_json_int "reportId" report_id)
+      @ opt_json_int "eventId" event_id
+      @ opt_json_str "internalNote" internal_note
+      @ opt_json_str "publicNote" public_note
+      @ opt_json_bool "isAutomated" is_automated)
+
+  let query_reports (s : Session.session) ~proxy ~status ?queue_id
+      ?(report_types = []) ?subject ?did ?subject_type ?(collections = [])
+      ?reported_after ?reported_before ?is_muted ?assigned_to ?sort_field
+      ?sort_direction ?limit ?cursor () : reports =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.report.queryReports"
+      ((("status", status) :: Client.opt_int "queueId" queue_id)
+      @ Client.repeat_param "reportTypes" report_types
+      @ Client.opt_pair "subject" subject
+      @ Client.opt_pair "did" did
+      @ Client.opt_pair "subjectType" subject_type
+      @ Client.repeat_param "collections" collections
+      @ Client.opt_pair "reportedAfter" reported_after
+      @ Client.opt_pair "reportedBefore" reported_before
+      @ Client.opt_bool "isMuted" is_muted
+      @ Client.opt_pair "assignedTo" assigned_to
+      @ Client.opt_pair "sortField" sort_field
+      @ Client.opt_pair "sortDirection" sort_direction
+      @ Client.opt_int "limit" limit
+      @ Client.opt_pair "cursor" cursor)
+    |> parse_reports
+
+  let get_report (s : Session.session) ~proxy ~id () : report_view =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.report.getReport"
+      [ ("id", string_of_int id) ]
+    |> parse_report_result
+
+  let get_latest_report (s : Session.session) ~proxy () : report_view =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.report.getLatestReport" []
+    |> parse_report_result
+
+  let assign_report_moderator (s : Session.session) ~proxy ~report_id ?queue_id
+      ?did ?is_permanent () : assignment_view =
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.report.assignModerator"
+      (Yojson.Safe.to_string
+         (`Assoc
+           ((("reportId", `Int report_id) :: opt_json_int "queueId" queue_id)
+           @ opt_json_str "did" did
+           @ opt_json_bool "isPermanent" is_permanent)))
+    |> parse_assignment_view
+
+  let unassign_report_moderator (s : Session.session) ~proxy ~report_id () :
+      assignment_view =
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.report.unassignModerator"
+      (Yojson.Safe.to_string (`Assoc [ ("reportId", `Int report_id) ]))
+    |> parse_assignment_view
+
+  let get_report_assignments (s : Session.session) ~proxy ?only_active
+      ?(report_ids = []) ?(dids = []) ?limit ?cursor () : assignments =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.report.getAssignments"
+      (Client.opt_bool "onlyActive" only_active
+      @ repeat_int "reportIds" report_ids
+      @ Client.repeat_param "dids" dids
+      @ Client.opt_int "limit" limit
+      @ Client.opt_pair "cursor" cursor)
+    |> parse_assignments
+
+  let create_activity (s : Session.session) ~proxy ~activity ?report_id
+      ?event_id ?internal_note ?public_note ?is_automated () :
+      report_activity_view =
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.report.createActivity"
+      (Yojson.Safe.to_string
+         (create_activity_body ~activity ?report_id ?event_id ?internal_note
+            ?public_note ?is_automated ()))
+    |> parse_activity_result
+
+  let list_activities (s : Session.session) ~proxy ~report_id ?limit ?cursor ()
+      : report_activities =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.report.listActivities"
+      ((("reportId", string_of_int report_id) :: Client.opt_int "limit" limit)
+      @ Client.opt_pair "cursor" cursor)
+    |> parse_report_activities
+
+  let query_activities (s : Session.session) ~proxy ?(activity_types = [])
+      ?created_after ?created_before ?sort_direction ?limit ?cursor () :
+      report_activities =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.report.queryActivities"
+      (Client.repeat_param "activityTypes" activity_types
+      @ Client.opt_pair "createdAfter" created_after
+      @ Client.opt_pair "createdBefore" created_before
+      @ Client.opt_pair "sortDirection" sort_direction
+      @ Client.opt_int "limit" limit
+      @ Client.opt_pair "cursor" cursor)
+    |> parse_report_activities
+
+  let reassign_queue (s : Session.session) ~proxy ~report_id ~queue_id ?comment
+      () : report_view =
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.report.reassignQueue"
+      (Yojson.Safe.to_string
+         (`Assoc
+           (("reportId", `Int report_id)
+           :: ("queueId", `Int queue_id)
+           :: opt_json_str "comment" comment)))
+    |> parse_report_result
+
+  let refresh_stats (s : Session.session) ~proxy ~start_date ~end_date
+      ?queue_ids () : unit =
+    ignore
+      (Client.post_json ~session:s ~extra:(proxy_headers proxy)
+         "tools.ozone.report.refreshStats"
+         (Yojson.Safe.to_string
+            (`Assoc
+              (("startDate", `String start_date)
+              :: ("endDate", `String end_date)
+              ::
+              (match queue_ids with
+              | Some xs -> [ ("queueIds", json_ints xs) ]
+              | None -> [])))))
+
+  let close_reports (s : Session.session) ~proxy ~subject ?(report_types = [])
+      ?internal_note ?is_automated () : close_reports_result =
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.report.closeReports"
+      (Yojson.Safe.to_string
+         (`Assoc
+           (("subject", `String subject)
+            ::
+            (match report_types with
+            | [] -> []
+            | xs -> [ ("reportTypes", json_strings xs) ])
+           @ opt_json_str "internalNote" internal_note
+           @ opt_json_bool "isAutomated" is_automated)))
+    |> parse_close_reports_result
+
+  let get_live_stats (s : Session.session) ~proxy ?queue_id ?moderator_did
+      ?(report_types = []) () : report_stats =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.report.getLiveStats"
+      (Client.opt_int "queueId" queue_id
+      @ Client.opt_pair "moderatorDid" moderator_did
+      @ Client.repeat_param "reportTypes" report_types)
+    |> parse_live_stats
+
+  let get_historical_stats (s : Session.session) ~proxy ?queue_id ?moderator_did
+      ?(report_types = []) ?start_date ?end_date ?limit ?cursor () :
+      historical_stats =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.report.getHistoricalStats"
+      (Client.opt_int "queueId" queue_id
+      @ Client.opt_pair "moderatorDid" moderator_did
+      @ Client.repeat_param "reportTypes" report_types
+      @ Client.opt_pair "startDate" start_date
+      @ Client.opt_pair "endDate" end_date
+      @ Client.opt_int "limit" limit
+      @ Client.opt_pair "cursor" cursor)
+    |> parse_historical_stats
 end

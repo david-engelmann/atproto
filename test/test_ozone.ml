@@ -277,6 +277,137 @@ let test_operator_namespace_parsers _ =
     "Hello"
     (body |> member "name" |> to_string)
 
+let test_parse_queue_and_report _ =
+  let queues =
+    Ozone.parse_queues
+      (`Assoc
+        [
+          ( "queues",
+            `List
+              [
+                `Assoc
+                  [
+                    ("id", `Int 7);
+                    ("name", `String "spam");
+                    ("subjectTypes", `List [ `String "account" ]);
+                    ( "reportTypes",
+                      `List [ `String Ozone.reason_misleading_spam ] );
+                    ("enabled", `Bool true);
+                    ( "stats",
+                      `Assoc
+                        [
+                          ("pendingCount", `Int 3);
+                          ("inboundCount", `Int 10);
+                          ("actionRate", `Int 40);
+                        ] );
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal 1 (List.length queues.queues);
+  OUnit2.assert_equal ~printer:(fun x -> x) "spam" (List.hd queues.queues).name;
+  OUnit2.assert_equal (Some 3)
+    (Option.bind (List.hd queues.queues).stats (fun s -> s.pending_count));
+  let body =
+    Ozone.create_queue_body ~name:"spam" ~subject_types:[ "account" ]
+      ~report_types:[ Ozone.reason_misleading_spam ]
+      ()
+  in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "spam"
+    (body |> member "name" |> to_string);
+  let routed =
+    Ozone.parse_route_reports_result
+      (`Assoc [ ("assigned", `Int 4); ("unmatched", `Int 1) ])
+  in
+  OUnit2.assert_equal 4 routed.assigned;
+  let report =
+    Ozone.parse_report_result
+      (`Assoc
+        [
+          ( "report",
+            `Assoc
+              [
+                ("id", `Int 11);
+                ("eventId", `Int 99);
+                ("status", `String "open");
+                ("reportType", `String Ozone.reason_violence_threats);
+                ("reportedBy", `String "did:plc:reporter000111222333444555");
+                ("comment", `String "threat");
+                ( "subject",
+                  `Assoc
+                    [
+                      ("$type", `String "com.atproto.admin.defs#repoRef");
+                      ("did", `String "did:plc:abc123xyz0001112223333");
+                    ] );
+                ( "assignment",
+                  `Assoc
+                    [
+                      ("did", `String "did:plc:mod000111222333444555666");
+                      ("assignedAt", `String "2024-01-01T00:00:00.000Z");
+                    ] );
+              ] );
+        ])
+  in
+  OUnit2.assert_equal 11 report.id;
+  OUnit2.assert_equal ~printer:(fun x -> x) "open" report.status;
+  OUnit2.assert_equal (Some "did:plc:mod000111222333444555666")
+    (Option.map (fun (a : Ozone.report_assignment) -> a.did) report.assignment);
+  let activity =
+    Ozone.parse_report_activity
+      (`Assoc
+        [
+          ("$type", `String "tools.ozone.report.defs#closeActivity");
+          ("previousStatus", `String "assigned");
+        ])
+  in
+  (match activity with
+  | `Close (Some "assigned") -> ()
+  | _ -> OUnit2.assert_failure "expected closeActivity");
+  let create_body =
+    Ozone.create_activity_body ~activity:(Ozone.note_activity ()) ~report_id:11
+      ~internal_note:"looks resolved" ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "tools.ozone.report.defs#noteActivity"
+    (create_body |> member "activity" |> member "$type" |> to_string);
+  let closed =
+    Ozone.parse_close_reports_result
+      (`Assoc
+        [ ("closedCount", `Int 2); ("reportIds", `List [ `Int 11; `Int 12 ]) ])
+  in
+  OUnit2.assert_equal 2 closed.closed_count;
+  let live =
+    Ozone.parse_live_stats
+      (`Assoc
+        [
+          ( "stats",
+            `Assoc [ ("pendingCount", `Int 5); ("inboundCount", `Int 9) ] );
+        ])
+  in
+  OUnit2.assert_equal (Some 5) live.pending_count;
+  let hist =
+    Ozone.parse_historical_stats
+      (`Assoc
+        [
+          ( "stats",
+            `List
+              [
+                `Assoc
+                  [ ("date", `String "2024-01-01"); ("actionedCount", `Int 8) ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal (Some "2024-01-01") (List.hd hist.stats).date;
+  let deleted =
+    Ozone.parse_delete_queue_result
+      (`Assoc [ ("deleted", `Bool true); ("reportsMigrated", `Int 2) ])
+  in
+  OUnit2.assert_equal true deleted.deleted
+
 let test_query_statuses_auth_skipped _ =
   skip_if
     (not Auth.has_live_credentials)
@@ -289,6 +420,18 @@ let test_query_statuses_auth_skipped _ =
     OUnit2.assert_bool "statuses parsed" (List.length page.subject_statuses >= 0)
   with exn -> skip_if true ("queryStatuses skipped: " ^ Printexc.to_string exn)
 
+let test_list_queues_auth_skipped _ =
+  skip_if
+    (not Auth.has_live_credentials)
+    "ATP_AUTH not configured; live Bluesky test skipped";
+  let username, password = Auth.username_and_password_from_env in
+  let s = Atproto.Session.Session.create_session username password in
+  try
+    let proxy = Ozone.labeler_proxy "did:plc:ar7c4by46qjdydhdevvrndac" in
+    let page = Ozone.list_queues s ~proxy ~limit:1 () in
+    OUnit2.assert_bool "queues parsed" (List.length page.queues >= 0)
+  with exn -> skip_if true ("listQueues skipped: " ^ Printexc.to_string exn)
+
 let suite =
   "ozone"
   >::: [
@@ -300,7 +443,9 @@ let suite =
          "test_parse_typed_event_and_subject"
          >:: test_parse_typed_event_and_subject;
          "test_query_statuses_auth_skipped" >:: test_query_statuses_auth_skipped;
+         "test_list_queues_auth_skipped" >:: test_list_queues_auth_skipped;
          "test_operator_namespace_parsers" >:: test_operator_namespace_parsers;
+         "test_parse_queue_and_report" >:: test_parse_queue_and_report;
        ]
 
 let () = run_test_tt_main suite

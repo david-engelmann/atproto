@@ -141,7 +141,20 @@ let test_validate_errors _ =
 
 let test_union_codegen_and_official_bundle _ =
   let docs = Lexicon.official_documents () in
-  OUnit2.assert_bool "bundled lexicons" (List.length docs >= 14);
+  OUnit2.assert_bool "bundled lexicons" (List.length docs >= 20);
+  OUnit2.assert_bool "listQueues bundled"
+    (List.exists
+       (fun (d : Lexicon.document) -> d.id = "tools.ozone.queue.listQueues")
+       docs);
+  OUnit2.assert_bool "queryReports bundled"
+    (List.exists
+       (fun (d : Lexicon.document) -> d.id = "tools.ozone.report.queryReports")
+       docs);
+  OUnit2.assert_bool "checkSignupQueue bundled"
+    (List.exists
+       (fun (d : Lexicon.document) ->
+         d.id = "com.atproto.temp.checkSignupQueue")
+       docs);
   OUnit2.assert_bool "searchPostsV2 bundled"
     (List.exists
        (fun (d : Lexicon.document) -> d.id = "app.bsky.feed.searchPostsV2")
