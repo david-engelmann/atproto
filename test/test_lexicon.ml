@@ -247,6 +247,8 @@ let test_union_codegen_and_official_bundle _ =
               "app.bsky.embed.video";
               "com.atproto.lexicon.schema";
               "app.bsky.graph.muteActor";
+              "app.bsky.graph.getFollows";
+              "app.bsky.graph.getFollowers";
               "app.bsky.actor.defs";
               "com.atproto.server.createSession";
               "com.atproto.server.createAccount";
@@ -369,11 +371,41 @@ let test_union_codegen_and_official_bundle _ =
           in
           match Lexicon.main mute with
           | None -> OUnit2.assert_failure "missing muteActor main"
-          | Some main ->
+          | Some main -> (
               OUnit2.assert_bool "onlyReposts"
                 (List.exists
                    (fun (name, _) -> name = "onlyReposts")
-                   main.input.properties)))
+                   main.input.properties);
+              let get_follows =
+                List.find
+                  (fun (d : Lexicon.document) ->
+                    d.id = "app.bsky.graph.getFollows")
+                  docs
+              in
+              match Lexicon.main get_follows with
+              | None -> OUnit2.assert_failure "missing getFollows main"
+              | Some follows_main -> (
+                  OUnit2.assert_bool "getFollows sort"
+                    (List.exists
+                       (fun (name, _) -> name = "sort")
+                       follows_main.properties);
+                  OUnit2.assert_bool "getFollows cursor"
+                    (List.exists
+                       (fun (name, _) -> name = "cursor")
+                       follows_main.properties);
+                  let get_followers =
+                    List.find
+                      (fun (d : Lexicon.document) ->
+                        d.id = "app.bsky.graph.getFollowers")
+                      docs
+                  in
+                  match Lexicon.main get_followers with
+                  | None -> OUnit2.assert_failure "missing getFollowers main"
+                  | Some followers_main ->
+                      OUnit2.assert_bool "getFollowers sort"
+                        (List.exists
+                           (fun (name, _) -> name = "sort")
+                           followers_main.properties)))))
 
 let test_parse_resolved_lexicon _ =
   let json =

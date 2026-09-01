@@ -662,6 +662,30 @@ let test_leftover_appview _ =
           (Graph.mute_actor_body ~actor:"carla.test" ~only_reposts:true
              ~only_quoteposts:false ())));
   (match
+     av_get_if_served "app.bsky.graph.getFollows"
+       (Graph.follow_page_pairs ~actor:"alice.test" ~limit:10
+          ~sort:Graph.sort_latest ())
+   with
+  | None -> ()
+  | Some json ->
+      let page = Graph.parse_follows json in
+      OUnit2.assert_bool "getFollows sort=latest"
+        (List.length page.follows >= 0);
+      OUnit2.assert_bool "getFollows cursor optional"
+        (match page.cursor with Some _ | None -> true));
+  (match
+     av_get_if_served "app.bsky.graph.getFollowers"
+       (Graph.follow_page_pairs ~actor:"alice.test" ~limit:10
+          ~sort:Graph.sort_top ())
+   with
+  | None -> ()
+  | Some json ->
+      let page = Graph.parse_followers json in
+      OUnit2.assert_bool "getFollowers sort=top"
+        (List.length page.followers >= 0);
+      OUnit2.assert_bool "getFollowers cursor optional"
+        (match page.cursor with Some _ | None -> true));
+  (match
      av_get_if_served ~session:s "app.bsky.graph.getListsWithMembership"
        [ ("actor", "alice.test"); ("limit", "5") ]
    with

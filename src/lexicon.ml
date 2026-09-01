@@ -481,6 +481,12 @@ module Lexicon = struct
   let official_mute_actor =
     {|{"lexicon":1,"id":"app.bsky.graph.muteActor","defs":{"main":{"type":"procedure","description":"Creates a mute relationship for the specified account.","input":{"encoding":"application/json","schema":{"type":"object","required":["actor"],"properties":{"actor":{"type":"string"},"onlyReposts":{"type":"boolean"},"onlyQuoteposts":{"type":"boolean"}}}}}}}|}
 
+  let official_get_follows =
+    {|{"lexicon":1,"id":"app.bsky.graph.getFollows","defs":{"main":{"type":"query","description":"Enumerates accounts which a specified account (actor) follows.","parameters":{"type":"params","required":["actor"],"properties":{"actor":{"type":"string"},"limit":{"type":"integer"},"cursor":{"type":"string"},"sort":{"type":"string","knownValues":["latest","top"]}}},"output":{"encoding":"application/json","schema":{"type":"object","required":["subject","follows"],"properties":{"subject":{"type":"ref","ref":"app.bsky.actor.defs#profileView"},"cursor":{"type":"string"},"follows":{"type":"array"}}}}}}}|}
+
+  let official_get_followers =
+    {|{"lexicon":1,"id":"app.bsky.graph.getFollowers","defs":{"main":{"type":"query","description":"Enumerates accounts which follow a specified account (actor).","parameters":{"type":"params","required":["actor"],"properties":{"actor":{"type":"string"},"limit":{"type":"integer"},"cursor":{"type":"string"},"sort":{"type":"string","knownValues":["latest","top"]}}},"output":{"encoding":"application/json","schema":{"type":"object","required":["subject","followers"],"properties":{"subject":{"type":"ref","ref":"app.bsky.actor.defs#profileView"},"cursor":{"type":"string"},"followers":{"type":"array"}}}}}}}|}
+
   let official_actor_defs =
     {|{"lexicon":1,"id":"app.bsky.actor.defs","defs":{"viewerState":{"type":"object","properties":{"muted":{"type":"boolean"},"mutedOnlyReposts":{"type":"boolean"},"mutedOnlyQuoteposts":{"type":"boolean"},"blocking":{"type":"string"},"knownFollowers":{"type":"ref","ref":"#knownFollowers"}}},"profileAssociatedGerm":{"type":"object","required":["showButtonTo","messageMeUrl"],"properties":{"showButtonTo":{"type":"string"},"messageMeUrl":{"type":"string"}}},"profileAssociated":{"type":"object","properties":{"germ":{"type":"ref","ref":"#profileAssociatedGerm"}}},"profileViewDetailed":{"type":"object","required":["did","handle"],"properties":{"joinedViaStarterPack":{"type":"ref","ref":"app.bsky.graph.defs#starterPackViewBasic"}}}}}|}
 
@@ -595,6 +601,8 @@ module Lexicon = struct
       ("app.bsky.embed.video", official_embed_video);
       ("com.atproto.lexicon.schema", official_lexicon_schema);
       ("app.bsky.graph.muteActor", official_mute_actor);
+      ("app.bsky.graph.getFollows", official_get_follows);
+      ("app.bsky.graph.getFollowers", official_get_followers);
       ("app.bsky.actor.defs", official_actor_defs);
       ("com.atproto.server.createSession", official_create_session);
       ("com.atproto.server.createAccount", official_create_account);
