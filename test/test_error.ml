@@ -53,6 +53,12 @@ let test_is_not_served _ =
            ("error", `String "InvalidRequest");
            ("message", `String "Search v2 is not enabled");
          ]));
+  OUnit2.assert_bool "unknown lexicon type"
+    (Error.is_not_served
+       {
+         error = "InvalidRequest";
+         message = "Unknown lexicon type: app.bsky.graph.referencelistoptout";
+       });
   OUnit2.assert_bool "other InvalidRequest still an error"
     (not
        (Error.is_not_served

@@ -67,13 +67,12 @@ let no_xrpc_error json =
   | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
   | None -> ()
 
-let method_missing err = err = "MethodNotFound" || err = "MethodNotImplemented"
-
 let served json =
-  match Error.check_for_error json with
-  | Some err when method_missing err -> false
-  | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
-  | None -> true
+  if Error.is_not_served_json json then false
+  else
+    match Error.check_for_error json with
+    | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
+    | None -> true
 
 let test_get_config _ =
   let s = admin_session () in
@@ -318,13 +317,18 @@ let test_leftover_ozone _ =
       OUnit2.assert_bool "queryRules" (List.length rules.rules >= 0)
   | _ -> ());
   match
-    ozone_json s p "tools.ozone.moderation.listScheduledActions"
-      [ ("limit", "10") ]
+    Client.post_json ~session:s ~extra:(Ozone.proxy_headers p)
+      "tools.ozone.moderation.listScheduledActions"
+      (Yojson.Safe.to_string
+         (`Assoc
+           [ ("statuses", `List [ `String "pending" ]); ("limit", `Int 10) ]))
   with
   | json when served json ->
-      OUnit2.assert_bool "listScheduledActions"
-        (match Yojson.Safe.Util.member "actions" json with
-        | `List _ | `Null | _ -> true)
+      let listed =
+        Ozone.list_scheduled_actions s ~proxy:p ~statuses:[ "pending" ]
+          ~limit:10 ()
+      in
+      OUnit2.assert_bool "listScheduledActions" (List.length listed.actions >= 0)
   | _ -> ()
 
 let suite =
