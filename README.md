@@ -27,6 +27,8 @@ In a dependent `dune` stanza:
 
 `opam pin` / `opam install .` invoke `dune build -p atproto` (the same build a dependent sees) and install the public `atproto` library. That does not publish the package to opam-repository.
 
+Version notes for **0.1.0** (what shipped through [#106](https://github.com/david-engelmann/atproto/pull/106)) are in [CHANGELOG.md](CHANGELOG.md).
+
 ## Environment
 
 Create a `.env` (see `sample.env`) with at least:
@@ -174,7 +176,7 @@ These are product-level, not missing protocol cores:
 
 #70–#90 covered protocol core, AppView/chat/ozone/temp, Jetstream, video, OAuth scopes, thread v2 / drafts / contacts, remaining preference kinds, ozone queue/report, `site.standard.*`, leftover admin, HTTP/2, server email/activate, leftover official field parsers, and the official `@atproto/dev-env` local network in CI.
 
-This stack fills leftover *library* holes after #90–#105: live local OAuth through token (loopback client-metadata + AS discovery + PAR/DPoP + authorize GET + `~api/sign-in`/`consent` with real cookies + token / DPoP `getSession` / DPoP `getServiceAuth` / AppView `getTimeline` / Ozone `emitEvent` via service-auth / refresh / RFC 7009 revoke), official `app.bsky.graph.referencelistoptout`, OAuth PAR `prompt=create` / RFC 7638 `dpop_jkt`, typed official permission-set lexicons (`include:app.bsky.auth*`), `Client.post_json_h2`, DAG-CBOR IPLD JSON (`$link`/`$bytes`), offline `Repo_sync.write_signed_repo`, and more local PDS/AppView/Ozone XRPC the stack actually serves. Chat still has no OSS server in TestNetwork; skippable live `chat.bsky.*` tests keep `atproto-proxy`.
+This stack fills leftover *library* holes after #90–#106: live local OAuth through token (loopback client-metadata + AS discovery + PAR/DPoP + authorize GET + `~api/sign-in`/`consent` with real cookies + token / DPoP `getSession` / DPoP `getServiceAuth` / AppView `getTimeline` / Ozone `emitEvent` via service-auth / refresh / RFC 7009 revoke), official `app.bsky.graph.referencelistoptout`, OAuth PAR `prompt=create` / RFC 7638 `dpop_jkt`, typed official permission-set lexicons (`include:app.bsky.auth*`), `Client.post_json_h2`, DAG-CBOR IPLD JSON (`$link`/`$bytes`), offline `Repo_sync.write_signed_repo`, unused opens as errors, public module odoc, and more local PDS/AppView/Ozone XRPC the stack actually serves. Chat still has no OSS server in TestNetwork; skippable live `chat.bsky.*` tests keep `atproto-proxy`.
 
 Production admin/ozone operator sessions are not invented here. Local TestNetwork `admin-mod.test` completes OAuth DPoP and writes through `getServiceAuth` (DPoP + `atproto-proxy` is rejected).
 
