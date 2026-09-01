@@ -157,7 +157,9 @@ module Client = struct
       json_of_body (Response.body_string resp)
 
   (* PDS accessJwt is at+jwt. AppView requires a service-auth JWT
-     (com.atproto.server.getServiceAuth, aud=AppView DID, lxm=NSID). *)
+     (com.atproto.server.getServiceAuth, aud=AppView DID, lxm=NSID).
+     OAuth sessions mint the same JWT with Oauth.get_service_auth (DPoP)
+     and pass it here as ~bearer — Client cannot depend on Oauth. *)
   let get_service_auth (s : Session.session) ~aud ~lxm () : string =
     let json =
       get_json ~session:s "com.atproto.server.getServiceAuth"
