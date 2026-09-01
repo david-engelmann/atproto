@@ -74,6 +74,30 @@ let test_metadata_parses_granular _ =
   in
   Atproto.Oauth.Oauth.validate_metadata meta
 
+let test_official_permission_sets _ =
+  List.iter
+    (fun nsid ->
+      OUnit2.assert_bool nsid (Oauth_scope.is_official_include nsid);
+      ignore (Oauth_scope.parse_one ("include:" ^ nsid)))
+    Oauth_scope.official_include_nsids;
+  OUnit2.assert_bool "unknown include"
+    (not (Oauth_scope.is_official_include "app.bsky.authBasicFeatures"));
+  match Oauth_scope.expand_include_nsid "app.bsky.authCreatePosts" with
+  | None -> OUnit2.assert_failure "expected bundled authCreatePosts"
+  | Some scopes ->
+      OUnit2.assert_bool "expands repo:post"
+        (List.exists
+           (fun s ->
+             s.Oauth_scope.resource = Oauth_scope.Repo
+             && s.Oauth_scope.positional = Some "app.bsky.feed.post")
+           scopes);
+      OUnit2.assert_bool "expands video rpc"
+        (List.exists
+           (fun s ->
+             s.Oauth_scope.resource = Oauth_scope.Rpc
+             && s.Oauth_scope.positional = Some "app.bsky.video.uploadVideo")
+           scopes)
+
 let suite =
   "oauth_scope"
   >::: [
@@ -86,6 +110,7 @@ let suite =
          "test_account_identity" >:: test_account_identity;
          "test_subset_and_require" >:: test_subset_and_require;
          "test_metadata_parses_granular" >:: test_metadata_parses_granular;
+         "test_official_permission_sets" >:: test_official_permission_sets;
        ]
 
 let () = run_test_tt_main suite

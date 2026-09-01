@@ -351,6 +351,41 @@ let test_partial_getrecord_proof _ =
   OUnit2.assert_bool "partial proof" (Cid.equal cid va);
   OUnit2.assert_equal ~printer:(fun x -> x) "rec-a" bytes
 
+let test_write_signed_repo _ =
+  match Mirage_crypto_ec.P256.Dsa.priv_of_octets rfc6979_p256_priv with
+  | Error _ -> OUnit2.assert_failure "p256 priv"
+  | Ok priv ->
+      let pub = Mirage_crypto_ec.P256.Dsa.pub_of_priv priv in
+      let key =
+        Did_key.to_string
+          (Did_key.of_p256_octets
+             (Mirage_crypto_ec.P256.Dsa.pub_to_octets ~compress:true pub))
+      in
+      let post =
+        `Assoc
+          [
+            ("$type", `String "app.bsky.feed.post");
+            ("text", `String "offline signed repo");
+            ("createdAt", `String "2024-01-01T00:00:00.000Z");
+          ]
+      in
+      let snap =
+        Repo_sync.write_signed_repo ~did ~rev:"3jzfcijpj2z2a"
+          ~sign:(fun ~did ~data ~rev ?prev () ->
+            Mst.sign_p256 ~priv ~did ~data ~rev ?prev ())
+          ~records:[ ("app.bsky.feed.post/3jzfcijpj2z2a", post) ]
+          ()
+      in
+      Repo_sync.verify_snapshot ~keys:[ key ] snap;
+      OUnit2.assert_equal ~printer:(fun x -> x) did snap.did;
+      let walked = Repo_sync.walk snap in
+      OUnit2.assert_equal 1 (List.length walked);
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "app.bsky.feed.post/3jzfcijpj2z2a" (fst (List.hd walked));
+      OUnit2.assert_equal `Valid
+        (Mst.verify_commit_sig ~keys:[ key ] snap.commit)
+
 let test_split_path _ =
   OUnit2.assert_equal
     ("app.bsky.feed.post", "3jzfcijpj2z2a")
@@ -372,6 +407,7 @@ let suite =
          "test_preorder_export_and_stream" >:: test_preorder_export_and_stream;
          "test_collection_subset_export" >:: test_collection_subset_export;
          "test_partial_getrecord_proof" >:: test_partial_getrecord_proof;
+         "test_write_signed_repo" >:: test_write_signed_repo;
        ]
 
 let () = run_test_tt_main suite

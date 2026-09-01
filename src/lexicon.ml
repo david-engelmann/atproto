@@ -22,6 +22,7 @@ module Lexicon = struct
     | Blob
     | Array
     | String_def
+    | Permission_set
     | Unknown_def of string
 
   type schema_shape = {
@@ -72,6 +73,7 @@ module Lexicon = struct
     | "blob" -> Blob
     | "array" -> Array
     | "string" -> String_def
+    | "permission-set" -> Permission_set
     | other -> Unknown_def other
 
   let string_opt json field =
@@ -182,6 +184,64 @@ module Lexicon = struct
   let of_string (body : string) : document =
     of_json (Yojson.Safe.from_string body)
 
+  type permission = {
+    resource : string;
+    inherit_aud : bool option;
+    lxm : string list;
+    collection : string list;
+    action : string list;
+  }
+
+  type permission_set = {
+    id : string option;
+    title : string option;
+    detail : string option;
+    permissions : permission list;
+  }
+
+  let string_list_field json field =
+    match Yojson.Safe.Util.member field json with
+    | `List items ->
+        List.filter_map (function `String s -> Some s | _ -> None) items
+    | `String s -> [ s ]
+    | _ -> []
+
+  let parse_permission json : permission =
+    {
+      resource =
+        (match Yojson.Safe.Util.member "resource" json with
+        | `String s -> s
+        | _ -> "");
+      inherit_aud =
+        (match Yojson.Safe.Util.member "inheritAud" json with
+        | `Bool b -> Some b
+        | _ -> None);
+      lxm = string_list_field json "lxm";
+      collection = string_list_field json "collection";
+      action = string_list_field json "action";
+    }
+
+  let permission_set_body json =
+    match Yojson.Safe.Util.member "defs" json with
+    | `Assoc fields -> (
+        match List.assoc_opt "main" fields with Some m -> m | None -> json)
+    | _ -> json
+
+  let parse_permission_set json : permission_set =
+    let body = permission_set_body json in
+    {
+      id =
+        (match Yojson.Safe.Util.member "id" json with
+        | `String s -> Some s
+        | _ -> None);
+      title = string_opt body "title";
+      detail = string_opt body "detail";
+      permissions =
+        (match Yojson.Safe.Util.member "permissions" body with
+        | `List xs -> List.map parse_permission xs
+        | _ -> []);
+    }
+
   let main (doc : document) : def option =
     List.find_opt (fun d -> d.name = "main") doc.defs
 
@@ -222,6 +282,7 @@ module Lexicon = struct
     | Blob -> "blob"
     | Array -> "array"
     | String_def -> "string"
+    | Permission_set -> "permission-set"
     | Unknown_def s -> s
 
   let to_ocaml (doc : document) : string =
@@ -468,6 +529,15 @@ module Lexicon = struct
   let official_ageassurance_event =
     {|{"lexicon":1,"id":"app.bsky.ageassurance.defs","defs":{"event":{"type":"object","required":["createdAt","status","access","attemptId","countryCode"],"properties":{"initIp":{"type":"string"},"initUa":{"type":"string"},"completeIp":{"type":"string"},"completeUa":{"type":"string"}}}}}|}
 
+  let official_referencelistoptout =
+    {|{"lexicon":1,"id":"app.bsky.graph.referencelistoptout","defs":{"main":{"type":"record","description":"Record requesting that its author be omitted from the public presentation of a reference list.","key":"tid","record":{"type":"object","required":["subject","createdAt"],"properties":{"subject":{"type":"string","format":"at-uri"},"createdAt":{"type":"string","format":"datetime"}}}}}}|}
+
+  let official_auth_create_posts =
+    {|{"lexicon":1,"id":"app.bsky.authCreatePosts","defs":{"main":{"type":"permission-set","title":"Create Bluesky Posts","detail":"Can not update or delete posts.","permissions":[{"type":"permission","resource":"rpc","inheritAud":true,"lxm":["app.bsky.video.uploadVideo","app.bsky.video.getJobStatus","app.bsky.video.getUploadLimits","app.bsky.video.startUpload","app.bsky.video.uploadPart","app.bsky.video.finishUpload","app.bsky.video.abortUpload","app.bsky.video.getUploadStatus"]},{"type":"permission","resource":"repo","action":["create"],"collection":["app.bsky.feed.post","app.bsky.feed.postgate","app.bsky.feed.threadgate"]}]}}}|}
+
+  let official_auth_full_chat =
+    {|{"lexicon":1,"id":"chat.bsky.authFullChatClient","defs":{"main":{"type":"permission-set","title":"Full Chat Client (All Conversations)","detail":"Control of all chat conversations and configuration management.","permissions":[{"type":"permission","resource":"rpc","inheritAud":true,"lxm":["chat.bsky.convo.listConvos","chat.bsky.convo.sendMessage"]},{"type":"permission","resource":"repo","action":["create","update","delete"],"collection":["chat.bsky.actor.declaration"]}]}}}|}
+
   let official_lexicons : (string * string) list =
     [
       ("app.bsky.graph.listitem", official_listitem);
@@ -517,6 +587,9 @@ module Lexicon = struct
       ("chat.bsky.convo.listConvoRequests", official_list_convo_requests);
       ("chat.bsky.group.defs", official_join_request_convo);
       ("app.bsky.ageassurance.defs", official_ageassurance_event);
+      ("app.bsky.graph.referencelistoptout", official_referencelistoptout);
+      ("app.bsky.authCreatePosts", official_auth_create_posts);
+      ("chat.bsky.authFullChatClient", official_auth_full_chat);
     ]
 
   let official_documents () : document list =

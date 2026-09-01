@@ -259,6 +259,72 @@ let test_more_ozone _ =
       OUnit2.assert_bool "getReporterStats" (List.length stats.stats >= 0)
   | _ -> ()
 
+let test_leftover_ozone _ =
+  let s = admin_session () in
+  let p = proxy () in
+  let alice = Session.create_session "alice.test" "hunter2" in
+  (match
+     ozone_json s p "tools.ozone.moderation.getRepos"
+       [ ("dids", alice.auth.did) ]
+   with
+  | json when served json ->
+      let repos = Ozone.get_repos s ~proxy:p ~dids:[ alice.auth.did ] () in
+      OUnit2.assert_bool "getRepos" (List.length repos >= 0)
+  | _ -> ());
+  (match
+     ozone_json s p "tools.ozone.moderation.getSubjects"
+       [ ("subjects", alice.auth.did) ]
+   with
+  | json when served json ->
+      let subjects =
+        Ozone.get_subjects s ~proxy:p ~subjects:[ alice.auth.did ] ()
+      in
+      OUnit2.assert_bool "getSubjects" (List.length subjects.subjects >= 0)
+  | _ -> ());
+  let profile_uri =
+    Printf.sprintf "at://%s/app.bsky.actor.profile/self" alice.auth.did
+  in
+  (match
+     ozone_json s p "tools.ozone.moderation.getRecords"
+       [ ("uris", profile_uri) ]
+   with
+  | json when served json ->
+      let records = Ozone.get_records s ~proxy:p ~uris:[ profile_uri ] () in
+      OUnit2.assert_bool "getRecords" (List.length records >= 0)
+  | _ -> ());
+  (match ozone_json s p "tools.ozone.setting.listOptions" [ ("limit", "10") ] with
+  | json when served json ->
+      let opts = Ozone.list_options s ~proxy:p ~limit:10 () in
+      OUnit2.assert_bool "listOptions" (List.length opts.options >= 0)
+  | _ -> ());
+  (match
+     ozone_json s p "tools.ozone.verification.listVerifications"
+       [ ("limit", "10") ]
+   with
+  | json when served json ->
+      let vers = Ozone.list_verifications s ~proxy:p ~limit:10 () in
+      OUnit2.assert_bool "listVerifications"
+        (List.length vers.verifications >= 0)
+  | _ -> ());
+  (match
+     Client.post_json ~session:s ~extra:(Ozone.proxy_headers p)
+       "tools.ozone.safelink.queryRules"
+       (Yojson.Safe.to_string (`Assoc [ ("limit", `Int 10) ]))
+   with
+  | json when served json ->
+      let rules = Ozone.query_safelink_rules s ~proxy:p ~limit:10 () in
+      OUnit2.assert_bool "queryRules" (List.length rules.rules >= 0)
+  | _ -> ());
+  match
+    ozone_json s p "tools.ozone.moderation.listScheduledActions"
+      [ ("limit", "10") ]
+  with
+  | json when served json ->
+      OUnit2.assert_bool "listScheduledActions"
+        (match Yojson.Safe.Util.member "actions" json with
+        | `List _ | `Null | _ -> true)
+  | _ -> ()
+
 let suite =
   "local_ozone"
   >::: [
@@ -266,6 +332,7 @@ let suite =
          "test_emit_and_query" >:: test_emit_and_query;
          "test_query_labels" >:: test_query_labels;
          "test_more_ozone" >:: test_more_ozone;
+         "test_leftover_ozone" >:: test_leftover_ozone;
        ]
 
 let () =

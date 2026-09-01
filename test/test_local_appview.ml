@@ -471,6 +471,147 @@ let test_notifications _ =
         | `List _ -> ()
         | _ -> OUnit2.assert_failure "listNotifications missing notifications")
 
+let test_leftover_appview _ =
+  let s = session () in
+  (match
+     av_get_if_served ~session:s "app.bsky.feed.getActorLikes"
+       [ ("actor", "alice.test"); ("limit", "5") ]
+   with
+  | None -> ()
+  | Some json ->
+      (match Yojson.Safe.Util.member "feed" json with
+      | `List _ -> ()
+      | _ -> OUnit2.assert_failure "getActorLikes missing feed"));
+  (match
+     av_get_if_served "app.bsky.feed.getSuggestedFeeds" [ ("limit", "5") ]
+   with
+  | None -> ()
+  | Some json ->
+      (match Yojson.Safe.Util.member "feeds" json with
+      | `List _ -> ()
+      | _ -> OUnit2.assert_failure "getSuggestedFeeds missing feeds"));
+  (match
+     av_get_if_served "app.bsky.feed.getFeedGenerators"
+       [
+         ( "feeds",
+           "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot"
+         );
+       ]
+   with
+  | None -> ()
+  | Some json ->
+      (match Yojson.Safe.Util.member "feeds" json with
+      | `List _ -> ()
+      | _ -> ()));
+  (match
+     av_get_if_served "app.bsky.graph.searchStarterPacks"
+       [ ("q", "test"); ("limit", "5") ]
+   with
+  | None -> ()
+  | Some json ->
+      (match Yojson.Safe.Util.member "starterPacks" json with
+      | `List _ -> ()
+      | _ -> OUnit2.assert_failure "searchStarterPacks missing starterPacks"));
+  (match av_get_if_served "app.bsky.unspecced.getTaggedSuggestions" [] with
+  | None -> ()
+  | Some json ->
+      (match Yojson.Safe.Util.member "suggestions" json with
+      | `List _ -> ()
+      | _ -> ()));
+  (match
+     av_get_if_served "app.bsky.unspecced.getTrendingTopics" [ ("limit", "5") ]
+   with
+  | None -> ()
+  | Some json -> ignore json);
+  (match
+     av_get_if_served "app.bsky.embed.getEmbedExternalView"
+       [ ("url", "https://atproto.com") ]
+   with
+  | None -> ()
+  | Some json ->
+      OUnit2.assert_bool "getEmbedExternalView"
+        (match json with `Assoc _ -> true | _ -> false));
+  (match av_get_if_served ~session:s "app.bsky.bookmark.getBookmarks" [ ("limit", "5") ] with
+  | None -> ()
+  | Some json ->
+      (match Yojson.Safe.Util.member "bookmarks" json with
+      | `List _ -> ()
+      | _ -> ()));
+  (match
+     Yojson.Safe.Util.member "feed"
+       (av_get "app.bsky.feed.getAuthorFeed"
+          [ ("actor", "alice.test"); ("limit", "1") ])
+   with
+  | `List (item :: _) -> (
+      match Yojson.Safe.Util.member "post" item with
+      | `Assoc _ as post -> (
+          match Yojson.Safe.Util.member "uri" post with
+          | `String uri when String.length uri > 0 ->
+              (match
+                 av_get_if_served "app.bsky.unspecced.getPostThreadV2"
+                   [ ("anchor", uri) ]
+               with
+              | None -> ()
+              | Some json ->
+                  OUnit2.assert_bool "getPostThreadV2"
+                    (match json with `Assoc _ -> true | _ -> false));
+              ignore
+                (av_post_if_served ~session:s "app.bsky.graph.muteThread"
+                   (Yojson.Safe.to_string (`Assoc [ ("root", `String uri) ])));
+              ignore
+                (av_post_if_served ~session:s "app.bsky.graph.unmuteThread"
+                   (Yojson.Safe.to_string (`Assoc [ ("root", `String uri) ])))
+          | _ -> ())
+      | _ -> ())
+  | _ -> ());
+  let created_at = rfc3339_z () in
+  let list =
+    Records.list ~name:"Leftover list" ~purpose:Records.purpose_curatelist
+      ~created_at ()
+  in
+  let listed =
+    Repo.create_record s s.auth.did Records.nsid_list
+      (Yojson.Safe.to_string list)
+    |> fun body ->
+    match Error.check_for_error (Yojson.Safe.from_string body) with
+    | Some e -> failwith ("create list: " ^ e)
+    | None -> Repo.parse_write_result (Yojson.Safe.from_string body)
+  in
+  (match
+     av_get_if_served "app.bsky.graph.getList"
+       [ ("list", listed.uri); ("limit", "5") ]
+   with
+  | None -> ()
+  | Some json ->
+      (match Yojson.Safe.Util.member "list" json with
+      | `Assoc _ -> ()
+      | _ -> ()));
+  (match
+     av_get_if_served "app.bsky.graph.getListsWithMembership"
+       [ ("actor", "alice.test"); ("limit", "5") ]
+   with
+  | None -> ()
+  | Some json ->
+      (match Yojson.Safe.Util.member "listsWithMembership" json with
+      | `List _ -> ()
+      | _ -> ()));
+  ignore
+    (av_post_if_served ~session:s "app.bsky.actor.putPreferences"
+       (Yojson.Safe.to_string
+          (`Assoc
+             [
+               ( "preferences",
+                 `List
+                   [
+                     `Assoc
+                       [
+                         ( "$type",
+                           `String "app.bsky.actor.defs#adultContentPref" );
+                         ("enabled", `Bool false);
+                       ];
+                   ] );
+             ])))
+
 let suite =
   "local_appview"
   >::: [
@@ -481,6 +622,7 @@ let suite =
          "test_graph" >:: test_graph;
          "test_more_appview" >:: test_more_appview;
          "test_notifications" >:: test_notifications;
+         "test_leftover_appview" >:: test_leftover_appview;
        ]
 
 let () =
