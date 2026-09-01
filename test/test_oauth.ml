@@ -1,6 +1,8 @@
 open OUnit2
 open Atproto.Oauth
+open Atproto.Client
 open Atproto.Hash
+open Client
 
 (* RFC 7636 Appendix B *)
 let rfc7636_verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
@@ -690,6 +692,95 @@ let test_live_as_metadata _ =
           ("oauth authorization-server metadata skipped: "
          ^ Printexc.to_string exn))
 
+let test_xrpc_url_and_service_auth_parse _ =
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "http://localhost:2583/xrpc/com.atproto.server.getServiceAuth?aud=did%3Aweb%3Alocalhost%3A2584&lxm=app.bsky.feed.getTimeline"
+    (Oauth.xrpc_url ~origin:"http://localhost:2583"
+       "com.atproto.server.getServiceAuth"
+       [
+         ("aud", "did:web:localhost:2584"); ("lxm", "app.bsky.feed.getTimeline");
+       ]);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "http://localhost:2583/xrpc/com.atproto.server.getServiceAuth"
+    (Oauth.htu_of_url
+       (Oauth.xrpc_url ~origin:"http://localhost:2583"
+          "com.atproto.server.getServiceAuth"
+          [ ("aud", "did:web:localhost:2584") ]));
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "svc-jwt"
+    (Oauth.parse_service_auth_token (`Assoc [ ("token", `String "svc-jwt") ]));
+  OUnit2.assert_bool "empty token accepted"
+    (try
+       ignore
+         (Oauth.parse_service_auth_token (`Assoc [ ("token", `String "") ]));
+       false
+     with Failure _ -> true)
+
+let test_get_service_auth_dpop _ =
+  let priv, pub = p256_pair () in
+  let hits = ref 0 in
+  let seen_htu = ref "" in
+  let seen_auth = ref "" in
+  let http ~url ~method_ ~headers ~body:_ =
+    incr hits;
+    seen_htu := Oauth.htu_of_url url;
+    seen_auth := List.assoc "Authorization" headers;
+    let claims = Oauth.parse_dpop (List.assoc "DPoP" headers) in
+    OUnit2.assert_equal ~printer:(fun x -> x) "GET" method_;
+    OUnit2.assert_equal ~printer:(fun x -> x) "GET" claims.htm;
+    if !hits = 1 then
+      {
+        Oauth.status = 400;
+        headers = [ ("DPoP-Nonce", "svc-nonce-1") ];
+        body = {|{"error":"use_dpop_nonce"}|};
+      }
+    else
+      {
+        Oauth.status = 200;
+        headers = [ ("DPoP-Nonce", "svc-nonce-2") ];
+        body = {|{"token":"appview-service-jwt"}|};
+      }
+  in
+  let token, nonce =
+    Oauth.get_service_auth ~http ~priv ~pub ~pds_origin:"http://localhost:2583"
+      ~access_token:"oauth-tok" ~aud:"did:web:localhost:2584"
+      ~lxm:"app.bsky.feed.getTimeline" ()
+  in
+  OUnit2.assert_equal 2 !hits;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "http://localhost:2583/xrpc/com.atproto.server.getServiceAuth" !seen_htu;
+  OUnit2.assert_equal ~printer:(fun x -> x) "DPoP oauth-tok" !seen_auth;
+  OUnit2.assert_equal ~printer:(fun x -> x) "appview-service-jwt" token;
+  OUnit2.assert_equal (Some "svc-nonce-2") nonce;
+  let json, _ =
+    Oauth.xrpc_get_dpop ~http ~priv ~pub ~origin:"http://localhost:2583"
+      ~access_token:"oauth-tok" ~nonce:"svc-nonce-2"
+      "com.atproto.server.getServiceAuth"
+      [ ("aud", "did:web:localhost:2584") ]
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "appview-service-jwt"
+    (Oauth.parse_service_auth_token json);
+  let dpop =
+    {
+      Client.priv;
+      pub;
+      access_token = "oauth-tok";
+      pds_origin = "http://localhost:2583";
+      nonce = Some "svc-nonce-2";
+    }
+  in
+  let token, _ =
+    Client.get_service_auth_dpop ~http dpop ~aud:"did:web:localhost:2584"
+      ~lxm:"app.bsky.feed.getTimeline" ()
+  in
+  OUnit2.assert_equal ~printer:(fun x -> x) "appview-service-jwt" token
+
 let test_par_prompt_and_dpop_jkt _ =
   let priv, pub = p256_pair () in
   let jkt = Oauth.dpop_jkt pub in
@@ -899,6 +990,9 @@ let suite =
          >:: test_use_dpop_nonce_without_header_fails;
          "test_metadata_optional_uris" >:: test_metadata_optional_uris;
          "test_live_as_metadata" >:: test_live_as_metadata;
+         "test_xrpc_url_and_service_auth_parse"
+         >:: test_xrpc_url_and_service_auth_parse;
+         "test_get_service_auth_dpop" >:: test_get_service_auth_dpop;
          "test_par_prompt_and_dpop_jkt" >:: test_par_prompt_and_dpop_jkt;
          "test_revoke_body_and_loop" >:: test_revoke_body_and_loop;
          "test_provider_html_and_browser_headers"

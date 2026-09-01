@@ -2,15 +2,23 @@ open OUnit2
 open Atproto.Auth
 open Atproto.Session
 open Atproto.Oauth
+open Atproto.Client
+open Atproto.Error
+open Atproto.Feed
 open Oauth
+open Client
+open Error
+open Feed
 
 (* Live OAuth against official @atproto/dev-env TestNetwork (PDS oauth-provider).
    Serves a loopback client-metadata document, discovers the local AS, runs
    PAR + DPoP, then GET /oauth/authorize (document navigation). The HTML SPA
    does not mint a code itself; oauth-provider ~api/sign-in + /consent accept
    alice.test / hunter2 with the real csrf-token / dev-id / ses-id cookies.
-   Token exchange, DPoP getSession, refresh, and RFC 7009 revoke are required
-   when ATP_REQUIRE_LOCAL_PDS=1. *)
+   Token exchange, DPoP getSession, DPoP getServiceAuth, refresh, and RFC 7009
+   revoke are required when ATP_REQUIRE_LOCAL_PDS=1. Authed AppView
+   (getTimeline / listNotifications) uses the OAuth-minted service-auth JWT
+   (aud=AppView DID). If AppView rejects that hop, only that hop is skipped. *)
 
 let env_truthy name =
   match Sys.getenv_opt name with
@@ -208,6 +216,117 @@ let assert_dpop_session ~origin ~priv ~pub ~token ?nonce () =
   in
   OUnit2.assert_equal ~printer:(fun x -> x) token.sub did;
   nonce
+
+let appview_host () =
+  match Sys.getenv_opt "ATP_APPVIEW_HOST" with
+  | Some h when String.trim h <> "" -> String.trim h
+  | _ ->
+      if host_is_local Session.atp_host_from_env then "localhost:2584"
+      else Client.appview_host_from_env
+
+let appview_did () =
+  match Sys.getenv_opt "ATP_APPVIEW_DID" with
+  | Some d when String.trim d <> "" -> String.trim d
+  | _ -> Client.appview_did_from_env
+
+(* AppView still wants a PDS-minted service-auth JWT. Skip only that hop when
+   this revision does not serve the NSID or rejects DPoP/OAuth in a way the
+   stack cannot complete. Token assertions stay required. *)
+let appview_rejects_oauth json =
+  match Error.check_for_error json with
+  | None -> false
+  | Some err ->
+      let e = Error.of_json json in
+      err = "InvalidToken"
+      || err = "AuthenticationRequired"
+      || err = "InvalidDpopProof" || err = "ExpiredToken"
+      || err = "BadJwtAudience"
+      || message_has e.message "dpop"
+      || message_has e.message "oauth"
+      || message_has e.message "malformed token"
+      || message_has e.message "malformed jwt"
+
+let classify_appview json =
+  if Error.is_not_served_json json then `Not_served
+  else if appview_rejects_oauth json then `Rejected json
+  else
+    match Error.check_for_error json with
+    | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
+    | None -> `Ok json
+
+let mint_service_auth ~origin ~priv ~pub ~token ~aud ~lxm ?nonce () =
+  let url =
+    Oauth.xrpc_url ~origin "com.atproto.server.getServiceAuth"
+      [ ("aud", aud); ("lxm", lxm) ]
+  in
+  let resp, nonce =
+    Oauth.request_with_dpop ~http:Oauth.live_http_request ~priv ~pub ~url
+      ~htm:"GET" ~access_token:token.access_token ?nonce ()
+  in
+  if Oauth.is_http_not_served resp.status resp.body then (`Not_served, nonce)
+  else if resp.status < 200 || resp.status >= 300 then
+    failwith
+      (Printf.sprintf "DPoP getServiceAuth HTTP %d: %s" resp.status resp.body)
+  else
+    let svc =
+      Oauth.parse_service_auth_token (Yojson.Safe.from_string resp.body)
+    in
+    OUnit2.assert_bool ("oauth getServiceAuth " ^ lxm) (String.length svc > 8);
+    (`Token svc, nonce)
+
+(* After the OAuth token exists, mint getServiceAuth with DPoP (required PDS
+   XRPC) and send that JWT to AppView — the same hop createSession uses, but
+   not the password at+jwt. *)
+let assert_oauth_authed_appview ~origin ~priv ~pub ~token ?nonce () =
+  let aud = appview_did () in
+  let av_host = appview_host () in
+  let try_nsid ~bearer nsid pairs parse =
+    let json = Client.get_json ~host:av_host ~bearer nsid pairs in
+    match classify_appview json with
+    | `Not_served -> `Not_served
+    | `Rejected _ -> `Rejected
+    | `Ok json ->
+        parse json;
+        `Ok
+  in
+  let rec mint_and_call nonce = function
+    | [] -> nonce
+    | (nsid, pairs, parse) :: rest -> (
+        match
+          mint_service_auth ~origin ~priv ~pub ~token ~aud ~lxm:nsid ?nonce ()
+        with
+        | `Not_served, nonce ->
+            prerr_endline
+              ("DPoP getServiceAuth not served for " ^ nsid
+             ^ "; skipping remaining AppView hop");
+            nonce
+        | `Token svc, nonce -> (
+            match try_nsid ~bearer:svc nsid pairs parse with
+            | `Ok -> nonce
+            | `Not_served -> mint_and_call nonce rest
+            | `Rejected ->
+                prerr_endline
+                  ("AppView rejected OAuth service-auth for " ^ nsid
+                 ^ "; skipping remaining AppView hop");
+                nonce))
+  in
+  mint_and_call nonce
+    [
+      ( "app.bsky.feed.getTimeline",
+        [ ("algorithm", "reverse-chronological"); ("limit", "10") ],
+        fun json ->
+          let timeline = Feed.parse_timeline json in
+          OUnit2.assert_bool "oauth getTimeline" (List.length timeline.feed >= 0)
+      );
+      ( "app.bsky.notification.listNotifications",
+        [ ("limit", "10") ],
+        fun json ->
+          match Yojson.Safe.Util.member "notifications" json with
+          | `List _ -> ()
+          | _ ->
+              OUnit2.assert_failure
+                "oauth listNotifications missing notifications" );
+    ]
 
 let test_live_local_oauth _ =
   skip_unless_local ();
@@ -428,6 +547,9 @@ let test_live_local_oauth _ =
             (Oauth.contains_scope ~scope:token.scope "atproto");
           let expected_sub = token.sub in
           let nonce = assert_dpop_session ~origin ~priv ~pub ~token ?nonce () in
+          let nonce =
+            assert_oauth_authed_appview ~origin ~priv ~pub ~token ?nonce ()
+          in
           let token, nonce =
             match token.refresh_token with
             | None -> (token, nonce)

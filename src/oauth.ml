@@ -8,6 +8,9 @@ let ensure_rng = lazy (Mirage_crypto_rng_unix.use_default ())
     Local TestNetwork hosts a loopback client-metadata document and runs
     discovery / PAR / DPoP, then the oauth-provider ~api sign-in + consent
     (real authorize cookies) through token / refresh / RFC 7009 revoke.
+    DPoP resource helpers mint [com.atproto.server.getServiceAuth]
+    ([aud]=AppView DID) so authed [app.bsky.*] calls use a service-auth JWT,
+    not the DPoP access token and not a [createSession] at+jwt.
     A public HTTPS client_id and a production browser login remain
     application-level. *)
 module Oauth = struct
@@ -349,6 +352,11 @@ module Oauth = struct
     if encoded = "" then url
     else if String.contains url '?' then url ^ "&" ^ encoded
     else url ^ "?" ^ encoded
+
+  (* XRPC URL on a PDS/AppView origin. Query is appended; DPoP [htu] still
+     strips it via [htu_of_url]. *)
+  let xrpc_url ~origin nsid pairs =
+    query_append (url_on origin ("/xrpc/" ^ nsid)) pairs
 
   let authorize_redirect_url ~authorization_endpoint ~client_id ~request_uri =
     query_append authorization_endpoint
@@ -1375,6 +1383,42 @@ module Oauth = struct
       else (resp, match next_nonce with Some n -> Some n | None -> nonce)
     in
     attempt nonce 1
+
+  let parse_service_auth_token json : string =
+    match Yojson.Safe.Util.member "token" json with
+    | `String t when String.trim t <> "" -> t
+    | _ ->
+        failwith
+          ("Oauth: getServiceAuth missing token: " ^ Yojson.Safe.to_string json)
+
+  (* DPoP GET that decodes JSON and fails on non-2xx / XRPC error bodies. *)
+  let get_json_dpop ~(http : http_request) ~priv ~pub ~url ~access_token ?body
+      ?nonce () : Yojson.Safe.t * string option =
+    let resp, nonce =
+      request_with_dpop ~http ~priv ~pub ~url ~htm:"GET" ~access_token ?body
+        ?nonce ()
+    in
+    (ensure_ok ("DPoP GET " ^ url) resp, nonce)
+
+  let xrpc_get_dpop ~(http : http_request) ~priv ~pub ~origin ~access_token
+      ?nonce nsid pairs : Yojson.Safe.t * string option =
+    let url = xrpc_url ~origin nsid pairs in
+    get_json_dpop ~http ~priv ~pub ~url ~access_token ?nonce ()
+
+  (* Mint com.atproto.server.getServiceAuth with the DPoP access token.
+     AppView still wants this JWT ([aud] = AppView DID, [lxm] = NSID), not
+     the OAuth token and not a createSession at+jwt. *)
+  let get_service_auth ~(http : http_request) ~priv ~pub ~pds_origin
+      ~access_token ~aud ?lxm ?exp ?nonce () : string * string option =
+    let pairs =
+      (("aud", aud) :: (match lxm with Some n -> [ ("lxm", n) ] | None -> []))
+      @ match exp with Some n -> [ ("exp", Int64.to_string n) ] | None -> []
+    in
+    let json, nonce =
+      xrpc_get_dpop ~http ~priv ~pub ~origin:pds_origin ~access_token ?nonce
+        "com.atproto.server.getServiceAuth" pairs
+    in
+    (parse_service_auth_token json, nonce)
 
   let hex_of_bytes (s : string) : string =
     let buf = Buffer.create (String.length s * 2) in
