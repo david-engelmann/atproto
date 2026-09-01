@@ -223,9 +223,14 @@ module Oauth = struct
   let jwt_bearer_assertion_type =
     "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 
+  (* Scopes every public/loopback client metadata document must declare if the
+     PAR request uses them. oauth-provider checks PAR [scope] against this
+     string ([Scope "…" is not declared in the client metadata]). *)
+  let default_scope = "atproto transition:generic"
+
   let pushed_authorization_body ~client_id ~redirect_uri ~code_challenge ~state
-      ?(scope = "atproto transition:generic") ?login_hint ?prompt ?dpop_jkt
-      ?client_assertion () =
+      ?(scope = default_scope) ?login_hint ?prompt ?dpop_jkt ?client_assertion
+      () =
     [
       ("response_type", "code");
       ("client_id", client_id);
@@ -323,8 +328,14 @@ module Oauth = struct
     in
     String.concat "&" (List.map kv pairs)
 
+  let form_decode_value s =
+    Uri.pct_decode (String.map (function '+' -> ' ' | c -> c) s)
+
+  (* Official loopback client_id. The AS synthesizes metadata from this query
+     ([atprotoLoopbackClientMetadata]); [scope] must list every scope PAR will
+     request. *)
   let loopback_client_id ?(redirect_uri = "http://127.0.0.1/")
-      ?(scope = "atproto") () : string =
+      ?(scope = default_scope) () : string =
     "http://localhost?"
     ^ form_encode [ ("redirect_uri", redirect_uri); ("scope", scope) ]
 
@@ -356,9 +367,11 @@ module Oauth = struct
       |> List.filter_map (fun part ->
              match String.split_on_char '=' part with
              | [] | [ "" ] -> None
-             | [ k ] -> Some (Uri.pct_decode k, "")
+             | [ k ] -> Some (form_decode_value k, "")
              | k :: rest ->
-                 Some (Uri.pct_decode k, Uri.pct_decode (String.concat "=" rest)))
+                 Some
+                   ( form_decode_value k,
+                     form_decode_value (String.concat "=" rest) ))
 
   let assoc_opt key pairs =
     match List.assoc_opt key pairs with Some "" -> None | other -> other
@@ -445,10 +458,9 @@ module Oauth = struct
   let contains_scope ~scope needle =
     List.mem needle (String.split_on_char ' ' scope)
 
-  let public_metadata ~client_id ~redirect_uris
-      ?(scope = "atproto transition:generic") ?(application_type = "web")
-      ?client_name ?client_uri ?logo_uri ?tos_uri ?policy_uri () :
-      client_metadata =
+  let public_metadata ~client_id ~redirect_uris ?(scope = default_scope)
+      ?(application_type = "web") ?client_name ?client_uri ?logo_uri ?tos_uri
+      ?policy_uri () : client_metadata =
     {
       client_id;
       application_type;
@@ -469,9 +481,8 @@ module Oauth = struct
     }
 
   let confidential_metadata ~client_id ~redirect_uris ~jwks
-      ?(scope = "atproto transition:generic") ?(application_type = "web")
-      ?client_name ?client_uri ?logo_uri ?tos_uri ?policy_uri () :
-      client_metadata =
+      ?(scope = default_scope) ?(application_type = "web") ?client_name
+      ?client_uri ?logo_uri ?tos_uri ?policy_uri () : client_metadata =
     {
       (public_metadata ~client_id ~redirect_uris ~scope ~application_type
          ?client_name ?client_uri ?logo_uri ?tos_uri ?policy_uri ())

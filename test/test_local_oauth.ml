@@ -79,14 +79,10 @@ let fail_or_skip ~label status body =
 
 let http_client_rejected status body =
   (status = 400 || status = 401)
+  && (not (message_has body "invalid_scope"))
   && (message_has body "invalid_client"
-     || message_has body "https"
-     || message_has body "client_id")
-
-let undeclared_scope status body =
-  status = 400
-  && message_has body "invalid_scope"
-  && message_has body "not declared"
+     || (message_has body "https" && message_has body "client")
+     || message_has body "must be https")
 
 let local_handle () =
   match Sys.getenv_opt "ATP_AUTH" with
@@ -255,13 +251,16 @@ let test_live_local_oauth _ =
         let hosted_origin = Printf.sprintf "http://127.0.0.1:%d" port in
         let hosted_client_id = hosted_origin ^ "/client-metadata.json" in
         let redirect_uri = hosted_origin ^ redirect_path in
+        let declared_scope = Oauth.default_scope in
         let hosted_meta =
           Oauth.public_metadata ~client_id:hosted_client_id
             ~redirect_uris:[ redirect_uri ] ~application_type:"native"
-            ~client_name:"atproto-ocaml local TestNetwork"
-            ~scope:"atproto transition:generic" ()
+            ~client_name:"atproto-ocaml local TestNetwork" ~scope:declared_scope
+            ()
         in
         Oauth.validate_metadata hosted_meta;
+        OUnit2.assert_bool "hosted metadata declares transition:generic"
+          (Oauth.contains_scope ~scope:hosted_meta.scope "transition:generic");
         metadata_json :=
           Yojson.Safe.to_string (Oauth.metadata_to_json hosted_meta);
         let self =
@@ -275,6 +274,7 @@ let test_live_local_oauth _ =
         OUnit2.assert_equal
           ~printer:(fun x -> x)
           hosted_client_id served.client_id;
+        OUnit2.assert_equal ~printer:(fun x -> x) declared_scope served.scope;
         OUnit2.assert_bool "served dpop bound" served.dpop_bound_access_tokens;
 
         let resource, as_ =
@@ -314,11 +314,14 @@ let test_live_local_oauth _ =
         let pkce = Oauth.pkce_s256 () in
         let state = Oauth.random_jti () in
         let jkt = Oauth.dpop_jkt pub in
-        let scope_full = "atproto transition:generic" in
-        let scope_atproto = "atproto" in
-        let loopback_id scope =
-          Oauth.loopback_client_id ~redirect_uri ~scope ()
+        let loopback_id =
+          Oauth.loopback_client_id ~redirect_uri ~scope:declared_scope ()
         in
+        let loopback_meta = Oauth.localhost_metadata loopback_id in
+        Oauth.validate_metadata loopback_meta;
+        OUnit2.assert_equal
+          ~printer:(fun x -> x)
+          declared_scope loopback_meta.scope;
         let try_par client_id ~scope =
           let form =
             Oauth.pushed_authorization_body ~client_id ~redirect_uri
@@ -351,7 +354,7 @@ let test_live_local_oauth _ =
               skip_step "local AS PAR endpoint is not served");
 
         let par_from_loopback first_err =
-          match try_par (loopback_id scope_full) ~scope:scope_full with
+          match try_par loopback_id ~scope:declared_scope with
           | `Ok (id, par, nonce) -> (id, par, nonce)
           | `Err (_, st, bd) ->
               if Oauth.is_http_not_served st bd then
@@ -363,31 +366,10 @@ let test_live_local_oauth _ =
                       loopback http://localhost client_id (%s); metadata was \
                       served at %s"
                      first_err bd hosted_client_id)
-              else if undeclared_scope st bd then
-                (* This oauth-provider derives loopback metadata from the
-                   client_id query; if it still only declares [atproto], request
-                   that subset instead of inventing extra scopes. *)
-                match
-                  try_par (loopback_id scope_atproto) ~scope:scope_atproto
-                with
-                | `Ok (id, par, nonce) -> (id, par, nonce)
-                | `Err (_, st2, bd2) ->
-                    if Oauth.is_http_not_served st2 bd2 then
-                      skip_step ("local AS PAR not served: " ^ bd2)
-                    else if http_client_rejected st2 bd2 then
-                      skip_step
-                        (Printf.sprintf
-                           "local AS rejected loopback client_id after \
-                            atproto-only retry (%s); first loopback: %s"
-                           bd2 bd)
-                    else
-                      failwith
-                        (Printf.sprintf "PAR loopback atproto HTTP %d: %s" st2
-                           bd2)
               else failwith (Printf.sprintf "PAR loopback HTTP %d: %s" st bd)
         in
         let par_client, par, nonce =
-          match try_par hosted_client_id ~scope:scope_full with
+          match try_par hosted_client_id ~scope:declared_scope with
           | `Ok (id, par, nonce) -> (id, par, nonce)
           | `Err (_, status, body) ->
               if Oauth.is_http_not_served status body then

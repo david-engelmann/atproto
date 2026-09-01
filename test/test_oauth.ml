@@ -227,6 +227,19 @@ let test_localhost_client_metadata _ =
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "atproto transition:generic" again.scope;
+  let plus_id =
+    "http://localhost?redirect_uri=http%3A%2F%2F127.0.0.1%3A8080%2Fcb&scope=atproto+transition%3Ageneric"
+  in
+  let plus_meta = Oauth.localhost_metadata plus_id in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "atproto transition:generic" plus_meta.scope;
+  let default_built =
+    Oauth.loopback_client_id ~redirect_uri:"http://127.0.0.1:8080/cb" ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    Oauth.default_scope (Oauth.localhost_metadata default_built).scope;
   let encoded =
     Oauth.form_encode
       [ ("client_id", built); ("scope", "atproto transition:generic") ]
