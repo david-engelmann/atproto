@@ -523,12 +523,16 @@ let test_leftover_appview _ =
   | Some json -> ignore json);
   (match
      av_get_if_served "app.bsky.embed.getEmbedExternalView"
-       [ ("url", "https://atproto.com") ]
+       (("url", "https://atproto.com")
+       :: Client.repeat_param "uris"
+            [ Printf.sprintf "at://%s/app.bsky.actor.profile/self" s.auth.did ]
+       )
    with
   | None -> ()
   | Some json ->
+      let parsed = Atproto.Embed.Embed.parse_embed_external_view json in
       OUnit2.assert_bool "getEmbedExternalView"
-        (match json with `Assoc _ -> true | _ -> false));
+        (match parsed.view with Some _ | None -> true));
   (match
      av_get_if_served ~session:s "app.bsky.bookmark.getBookmarks"
        [ ("limit", "5") ]
@@ -586,7 +590,7 @@ let test_leftover_appview _ =
   | Some json -> (
       match Yojson.Safe.Util.member "list" json with `Assoc _ -> () | _ -> ()));
   (match
-     av_get_if_served "app.bsky.graph.getListsWithMembership"
+     av_get_if_served ~session:s "app.bsky.graph.getListsWithMembership"
        [ ("actor", "alice.test"); ("limit", "5") ]
    with
   | None -> ()
