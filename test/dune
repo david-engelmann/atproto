@@ -1,4 +1,6 @@
 (tests
+ (flags
+  (:standard -w +33 -warn-error +33))
  (names
   test_app
   test_actor

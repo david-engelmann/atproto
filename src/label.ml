@@ -8,6 +8,7 @@ open Did_key
 
 let ensure_rng = lazy (Mirage_crypto_rng_unix.use_default ())
 
+(** [com.atproto.label] — query, parse, and verify signed labels. *)
 module Label = struct
   type label = {
     src : string;

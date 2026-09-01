@@ -1,6 +1,7 @@
 open Cohttp_client
 open Jose.Jwt
 
+(** Session JWT helpers and [ATP_AUTH] / [ATP_HOST] environment lookup. *)
 module Auth = struct
   type auth = {
     exp : int;

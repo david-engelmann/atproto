@@ -1,5 +1,6 @@
 open Http_method
 
+(** HTTP request record used by [Http_client] (method, URL, headers, body). *)
 module Request = struct
   type request = {
     method_ : Http_method.http_method;

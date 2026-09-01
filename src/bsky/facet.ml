@@ -1,3 +1,4 @@
+(** [app.bsky.richtext.facet] — mention, link, and tag parse/serialize. *)
 module Facet = struct
   type facet_index = { byte_end : int; byte_start : int }
   type mention_feature = { did : string; mention_type : string }

@@ -1,6 +1,7 @@
 open Cohttp
 open Cohttp_lwt_unix
 
+(** Cohttp Lwt helpers shared by session, identity, and XRPC clients. *)
 module Cohttp_client = struct
   let get_body url =
     let open Lwt.Infix in

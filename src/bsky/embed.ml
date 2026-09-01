@@ -1,3 +1,4 @@
+(** [app.bsky.embed] — images, external, record, video, gallery, and views. *)
 module Embed = struct
   (*
    * external

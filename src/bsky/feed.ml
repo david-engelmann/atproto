@@ -6,6 +6,7 @@ open Notification
 open Facet
 open Embed
 
+(** [app.bsky.feed] — timeline, threads, author feed, search, and generators. *)
 module Feed = struct
   (* Official app.bsky.feed.getAuthorFeed `filter` knownValues. *)
   let filter_posts_with_replies = "posts_with_replies"

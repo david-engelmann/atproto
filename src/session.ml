@@ -2,6 +2,7 @@ open Auth
 open Cohttp_client
 open Error
 
+(** [com.atproto.server.createSession] / [getSession] and the live session record. *)
 module Session = struct
   type session = {
     username : string;

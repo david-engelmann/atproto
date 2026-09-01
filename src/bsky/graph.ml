@@ -4,6 +4,7 @@ open App
 open Actor
 open Label
 
+(** [app.bsky.graph] — follows, blocks, mutes, lists, and starter packs. *)
 module Graph = struct
   (* Official app.bsky.graph.getFollows / getFollowers `sort` knownValues. *)
   let sort_latest = "latest"
