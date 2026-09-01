@@ -5,9 +5,11 @@ let ensure_rng = lazy (Mirage_crypto_rng_unix.use_default ())
 
 (** AT Protocol OAuth core: PKCE (S256), DPoP (ES256 + nonce), client metadata,
     PAR/token request+response, redirect callback, and an injectable HTTP loop.
-    Local TestNetwork can host a loopback client-metadata document and run
-    discovery / PAR / DPoP against the PDS oauth-provider. A public HTTPS
-    client_id and a production browser login remain application-level. *)
+    Local TestNetwork hosts a loopback client-metadata document and runs
+    discovery / PAR / DPoP, then the oauth-provider ~api sign-in + consent
+    (real authorize cookies) through token / refresh / RFC 7009 revoke.
+    A public HTTPS client_id and a production browser login remain
+    application-level. *)
 module Oauth = struct
   type pkce = { verifier : string; challenge : string; method_ : string }
 
@@ -955,6 +957,16 @@ module Oauth = struct
   let provider_api_prefix = "/@atproto/oauth-provider/~api"
   let csrf_cookie_name = "csrf-token"
   let csrf_header_name = "x-csrf-token"
+  let device_id_cookie_name = "dev-id"
+  let session_id_cookie_name = "ses-id"
+
+  let provider_api_url ~issuer path =
+    let path =
+      if path = "" then provider_api_prefix
+      else if path.[0] = '/' then provider_api_prefix ^ path
+      else provider_api_prefix ^ "/" ^ path
+    in
+    url_on issuer path
 
   (* oauth-provider 0.22 [GET /oauth/authorize] is a document navigation.
      [validateFetchMode] / [validateFetchDest] / [validateFetchSite] reject a
@@ -1107,6 +1119,89 @@ module Oauth = struct
 
   let cookie_header cookies =
     String.concat "; " (List.map (fun (n, v) -> n ^ "=" ^ v) cookies)
+
+  let cookie_value cookies name = List.assoc_opt name cookies
+
+  (* oauth-provider sets these on GET /oauth/authorize. Do not invent them. *)
+  let require_provider_cookies cookies =
+    let missing =
+      List.filter
+        (fun n -> cookie_value cookies n = None)
+        [ csrf_cookie_name; device_id_cookie_name; session_id_cookie_name ]
+    in
+    if missing <> [] then
+      failwith
+        ("Oauth: authorize did not set required cookies: "
+       ^ String.concat ", " missing)
+
+  let sign_in_body ~username ~password ?(locale = "en") ?(remember = true) () =
+    `Assoc
+      [
+        ("locale", `String locale);
+        ("username", `String username);
+        ("password", `String password);
+        ("remember", `Bool remember);
+      ]
+
+  let consent_body ~did ?scope () =
+    `Assoc
+      (("did", `String did)
+      :: (match scope with Some s -> [ ("scope", `String s) ] | None -> []))
+
+  let parse_sign_in_response json =
+    let did =
+      match json_string_opt json "did" with
+      | Some d -> d
+      | None -> (
+          match Yojson.Safe.Util.member "account" json with
+          | `Assoc _ as acc -> (
+              match json_string_opt acc "did" with
+              | Some d -> d
+              | None -> (
+                  match json_string_opt acc "sub" with
+                  | Some d -> d
+                  | None ->
+                      failwith "Oauth: sign-in JSON is missing account did"))
+          | _ -> (
+              match json_string_opt json "sub" with
+              | Some d -> d
+              | None -> failwith "Oauth: sign-in JSON is missing did"))
+    in
+    if not (starts_with did "did:") then
+      failwith "Oauth: sign-in did must be an atproto DID";
+    (did, json_string_opt json "ephemeralToken")
+
+  let parse_consent_response json =
+    match json_string_opt json "url" with
+    | Some url -> parse_redirect url
+    | None -> failwith "Oauth: consent JSON is missing url"
+
+  (* Same-origin fetch that oauth-provider ~api routes require
+     ([validateFetchMode] / [validateFetchSite] / [validateOrigin] /
+     [validateReferrer] / CSRF cookie+header). CSRF must come from
+     authorize [Set-Cookie], not a client-invented token. *)
+  let provider_same_origin_headers ~issuer ~referer ~cookies ?bearer () =
+    require_provider_cookies cookies;
+    let csrf =
+      match cookie_value cookies csrf_cookie_name with
+      | Some t -> t
+      | None -> failwith "Oauth: missing csrf-token cookie"
+    in
+    let headers =
+      [
+        ("Content-Type", "application/json");
+        ("Accept", "application/json");
+        ("Origin", issuer);
+        ("Referer", referer);
+        ("sec-fetch-mode", "same-origin");
+        ("sec-fetch-site", "same-origin");
+        (csrf_header_name, csrf);
+        ("Cookie", cookie_header cookies);
+      ]
+    in
+    match bearer with
+    | Some t -> ("Authorization", "Bearer " ^ t) :: headers
+    | None -> headers
 
   let header_value headers name =
     let lower = String.lowercase_ascii name in
