@@ -62,6 +62,16 @@ let () =
   in
   ignore (Oauth.localhost_metadata loopback);
   assert (
+    Oauth.provider_api_url ~issuer:"http://localhost:2583" "/sign-in"
+    = "http://localhost:2583/@atproto/oauth-provider/~api/sign-in");
+  let signin =
+    Oauth.sign_in_body ~username:"alice.test" ~password:"hunter2" ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "username" signin with
+    | `String "alice.test" -> true
+    | _ -> false);
+  assert (
     Oauth.par_url ~scheme:"http" ~host:"localhost:2583" ()
     = "http://localhost:2583/oauth/par");
   (* Video byte-upload pipeline — URL, service-auth audience, embed JSON *)

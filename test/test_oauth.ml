@@ -769,6 +769,94 @@ let test_provider_html_and_browser_headers _ =
   OUnit2.assert_equal Oauth.Not_html
     (Oauth.parse_provider_html {|{"error":"nope"}|})
 
+let test_provider_api_and_cookies _ =
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "http://localhost:2583/@atproto/oauth-provider/~api/sign-in"
+    (Oauth.provider_api_url ~issuer:"http://localhost:2583" "/sign-in");
+  OUnit2.assert_equal ~printer:(fun x -> x) "csrf-token" Oauth.csrf_cookie_name;
+  OUnit2.assert_equal ~printer:(fun x -> x) "dev-id" Oauth.device_id_cookie_name;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "ses-id" Oauth.session_id_cookie_name;
+  let cookies =
+    [
+      (Oauth.csrf_cookie_name, "aabbccddeeff001122334455");
+      (Oauth.device_id_cookie_name, "dev1");
+      (Oauth.session_id_cookie_name, "ses1");
+    ]
+  in
+  Oauth.require_provider_cookies cookies;
+  OUnit2.assert_bool "missing csrf accepted"
+    (try
+       Oauth.require_provider_cookies
+         [
+           (Oauth.device_id_cookie_name, "dev1");
+           (Oauth.session_id_cookie_name, "ses1");
+         ];
+       false
+     with Failure _ -> true);
+  let headers =
+    Oauth.provider_same_origin_headers ~issuer:"http://localhost:2583"
+      ~referer:"http://localhost:2583/oauth/authorize?request_uri=urn:x"
+      ~cookies ()
+  in
+  OUnit2.assert_equal (Some "same-origin")
+    (List.assoc_opt "sec-fetch-mode" headers);
+  OUnit2.assert_equal (Some "aabbccddeeff001122334455")
+    (List.assoc_opt Oauth.csrf_header_name headers);
+  OUnit2.assert_bool "cookie header has csrf"
+    (let c = List.assoc "Cookie" headers in
+     let needle = "csrf-token=aabbccddeeff001122334455" in
+     let rec find i =
+       i + String.length needle <= String.length c
+       && (String.sub c i (String.length needle) = needle || find (i + 1))
+     in
+     find 0);
+  let signin =
+    Oauth.sign_in_body ~username:"alice.test" ~password:"hunter2" ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "alice.test"
+    (Yojson.Safe.Util.to_string (Yojson.Safe.Util.member "username" signin));
+  let did, ephemeral =
+    Oauth.parse_sign_in_response
+      (`Assoc
+        [
+          ( "account",
+            `Assoc
+              [
+                ("did", `String "did:plc:7iza6de2dwap2sbkpav7c6c6");
+                ("handle", `String "alice.test");
+              ] );
+        ])
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:7iza6de2dwap2sbkpav7c6c6" did;
+  OUnit2.assert_equal None ephemeral;
+  let consent = Oauth.consent_body ~did () in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    did
+    (Yojson.Safe.Util.to_string (Yojson.Safe.Util.member "did" consent));
+  match
+    Oauth.parse_consent_response
+      (`Assoc
+        [
+          ( "url",
+            `String
+              "http://localhost:2583/oauth/authorize/redirect?redirect_mode=query&redirect_uri=http%3A%2F%2F127.0.0.1%3A9%2Fcb&iss=http%3A%2F%2Flocalhost%3A2583&state=abc&code=cod-1"
+          );
+        ])
+  with
+  | Oauth.Authorized { code; state; iss } ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "cod-1" code;
+      OUnit2.assert_equal ~printer:(fun x -> x) "abc" state;
+      OUnit2.assert_equal (Some "http://localhost:2583") iss
+  | Oauth.Denied _ -> OUnit2.assert_failure "expected authorized consent url"
+
 let suite =
   "oauth"
   >::: [
@@ -815,6 +903,7 @@ let suite =
          "test_revoke_body_and_loop" >:: test_revoke_body_and_loop;
          "test_provider_html_and_browser_headers"
          >:: test_provider_html_and_browser_headers;
+         "test_provider_api_and_cookies" >:: test_provider_api_and_cookies;
        ]
 
 let () = run_test_tt_main suite
