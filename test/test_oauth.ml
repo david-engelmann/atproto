@@ -33,6 +33,14 @@ let test_pkce_s256_roundtrip _ =
   OUnit2.assert_equal "S256" pkce.method_;
   OUnit2.assert_equal rfc7636_challenge pkce.challenge
 
+let test_generate_dpop_pair _ =
+  let priv, pub = Oauth.generate_dpop_pair () in
+  let proof =
+    Oauth.dpop_proof ~priv ~pub ~htm:"POST"
+      ~htu:"http://localhost:2583/oauth/par" ()
+  in
+  OUnit2.assert_bool "generated DPoP verifies" (Oauth.verify_dpop ~pub proof)
+
 let test_dpop_sign_and_verify _ =
   let priv, pub = p256_pair () in
   let proof =
@@ -205,7 +213,74 @@ let test_localhost_client_metadata _ =
   OUnit2.assert_equal [ "http://127.0.0.1:8080/cb" ] meta.redirect_uris;
   OUnit2.assert_equal
     ~printer:(fun x -> x)
-    "atproto transition:generic" meta.scope
+    "atproto transition:generic" meta.scope;
+  let built =
+    Oauth.loopback_client_id ~redirect_uri:"http://127.0.0.1:8080/cb"
+      ~scope:"atproto transition:generic" ()
+  in
+  let again = Oauth.localhost_metadata built in
+  OUnit2.assert_equal [ "http://127.0.0.1:8080/cb" ] again.redirect_uris
+
+let test_origin_aware_oauth_urls _ =
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "http://localhost:2583/oauth/par"
+    (Oauth.par_url ~scheme:"http" ~host:"localhost:2583" ());
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "http://localhost:2583/oauth/token"
+    (Oauth.token_url_of_origin "http://localhost:2583/");
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "http://localhost:2583/.well-known/oauth-protected-resource"
+    (Oauth.protected_resource_url ~scheme:"http" ~host:"localhost:2583" ());
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "http://localhost:2583/.well-known/oauth-authorization-server"
+    (Oauth.authorization_server_url ~issuer:"http://localhost:2583" ());
+  OUnit2.assert_bool "loopback issuer"
+    (Oauth.is_loopback_http_issuer "http://localhost:2583");
+  OUnit2.assert_bool "public http issuer accepted"
+    (not (Oauth.is_loopback_http_issuer "http://example.com"))
+
+let test_loopback_http_issuer_validates _ =
+  let json =
+    match sample_as_json with
+    | `Assoc fields ->
+        `Assoc
+          (List.map
+             (fun (k, v) ->
+               if k = "issuer" then (k, `String "http://localhost:2583")
+               else if k = "authorization_endpoint" then
+                 (k, `String "http://localhost:2583/oauth/authorize")
+               else if k = "token_endpoint" then
+                 (k, `String "http://localhost:2583/oauth/token")
+               else if k = "pushed_authorization_request_endpoint" then
+                 (k, `String "http://localhost:2583/oauth/par")
+               else (k, v))
+             fields)
+    | other -> other
+  in
+  let as_ = Oauth.parse_as_metadata json in
+  Oauth.validate_as_metadata as_;
+  OUnit2.assert_equal ~printer:(fun x -> x) "http://localhost:2583" as_.issuer
+
+let test_public_http_issuer_rejected _ =
+  let json =
+    match sample_as_json with
+    | `Assoc fields ->
+        `Assoc
+          (List.map
+             (fun (k, v) ->
+               if k = "issuer" then (k, `String "http://pds.example") else (k, v))
+             fields)
+    | other -> other
+  in
+  OUnit2.assert_bool "public http issuer accepted"
+    (try
+       Oauth.validate_as_metadata (Oauth.parse_as_metadata json);
+       false
+     with Failure _ -> true)
 
 let test_as_and_resource_metadata _ =
   let as_ = Oauth.parse_as_metadata sample_as_json in
@@ -641,6 +716,7 @@ let suite =
          "test_pkce_rfc7636" >:: test_pkce_rfc7636;
          "test_pkce_rejects_short_verifier" >:: test_pkce_rejects_short_verifier;
          "test_pkce_s256_roundtrip" >:: test_pkce_s256_roundtrip;
+         "test_generate_dpop_pair" >:: test_generate_dpop_pair;
          "test_dpop_sign_and_verify" >:: test_dpop_sign_and_verify;
          "test_dpop_ath" >:: test_dpop_ath;
          "test_par_and_token_shapes" >:: test_par_and_token_shapes;
@@ -650,6 +726,10 @@ let suite =
          "test_client_metadata_rejects_private_jwk"
          >:: test_client_metadata_rejects_private_jwk;
          "test_localhost_client_metadata" >:: test_localhost_client_metadata;
+         "test_origin_aware_oauth_urls" >:: test_origin_aware_oauth_urls;
+         "test_loopback_http_issuer_validates"
+         >:: test_loopback_http_issuer_validates;
+         "test_public_http_issuer_rejected" >:: test_public_http_issuer_rejected;
          "test_as_and_resource_metadata" >:: test_as_and_resource_metadata;
          "test_as_metadata_rejects_missing_par"
          >:: test_as_metadata_rejects_missing_par;

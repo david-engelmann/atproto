@@ -56,6 +56,14 @@ let () =
       ()
   in
   Oauth.validate_metadata meta;
+  let loopback =
+    Oauth.loopback_client_id ~redirect_uri:"http://127.0.0.1:8080/cb"
+      ~scope:"atproto transition:generic" ()
+  in
+  ignore (Oauth.localhost_metadata loopback);
+  assert (
+    Oauth.par_url ~scheme:"http" ~host:"localhost:2583" ()
+    = "http://localhost:2583/oauth/par");
   (* Video byte-upload pipeline — URL, service-auth audience, embed JSON *)
   let url =
     Video.upload_video_url ~did:"did:plc:abc123xyz0001112223333"
