@@ -1,3 +1,4 @@
+(** HTTP methods used by [Request] and [Http_client]. *)
 module Http_method = struct
   type http_method = Get | Post | Put | Delete | Patch
 

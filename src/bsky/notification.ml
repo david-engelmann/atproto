@@ -3,6 +3,7 @@ open Cohttp_client
 open App
 open Actor
 
+(** [app.bsky.notification] — list, prefs, activity subscriptions, and push. *)
 module Notification = struct
   type strong_ref = { uri : string; cid : string }
 

@@ -2,6 +2,7 @@ open Cohttp_client
 open App
 open Session
 
+(** [com.atproto.server] — describe, app passwords, invites, email, and account. *)
 module Server = struct
   let create_server_endpoint (query_name : string) : string =
     "com.atproto.server" ^ "." ^ query_name

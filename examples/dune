@@ -1,5 +1,7 @@
 (executable
  (name offline)
+ (flags
+  (:standard -w +33 -warn-error +33))
  (libraries atproto yojson)
  (modules offline))
 

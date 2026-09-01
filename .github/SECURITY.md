@@ -2,4 +2,4 @@
 
 ## Reporting a Vulnerability
 
-No know vulnerabilities
+No known vulnerabilities

@@ -2,6 +2,7 @@ open Session
 open Cohttp_client
 open App
 
+(** [app.bsky.actor] — profiles, search, suggestions, and preferences. *)
 module Actor = struct
   (* app.bsky.actor.defs#knownFollowers — subject's followers the viewer also follows. *)
   type known_follower = {

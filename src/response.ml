@@ -1,3 +1,4 @@
+(** HTTP response record used by [Http_client] (status, bytes, headers). *)
 module Response = struct
   type response = {
     success : bool;

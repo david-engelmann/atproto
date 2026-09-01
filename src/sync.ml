@@ -3,6 +3,7 @@ open Cohttp_client
 open App
 open Car
 
+(** [com.atproto.sync] — latest commit, repo CAR, blobs, and host status. *)
 module Sync = struct
   type latest_commit = { cid : string; rev : string }
 

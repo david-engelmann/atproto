@@ -1,6 +1,7 @@
 open Session
 open Auth
 
+(** XRPC base-URL helpers for a PDS session or a public host. *)
 module App = struct
   let create_endpoint_url (url : string) (endpoint : string) : string =
     let url =

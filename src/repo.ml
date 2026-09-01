@@ -6,6 +6,7 @@ open Facet
 open Feed
 open Notification
 
+(** [com.atproto.repo] — create/put/delete/applyWrites plus typed record parsers. *)
 module Repo = struct
   type post_record = {
     text : string;

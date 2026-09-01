@@ -2,6 +2,7 @@ open Cohttp_client
 open App
 open Session
 
+(** [com.atproto.moderation.createReport] — user reports (not Ozone operator tools). *)
 module Moderation = struct
   type strong_ref = { uri : string; cid : string }
   type repo_ref = { did : string }

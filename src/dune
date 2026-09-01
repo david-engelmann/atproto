@@ -3,6 +3,8 @@
 (library
  (name atproto)
  (public_name atproto)
+ (flags
+  (:standard -w +33 -warn-error +33))
  (libraries
   async
   core
