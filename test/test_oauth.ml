@@ -1,8 +1,6 @@
 open OUnit2
 open Atproto.Oauth
-open Atproto.Client
 open Atproto.Hash
-open Client
 
 (* RFC 7636 Appendix B *)
 let rfc7636_verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
@@ -765,21 +763,7 @@ let test_get_service_auth_dpop _ =
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "appview-service-jwt"
-    (Oauth.parse_service_auth_token json);
-  let dpop =
-    {
-      Client.priv;
-      pub;
-      access_token = "oauth-tok";
-      pds_origin = "http://localhost:2583";
-      nonce = Some "svc-nonce-2";
-    }
-  in
-  let token, _ =
-    Client.get_service_auth_dpop ~http dpop ~aud:"did:web:localhost:2584"
-      ~lxm:"app.bsky.feed.getTimeline" ()
-  in
-  OUnit2.assert_equal ~printer:(fun x -> x) "appview-service-jwt" token
+    (Oauth.parse_service_auth_token json)
 
 let test_par_prompt_and_dpop_jkt _ =
   let priv, pub = p256_pair () in

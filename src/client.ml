@@ -157,7 +157,9 @@ module Client = struct
       json_of_body (Response.body_string resp)
 
   (* PDS accessJwt is at+jwt. AppView requires a service-auth JWT
-     (com.atproto.server.getServiceAuth, aud=AppView DID, lxm=NSID). *)
+     (com.atproto.server.getServiceAuth, aud=AppView DID, lxm=NSID).
+     OAuth sessions mint the same JWT with Oauth.get_service_auth (DPoP)
+     and pass it here as ~bearer — Client cannot depend on Oauth. *)
   let get_service_auth (s : Session.session) ~aud ~lxm () : string =
     let json =
       get_json ~session:s "com.atproto.server.getServiceAuth"
@@ -167,22 +169,6 @@ module Client = struct
     | `String t when String.trim t <> "" -> t
     | _ -> failwith ("getServiceAuth failed: " ^ Yojson.Safe.to_string json)
 
-  (* DPoP-bound OAuth access token on the PDS. Used to mint getServiceAuth
-     instead of sending createSession at+jwt (or the DPoP token) to AppView. *)
-  type oauth_dpop = {
-    priv : Mirage_crypto_ec.P256.Dsa.priv;
-    pub : Mirage_crypto_ec.P256.Dsa.pub;
-    access_token : string;
-    pds_origin : string;
-    nonce : string option;
-  }
-
-  let get_service_auth_dpop ?(http = Oauth.Oauth.live_http_request)
-      (d : oauth_dpop) ~aud ~lxm () : string * string option =
-    Oauth.Oauth.get_service_auth ~http ~priv:d.priv ~pub:d.pub
-      ~pds_origin:d.pds_origin ~access_token:d.access_token ~aud ~lxm
-      ?nonce:d.nonce ()
-
   let get_json_appview ?session ?host ?aud ?(extra = []) nsid pairs =
     let host = match host with Some h -> h | None -> appview_host_from_env in
     match session with
@@ -191,13 +177,6 @@ module Client = struct
         let aud = match aud with Some a -> a | None -> appview_did_from_env in
         let token = get_service_auth s ~aud ~lxm:nsid () in
         get_json ~host ~bearer:token ~extra nsid pairs
-
-  let get_json_appview_dpop ?http ?host ?aud ?(extra = []) (d : oauth_dpop) nsid
-      pairs : Yojson.Safe.t * string option =
-    let host = match host with Some h -> h | None -> appview_host_from_env in
-    let aud = match aud with Some a -> a | None -> appview_did_from_env in
-    let token, nonce = get_service_auth_dpop ?http d ~aud ~lxm:nsid () in
-    (get_json ~host ~bearer:token ~extra nsid pairs, nonce)
 
   let post_json_appview ?session ?host ?aud ?(extra = []) nsid data =
     let host = match host with Some h -> h | None -> appview_host_from_env in
