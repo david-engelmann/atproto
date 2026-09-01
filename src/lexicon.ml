@@ -487,6 +487,9 @@ module Lexicon = struct
   let official_get_followers =
     {|{"lexicon":1,"id":"app.bsky.graph.getFollowers","defs":{"main":{"type":"query","description":"Enumerates accounts which follow a specified account (actor).","parameters":{"type":"params","required":["actor"],"properties":{"actor":{"type":"string"},"limit":{"type":"integer"},"cursor":{"type":"string"},"sort":{"type":"string","knownValues":["latest","top"]}}},"output":{"encoding":"application/json","schema":{"type":"object","required":["subject","followers"],"properties":{"subject":{"type":"ref","ref":"app.bsky.actor.defs#profileView"},"cursor":{"type":"string"},"followers":{"type":"array"}}}}}}}|}
 
+  let official_get_suggested_follows_by_actor =
+    {|{"lexicon":1,"id":"app.bsky.graph.getSuggestedFollowsByActor","defs":{"main":{"type":"query","description":"Enumerates follows similar to a given account (actor).","parameters":{"type":"params","required":["actor"],"properties":{"actor":{"type":"string"}}},"output":{"encoding":"application/json","schema":{"type":"object","required":["suggestions"],"properties":{"suggestions":{"type":"array"},"recIdStr":{"type":"string"},"isFallback":{"type":"boolean"},"recId":{"type":"integer"}}}}}}}|}
+
   let official_actor_defs =
     {|{"lexicon":1,"id":"app.bsky.actor.defs","defs":{"viewerState":{"type":"object","properties":{"muted":{"type":"boolean"},"mutedOnlyReposts":{"type":"boolean"},"mutedOnlyQuoteposts":{"type":"boolean"},"blocking":{"type":"string"},"knownFollowers":{"type":"ref","ref":"#knownFollowers"}}},"profileAssociatedGerm":{"type":"object","required":["showButtonTo","messageMeUrl"],"properties":{"showButtonTo":{"type":"string"},"messageMeUrl":{"type":"string"}}},"profileAssociated":{"type":"object","properties":{"germ":{"type":"ref","ref":"#profileAssociatedGerm"}}},"profileViewDetailed":{"type":"object","required":["did","handle"],"properties":{"joinedViaStarterPack":{"type":"ref","ref":"app.bsky.graph.defs#starterPackViewBasic"}}}}}|}
 
@@ -603,6 +606,8 @@ module Lexicon = struct
       ("app.bsky.graph.muteActor", official_mute_actor);
       ("app.bsky.graph.getFollows", official_get_follows);
       ("app.bsky.graph.getFollowers", official_get_followers);
+      ( "app.bsky.graph.getSuggestedFollowsByActor",
+        official_get_suggested_follows_by_actor );
       ("app.bsky.actor.defs", official_actor_defs);
       ("com.atproto.server.createSession", official_create_session);
       ("com.atproto.server.createAccount", official_create_account);

@@ -317,6 +317,13 @@ module Graph = struct
     starter_packs : starter_pack_with_membership list;
   }
 
+  (* Official app.bsky.graph.getSuggestedFollowsByActor output, including recIdStr. *)
+  type suggested_follows = {
+    suggestions : list_item_subject list;
+    rec_id_str : string option;
+    rec_id : string option;
+  }
+
   type relationship = {
     did : string;
     following : string option;
@@ -777,12 +784,23 @@ module Graph = struct
       @ Client.Client.opt_pair "cursor" cursor)
     |> parse_followers
 
-  let get_suggested_follows_by_actor ?session ?host ~actor () :
-      list_item_subject list =
-    Client.Client.get_json ?session ?host
-      "app.bsky.graph.getSuggestedFollowsByActor"
-      [ ("actor", actor) ]
-    |> fun json ->
+  let parse_suggested_follow_subject json : list_item_subject =
+    {
+      did =
+        (match Yojson.Safe.Util.member "did" json with
+        | `String s -> s
+        | _ -> "");
+      handle =
+        (match Yojson.Safe.Util.member "handle" json with
+        | `String s -> s
+        | _ -> "");
+      display_name =
+        (match Yojson.Safe.Util.member "displayName" json with
+        | `String s -> Some s
+        | _ -> None);
+    }
+
+  let parse_suggested_follows json : suggested_follows =
     let items =
       match Yojson.Safe.Util.member "suggestions" json with
       | `List xs -> xs
@@ -791,21 +809,20 @@ module Graph = struct
           | `List xs -> xs
           | _ -> [])
     in
-    List.map
-      (fun subject_json ->
-        {
-          did =
-            (match Yojson.Safe.Util.member "did" subject_json with
-            | `String s -> s
-            | _ -> "");
-          handle =
-            (match Yojson.Safe.Util.member "handle" subject_json with
-            | `String s -> s
-            | _ -> "");
-          display_name =
-            (match Yojson.Safe.Util.member "displayName" subject_json with
-            | `String s -> Some s
-            | _ -> None);
-        })
-      items
+    {
+      suggestions = List.map parse_suggested_follow_subject items;
+      rec_id_str = Client.Client.string_opt json "recIdStr";
+      rec_id =
+        (match Yojson.Safe.Util.member "recId" json with
+        | `String s -> Some s
+        | `Int n -> Some (string_of_int n)
+        | _ -> None);
+    }
+
+  let get_suggested_follows_by_actor ?session ?host ~actor () :
+      suggested_follows =
+    Client.Client.get_json ?session ?host
+      "app.bsky.graph.getSuggestedFollowsByActor"
+      [ ("actor", actor) ]
+    |> parse_suggested_follows
 end

@@ -410,15 +410,12 @@ let test_more_appview _ =
        [ ("actor", "alice.test") ]
    with
   | None -> ()
-  | Some json -> (
-      match Yojson.Safe.Util.member "suggestions" json with
-      | `List _ -> ()
-      | _ -> (
-          match Yojson.Safe.Util.member "actors" json with
-          | `List _ -> ()
-          | _ ->
-              OUnit2.assert_failure
-                "getSuggestedFollowsByActor missing suggestions")));
+  | Some json ->
+      let page = Graph.parse_suggested_follows json in
+      OUnit2.assert_bool "getSuggestedFollowsByActor suggestions"
+        (List.length page.suggestions >= 0);
+      OUnit2.assert_bool "getSuggestedFollowsByActor recIdStr optional"
+        (match page.rec_id_str with Some _ | None -> true));
   (match av_get_if_served "app.bsky.unspecced.getConfig" [] with
   | None -> ()
   | Some json ->

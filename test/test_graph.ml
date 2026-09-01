@@ -573,6 +573,50 @@ let test_parse_membership_and_v2 _ =
   in
   OUnit2.assert_equal (Some 4) packs.hits_total
 
+let test_parse_suggested_follows_rec_id_str _ =
+  let parsed =
+    Graph.parse_suggested_follows
+      (`Assoc
+        [
+          ( "suggestions",
+            `List
+              [
+                `Assoc
+                  [
+                    ("did", `String "did:plc:xyz789aaa0001112223333");
+                    ("handle", `String "bob.test");
+                    ("displayName", `String "Bob");
+                  ];
+              ] );
+          ("recIdStr", `String "snow-suggested-1");
+          ("recId", `Int 42);
+        ])
+  in
+  OUnit2.assert_equal 1 (List.length parsed.suggestions);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "bob.test" (List.hd parsed.suggestions).handle;
+  OUnit2.assert_equal (Some "snow-suggested-1") parsed.rec_id_str;
+  OUnit2.assert_equal (Some "42") parsed.rec_id;
+  let no_rec =
+    Graph.parse_suggested_follows
+      (`Assoc
+        [
+          ( "actors",
+            `List
+              [
+                `Assoc
+                  [
+                    ("did", `String "did:plc:abc123xyz0001112223333");
+                    ("handle", `String "alice.test");
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal 1 (List.length no_rec.suggestions);
+  OUnit2.assert_equal None no_rec.rec_id_str;
+  OUnit2.assert_equal None no_rec.rec_id
+
 let test_search_starter_packs_v2_live _ =
   try
     with_public_timeout (fun () ->
@@ -602,6 +646,8 @@ let suite =
          "test_relationships_live" >:: test_relationships_live;
          "test_search_starter_packs_live" >:: test_search_starter_packs_live;
          "test_parse_membership_and_v2" >:: test_parse_membership_and_v2;
+         "test_parse_suggested_follows_rec_id_str"
+         >:: test_parse_suggested_follows_rec_id_str;
          "test_search_starter_packs_v2_live"
          >:: test_search_starter_packs_v2_live;
        ]
