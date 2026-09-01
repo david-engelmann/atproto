@@ -125,6 +125,34 @@ let av_post_if_served ?session nsid data =
     | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
     | None -> Some json
 
+let message_has hay needle =
+  let h = String.lowercase_ascii hay and n = String.lowercase_ascii needle in
+  let rec aux i =
+    if i + String.length n > String.length h then false
+    else if String.sub h i (String.length n) = n then true
+    else aux (i + 1)
+  in
+  aux 0
+
+(* AppView hydrates PDS writes asynchronously (see test_feed_after_writes). *)
+let av_get_until ?session ~attempts ~retry_message nsid pairs =
+  let rec go n =
+    let json =
+      Client.get_json_appview ?session ~host:(appview_host ()) nsid pairs
+    in
+    if Error.is_not_served_json json then None
+    else
+      match Error.check_for_error json with
+      | None -> Some json
+      | Some _ ->
+          let e = Error.of_json json in
+          if n > 1 && message_has e.message retry_message then (
+            Unix.sleep 1;
+            go (n - 1))
+          else failwith ("XRPC error: " ^ Error.to_string e)
+  in
+  go attempts
+
 let test_get_profile _ =
   let s = session () in
   let json = av_get "app.bsky.actor.getProfile" [ ("actor", s.username) ] in
@@ -583,7 +611,8 @@ let test_leftover_appview _ =
     | None -> Repo.parse_write_result (Yojson.Safe.from_string body)
   in
   (match
-     av_get_if_served "app.bsky.graph.getList"
+     av_get_until ~attempts:20 ~retry_message:"not found"
+       "app.bsky.graph.getList"
        [ ("list", listed.uri); ("limit", "5") ]
    with
   | None -> ()
