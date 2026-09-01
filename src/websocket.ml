@@ -1,9 +1,17 @@
 open Hash
 open Base64url
 
-(** Minimal RFC 6455 client over TLS (no extra websocket package). *)
+(** Minimal RFC 6455 client (wss:// TLS and ws:// cleartext). *)
 module Websocket = struct
-  type t = { ssl : Ssl.socket }
+  type transport = Tls of Ssl.socket | Tcp of Unix.file_descr
+  type t = { transport : transport }
+
+  type parsed_url = {
+    secure : bool;
+    host : string;
+    port : int;
+    path : string;
+  }
 
   type message =
     | Text of string
@@ -119,36 +127,44 @@ module Websocket = struct
     let payload = if masked then mask_payload mask_key payload else payload in
     ({ fin; opcode; payload }, !off)
 
-  let read_exact ssl n =
+  let read_exact transport n =
     let buf = Bytes.create n in
     let rec loop off =
       if off = n then Bytes.to_string buf
       else
-        let got = Ssl.read ssl buf off (n - off) in
+        let got =
+          match transport with
+          | Tls ssl -> Ssl.read ssl buf off (n - off)
+          | Tcp fd -> Unix.read fd buf off (n - off)
+        in
         if got = 0 then failwith "Websocket: connection closed";
         loop (off + got)
     in
     loop 0
 
-  let write_all ssl s =
+  let write_all transport s =
     let buf = Bytes.of_string s in
     let rec loop off =
       if off >= Bytes.length buf then ()
       else
-        let w = Ssl.write ssl buf off (Bytes.length buf - off) in
+        let w =
+          match transport with
+          | Tls ssl -> Ssl.write ssl buf off (Bytes.length buf - off)
+          | Tcp fd -> Unix.write fd buf off (Bytes.length buf - off)
+        in
         if w = 0 then failwith "Websocket: write failed";
         loop (off + w)
     in
     loop 0
 
   let send (ws : t) ?(opcode = 2) (payload : string) : unit =
-    write_all ws.ssl (encode_frame ~opcode payload)
+    write_all ws.transport (encode_frame ~opcode payload)
 
   let send_close (ws : t) : unit = send ws ~opcode:8 ""
   let send_pong (ws : t) payload = send ws ~opcode:10 payload
 
   let recv_frame (ws : t) : decoded_frame =
-    decode_frame_header (fun n -> read_exact ws.ssl n)
+    decode_frame_header (fun n -> read_exact ws.transport n)
 
   let recv_message (ws : t) : message =
     let rec collect opcode acc =
@@ -169,13 +185,13 @@ module Websocket = struct
     in
     collect 0 ""
 
-  let parse_wss_url (url : string) : string * int * string =
-    let rest =
+  let parse_url (url : string) : parsed_url =
+    let secure, rest =
       if String.length url >= 6 && String.sub url 0 6 = "wss://" then
-        String.sub url 6 (String.length url - 6)
+        (true, String.sub url 6 (String.length url - 6))
       else if String.length url >= 5 && String.sub url 0 5 = "ws://" then
-        String.sub url 5 (String.length url - 5)
-      else url
+        (false, String.sub url 5 (String.length url - 5))
+      else (true, url)
     in
     let hostport, path =
       match String.index_opt rest '/' with
@@ -183,20 +199,29 @@ module Websocket = struct
       | Some i ->
           (String.sub rest 0 i, String.sub rest i (String.length rest - i))
     in
+    let default_port = if secure then 443 else 80 in
     let host, port =
       match String.split_on_char ':' hostport with
-      | [ h ] -> (h, 443)
+      | [ h ] -> (h, default_port)
       | [ h; p ] -> (h, int_of_string p)
       | _ -> failwith "Websocket: invalid host"
     in
-    (host, port, path)
+    { secure; host; port; path }
 
-  let read_handshake_response ssl =
+  let parse_wss_url (url : string) : string * int * string =
+    let p = parse_url url in
+    (p.host, p.port, p.path)
+
+  let authority (p : parsed_url) : string =
+    if (p.secure && p.port = 443) || ((not p.secure) && p.port = 80) then p.host
+    else Printf.sprintf "%s:%d" p.host p.port
+
+  let read_handshake_response transport =
     let buf = Buffer.create 256 in
     let rec loop () =
       if Buffer.length buf > 8192 then
         failwith "Websocket: handshake response too large";
-      let chunk = read_exact ssl 1 in
+      let chunk = read_exact transport 1 in
       Buffer.add_string buf chunk;
       let s = Buffer.contents buf in
       let n = String.length s in
@@ -226,20 +251,25 @@ module Websocket = struct
 
   let connect ?(tls_verify = false) ?(extra_headers = []) (url : string) : t =
     Random.self_init ();
-    let host, port, path = parse_wss_url url in
-    Ssl.init ();
-    let he = Unix.gethostbyname host in
+    let p = parse_url url in
+    if p.secure then Ssl.init ();
+    let he = Unix.gethostbyname p.host in
     if Array.length he.Unix.h_addr_list = 0 then
-      failwith ("Websocket: could not resolve " ^ host);
+      failwith ("Websocket: could not resolve " ^ p.host);
     let fd = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
     Unix.set_nonblock fd;
     Unix.clear_nonblock fd;
-    Unix.connect fd (Unix.ADDR_INET (he.Unix.h_addr_list.(0), port));
-    let ctx = Ssl.create_context Ssl.TLSv1_2 Ssl.Client_context in
-    if not tls_verify then Ssl.set_verify ctx [] None;
-    let ssl = Ssl.embed_socket fd ctx in
-    (try Ssl.set_client_SNI_hostname ssl host with _ -> ());
-    Ssl.connect ssl;
+    Unix.connect fd (Unix.ADDR_INET (he.Unix.h_addr_list.(0), p.port));
+    let transport =
+      if p.secure then (
+        let ctx = Ssl.create_context Ssl.TLSv1_2 Ssl.Client_context in
+        if not tls_verify then Ssl.set_verify ctx [] None;
+        let ssl = Ssl.embed_socket fd ctx in
+        (try Ssl.set_client_SNI_hostname ssl p.host with _ -> ());
+        Ssl.connect ssl;
+        Tls ssl)
+      else Tcp fd
+    in
     let key = Base64url.encode_std ~pad:true (random_bytes 16) in
     let req =
       Printf.sprintf
@@ -250,11 +280,11 @@ module Websocket = struct
          Sec-WebSocket-Key: %s\r\n\
          Sec-WebSocket-Version: 13\r\n\
          %s\r\n"
-        path host key
+        p.path (authority p) key
         (extra_header_lines extra_headers)
     in
-    write_all ssl req;
-    let resp = read_handshake_response ssl in
+    write_all transport req;
+    let resp = read_handshake_response transport in
     let lines = String.split_on_char '\n' resp in
     let status = String.trim (List.hd lines) in
     if not (String.length status >= 12 && String.sub status 9 3 = "101") then
@@ -266,11 +296,15 @@ module Websocket = struct
         if got <> expected then
           failwith "Websocket: Sec-WebSocket-Accept mismatch"
     | None -> failwith "Websocket: missing Sec-WebSocket-Accept");
-    { ssl }
+    { transport }
 
   let close (ws : t) =
     (try send_close ws with _ -> ());
-    try Ssl.shutdown ws.ssl with _ -> ()
+    match ws.transport with
+    | Tls ssl -> (try Ssl.shutdown ssl with _ -> ())
+    | Tcp fd -> (
+        (try Unix.shutdown fd Unix.SHUTDOWN_ALL with _ -> ());
+        try Unix.close fd with _ -> ())
 
   let with_connection ?tls_verify ?(extra_headers = []) url f =
     let ws = connect ?tls_verify ~extra_headers url in
