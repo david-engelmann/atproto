@@ -5,8 +5,9 @@ let ensure_rng = lazy (Mirage_crypto_rng_unix.use_default ())
 
 (** AT Protocol OAuth core: PKCE (S256), DPoP (ES256 + nonce), client metadata,
     PAR/token request+response, redirect callback, and an injectable HTTP loop.
-    Hosting a public client-metadata URL and completing a live browser login
-    remain application-level. *)
+    Local TestNetwork can host a loopback client-metadata document and run
+    discovery / PAR / DPoP against the PDS oauth-provider. A public HTTPS
+    client_id and a production browser login remain application-level. *)
 module Oauth = struct
   type pkce = { verifier : string; challenge : string; method_ : string }
 
@@ -184,24 +185,52 @@ module Oauth = struct
           Mirage_crypto_ec.P256.Dsa.verify ~key:pub (r, t) (Hash.sha256 input)
     with _ -> false
 
-  let par_url ?(host = "bsky.social") () =
-    Printf.sprintf "https://%s/oauth/par" host
+  let trim_slash (s : string) : string =
+    let n = String.length s in
+    if n > 0 && s.[n - 1] = '/' then String.sub s 0 (n - 1) else s
 
-  let authorize_url ?(host = "bsky.social") () =
-    Printf.sprintf "https://%s/oauth/authorize" host
+  let origin_of ?(scheme = "https") (host : string) : string =
+    scheme ^ "://" ^ host
 
-  let token_url ?(host = "bsky.social") () =
-    Printf.sprintf "https://%s/oauth/token" host
+  let url_on (origin : string) (path : string) : string =
+    let origin = trim_slash origin in
+    if path = "" then origin
+    else if path.[0] = '/' then origin ^ path
+    else origin ^ "/" ^ path
 
-  let revocation_url ?(host = "bsky.social") () =
-    Printf.sprintf "https://%s/oauth/revoke" host
+  let par_url ?(scheme = "https") ?(host = "bsky.social") () =
+    Printf.sprintf "%s://%s/oauth/par" scheme host
+
+  let authorize_url ?(scheme = "https") ?(host = "bsky.social") () =
+    Printf.sprintf "%s://%s/oauth/authorize" scheme host
+
+  let token_url ?(scheme = "https") ?(host = "bsky.social") () =
+    Printf.sprintf "%s://%s/oauth/token" scheme host
+
+  let revocation_url ?(scheme = "https") ?(host = "bsky.social") () =
+    Printf.sprintf "%s://%s/oauth/revoke" scheme host
+
+  let par_url_of_origin origin = url_on origin "/oauth/par"
+  let authorize_url_of_origin origin = url_on origin "/oauth/authorize"
+  let token_url_of_origin origin = url_on origin "/oauth/token"
+  let revocation_url_of_origin origin = url_on origin "/oauth/revoke"
+
+  let generate_dpop_pair () :
+      Mirage_crypto_ec.P256.Dsa.priv * Mirage_crypto_ec.P256.Dsa.pub =
+    Lazy.force ensure_rng;
+    Mirage_crypto_ec.P256.Dsa.generate ()
 
   let jwt_bearer_assertion_type =
     "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 
+  (* Scopes every public/loopback client metadata document must declare if the
+     PAR request uses them. oauth-provider checks PAR [scope] against this
+     string ([Scope "…" is not declared in the client metadata]). *)
+  let default_scope = "atproto transition:generic"
+
   let pushed_authorization_body ~client_id ~redirect_uri ~code_challenge ~state
-      ?(scope = "atproto transition:generic") ?login_hint ?prompt ?dpop_jkt
-      ?client_assertion () =
+      ?(scope = default_scope) ?login_hint ?prompt ?dpop_jkt ?client_assertion
+      () =
     [
       ("response_type", "code");
       ("client_id", client_id);
@@ -288,9 +317,27 @@ module Oauth = struct
         ]
     | None -> []
 
+  (* application/x-www-form-urlencoded. [Generic] encodes [&] and [=] so a
+     loopback [client_id] ([http://localhost?redirect_uri=…&scope=…]) is one
+     field. Default [Uri.pct_encode] is path-safe and would leak extra pairs. *)
   let form_encode (pairs : (string * string) list) : string =
-    let kv (k, v) = Uri.pct_encode k ^ "=" ^ Uri.pct_encode v in
+    let kv (k, v) =
+      Uri.pct_encode ~component:`Generic k
+      ^ "="
+      ^ Uri.pct_encode ~component:`Generic v
+    in
     String.concat "&" (List.map kv pairs)
+
+  let form_decode_value s =
+    Uri.pct_decode (String.map (function '+' -> ' ' | c -> c) s)
+
+  (* Official loopback client_id. The AS synthesizes metadata from this query
+     ([atprotoLoopbackClientMetadata]); [scope] must list every scope PAR will
+     request. *)
+  let loopback_client_id ?(redirect_uri = "http://127.0.0.1/")
+      ?(scope = default_scope) () : string =
+    "http://localhost?"
+    ^ form_encode [ ("redirect_uri", redirect_uri); ("scope", scope) ]
 
   let dpop_header proof = ("DPoP", proof)
   let authorization_dpop access_token = ("Authorization", "DPoP " ^ access_token)
@@ -320,9 +367,11 @@ module Oauth = struct
       |> List.filter_map (fun part ->
              match String.split_on_char '=' part with
              | [] | [ "" ] -> None
-             | [ k ] -> Some (Uri.pct_decode k, "")
+             | [ k ] -> Some (form_decode_value k, "")
              | k :: rest ->
-                 Some (Uri.pct_decode k, Uri.pct_decode (String.concat "=" rest)))
+                 Some
+                   ( form_decode_value k,
+                     form_decode_value (String.concat "=" rest) ))
 
   let assoc_opt key pairs =
     match List.assoc_opt key pairs with Some "" -> None | other -> other
@@ -409,10 +458,9 @@ module Oauth = struct
   let contains_scope ~scope needle =
     List.mem needle (String.split_on_char ' ' scope)
 
-  let public_metadata ~client_id ~redirect_uris
-      ?(scope = "atproto transition:generic") ?(application_type = "web")
-      ?client_name ?client_uri ?logo_uri ?tos_uri ?policy_uri () :
-      client_metadata =
+  let public_metadata ~client_id ~redirect_uris ?(scope = default_scope)
+      ?(application_type = "web") ?client_name ?client_uri ?logo_uri ?tos_uri
+      ?policy_uri () : client_metadata =
     {
       client_id;
       application_type;
@@ -433,9 +481,8 @@ module Oauth = struct
     }
 
   let confidential_metadata ~client_id ~redirect_uris ~jwks
-      ?(scope = "atproto transition:generic") ?(application_type = "web")
-      ?client_name ?client_uri ?logo_uri ?tos_uri ?policy_uri () :
-      client_metadata =
+      ?(scope = default_scope) ?(application_type = "web") ?client_name
+      ?client_uri ?logo_uri ?tos_uri ?policy_uri () : client_metadata =
     {
       (public_metadata ~client_id ~redirect_uris ~scope ~application_type
          ?client_name ?client_uri ?logo_uri ?tos_uri ?policy_uri ())
@@ -621,16 +668,52 @@ module Oauth = struct
     authorization_servers : string list;
   }
 
-  let protected_resource_url ?(host = "bsky.social") () =
-    Printf.sprintf "https://%s/.well-known/oauth-protected-resource" host
+  let protected_resource_url ?(scheme = "https") ?(host = "bsky.social") () =
+    Printf.sprintf "%s://%s/.well-known/oauth-protected-resource" scheme host
+
+  let protected_resource_url_of_origin origin =
+    url_on origin "/.well-known/oauth-protected-resource"
 
   let authorization_server_url ?(issuer = "https://bsky.social") () =
-    let issuer =
-      if issuer <> "" && issuer.[String.length issuer - 1] = '/' then
-        String.sub issuer 0 (String.length issuer - 1)
+    url_on issuer "/.well-known/oauth-authorization-server"
+
+  let host_after_scheme issuer scheme =
+    let n = String.length scheme in
+    if starts_with issuer scheme then
+      String.sub issuer n (String.length issuer - n)
+    else issuer
+
+  let issuer_authority issuer =
+    let rest =
+      if starts_with issuer "https://" then host_after_scheme issuer "https://"
+      else if starts_with issuer "http://" then
+        host_after_scheme issuer "http://"
       else issuer
     in
-    issuer ^ "/.well-known/oauth-authorization-server"
+    match String.index_opt rest '/' with
+    | Some i -> String.sub rest 0 i
+    | None -> rest
+
+  let issuer_has_path issuer =
+    let rest =
+      if starts_with issuer "https://" then host_after_scheme issuer "https://"
+      else if starts_with issuer "http://" then
+        host_after_scheme issuer "http://"
+      else issuer
+    in
+    String.contains rest '/'
+
+  let is_loopback_http_issuer issuer =
+    if not (starts_with issuer "http://") then false
+    else
+      let host = issuer_authority issuer in
+      let host =
+        match String.index_opt host ':' with
+        | Some i -> String.sub host 0 i
+        | None -> host
+      in
+      let host = String.lowercase_ascii host in
+      host = "localhost" || host = "127.0.0.1" || host = "[::1]" || host = "::1"
 
   let parse_resource_metadata json : resource_metadata =
     {
@@ -684,9 +767,13 @@ module Oauth = struct
       failwith (Printf.sprintf "Oauth: %s must include %s" label value)
 
   let validate_as_metadata (m : as_metadata) : unit =
-    if not (starts_with m.issuer "https://") then
-      failwith "Oauth: issuer must be an https origin";
-    if String.contains_from m.issuer (String.length "https://") '/' then
+    if starts_with m.issuer "https://" then ()
+    else if is_loopback_http_issuer m.issuer then ()
+    else
+      failwith
+        "Oauth: issuer must be an https origin (or http loopback for local \
+         development)";
+    if issuer_has_path m.issuer then
       failwith "Oauth: issuer must not include a path";
     require_mem "response_types_supported" m.response_types_supported "code";
     require_mem "grant_types_supported" m.grant_types_supported
@@ -830,6 +917,197 @@ module Oauth = struct
   type http_post =
     url:string -> headers:(string * string) list -> body:string -> http_response
 
+  type http_get = url:string -> headers:(string * string) list -> http_response
+
+  let meth_of_string = function
+    | "GET" -> `GET
+    | "POST" -> `POST
+    | "PUT" -> `PUT
+    | "DELETE" -> `DELETE
+    | "PATCH" -> `PATCH
+    | "HEAD" -> `HEAD
+    | "OPTIONS" -> `OPTIONS
+    | other -> failwith ("Oauth: unsupported HTTP method " ^ other)
+
+  let live_http_get ~url ~headers : http_response =
+    let status, headers, body =
+      Lwt_main.run
+        (Cohttp_client.Cohttp_client.request_full `GET url ~body:"" headers)
+    in
+    { status; headers; body }
+
+  let live_http_post ~url ~headers ~body : http_response =
+    let status, headers, body =
+      Lwt_main.run
+        (Cohttp_client.Cohttp_client.request_full `POST url ~body headers)
+    in
+    { status; headers; body }
+
+  let live_http_request ~url ~method_ ~headers ~body : http_response =
+    let meth = meth_of_string method_ in
+    let body = match body with Some b -> b | None -> "" in
+    let status, headers, body =
+      Lwt_main.run
+        (Cohttp_client.Cohttp_client.request_full meth url ~body headers)
+    in
+    { status; headers; body }
+
+  let provider_api_prefix = "/@atproto/oauth-provider/~api"
+  let csrf_cookie_name = "csrf-token"
+  let csrf_header_name = "x-csrf-token"
+
+  (* oauth-provider 0.22 [GET /oauth/authorize] is a document navigation.
+     [validateFetchMode] / [validateFetchDest] / [validateFetchSite] reject a
+     bare Cohttp GET with HTTP 400 HTML ([Missing sec-fetch-mode header]).
+     Origin is optional on this route; omit it so we do not fail
+     [validateOrigin]. *)
+  let browser_navigation_headers () =
+    [
+      ("Accept", "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8");
+      ("Accept-Language", "en");
+      ("User-Agent", "atproto-ocaml-local-oauth/0.1");
+      ("sec-fetch-mode", "navigate");
+      ("sec-fetch-dest", "document");
+      ("sec-fetch-site", "none");
+      ("sec-fetch-user", "?1");
+    ]
+
+  let body_has hay needle =
+    let h = String.lowercase_ascii hay and n = String.lowercase_ascii needle in
+    let rec aux i =
+      if i + String.length n > String.length h then false
+      else if String.sub h i (String.length n) = n then true
+      else aux (i + 1)
+    in
+    aux 0
+
+  let find_substr hay needle =
+    let rec aux i =
+      if i + String.length needle > String.length hay then None
+      else if String.sub hay i (String.length needle) = needle then Some i
+      else aux (i + 1)
+    in
+    aux 0
+
+  let js_string_literal_at s start =
+    if start >= String.length s || s.[start] <> '"' then None
+    else
+      let buf = Buffer.create 64 in
+      let rec loop i escaped =
+        if i >= String.length s then None
+        else
+          let c = s.[i] in
+          if escaped then (
+            Buffer.add_char buf c;
+            loop (i + 1) false)
+          else if c = '\\' then loop (i + 1) true
+          else if c = '"' then Some (Buffer.contents buf, i + 1)
+          else (
+            Buffer.add_char buf c;
+            loop (i + 1) false)
+      in
+      loop (start + 1) false
+
+  let parse_provider_window_json body key =
+    match find_substr body key with
+    | None -> None
+    | Some i -> (
+        let rest = String.sub body i (String.length body - i) in
+        match find_substr rest "JSON.parse(" with
+        | None -> None
+        | Some j -> (
+            let at = i + j + String.length "JSON.parse(" in
+            match js_string_literal_at body at with
+            | None -> None
+            | Some (raw, _) -> (
+                try Some (Yojson.Safe.from_string raw) with _ -> None)))
+
+  type provider_html =
+    | Provider_authorize_page
+    | Provider_error of { error : string; description : string option }
+    | Provider_html
+    | Not_html
+
+  let parse_provider_html body =
+    match parse_provider_window_json body "__errorData" with
+    | Some json ->
+        let open Yojson.Safe.Util in
+        let error =
+          match json |> member "error" with `String s -> s | _ -> "error"
+        in
+        let description =
+          match json |> member "error_description" with
+          | `String s -> Some s
+          | _ -> None
+        in
+        Provider_error { error; description }
+    | None ->
+        if parse_provider_window_json body "__authorizeData" <> None then
+          Provider_authorize_page
+        else if
+          body_has body "<!doctype html"
+          && (body_has body "oauth-provider"
+             || body_has body "__authorizedata"
+             || body_has body "__errordata")
+        then Provider_html
+        else if body_has body "<!doctype html" || body_has body "<html" then
+          Provider_html
+        else Not_html
+
+  let is_browser_navigation_error error description =
+    let blob =
+      String.lowercase_ascii
+        (error ^ " " ^ match description with Some d -> d | None -> "")
+    in
+    body_has blob "sec-fetch"
+    || (body_has blob "missing" && body_has blob "header")
+    || (body_has blob "forbidden" && body_has blob "header")
+    || body_has blob "invalid origin"
+    || body_has blob "invalid referrer"
+    || body_has blob "err_cookies_unsupported"
+    || (body_has blob "cookie" && body_has blob "unsupported")
+
+  let json_error_code body =
+    match Error.Error.of_body body with
+    | Some e -> Some e.Error.Error.error
+    | None -> None
+
+  let is_http_not_served status body =
+    status = 404 || status = 501
+    ||
+    match Error.Error.of_body body with
+    | Some e -> Error.Error.is_not_served e
+    | None -> false
+
+  let cookie_name_value nv =
+    match String.index_opt nv '=' with
+    | None -> (String.trim nv, "")
+    | Some i ->
+        ( String.trim (String.sub nv 0 i),
+          String.trim (String.sub nv (i + 1) (String.length nv - i - 1)) )
+
+  let parse_set_cookie (value : string) : (string * string) option =
+    match String.split_on_char ';' value with
+    | [] -> None
+    | nv :: _ ->
+        let name, v = cookie_name_value nv in
+        if name = "" then None else Some (name, v)
+
+  let cookies_from_headers headers =
+    List.filter_map
+      (fun (k, v) ->
+        if String.lowercase_ascii k = "set-cookie" then parse_set_cookie v
+        else None)
+      headers
+
+  let merge_cookies current incoming =
+    List.fold_left
+      (fun acc (n, v) -> (n, v) :: List.filter (fun (n2, _) -> n2 <> n) acc)
+      current incoming
+
+  let cookie_header cookies =
+    String.concat "; " (List.map (fun (n, v) -> n ^ "=" ^ v) cookies)
+
   let header_value headers name =
     let lower = String.lowercase_ascii name in
     List.find_map
@@ -879,6 +1157,59 @@ module Oauth = struct
             (Printf.sprintf "Oauth %s: %s" label (Error.Error.to_string e))
       | None -> failwith (Printf.sprintf "Oauth %s: HTTP %d" label resp.status)
     else decode_json_body label resp.body
+
+  let fetch_json ~(http : http_get) ?(headers = []) url :
+      http_response * Yojson.Safe.t =
+    let resp =
+      http ~url
+        ~headers:
+          (("Accept", "application/json")
+          :: List.filter
+               (fun (k, _) -> String.lowercase_ascii k <> "accept")
+               headers)
+    in
+    if resp.status < 200 || resp.status >= 300 then
+      failwith
+        (Printf.sprintf "Oauth: GET %s HTTP %d: %s" url resp.status resp.body);
+    (resp, decode_json_body ("GET " ^ url) resp.body)
+
+  let discover_authorization_server ~(http : http_get) ~pds_origin () :
+      resource_metadata * as_metadata =
+    let origin = trim_slash pds_origin in
+    let pr_url = protected_resource_url_of_origin origin in
+    let pr_resp =
+      http ~url:pr_url ~headers:[ ("Accept", "application/json") ]
+    in
+    let resource, issuer =
+      if pr_resp.status >= 200 && pr_resp.status < 300 then
+        let resource =
+          parse_resource_metadata
+            (decode_json_body "protected-resource" pr_resp.body)
+        in
+        let issuer =
+          match resource.authorization_servers with i :: _ -> i | [] -> origin
+        in
+        (resource, issuer)
+      else if is_http_not_served pr_resp.status pr_resp.body then
+        ({ resource = Some origin; authorization_servers = [ origin ] }, origin)
+      else
+        failwith
+          (Printf.sprintf "Oauth: protected-resource HTTP %d: %s" pr_resp.status
+             pr_resp.body)
+    in
+    let as_url = authorization_server_url ~issuer () in
+    let as_resp =
+      http ~url:as_url ~headers:[ ("Accept", "application/json") ]
+    in
+    if as_resp.status < 200 || as_resp.status >= 300 then
+      failwith
+        (Printf.sprintf "Oauth: authorization-server metadata HTTP %d: %s"
+           as_resp.status as_resp.body);
+    let as_ =
+      parse_as_metadata (decode_json_body "authorization-server" as_resp.body)
+    in
+    validate_as_metadata as_;
+    (resource, as_)
 
   let push_authorization ~(http : http_post) ~priv ~pub ~par_url ~form ?nonce ()
       : par_response * string option =
@@ -949,4 +1280,20 @@ module Oauth = struct
       else (resp, match next_nonce with Some n -> Some n | None -> nonce)
     in
     attempt nonce 1
+
+  let hex_of_bytes (s : string) : string =
+    let buf = Buffer.create (String.length s * 2) in
+    String.iter
+      (fun c -> Buffer.add_string buf (Printf.sprintf "%02x" (Char.code c)))
+      s;
+    Buffer.contents buf
+
+  let random_csrf_token () : string =
+    Lazy.force ensure_rng;
+    Random.self_init ();
+    let bytes = Bytes.create 12 in
+    for i = 0 to 11 do
+      Bytes.set bytes i (Char.chr (Random.int 256))
+    done;
+    hex_of_bytes (Bytes.to_string bytes)
 end

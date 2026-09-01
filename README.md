@@ -75,6 +75,7 @@ export ATP_REQUIRE_LOCAL_PDS=1
 dune exec -- test/test_local_pds.exe
 dune exec -- test/test_local_appview.exe
 dune exec -- test/test_local_ozone.exe
+dune exec -- test/test_local_oauth.exe
 
 ./scripts/local-atproto.sh down
 ```
@@ -105,6 +106,8 @@ Point the client at the local stack with:
 - `ATP_APPVIEW_HOST=localhost:2584`
 - `ATP_OZONE_HOST=localhost:2587`
 - `ATP_AUTH=alice.test:hunter2`
+
+`test/test_local_oauth.ml` serves a loopback `client-metadata.json`, discovers the PDS authorization server (`.well-known/oauth-protected-resource` + `oauth-authorization-server`), and runs PAR + DPoP against this `@atproto/dev-env` 0.6.4 oauth-provider. Official `http://localhost?redirect_uri=…` is used when the AS rejects a hosted `http://127.0.0.1` client_id (HTTPS is required by the spec except that loopback exception). `Oauth.form_encode` uses URI generic percent-encoding so a loopback `client_id` (`…&scope=atproto%20transition%3Ageneric`) is one form field; path-safe encoding would split on `&` and the AS would derive metadata with only the default `atproto` scope. Hosted `client-metadata.json` and the official loopback `client_id` query both declare `Oauth.default_scope` (`atproto transition:generic`); PAR requests that same string so `transition:generic` is not an undeclared scope. `GET /oauth/authorize` is a browser document navigation (`sec-fetch-mode: navigate`, `sec-fetch-dest: document`, `sec-fetch-site: none`); a bare GET is HTTP 400 HTML (`Missing sec-fetch-mode header`). The library parses oauth-provider `__errorData` / `__authorizeData` hydration. HTML 400 is a protocol or browser-navigation error, not MethodNotImplemented. Token exchange runs when `/@atproto/oauth-provider/~api/sign-in` + `/consent` accept `alice.test` / `hunter2`; otherwise authorize/token stop after required-green PAR. A public HTTPS client-metadata host and a production browser login are still application-level.
 
 `test/test_local_pds.ml` hits PDS `com.atproto` identity / session / repo / blob / sync / moderation, plus `refreshSession` (refreshJwt Bearer) / `deleteSession` / `getAccountInviteCodes` and a local PLC directory create/update. `Identity.resolve_did` / `resolve_identity` call the XRPC first, then fall back to local PLC (`PLC_ORIGIN`, default `http://localhost:2582` on a local host) because `@atproto/pds` 0.5.x returns `MethodNotImplemented` for those two queries. `test/test_local_appview.ml` hits AppView `app.bsky.actor` / `feed` / `graph` / `notification` / `labeler` / `unspecced` (public reads on `:2584` with no session). Authenticated AppView APIs (`getTimeline`, `getMutes`, `listNotifications`) mint `com.atproto.server.getServiceAuth` (`aud` = AppView DID, `lxm` = the XRPC) and send that JWT to AppView — never the PDS `at+jwt` access token (`InvalidToken: Malformed token`). Extra AppView NSIDs (`getPosts`, `searchActors`, `searchPostsV2`, `getQuotes`, `getRelationships`, `getLists`, `getActorStarterPacks`, `getPreferences`, …) are called only when this AppView implements them. `test/test_local_ozone.ml` hits `tools.ozone.moderation.emitEvent` / `queryEvents` / `queryStatuses` / `getRepo` / `getRecord` / `searchRepos` / `getEvent` / `getReporterStats`, `tools.ozone.server.getConfig`, `tools.ozone.team.listMembers`, `tools.ozone.communication.listTemplates`, `tools.ozone.set.querySets` / `getValues`, `tools.ozone.queue.listQueues`, `tools.ozone.report.queryReports`, and `com.atproto.label.queryLabels` via the PDS + `atproto-proxy` (direct Ozone rejects `at+jwt`). If the local network is up, a failed protocol call **fails the test**. The suite skips only when it is not aimed at a local host (typical laptop `dune runtest` without Docker/Node). In CI, `ATP_REQUIRE_LOCAL_PDS=1` is set and the stack is required.
 
@@ -143,7 +146,7 @@ Pinned `@atproto/dev-env@0.6.4` `TestNetwork.create()` does **not** start a `cha
 | Lexicon | `Lexicon` | Parse lexicon-1 JSON (parameters + procedure input/output schemas + `permission-set`), `to_ocaml` codegen (unions emit polymorphic variants), JSON validate, `resolveLexicon` client, small bundled official lexicon documents including `app.bsky.graph.referencelistoptout` and official OAuth permission-sets |
 | Temp | `Temp` | `com.atproto.temp.checkHandleAvailability` (available / suggestions union), `checkSignupQueue`, `dereferenceScope`, plus privileged `addReservedHandle` / `requestPhoneVerification` / `revokeAccountCredentials` clients (no invented operator session). Deprecated `fetchLabels` remains `Label.query_labels` |
 | Firehose | `Firehose`, `Websocket` | RFC 6455 client (`wss://` and local `ws://`) + `subscribeRepos` frame decode (`#commit`/`#sync`/`#identity`/`#account`/`#info`) |
-| OAuth / DPoP | `Oauth`, `Oauth_scope` | PKCE S256, DPoP ES256 + nonce (RFC 9449 `htu` without query/fragment, random `jti`, RFC 7638 `dpop_jkt`), client metadata (`logo_uri` / `tos_uri` / `policy_uri`), PAR (`prompt=create` signup) / token / RFC 7009 revoke, `require_request_uri_registration`, resource-server `use_dpop_nonce` retry, `expect_sub` / `expires_at`; granular scope grammar (`repo:`/`rpc:`/`blob:`/`include:`/`transition:`) + official `app.bsky.auth*` / `chat.bsky.authFullChatClient` permission-set parse/expand |
+| OAuth / DPoP | `Oauth`, `Oauth_scope` | PKCE S256, DPoP ES256 + nonce (RFC 9449 `htu` without query/fragment, random `jti`, RFC 7638 `dpop_jkt`), client metadata (`logo_uri` / `tos_uri` / `policy_uri`), PAR (`prompt=create` signup) / token / RFC 7009 revoke, `require_request_uri_registration`, resource-server `use_dpop_nonce` retry, `expect_sub` / `expires_at`; origin-aware URLs + loopback HTTP issuer; live Cohttp GET/POST (DPoP-Nonce + cookies); local TestNetwork discovery / hosted loopback metadata / PAR; granular scope grammar (`repo:`/`rpc:`/`blob:`/`include:`/`transition:`) + official `app.bsky.auth*` / `chat.bsky.authFullChatClient` permission-set parse/expand |
 | Labels | `Label` | `queryLabels` + label / query parse (`ver`, `exp`) + `#selfLabels` + typed `#labelValueDefinition` (`severity` / `blurs` / `locales`) |
 | XRPC headers | `Xrpc` | `atproto-proxy`, accept-labelers, rate-limit; service-auth JWT mint/verify (ES256/ES256K, `kid`/`jti`/`iat`/`lxm`, `did#service` aud, replay cache) |
 | Errors | `Error` | XRPC `{error, message}` including rate limits |
@@ -163,7 +166,7 @@ Pinned `@atproto/dev-env@0.6.4` `TestNetwork.create()` does **not** start a `cha
 
 These are product-level, not missing protocol cores:
 
-- Hosting a public **client-metadata document** and completing a **live browser login** against a PDS (the protocol core — metadata, PAR + DPoP-nonce retry, authorize URL, redirect `code`/`state`/`iss`, token parse — is implemented and tested with fixtures)
+- Hosting a **public HTTPS client-metadata document** and completing a **production browser login** against a remote PDS. Local TestNetwork now serves a loopback metadata document and runs discovery + PAR + DPoP in CI (`test/test_local_oauth.ml`). `GET /oauth/authorize` is sent as a document navigation (`Sec-Fetch-*`); the local AS still serves an HTML login/consent SPA, so the authorization code is minted only when the oauth-provider sign-in/consent APIs complete with `alice.test` / `hunter2`.
 - A hosted Tap service, hosted video transcoder, or live Ozone operator session (client request/response types, video byte-upload + job poll, TAP-like repo sync helpers, and proxy headers are implemented). A **local PDS + PLC** stack is included for `com.atproto.*` integration tests; it is not a public host.
 - Jetstream Network Replay / HTTP snapshot **download** against Bluesky's gated archive (planner, `listSegments` types, cutover cursor, Range resume, skippable unauthenticated HTTP, and `.jss` v1 decode are implemented; a live archive download still needs an operator token this library does not invent, and zstd frames need an injected decompressor)
 - Permissioned data / spaces / LtHash (no stable public spec to implement yet)
@@ -171,7 +174,7 @@ These are product-level, not missing protocol cores:
 
 #70–#90 covered protocol core, AppView/chat/ozone/temp, Jetstream, video, OAuth scopes, thread v2 / drafts / contacts, remaining preference kinds, ozone queue/report, `site.standard.*`, leftover admin, HTTP/2, server email/activate, leftover official field parsers, and the official `@atproto/dev-env` local network in CI.
 
-This stack fills leftover *library* holes after #90–#93: official `app.bsky.graph.referencelistoptout`, OAuth PAR `prompt=create` / RFC 7638 `dpop_jkt` / RFC 7009 revoke, typed official permission-set lexicons (`include:app.bsky.auth*`), `Client.post_json_h2`, DAG-CBOR IPLD JSON (`$link`/`$bytes`), offline `Repo_sync.write_signed_repo`, and more local PDS/AppView/Ozone XRPC the stack actually serves. Chat still has no OSS server in TestNetwork; skippable live `chat.bsky.*` tests keep `atproto-proxy`.
+This stack fills leftover *library* holes after #90–#100: live local OAuth (loopback client-metadata + AS discovery + PAR/DPoP against TestNetwork), official `app.bsky.graph.referencelistoptout`, OAuth PAR `prompt=create` / RFC 7638 `dpop_jkt` / RFC 7009 revoke, typed official permission-set lexicons (`include:app.bsky.auth*`), `Client.post_json_h2`, DAG-CBOR IPLD JSON (`$link`/`$bytes`), offline `Repo_sync.write_signed_repo`, and more local PDS/AppView/Ozone XRPC the stack actually serves. Chat still has no OSS server in TestNetwork; skippable live `chat.bsky.*` tests keep `atproto-proxy`.
 
 Privileged admin/ozone writes still need a real operator session and are not invented here.
 
@@ -225,6 +228,10 @@ let meta =
     ~client_id:"https://client.example/client-metadata.json"
     ~redirect_uris:[ "https://client.example/cb" ] ()
 let _ = Oauth.validate_metadata meta
+(* Official loopback client_id for local / TestNetwork development *)
+let loopback =
+  Oauth.loopback_client_id ~redirect_uri:"http://127.0.0.1:8080/cb" ()
+let _ = Oauth.localhost_metadata loopback
 
 (* video byte-upload pipeline — construct URL + embed; POST needs a service token *)
 let upload =

@@ -34,6 +34,7 @@
   test_labeler
   test_lexicon
   test_local_appview
+  test_local_oauth
   test_local_ozone
   test_local_pds
   test_moderation
@@ -84,6 +85,8 @@
   mirage-crypto-rng.unix
   zarith
   ounit2
+  threads
+  unix
   atproto)
  (modules
   test_app
@@ -120,6 +123,7 @@
   test_labeler
   test_lexicon
   test_local_appview
+  test_local_oauth
   test_local_ozone
   test_local_pds
   test_moderation

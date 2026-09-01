@@ -55,6 +55,7 @@ test-pds-run test-atproto-run:
 	export ATP_REQUIRE_LOCAL_PDS=1 OUNIT_RUNNER=sequential; \
 	dune exec -- test/test_local_pds.exe; \
 	dune exec -- test/test_local_appview.exe; \
-	dune exec -- test/test_local_ozone.exe
+	dune exec -- test/test_local_ozone.exe; \
+	dune exec -- test/test_local_oauth.exe
 
 .PHONY: default install uninstall reinstall lint clean test pds-up pds-down pds-account pds-logs atproto-up atproto-down atproto-account atproto-logs test-pds test-atproto test-pds-run test-atproto-run

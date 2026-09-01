@@ -119,6 +119,10 @@ cmd_up() {
     (
       cd "${DEV_DIR}"
       export DB_POSTGRES_URL REDIS_HOST
+      # oauth-provider accepts an http issuer (and often http client_id)
+      # only when NODE_ENV=development. TestNetwork PDS publicUrl is
+      # http://localhost:2583.
+      export NODE_ENV="${NODE_ENV:-development}"
       nohup node --enable-source-maps \
         ./node_modules/@atproto/dev-env/dist/bin.js \
         >> "${LOG_FILE}" 2>&1 &

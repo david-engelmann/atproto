@@ -202,6 +202,7 @@ jobs:
             opam exec -- dune exec -- test/test_local_pds.exe
             opam exec -- dune exec -- test/test_local_appview.exe
             opam exec -- dune exec -- test/test_local_ozone.exe
+            opam exec -- dune exec -- test/test_local_oauth.exe
           } 2>&1 | tee local_pds_runtest.log
 
       - name: Network logs

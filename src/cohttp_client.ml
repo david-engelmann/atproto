@@ -167,4 +167,19 @@ module Cohttp_client = struct
     match Header.get (Response.headers resp) "content-type" with
     | Some ct -> Lwt.return ct
     | None -> Lwt.return "No content-type found"
+
+  (* Status + all response headers (including repeated Set-Cookie) + body.
+     Used by live OAuth (DPoP-Nonce, CSRF cookies) where XRPC helpers drop
+     headers. Does not follow redirects. *)
+  let request_full (meth : Code.meth) (url : string) ?(body = "")
+      (header_settings : (string * string) list) :
+      (int * (string * string) list * string) Lwt.t =
+    let open Lwt.Infix in
+    let headers = create_headers_from_pairs header_settings in
+    let req_body = Cohttp_lwt.Body.of_string body in
+    Cohttp_lwt_unix.Client.call ~headers ~body:req_body meth (Uri.of_string url)
+    >>= fun (resp, resp_body) ->
+    let status = resp |> Response.status |> Code.code_of_status in
+    let hdrs = resp |> Response.headers |> Header.to_list in
+    Cohttp_lwt.Body.to_string resp_body >|= fun body -> (status, hdrs, body)
 end
