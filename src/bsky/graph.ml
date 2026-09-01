@@ -5,14 +5,20 @@ open Actor
 open Label
 
 module Graph = struct
+  (* Official app.bsky.graph.getFollows / getFollowers `sort` knownValues. *)
+  let sort_latest = "latest"
+  let sort_top = "top"
+
   type followers = {
     subject : Actor.short_profile;
     followers : Actor.short_profile list;
+    cursor : string option;
   }
 
   type follows = {
     subject : Actor.short_profile;
     follows : Actor.short_profile list;
+    cursor : string option;
   }
 
   type blocks = { blocks : Actor.block_profile list; cursor : string }
@@ -25,6 +31,11 @@ module Graph = struct
     let json = Yojson.Safe.from_string body in
     json
 
+  let string_opt json field =
+    match Yojson.Safe.Util.member field json with
+    | `String s -> Some s
+    | _ -> None
+
   let parse_followers json : followers =
     let open Yojson.Safe.Util in
     let subject = json |> member "subject" |> Actor.parse_short_profile in
@@ -32,7 +43,7 @@ module Graph = struct
       json |> member "followers" |> to_list
       |> List.map Actor.parse_short_profile
     in
-    { subject; followers }
+    { subject; followers; cursor = string_opt json "cursor" }
 
   let parse_follows json : follows =
     let open Yojson.Safe.Util in
@@ -40,7 +51,13 @@ module Graph = struct
     let follows =
       json |> member "follows" |> to_list |> List.map Actor.parse_short_profile
     in
-    { subject; follows }
+    { subject; follows; cursor = string_opt json "cursor" }
+
+  (* Official getFollows / getFollowers query params, including `sort`. *)
+  let follow_page_pairs ~actor ?limit ?cursor ?sort () =
+    (("actor", actor) :: Client.Client.opt_int "limit" limit)
+    @ Client.Client.opt_pair "cursor" cursor
+    @ Client.Client.opt_pair "sort" sort
 
   let parse_blocks json : blocks =
     let open Yojson.Safe.Util in
@@ -104,6 +121,12 @@ module Graph = struct
     in
     followers |> convert_body_to_json |> parse_followers
 
+  let get_followers_page ?session ?host ~actor ?limit ?cursor ?sort () :
+      followers =
+    Client.Client.get_json ?session ?host "app.bsky.graph.getFollowers"
+      (follow_page_pairs ~actor ?limit ?cursor ?sort ())
+    |> parse_followers
+
   let get_follows (s : Session.session) (actor : string) (limit : int) : follows
       =
     let bearer_token = Session.bearer_token_from_session s in
@@ -125,6 +148,11 @@ module Graph = struct
            headers)
     in
     follows |> convert_body_to_json |> parse_follows
+
+  let get_follows_page ?session ?host ~actor ?limit ?cursor ?sort () : follows =
+    Client.Client.get_json ?session ?host "app.bsky.graph.getFollows"
+      (follow_page_pairs ~actor ?limit ?cursor ?sort ())
+    |> parse_follows
 
   let get_mutes (s : Session.session) (limit : int) : mutes =
     let bearer_token = Session.bearer_token_from_session s in

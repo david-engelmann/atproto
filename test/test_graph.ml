@@ -113,6 +113,64 @@ let test_mute_actor_body _ =
   OUnit2.assert_equal true (scoped |> member "onlyReposts" |> to_bool);
   OUnit2.assert_equal false (scoped |> member "onlyQuoteposts" |> to_bool)
 
+let test_follow_page_sort_and_cursor _ =
+  OUnit2.assert_equal ~printer:(fun x -> x) "latest" Graph.sort_latest;
+  OUnit2.assert_equal ~printer:(fun x -> x) "top" Graph.sort_top;
+  let pairs =
+    Graph.follow_page_pairs ~actor:"alice.test" ~limit:10 ~cursor:"abc"
+      ~sort:Graph.sort_latest ()
+  in
+  OUnit2.assert_equal (Some "alice.test") (List.assoc_opt "actor" pairs);
+  OUnit2.assert_equal (Some "10") (List.assoc_opt "limit" pairs);
+  OUnit2.assert_equal (Some "abc") (List.assoc_opt "cursor" pairs);
+  OUnit2.assert_equal (Some "latest") (List.assoc_opt "sort" pairs);
+  let top_pairs =
+    Graph.follow_page_pairs ~actor:"bob.test" ~sort:Graph.sort_top ()
+  in
+  OUnit2.assert_equal (Some "top") (List.assoc_opt "sort" top_pairs);
+  OUnit2.assert_equal None (List.assoc_opt "cursor" top_pairs);
+  let subject =
+    `Assoc
+      [
+        ("did", `String "did:plc:abc123xyz0001112223333");
+        ("handle", `String "alice.test");
+      ]
+  in
+  let follows =
+    Graph.parse_follows
+      (`Assoc
+        [
+          ("subject", subject);
+          ( "follows",
+            `List
+              [
+                `Assoc
+                  [
+                    ("did", `String "did:plc:xyz789aaa0001112223333");
+                    ("handle", `String "bob.test");
+                  ];
+              ] );
+          ("cursor", `String "next-follows");
+        ])
+  in
+  OUnit2.assert_equal ~printer:(fun x -> x) "alice.test" follows.subject.handle;
+  OUnit2.assert_equal 1 (List.length follows.follows);
+  OUnit2.assert_equal (Some "next-follows") follows.cursor;
+  let followers =
+    Graph.parse_followers
+      (`Assoc
+        [
+          ("subject", subject);
+          ("followers", `List []);
+          ("cursor", `String "next-followers");
+        ])
+  in
+  OUnit2.assert_equal (Some "next-followers") followers.cursor;
+  let no_cursor =
+    Graph.parse_follows (`Assoc [ ("subject", subject); ("follows", `List []) ])
+  in
+  OUnit2.assert_equal None no_cursor.cursor
+
 let test_parse_list _ =
   let json =
     `Assoc
@@ -534,6 +592,7 @@ let suite =
          "test_mute_actor" >:: test_mute_actor;
          "test_unmute_actor" >:: test_unmute_actor;
          "test_mute_actor_body" >:: test_mute_actor_body;
+         "test_follow_page_sort_and_cursor" >:: test_follow_page_sort_and_cursor;
          "test_parse_list" >:: test_parse_list;
          "test_parse_list_opt_out_fields" >:: test_parse_list_opt_out_fields;
          "test_parse_starter_pack" >:: test_parse_starter_pack;
