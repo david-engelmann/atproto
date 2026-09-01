@@ -704,7 +704,32 @@ let test_leftover_appview _ =
                         ("enabled", `Bool false);
                       ];
                   ] );
-            ])))
+            ])));
+  (* Official getAuthorFeed `filter` knownValues. *)
+  List.iter
+    (fun filter ->
+      match
+        av_get_if_served "app.bsky.feed.getAuthorFeed"
+          [
+            ("actor", "alice.test");
+            ("limit", "5");
+            ("filter", filter);
+            ("includePins", "true");
+          ]
+      with
+      | None -> ()
+      | Some json ->
+          let page = Feed.parse_timeline json in
+          OUnit2.assert_bool
+            ("getAuthorFeed filter=" ^ filter)
+            (List.length page.feed >= 0))
+    [
+      Feed.filter_posts_with_replies;
+      Feed.filter_posts_no_replies;
+      Feed.filter_posts_with_media;
+      Feed.filter_posts_and_author_threads;
+      Feed.filter_posts_with_video;
+    ]
 
 let suite =
   "local_appview"

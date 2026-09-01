@@ -219,6 +219,11 @@ let () =
     match Yojson.Safe.Util.member "onlyReposts" mute with
     | `Bool true -> true
     | _ -> false);
+  assert (Feed.filter_posts_with_replies = "posts_with_replies");
+  assert (Feed.filter_posts_no_replies = "posts_no_replies");
+  assert (Feed.filter_posts_with_media = "posts_with_media");
+  assert (Feed.filter_posts_and_author_threads = "posts_and_author_threads");
+  assert (Feed.filter_posts_with_video = "posts_with_video");
   let reply =
     Feed.parse_reply
       (`Assoc

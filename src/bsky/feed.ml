@@ -7,6 +7,13 @@ open Facet
 open Embed
 
 module Feed = struct
+  (* Official app.bsky.feed.getAuthorFeed `filter` knownValues. *)
+  let filter_posts_with_replies = "posts_with_replies"
+  let filter_posts_no_replies = "posts_no_replies"
+  let filter_posts_with_media = "posts_with_media"
+  let filter_posts_and_author_threads = "posts_and_author_threads"
+  let filter_posts_with_video = "posts_with_video"
+
   (* Authors feed comes with either "post" "post"+"reply" or "post"+"reason"
    * Depending on get_post_thread results, might want a type for each
    * combination ie. type feed_post, type feed_reply, feed_repost, feed_like?, feed_follow?
