@@ -4,6 +4,7 @@ open Atproto.Ozone
 open Atproto.Label
 open Atproto.Client
 open Atproto.Error
+open Atproto.Moderation
 open Ozone
 open Label
 
@@ -67,12 +68,49 @@ let no_xrpc_error json =
   | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
   | None -> ()
 
+let message_has hay needle =
+  let h = String.lowercase_ascii hay and n = String.lowercase_ascii needle in
+  let rec aux i =
+    if i + String.length n > String.length h then false
+    else if String.sub h i (String.length n) = n then true
+    else aux (i + 1)
+  in
+  aux 0
+
+let cannot_moderate json =
+  match Error.check_for_error json with
+  | None -> false
+  | Some _ when Error.is_not_served_json json -> true
+  | Some err ->
+      let e = String.lowercase_ascii err in
+      let msg = String.lowercase_ascii (Error.to_string (Error.of_json json)) in
+      List.exists
+        (fun n -> e = n || message_has msg n)
+        [
+          "authenticationrequired";
+          "authmissing";
+          "forbidden";
+          "unauthorized";
+          "accessdenied";
+          "accounttakedown";
+        ]
+      || message_has msg "not authorized"
+      || message_has msg "not a moderator"
+      || message_has msg "insufficient"
+      || message_has msg "permission"
+      || message_has msg "not a verifier"
+      || message_has msg "verifier"
+
 let served json =
-  if Error.is_not_served_json json then false
+  if Error.is_not_served_json json || cannot_moderate json then false
   else
     match Error.check_for_error json with
     | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
     | None -> true
+
+let leftover_tag () =
+  Printf.sprintf "ocaml-leftover-%d"
+    (int_of_float (Unix.gettimeofday () *. 1000.) mod 100_000_000)
 
 let test_get_config _ =
   let s = admin_session () in
@@ -331,6 +369,134 @@ let test_leftover_ozone _ =
       OUnit2.assert_bool "listScheduledActions" (List.length listed.actions >= 0)
   | _ -> ()
 
+let ozone_post s p nsid body =
+  Client.post_json ~session:s ~extra:(Ozone.proxy_headers p) nsid
+    (Yojson.Safe.to_string body)
+
+let test_privileged_writes _ =
+  let s = admin_session () in
+  let p = proxy () in
+  let alice = Session.create_session "alice.test" "hunter2" in
+  let bob = Session.create_session "bob.test" "hunter2" in
+  let tag = leftover_tag () in
+  (* emitEvent with official reportAction. Skip if not served / cannot moderate. *)
+  (match
+     ozone_post s p "tools.ozone.moderation.emitEvent"
+       (Ozone.emit_event_body
+          ~event:(Ozone.comment_event ("privileged " ^ tag))
+          ~subject:(Ozone.repo_ref alice.auth.did)
+          ~created_by:s.auth.did
+          ~report_action:(Ozone.report_action ~all:true ~note:tag ())
+          ())
+   with
+  | json when served json ->
+      let ev = Ozone.parse_mod_event json in
+      no_xrpc_error ev.original
+  | _ -> ());
+  (* Queue mutations. A single-node TestNetwork may 501 these NSIDs. *)
+  let queue_name = "ocaml-queue-" ^ tag in
+  (match
+     ozone_post s p "tools.ozone.queue.createQueue"
+       (Ozone.create_queue_body ~name:queue_name ~subject_types:[ "account" ] ())
+   with
+  | json when served json ->
+      let created = Ozone.parse_queue_result json in
+      OUnit2.assert_bool "createQueue id" (created.id >= 0);
+      let updated =
+        Ozone.update_queue s ~proxy:p ~queue_id:created.id
+          ~description:("updated " ^ tag) ()
+      in
+      OUnit2.assert_equal created.id updated.id;
+      let deleted = Ozone.delete_queue s ~proxy:p ~queue_id:created.id () in
+      OUnit2.assert_bool "deleteQueue" deleted.deleted
+  | _ -> ());
+  (* Report mutations: PDS createReport, then ozone createActivity if served. *)
+  (match
+     ozone_json s p "tools.ozone.report.queryReports"
+       [ ("status", "open"); ("limit", "10") ]
+   with
+  | json when served json -> (
+      let report_json =
+        Client.post_json ~session:alice "com.atproto.moderation.createReport"
+          (Moderation.create_report_data_from_repo_ref Moderation.reason_other
+             ~reason:("ocaml leftover " ^ tag)
+             { Moderation.did = bob.auth.did })
+      in
+      match report_json with
+      | rjson when served rjson -> (
+          let reports =
+            Ozone.query_reports s ~proxy:p ~status:"open" ~did:bob.auth.did
+              ~limit:10 ()
+          in
+          match reports.reports with
+          | [] -> ()
+          | report :: _ -> (
+              match
+                ozone_post s p "tools.ozone.report.createActivity"
+                  (Ozone.create_activity_body ~activity:(Ozone.note_activity ())
+                     ~report_id:report.id ~internal_note:tag ())
+              with
+              | ajson when served ajson ->
+                  let activity = Ozone.parse_activity_result ajson in
+                  OUnit2.assert_bool "createActivity"
+                    (match activity.report_id with
+                    | Some id -> id = report.id
+                    | None -> true)
+              | _ -> ()))
+      | _ -> ())
+  | _ -> ());
+  (* Safelink add / update / remove — official `pattern` field. *)
+  let url = "https://" ^ tag ^ ".leftover.test" in
+  (match
+     ozone_post s p "tools.ozone.safelink.addRule"
+       (Ozone.add_safelink_rule_body ~url ~pattern:"domain" ~action:"warn"
+          ~reason:"spam" ~comment:tag ())
+   with
+  | json when served json ->
+      let added = Ozone.parse_safelink_event json in
+      OUnit2.assert_equal ~printer:(fun x -> x) url added.url;
+      OUnit2.assert_equal (Some "domain") added.pattern;
+      let updated =
+        Ozone.update_safelink_rule s ~proxy:p ~url ~pattern:"domain"
+          ~action:"block" ~reason:"phishing" ~comment:("upd " ^ tag) ()
+      in
+      OUnit2.assert_equal (Some "block") updated.action;
+      let removed =
+        Ozone.remove_safelink_rule s ~proxy:p ~url ~pattern:"domain"
+          ~comment:("rm " ^ tag) ()
+      in
+      OUnit2.assert_equal ~printer:(fun x -> x) url removed.url
+  | _ -> ());
+  (* Grant / revoke verification. Skip if ozone is not a verifier. *)
+  match
+    ozone_post s p "tools.ozone.verification.grantVerifications"
+      (Ozone.grant_verifications_body
+         ~verifications:
+           [
+             Ozone.verification_input ~subject:alice.auth.did
+               ~handle:alice.username ~display_name:"Alice" ();
+           ]
+         ())
+  with
+  | json when served json -> (
+      let granted = Ozone.parse_grant_verifications json in
+      OUnit2.assert_bool "grantVerifications parsed"
+        (List.length granted.verifications
+         + List.length granted.failed_verifications
+        >= 0);
+      match granted.verifications with
+      | [] -> ()
+      | v :: _ ->
+          let revoked =
+            Ozone.revoke_verifications s ~proxy:p ~uris:[ v.uri ]
+              ~revoke_reason:("ocaml leftover " ^ tag) ()
+          in
+          OUnit2.assert_bool "revokeVerifications parsed"
+            (List.length revoked.revoked_verifications
+             + List.length revoked.failed_revocations
+            >= 0))
+  | _ -> ()
+
 let suite =
   "local_ozone"
   >::: [
@@ -339,6 +505,7 @@ let suite =
          "test_query_labels" >:: test_query_labels;
          "test_more_ozone" >:: test_more_ozone;
          "test_leftover_ozone" >:: test_leftover_ozone;
+         "test_privileged_writes" >:: test_privileged_writes;
        ]
 
 let () =

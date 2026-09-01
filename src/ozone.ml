@@ -534,8 +534,19 @@ module Ozone = struct
         ("cid", `String cid);
       ]
 
+  let report_action ?ids ?(types = []) ?all ?note () : Yojson.Safe.t =
+    `Assoc
+      ((match ids with
+       | Some xs -> [ ("ids", `List (List.map (fun n -> `Int n) xs)) ]
+       | None -> [])
+      @ (match types with
+        | [] -> []
+        | xs -> [ ("types", `List (List.map (fun s -> `String s) xs)) ])
+      @ (match all with Some b -> [ ("all", `Bool b) ] | None -> [])
+      @ match note with Some n -> [ ("note", `String n) ] | None -> [])
+
   let emit_event_body ~event ~subject ~created_by ?subject_blob_cids
-      ?external_id () : Yojson.Safe.t =
+      ?external_id ?mod_tool ?report_action () : Yojson.Safe.t =
     let fields =
       [
         ("event", event); ("subject", subject); ("createdBy", `String created_by);
@@ -544,10 +555,12 @@ module Ozone = struct
         | Some cids ->
             [ ("subjectBlobCids", `List (List.map (fun c -> `String c) cids)) ]
         | None -> [])
+      @ (match external_id with
+        | Some id -> [ ("externalId", `String id) ]
+        | None -> [])
+      @ (match mod_tool with Some t -> [ ("modTool", t) ] | None -> [])
       @
-      match external_id with
-      | Some id -> [ ("externalId", `String id) ]
-      | None -> []
+      match report_action with Some r -> [ ("reportAction", r) ] | None -> []
     in
     `Assoc fields
 
@@ -600,12 +613,12 @@ module Ozone = struct
     |> parse_events
 
   let emit_event (s : Session.session) ~proxy ?host ~event ~subject ~created_by
-      ?subject_blob_cids ?external_id () : mod_event =
+      ?subject_blob_cids ?external_id ?mod_tool ?report_action () : mod_event =
     Client.post_json ~session:s ?host ~extra:(proxy_headers proxy)
       "tools.ozone.moderation.emitEvent"
       (Yojson.Safe.to_string
          (emit_event_body ~event ~subject ~created_by ?subject_blob_cids
-            ?external_id ()))
+            ?external_id ?mod_tool ?report_action ()))
     |> parse_mod_event
 
   let get_event (s : Session.session) ~proxy ~id () : mod_event =
@@ -1199,11 +1212,12 @@ module Ozone = struct
 
   let parse_url_rule json : url_rule =
     {
-      url =
-        (match Client.string_opt json "url" with
-        | Some s -> s
-        | None -> Client.string_member json "pattern");
-      pattern_type = Client.string_opt json "patternType";
+      url = Client.string_member json "url";
+      (* Official tools.ozone.safelink.defs#urlRule uses `pattern`. *)
+      pattern_type =
+        (match Client.string_opt json "pattern" with
+        | Some s -> Some s
+        | None -> Client.string_opt json "patternType");
       action = Client.string_opt json "action";
       reason = Client.string_opt json "reason";
       created_by = Client.string_opt json "createdBy";
@@ -1250,60 +1264,37 @@ module Ozone = struct
       (Yojson.Safe.to_string body)
     |> parse_url_rules
 
-  let add_safelink_rule (s : Session.session) ~proxy ~url ~pattern_type ~action
-      ?reason ?comment () : url_rule =
-    Client.post_json ~session:s ~extra:(proxy_headers proxy)
-      "tools.ozone.safelink.addRule"
-      (Yojson.Safe.to_string
-         (`Assoc
-           ([
-              ("url", `String url);
-              ("patternType", `String pattern_type);
-              ("action", `String action);
-            ]
-           @ (match reason with
-             | Some r -> [ ("reason", `String r) ]
-             | None -> [])
-           @
-           match comment with
-           | Some c -> [ ("comment", `String c) ]
-           | None -> [])))
-    |> parse_url_rule
+  (* Official addRule / updateRule / removeRule take `pattern` (not
+     patternType) and return tools.ozone.safelink.defs#event. *)
+  let add_safelink_rule_body ~url ~pattern ~action ~reason ?comment ?created_by
+      () : Yojson.Safe.t =
+    `Assoc
+      (("url", `String url)
+       :: ("pattern", `String pattern)
+       :: ("action", `String action)
+       :: ("reason", `String reason)
+       ::
+       (match comment with Some c -> [ ("comment", `String c) ] | None -> [])
+      @
+      match created_by with
+      | Some d -> [ ("createdBy", `String d) ]
+      | None -> [])
 
-  let update_safelink_rule (s : Session.session) ~proxy ~url ~pattern_type
-      ?action ?reason ?comment () : url_rule =
-    Client.post_json ~session:s ~extra:(proxy_headers proxy)
-      "tools.ozone.safelink.updateRule"
-      (Yojson.Safe.to_string
-         (`Assoc
-           (("url", `String url)
-            :: ("patternType", `String pattern_type)
-            ::
-            (match action with
-            | Some a -> [ ("action", `String a) ]
-            | None -> [])
-           @ (match reason with
-             | Some r -> [ ("reason", `String r) ]
-             | None -> [])
-           @
-           match comment with
-           | Some c -> [ ("comment", `String c) ]
-           | None -> [])))
-    |> parse_url_rule
+  let update_safelink_rule_body ~url ~pattern ~action ~reason ?comment
+      ?created_by () : Yojson.Safe.t =
+    add_safelink_rule_body ~url ~pattern ~action ~reason ?comment ?created_by ()
 
-  let remove_safelink_rule (s : Session.session) ~proxy ~url ~pattern_type
-      ?comment () : url_rule =
-    Client.post_json ~session:s ~extra:(proxy_headers proxy)
-      "tools.ozone.safelink.removeRule"
-      (Yojson.Safe.to_string
-         (`Assoc
-           (("url", `String url)
-           :: ("patternType", `String pattern_type)
-           ::
-           (match comment with
-           | Some c -> [ ("comment", `String c) ]
-           | None -> []))))
-    |> parse_url_rule
+  let remove_safelink_rule_body ~url ~pattern ?comment ?created_by () :
+      Yojson.Safe.t =
+    `Assoc
+      (("url", `String url)
+       :: ("pattern", `String pattern)
+       ::
+       (match comment with Some c -> [ ("comment", `String c) ] | None -> [])
+      @
+      match created_by with
+      | Some d -> [ ("createdBy", `String d) ]
+      | None -> [])
 
   type safelink_event = {
     id : int;
@@ -1345,6 +1336,32 @@ module Ozone = struct
       cursor = Client.string_opt json "cursor";
       events = List.map parse_safelink_event (Client.list_member json "events");
     }
+
+  let add_safelink_rule (s : Session.session) ~proxy ~url ~pattern ~action
+      ~reason ?comment ?created_by () : safelink_event =
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.safelink.addRule"
+      (Yojson.Safe.to_string
+         (add_safelink_rule_body ~url ~pattern ~action ~reason ?comment
+            ?created_by ()))
+    |> parse_safelink_event
+
+  let update_safelink_rule (s : Session.session) ~proxy ~url ~pattern ~action
+      ~reason ?comment ?created_by () : safelink_event =
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.safelink.updateRule"
+      (Yojson.Safe.to_string
+         (update_safelink_rule_body ~url ~pattern ~action ~reason ?comment
+            ?created_by ()))
+    |> parse_safelink_event
+
+  let remove_safelink_rule (s : Session.session) ~proxy ~url ~pattern ?comment
+      ?created_by () : safelink_event =
+    Client.post_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.safelink.removeRule"
+      (Yojson.Safe.to_string
+         (remove_safelink_rule_body ~url ~pattern ?comment ?created_by ()))
+    |> parse_safelink_event
 
   let query_safelink_events_body ?cursor ?limit ?(urls = []) ?pattern_type
       ?sort_direction () : Yojson.Safe.t =
@@ -1424,7 +1441,11 @@ module Ozone = struct
     issuer : string option;
     subject : string option;
     handle : string option;
+    display_name : string option;
+    created_at : string option;
+    revoke_reason : string option;
     revoked_at : string option;
+    revoked_by : string option;
     original : Yojson.Safe.t;
   }
 
@@ -1433,13 +1454,30 @@ module Ozone = struct
     verifications : verification_view list;
   }
 
+  type grant_error = { error : string; subject : string }
+  type revoke_error = { uri : string; error : string }
+
+  type grant_verifications_result = {
+    verifications : verification_view list;
+    failed_verifications : grant_error list;
+  }
+
+  type revoke_verifications_result = {
+    revoked_verifications : string list;
+    failed_revocations : revoke_error list;
+  }
+
   let parse_verification_view json : verification_view =
     {
       uri = Client.string_member json "uri";
       issuer = Client.string_opt json "issuer";
       subject = Client.string_opt json "subject";
       handle = Client.string_opt json "handle";
+      display_name = Client.string_opt json "displayName";
+      created_at = Client.string_opt json "createdAt";
+      revoke_reason = Client.string_opt json "revokeReason";
       revoked_at = Client.string_opt json "revokedAt";
+      revoked_by = Client.string_opt json "revokedBy";
       original = json;
     }
 
@@ -1450,6 +1488,61 @@ module Ozone = struct
         List.map parse_verification_view
           (Client.list_member json "verifications");
     }
+
+  let parse_grant_error json : grant_error =
+    {
+      error = Client.string_member json "error";
+      subject = Client.string_member json "subject";
+    }
+
+  let parse_revoke_error json : revoke_error =
+    {
+      uri = Client.string_member json "uri";
+      error = Client.string_member json "error";
+    }
+
+  let parse_grant_verifications json : grant_verifications_result =
+    {
+      verifications =
+        List.map parse_verification_view
+          (Client.list_member json "verifications");
+      failed_verifications =
+        List.map parse_grant_error
+          (Client.list_member json "failedVerifications");
+    }
+
+  let parse_revoke_verifications json : revoke_verifications_result =
+    {
+      revoked_verifications =
+        List.filter_map
+          (function `String s -> Some s | _ -> None)
+          (Client.list_member json "revokedVerifications");
+      failed_revocations =
+        List.map parse_revoke_error
+          (Client.list_member json "failedRevocations");
+    }
+
+  let verification_input ~subject ~handle ~display_name ?created_at () :
+      Yojson.Safe.t =
+    `Assoc
+      (("subject", `String subject)
+      :: ("handle", `String handle)
+      :: ("displayName", `String display_name)
+      ::
+      (match created_at with
+      | Some t -> [ ("createdAt", `String t) ]
+      | None -> []))
+
+  let grant_verifications_body ~verifications () : Yojson.Safe.t =
+    `Assoc [ ("verifications", `List verifications) ]
+
+  let revoke_verifications_body ~uris ?revoke_reason () : Yojson.Safe.t =
+    `Assoc
+      (("uris", `List (List.map (fun u -> `String u) uris))
+      ::
+      (match revoke_reason with
+      | Some r -> [ ("revokeReason", `String r) ]
+      | None -> []))
 
   let list_verifications (s : Session.session) ~proxy ?cursor ?limit
       ?(issuers = []) ?(subjects = []) () : verifications =
@@ -1462,25 +1555,19 @@ module Ozone = struct
     |> parse_verifications
 
   let grant_verifications (s : Session.session) ~proxy ~verifications () :
-      verifications =
+      grant_verifications_result =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.verification.grantVerifications"
-      (Yojson.Safe.to_string
-         (`Assoc [ ("verifications", `List verifications) ]))
-    |> parse_verifications
+      (Yojson.Safe.to_string (grant_verifications_body ~verifications ()))
+    |> parse_grant_verifications
 
   let revoke_verifications (s : Session.session) ~proxy ~uris ?revoke_reason ()
-      : verifications =
+      : revoke_verifications_result =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.verification.revokeVerifications"
       (Yojson.Safe.to_string
-         (`Assoc
-           ([ ("uris", `List (List.map (fun u -> `String u) uris)) ]
-           @
-           match revoke_reason with
-           | Some r -> [ ("revokeReason", `String r) ]
-           | None -> [])))
-    |> parse_verifications
+         (revoke_verifications_body ~uris ?revoke_reason ()))
+    |> parse_revoke_verifications
 
   type account_history_event = {
     created_at : string option;
