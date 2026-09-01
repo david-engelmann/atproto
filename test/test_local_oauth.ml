@@ -404,8 +404,8 @@ let assert_dpop_ozone_not_proxied ~origin ~priv ~pub ~token ~ozone_did ?nonce ()
   in
   let resp, nonce =
     Oauth.request_with_dpop ~http:Oauth.live_http_request ~priv ~pub ~url
-      ~htm:"POST" ~access_token:token.access_token ~body:(Some body) ?nonce
-      ~extra:[ proxy ] ()
+      ~htm:"POST" ~access_token:token.access_token ~body ?nonce ~extra:[ proxy ]
+      ()
   in
   if Oauth.is_http_not_served resp.status resp.body then nonce
   else if dpop_proxy_rejected resp.status resp.body then nonce

@@ -773,31 +773,30 @@ let test_xrpc_post_dpop _ =
   let http ~url:_ ~method_ ~headers ~body =
     incr hits;
     seen_htm := method_;
-    seen_proxy :=
-      match List.assoc_opt "atproto-proxy" headers with
-      | Some v -> v
-      | None ->
-          "";
-          OUnit2.assert_equal
-            ~printer:(fun x -> x)
-            "DPoP oauth-tok"
-            (List.assoc "Authorization" headers);
-          let claims = Oauth.parse_dpop (List.assoc "DPoP" headers) in
-          OUnit2.assert_equal ~printer:(fun x -> x) "POST" claims.htm;
-          OUnit2.assert_bool "POST body"
-            (match body with Some b -> b <> "" | None -> false);
-          if !hits = 1 then
-            {
-              Oauth.status = 400;
-              headers = [ ("DPoP-Nonce", "post-nonce-1") ];
-              body = {|{"error":"use_dpop_nonce"}|};
-            }
-          else
-            {
-              Oauth.status = 200;
-              headers = [ ("DPoP-Nonce", "post-nonce-2") ];
-              body = {|{"id":1}|};
-            }
+    (seen_proxy :=
+       match List.assoc_opt "atproto-proxy" headers with
+       | Some v -> v
+       | None -> "");
+    OUnit2.assert_equal
+      ~printer:(fun x -> x)
+      "DPoP oauth-tok"
+      (List.assoc "Authorization" headers);
+    let claims = Oauth.parse_dpop (List.assoc "DPoP" headers) in
+    OUnit2.assert_equal ~printer:(fun x -> x) "POST" claims.htm;
+    OUnit2.assert_bool "POST body"
+      (match body with Some b -> b <> "" | None -> false);
+    if !hits = 1 then
+      {
+        Oauth.status = 400;
+        headers = [ ("DPoP-Nonce", "post-nonce-1") ];
+        body = {|{"error":"use_dpop_nonce"}|};
+      }
+    else
+      {
+        Oauth.status = 200;
+        headers = [ ("DPoP-Nonce", "post-nonce-2") ];
+        body = {|{"id":1}|};
+      }
   in
   let json, nonce =
     Oauth.xrpc_post_dpop ~http ~priv ~pub ~origin:"http://localhost:2583"

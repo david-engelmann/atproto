@@ -1425,8 +1425,7 @@ module Oauth = struct
   let xrpc_post_dpop ~(http : http_request) ~priv ~pub ~origin ~access_token
       ?nonce ?(extra = []) nsid body : Yojson.Safe.t * string option =
     let url = xrpc_url ~origin nsid [] in
-    post_json_dpop ~http ~priv ~pub ~url ~access_token ~body:(Some body) ?nonce
-      ~extra ()
+    post_json_dpop ~http ~priv ~pub ~url ~access_token ~body ?nonce ~extra ()
 
   (* Mint com.atproto.server.getServiceAuth with the DPoP access token.
      AppView and Ozone want this JWT ([aud] = service DID, [lxm] = NSID),
