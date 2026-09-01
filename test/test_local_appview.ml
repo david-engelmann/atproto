@@ -669,8 +669,7 @@ let test_leftover_appview _ =
   | None -> ()
   | Some json ->
       let page = Graph.parse_follows json in
-      OUnit2.assert_bool "getFollows sort=latest"
-        (List.length page.follows >= 0);
+      OUnit2.assert_bool "getFollows sort=latest" (List.length page.follows >= 0);
       OUnit2.assert_bool "getFollows cursor optional"
         (match page.cursor with Some _ | None -> true));
   (match
