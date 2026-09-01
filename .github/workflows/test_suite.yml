@@ -17,7 +17,7 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
+  # Package-style build: opam lint + the same `dune build -p` a dependent / `opam install` sees.
   build:
     strategy:
       fail-fast: false
@@ -29,51 +29,36 @@ jobs:
           - 4.14.1
 
     runs-on: ${{ matrix.os }}
-    env:
-        USERNAME: "vim"
-        USER_UID: 1000
-        USER_GID: 1000
-    container:
-        image: ocaml/opam:${{ matrix.os }}
-        options: --user root
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Use OCaml ${{ matrix.ocaml-compiler }}
         uses: ocaml/setup-ocaml@v3
         with:
-          dune-cache: true
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
           opam-disable-sandboxing: true
 
-      - name: Cache opam dependencies
-        uses: actions/cache@v4
-        id: opam-cache
-        with:
-          path: ~/.opam
-          key: ${{ runner.os }}-opam-${{ hashFiles('**/*.opam') }}
-          restore-keys: |
-            ${{ runner.os }}-opam-
+      - name: opam lint
+        run: opam lint atproto.opam
 
-      - name: Install Common Libs
-        run: opam install async base core uri yojson ptime cohttp cohttp-lwt-unix cohttp-async h2 httpaf httpaf-lwt-unix h2-lwt-unix lwt core_kernel ssl lwt_ssl jose digestif mirage-crypto-ec mirage-crypto-rng zarith ounit ounit2 ppx_jane qcheck dune ocamlformat
-#      - name: Install Repo
-#        run: opam install . --deps-only --with-doc --with-test
+      - name: Install package dependencies
+        run: opam install . --deps-only --with-test
+
       - name: Dune Build
-        run: opam exec -- dune build
+        run: opam exec -- dune build -p atproto
         env:
           ATP_AUTH: ${{ secrets.ATP_AUTH }}
           ATP_HOST: ${{ secrets.ATP_HOST }}
       - name: Dune Test
-        run: opam exec -- dune runtest 2>&1 | tee dune_runtest.log
+        run: opam exec -- dune runtest -p atproto 2>&1 | tee dune_runtest.log
         env:
           ATP_AUTH: ${{ secrets.ATP_AUTH }}
           ATP_HOST: ${{ secrets.ATP_HOST }}
       - name: Upload Log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dune_runtest
           path: dune_runtest.log
@@ -92,12 +77,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Use OCaml ${{ matrix.ocaml-compiler }}
         uses: ocaml/setup-ocaml@v3
         with:
-          dune-cache: true
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
           opam-disable-sandboxing: true
 
@@ -117,17 +101,40 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Use OCaml ${{ matrix.ocaml-compiler }}
         uses: ocaml/setup-ocaml@v3
         with:
-          dune-cache: true
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
           opam-disable-sandboxing: true
 
       - name: Lint fmt
         uses: ocaml/setup-ocaml/lint-fmt@v3
+
+  lint-opam:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-22.04
+
+        ocaml-compiler:
+          - 4.14.1
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Use OCaml ${{ matrix.ocaml-compiler }}
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: ${{ matrix.ocaml-compiler }}
+          opam-disable-sandboxing: true
+
+      - name: Lint opam
+        uses: ocaml/setup-ocaml/lint-opam@v3
 
   # Runs on the GitHub-hosted VM (Docker + Node available). Not inside ocaml/opam.
   # Official @atproto/dev-env TestNetwork: PLC + PDS + AppView + Ozone + bsync.
@@ -146,15 +153,16 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Use Node.js 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "22"
+          package-manager-cache: false
 
       - name: Cache @atproto/dev-env
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: docker/dev-env/node_modules
           key: ${{ runner.os }}-dev-env-${{ hashFiles('docker/dev-env/package.json') }}
@@ -170,25 +178,14 @@ jobs:
       - name: Use OCaml 4.14.1
         uses: ocaml/setup-ocaml@v3
         with:
-          dune-cache: true
           ocaml-compiler: 4.14.1
           opam-disable-sandboxing: true
 
-      - name: Cache opam dependencies
-        uses: actions/cache@v4
-        id: opam-cache
-        with:
-          path: ~/.opam
-          key: ${{ runner.os }}-opam-pds-${{ hashFiles('**/*.opam') }}
-          restore-keys: |
-            ${{ runner.os }}-opam-pds-
-            ${{ runner.os }}-opam-
-
-      - name: Install Common Libs
-        run: opam install async base core uri yojson ptime cohttp cohttp-lwt-unix cohttp-async h2 httpaf httpaf-lwt-unix h2-lwt-unix lwt core_kernel ssl lwt_ssl jose digestif mirage-crypto-ec mirage-crypto-rng zarith ounit ounit2 ppx_jane qcheck dune ocamlformat
+      - name: Install package dependencies
+        run: opam install . --deps-only --with-test
 
       - name: Dune Build
-        run: opam exec -- dune build
+        run: opam exec -- dune build -p atproto
 
       - name: Local PDS + AppView + Ozone integration tests
         run: |
@@ -213,7 +210,7 @@ jobs:
 
       - name: Upload Log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: local_pds_runtest
           path: local_pds_runtest.log

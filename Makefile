@@ -12,6 +12,9 @@ uninstall:
 
 reinstall: uninstall install
 
+lint:
+	opam lint atproto.opam
+
 clean:
 	dune clean
 
@@ -54,4 +57,4 @@ test-pds-run test-atproto-run:
 	dune exec -- test/test_local_appview.exe; \
 	dune exec -- test/test_local_ozone.exe
 
-.PHONY: default install uninstall reinstall clean test pds-up pds-down pds-account pds-logs atproto-up atproto-down atproto-account atproto-logs test-pds test-atproto test-pds-run test-atproto-run
+.PHONY: default install uninstall reinstall lint clean test pds-up pds-down pds-account pds-logs atproto-up atproto-down atproto-account atproto-logs test-pds test-atproto test-pds-run test-atproto-run

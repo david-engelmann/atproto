@@ -505,6 +505,68 @@ let test_parse_known_likers _ =
   OUnit2.assert_equal (Some true) flagged_view.bookmarked;
   OUnit2.assert_equal (Some true) flagged_view.thread_muted
 
+let test_parse_viewer_null_repost _ =
+  (* Live AppView getTimeline may send viewer.repost / viewer.like as JSON null. *)
+  let post =
+    post_view_json
+      ~uri:"at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k"
+      ~text:"timeline" ()
+    |> function
+    | `Assoc fields ->
+        `Assoc
+          (fields
+          @ [
+              ( "viewer",
+                `Assoc
+                  [
+                    ("repost", `Null);
+                    ( "like",
+                      `String
+                        "at://did:plc:abc123xyz0001112223333/app.bsky.feed.like/1"
+                    );
+                  ] );
+            ])
+    | other -> other
+  in
+  let parsed = Feed.parse_post post in
+  (match parsed.viewer with
+  | `RepostViewer v ->
+      OUnit2.assert_equal None v.repost;
+      OUnit2.assert_equal
+        (Some "at://did:plc:abc123xyz0001112223333/app.bsky.feed.like/1") v.like
+  | _ -> OUnit2.assert_failure "expected RepostViewer for present repost field");
+  let timeline =
+    Feed.parse_timeline
+      (`Assoc
+        [
+          ( "feed",
+            `List
+              [
+                `Assoc
+                  [
+                    ("post", post);
+                    ( "reply",
+                      `Assoc
+                        [
+                          ( "root",
+                            post_view_json
+                              ~uri:
+                                "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/root"
+                              ~text:"root" () );
+                          ("parent", post);
+                        ] );
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal 1 (List.length timeline.feed);
+  match List.hd timeline.feed with
+  | `Reply r -> (
+      match r.post.viewer with
+      | `RepostViewer v -> OUnit2.assert_equal None v.repost
+      | _ -> OUnit2.assert_failure "expected RepostViewer on reply post")
+  | _ -> OUnit2.assert_failure "expected reply feed item"
+
 let test_parse_post_view_embed _ =
   let json =
     `Assoc
@@ -637,6 +699,7 @@ let suite =
          "test_parse_reply_ref_not_found" >:: test_parse_reply_ref_not_found;
          "test_parse_grandparent_author" >:: test_parse_grandparent_author;
          "test_parse_known_likers" >:: test_parse_known_likers;
+         "test_parse_viewer_null_repost" >:: test_parse_viewer_null_repost;
          "test_parse_post_view_embed" >:: test_parse_post_view_embed;
          "test_send_interactions_body" >:: test_send_interactions_body;
          "test_author_feed_filter_known_values"
