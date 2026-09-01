@@ -542,7 +542,7 @@ module Repo_sync = struct
           else (
             Hashtbl.add seen k ();
             true))
-        ({ Car.cid = commit_cid; data = commit_bytes } :: mst_blocks
+        (({ Car.cid = commit_cid; data = commit_bytes } :: mst_blocks)
         @ !record_blocks)
     in
     let car = { Car.roots = [ commit_cid ]; blocks } in

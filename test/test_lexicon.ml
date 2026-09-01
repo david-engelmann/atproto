@@ -269,8 +269,7 @@ let test_union_codegen_and_official_bundle _ =
           in
           (match Lexicon.main auth with
           | None -> OUnit2.assert_failure "missing authCreatePosts main"
-          | Some main ->
-              OUnit2.assert_equal Lexicon.Permission_set main.kind);
+          | Some main -> OUnit2.assert_equal Lexicon.Permission_set main.kind);
           let set =
             Lexicon.parse_permission_set
               (Yojson.Safe.from_string

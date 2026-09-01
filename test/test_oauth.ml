@@ -592,8 +592,8 @@ let test_par_prompt_and_dpop_jkt _ =
   OUnit2.assert_equal ~printer:(fun x -> x) jkt again;
   let par =
     Oauth.pushed_authorization_body ~client_id ~redirect_uri
-      ~code_challenge:rfc7636_challenge ~state:"s" ~prompt:"create" ~dpop_jkt:jkt
-      ()
+      ~code_challenge:rfc7636_challenge ~state:"s" ~prompt:"create"
+      ~dpop_jkt:jkt ()
   in
   OUnit2.assert_equal (Some "create") (List.assoc_opt "prompt" par);
   OUnit2.assert_equal (Some jkt) (List.assoc_opt "dpop_jkt" par);

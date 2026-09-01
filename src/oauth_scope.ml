@@ -173,9 +173,7 @@ module Oauth_scope = struct
   let scopes_of_permission (p : Lexicon.Lexicon.permission) : t list =
     match p.resource with
     | "repo" ->
-        let collections =
-          if p.collection = [] then [ "*" ] else p.collection
-        in
+        let collections = if p.collection = [] then [ "*" ] else p.collection in
         let actions = if p.action = [] then [] else p.action in
         List.map
           (fun collection ->
@@ -202,8 +200,10 @@ module Oauth_scope = struct
     match List.assoc_opt nsid Lexicon.Lexicon.official_lexicons with
     | None -> None
     | Some body ->
-        Some (expand_include (Lexicon.Lexicon.parse_permission_set
-                                (Yojson.Safe.from_string body)))
+        Some
+          (expand_include
+             (Lexicon.Lexicon.parse_permission_set
+                (Yojson.Safe.from_string body)))
 
   let parse_one (raw : string) : t =
     let token = String.trim raw in

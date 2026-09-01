@@ -382,7 +382,8 @@ let test_write_signed_repo _ =
       OUnit2.assert_equal 1 (List.length walked);
       OUnit2.assert_equal
         ~printer:(fun x -> x)
-        "app.bsky.feed.post/3jzfcijpj2z2a" (fst (List.hd walked));
+        "app.bsky.feed.post/3jzfcijpj2z2a"
+        (fst (List.hd walked));
       OUnit2.assert_equal `Valid
         (Mst.verify_commit_sig ~keys:[ key ] snap.commit)
 

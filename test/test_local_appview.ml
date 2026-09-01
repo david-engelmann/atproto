@@ -478,16 +478,16 @@ let test_leftover_appview _ =
        [ ("actor", "alice.test"); ("limit", "5") ]
    with
   | None -> ()
-  | Some json ->
-      (match Yojson.Safe.Util.member "feed" json with
+  | Some json -> (
+      match Yojson.Safe.Util.member "feed" json with
       | `List _ -> ()
       | _ -> OUnit2.assert_failure "getActorLikes missing feed"));
   (match
      av_get_if_served "app.bsky.feed.getSuggestedFeeds" [ ("limit", "5") ]
    with
   | None -> ()
-  | Some json ->
-      (match Yojson.Safe.Util.member "feeds" json with
+  | Some json -> (
+      match Yojson.Safe.Util.member "feeds" json with
       | `List _ -> ()
       | _ -> OUnit2.assert_failure "getSuggestedFeeds missing feeds"));
   (match
@@ -499,23 +499,21 @@ let test_leftover_appview _ =
        ]
    with
   | None -> ()
-  | Some json ->
-      (match Yojson.Safe.Util.member "feeds" json with
-      | `List _ -> ()
-      | _ -> ()));
+  | Some json -> (
+      match Yojson.Safe.Util.member "feeds" json with `List _ -> () | _ -> ()));
   (match
      av_get_if_served "app.bsky.graph.searchStarterPacks"
        [ ("q", "test"); ("limit", "5") ]
    with
   | None -> ()
-  | Some json ->
-      (match Yojson.Safe.Util.member "starterPacks" json with
+  | Some json -> (
+      match Yojson.Safe.Util.member "starterPacks" json with
       | `List _ -> ()
       | _ -> OUnit2.assert_failure "searchStarterPacks missing starterPacks"));
   (match av_get_if_served "app.bsky.unspecced.getTaggedSuggestions" [] with
   | None -> ()
-  | Some json ->
-      (match Yojson.Safe.Util.member "suggestions" json with
+  | Some json -> (
+      match Yojson.Safe.Util.member "suggestions" json with
       | `List _ -> ()
       | _ -> ()));
   (match
@@ -531,10 +529,13 @@ let test_leftover_appview _ =
   | Some json ->
       OUnit2.assert_bool "getEmbedExternalView"
         (match json with `Assoc _ -> true | _ -> false));
-  (match av_get_if_served ~session:s "app.bsky.bookmark.getBookmarks" [ ("limit", "5") ] with
+  (match
+     av_get_if_served ~session:s "app.bsky.bookmark.getBookmarks"
+       [ ("limit", "5") ]
+   with
   | None -> ()
-  | Some json ->
-      (match Yojson.Safe.Util.member "bookmarks" json with
+  | Some json -> (
+      match Yojson.Safe.Util.member "bookmarks" json with
       | `List _ -> ()
       | _ -> ()));
   (match
@@ -582,35 +583,32 @@ let test_leftover_appview _ =
        [ ("list", listed.uri); ("limit", "5") ]
    with
   | None -> ()
-  | Some json ->
-      (match Yojson.Safe.Util.member "list" json with
-      | `Assoc _ -> ()
-      | _ -> ()));
+  | Some json -> (
+      match Yojson.Safe.Util.member "list" json with `Assoc _ -> () | _ -> ()));
   (match
      av_get_if_served "app.bsky.graph.getListsWithMembership"
        [ ("actor", "alice.test"); ("limit", "5") ]
    with
   | None -> ()
-  | Some json ->
-      (match Yojson.Safe.Util.member "listsWithMembership" json with
+  | Some json -> (
+      match Yojson.Safe.Util.member "listsWithMembership" json with
       | `List _ -> ()
       | _ -> ()));
   ignore
     (av_post_if_served ~session:s "app.bsky.actor.putPreferences"
        (Yojson.Safe.to_string
           (`Assoc
-             [
-               ( "preferences",
-                 `List
-                   [
-                     `Assoc
-                       [
-                         ( "$type",
-                           `String "app.bsky.actor.defs#adultContentPref" );
-                         ("enabled", `Bool false);
-                       ];
-                   ] );
-             ])))
+            [
+              ( "preferences",
+                `List
+                  [
+                    `Assoc
+                      [
+                        ("$type", `String "app.bsky.actor.defs#adultContentPref");
+                        ("enabled", `Bool false);
+                      ];
+                  ] );
+            ])))
 
 let suite =
   "local_appview"

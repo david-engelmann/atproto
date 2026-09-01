@@ -905,7 +905,8 @@ module Oauth = struct
       unit * string option =
     let body = form_encode form in
     let resp, nonce =
-      post_with_dpop ~http ~priv ~pub ~url:revoke_url ~htm:"POST" ~body ?nonce ()
+      post_with_dpop ~http ~priv ~pub ~url:revoke_url ~htm:"POST" ~body ?nonce
+        ()
     in
     if resp.status < 200 || resp.status >= 300 then
       ignore (ensure_ok "revoke" resp)

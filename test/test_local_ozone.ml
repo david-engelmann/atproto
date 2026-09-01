@@ -292,7 +292,9 @@ let test_leftover_ozone _ =
       let records = Ozone.get_records s ~proxy:p ~uris:[ profile_uri ] () in
       OUnit2.assert_bool "getRecords" (List.length records >= 0)
   | _ -> ());
-  (match ozone_json s p "tools.ozone.setting.listOptions" [ ("limit", "10") ] with
+  (match
+     ozone_json s p "tools.ozone.setting.listOptions" [ ("limit", "10") ]
+   with
   | json when served json ->
       let opts = Ozone.list_options s ~proxy:p ~limit:10 () in
       OUnit2.assert_bool "listOptions" (List.length opts.options >= 0)

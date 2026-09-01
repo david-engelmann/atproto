@@ -387,11 +387,11 @@ let test_other_pds_xrpc _ =
     Atproto.Client.Client.get_json ~session:s
       "com.atproto.temp.checkSignupQueue" []
   in
-  if Error.is_not_served_json queue_json then ()
-  else
-    let queue = Temp.parse_signup_queue (ensure_ok queue_json) in
-    OUnit2.assert_bool "checkSignupQueue"
-      (match queue.original with `Assoc _ -> true | _ -> true);
+  (if Error.is_not_served_json queue_json then ()
+   else
+     let queue = Temp.parse_signup_queue (ensure_ok queue_json) in
+     OUnit2.assert_bool "checkSignupQueue"
+       (match queue.original with `Assoc _ -> true | _ -> true));
   Actor.put_preferences s
     [
       `Assoc
@@ -417,9 +417,7 @@ let test_referencelistoptout_and_import _ =
     |> json_of_body |> Repo.parse_write_result
   in
   OUnit2.assert_bool "reference list uri" (String.length listed.uri > 8);
-  let optout =
-    Records.referencelistoptout ~subject:listed.uri ~created_at ()
-  in
+  let optout = Records.referencelistoptout ~subject:listed.uri ~created_at () in
   let written =
     Repo.create_record s s.auth.did Records.nsid_referencelistoptout
       (Yojson.Safe.to_string optout)
@@ -444,8 +442,9 @@ let test_referencelistoptout_and_import _ =
     (Server.create_account_at ~host:(pds_host ()) ~handle ~email ~password ()
     |> ensure_ok);
   let throwaway = Session.create_session handle password in
-  let car = Sync.get_repo_car ~host:throwaway.atp_host ~session:throwaway
-              throwaway.auth.did
+  let car =
+    Sync.get_repo_car ~host:throwaway.atp_host ~session:throwaway
+      throwaway.auth.did
   in
   let snap = Repo_sync.open_car car in
   OUnit2.assert_equal ~printer:(fun x -> x) throwaway.auth.did snap.did;
@@ -454,7 +453,9 @@ let test_referencelistoptout_and_import _ =
     if body = "" then `Assoc []
     else
       try Yojson.Safe.from_string body
-      with _ -> `Assoc [ ("error", `String "InvalidRequest"); ("message", `String body) ]
+      with _ ->
+        `Assoc
+          [ ("error", `String "InvalidRequest"); ("message", `String body) ]
   in
   match Error.check_for_error json with
   | Some err when err = "MethodNotImplemented" || err = "MethodNotFound" -> ()
@@ -462,8 +463,8 @@ let test_referencelistoptout_and_import _ =
       (* Official importRepo is a migration procedure; a lexicon-valid CAR
          may still be rejected if the account is not in the import state. *)
       OUnit2.assert_bool ("importRepo " ^ err)
-        (err = "InvalidRequest" || err = "InvalidSwap"
-       || err = "ExpiredToken" || err = "AuthenticationRequired")
+        (err = "InvalidRequest" || err = "InvalidSwap" || err = "ExpiredToken"
+        || err = "AuthenticationRequired")
   | None ->
       let again =
         Sync.get_latest_commit ~host:throwaway.atp_host ~session:throwaway
