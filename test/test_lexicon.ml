@@ -249,6 +249,7 @@ let test_union_codegen_and_official_bundle _ =
               "app.bsky.graph.muteActor";
               "app.bsky.graph.getFollows";
               "app.bsky.graph.getFollowers";
+              "app.bsky.graph.getSuggestedFollowsByActor";
               "app.bsky.actor.defs";
               "com.atproto.server.createSession";
               "com.atproto.server.createAccount";
@@ -401,11 +402,27 @@ let test_union_codegen_and_official_bundle _ =
                   in
                   match Lexicon.main get_followers with
                   | None -> OUnit2.assert_failure "missing getFollowers main"
-                  | Some followers_main ->
+                  | Some followers_main -> (
                       OUnit2.assert_bool "getFollowers sort"
                         (List.exists
                            (fun (name, _) -> name = "sort")
-                           followers_main.properties)))))
+                           followers_main.properties);
+                      let suggested =
+                        List.find
+                          (fun (d : Lexicon.document) ->
+                            d.id = "app.bsky.graph.getSuggestedFollowsByActor")
+                          docs
+                      in
+                      match Lexicon.main suggested with
+                      | None ->
+                          OUnit2.assert_failure
+                            "missing getSuggestedFollowsByActor main"
+                      | Some suggested_main ->
+                          OUnit2.assert_bool
+                            "getSuggestedFollowsByActor recIdStr"
+                            (List.exists
+                               (fun (name, _) -> name = "recIdStr")
+                               suggested_main.output.properties))))))
 
 let test_parse_resolved_lexicon _ =
   let json =
