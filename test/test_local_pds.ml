@@ -13,6 +13,8 @@ open Atproto.Moderation
 open Atproto.Temp
 open Atproto.Actor
 open Atproto.Repo_sync
+open Atproto.Client
+open Atproto.Firehose
 open Temp
 open Actor
 
@@ -57,6 +59,25 @@ let json_of_body body =
        ^ body)
   in
   ensure_ok json
+
+let message_has hay needle =
+  let h = String.lowercase_ascii hay and n = String.lowercase_ascii needle in
+  let rec aux i =
+    if i + String.length n > String.length h then false
+    else if String.sub h i (String.length n) = n then true
+    else aux (i + 1)
+  in
+  aux 0
+
+let pds_get_if_served ?session nsid pairs =
+  let json = Client.get_json ?session ~host:(pds_host ()) nsid pairs in
+  if Error.is_not_served_json json then None else Some (ensure_ok json)
+
+let is_ws_not_served msg =
+  message_has msg "methodnotimplemented"
+  || message_has msg "methodnotfound"
+  || message_has msg "unknown lexicon"
+  || message_has msg " 501" || message_has msg " 404"
 
 let rfc3339_z () =
   let t = Unix.gmtime (Unix.gettimeofday ()) in
@@ -301,6 +322,116 @@ let test_sync_endpoints _ =
   in
   OUnit2.assert_bool "sync getRecord profile CAR"
     (List.length profile_car.Car.blocks >= 0)
+
+(* Relay-shaped Sync 1.1 endpoints. A single local PDS usually 501s. *)
+let test_sync_hosts_if_served _ =
+  let s = session () in
+  let listed_hostname =
+    match
+      pds_get_if_served ~session:s "com.atproto.sync.listHosts"
+        [ ("limit", "5") ]
+    with
+    | None -> None
+    | Some json -> (
+        let page = Sync.parse_list_hosts json in
+        OUnit2.assert_bool "listHosts" (List.length page.hosts >= 0);
+        match page.hosts with
+        | h :: _ when String.length h.hostname > 0 -> Some h.hostname
+        | _ -> None)
+  in
+  (match listed_hostname with
+  | Some hostname -> (
+      match
+        pds_get_if_served ~session:s "com.atproto.sync.getHostStatus"
+          [ ("hostname", hostname) ]
+      with
+      | None -> ()
+      | Some st ->
+          let parsed = Sync.parse_host_status st in
+          OUnit2.assert_equal ~printer:(fun x -> x) hostname parsed.hostname)
+  | None -> (
+      let json =
+        Client.get_json ~session:s ~host:(pds_host ())
+          "com.atproto.sync.getHostStatus"
+          [ ("hostname", "localhost") ]
+      in
+      if Error.is_not_served_json json then ()
+      else
+        match Error.check_for_error json with
+        | None -> ignore (Sync.parse_host_status json)
+        | Some "InvalidRequest" | Some "NotFound" | Some "HostNotFound" -> ()
+        | Some _ ->
+            failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))));
+  (match
+     pds_get_if_served ~session:s "com.atproto.sync.listReposByCollection"
+       [ ("collection", Records.nsid_post); ("limit", "5") ]
+   with
+  | None -> ()
+  | Some json ->
+      let page = Sync.parse_list_repos_by_collection json in
+      OUnit2.assert_bool "listReposByCollection" (List.length page.repos >= 0));
+  let crawl =
+    Client.post_json ~session:s ~host:(pds_host ())
+      "com.atproto.sync.requestCrawl"
+      (Yojson.Safe.to_string (Sync.request_crawl_body s.atp_host))
+  in
+  if Error.is_not_served_json crawl then ()
+  else
+    match Error.check_for_error crawl with
+    | None -> ()
+    | Some "InvalidRequest" -> ()
+    | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json crawl))
+
+let with_alarm seconds f =
+  let old =
+    Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
+  in
+  ignore (Unix.alarm seconds);
+  Fun.protect
+    ~finally:(fun () ->
+      ignore (Unix.alarm 0);
+      Sys.set_signal Sys.sigalrm old)
+    f
+
+(* One subscribeRepos frame against the local PDS, then close. *)
+let test_subscribe_repos_one_frame _ =
+  let s = session () in
+  let created_at = rfc3339_z () in
+  let post =
+    Records.post ~text:"subscribeRepos one-frame" ~created_at ~langs:[ "en" ] ()
+  in
+  ignore
+    (Repo.create_record s s.auth.did Records.nsid_post
+       (Yojson.Safe.to_string post)
+    |> json_of_body);
+  try
+    with_alarm 15 (fun () ->
+        let _, msg = Firehose.subscribe_one ~host:s.atp_host ~cursor:0L () in
+        match msg with
+        | `Commit c ->
+            OUnit2.assert_bool "local #commit repo" (String.length c.repo > 4)
+        | `Sync ev ->
+            OUnit2.assert_bool "local #sync did" (String.length ev.did > 4)
+        | `Identity ev ->
+            OUnit2.assert_bool "local #identity did" (String.length ev.did > 4)
+        | `Account ev ->
+            OUnit2.assert_bool "local #account did" (String.length ev.did > 4)
+        | `Info _ | `Unknown _ ->
+            OUnit2.assert_bool "local subscribeRepos control frame" true
+        | `Error (err, _) ->
+            if
+              err = "MethodNotImplemented"
+              || err = "MethodNotFound"
+              || Error.is_not_served { error = err; message = "" }
+            then skip_if true ("subscribeRepos not served: " ^ err)
+            else failwith ("subscribeRepos error frame: " ^ err))
+  with
+  | Failure msg when is_ws_not_served msg ->
+      skip_if true ("subscribeRepos not served: " ^ msg)
+  | Failure msg when message_has msg "timeout" ->
+      if require_local_pds then
+        failwith "subscribeRepos timed out waiting for one local frame"
+      else skip_if true "subscribeRepos produced no local frame"
 
 let pds_internal_error msg =
   let m = String.lowercase_ascii msg in
@@ -562,6 +693,8 @@ let suite =
          "test_repo_record_lifecycle" >:: test_repo_record_lifecycle;
          "test_upload_blob" >:: test_upload_blob;
          "test_sync_endpoints" >:: test_sync_endpoints;
+         "test_sync_hosts_if_served" >:: test_sync_hosts_if_served;
+         "test_subscribe_repos_one_frame" >:: test_subscribe_repos_one_frame;
          "test_other_pds_xrpc" >:: test_other_pds_xrpc;
          "test_referencelistoptout_and_import"
          >:: test_referencelistoptout_and_import;

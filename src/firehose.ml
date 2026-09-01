@@ -73,9 +73,21 @@ module Firehose = struct
   let max_record_bytes = 1_000_000
   let max_ops = 200
 
-  let subscribe_url ?(host = default_relay_host) ?cursor () =
+  let host_uses_cleartext (host : string) : bool =
+    let bare =
+      match String.split_on_char ':' host with h :: _ -> h | [] -> host
+    in
+    let bare = String.lowercase_ascii bare in
+    bare = "localhost" || bare = "127.0.0.1" || bare = "[::1]" || bare = "::1"
+
+  let subscribe_url ?(host = default_relay_host) ?scheme ?cursor () =
+    let scheme =
+      match scheme with
+      | Some s -> s
+      | None -> if host_uses_cleartext host then "ws" else "wss"
+    in
     let base =
-      Printf.sprintf "wss://%s/xrpc/com.atproto.sync.subscribeRepos" host
+      Printf.sprintf "%s://%s/xrpc/com.atproto.sync.subscribeRepos" scheme host
     in
     match cursor with
     | None -> base

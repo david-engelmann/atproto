@@ -124,6 +124,13 @@ let test_parse_list_hosts _ =
   OUnit2.assert_equal 1 (List.length h.hosts);
   OUnit2.assert_equal (Some 99L) (List.hd h.hosts).seq
 
+let test_request_crawl_body _ =
+  let json = Sync.request_crawl_body "morel.us-east.host.bsky.network" in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "morel.us-east.host.bsky.network"
+    (Yojson.Safe.Util.to_string (Yojson.Safe.Util.member "hostname" json))
+
 let test_parse_list_repos_by_collection _ =
   let json =
     `Assoc
@@ -196,6 +203,7 @@ let suite =
          "test_list_repos" >:: test_list_repos;
          "test_parse_repo_status" >:: test_parse_repo_status;
          "test_parse_list_hosts" >:: test_parse_list_hosts;
+         "test_request_crawl_body" >:: test_request_crawl_body;
          "test_parse_list_repos_by_collection"
          >:: test_parse_list_repos_by_collection;
          "test_get_blocks_url" >:: test_get_blocks_url;

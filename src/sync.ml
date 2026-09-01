@@ -347,6 +347,9 @@ module Sync = struct
            [ ("cursor", cursor); ("limit", Option.map string_of_int limit) ])
     |> parse_list_repos_by_collection
 
+  let request_crawl_body (hostname : string) : Yojson.Safe.t =
+    `Assoc [ ("hostname", `String hostname) ]
+
   let request_crawl ?host ?session (hostname : string) : string =
     let host = host_of ?host session in
     let base_url = App.create_public_base_url ~host () in
@@ -354,7 +357,7 @@ module Sync = struct
       App.create_endpoint_url base_url (create_sync_endpoint "requestCrawl")
     in
     let headers = headers_of session in
-    let data = Printf.sprintf "{\"hostname\": \"%s\"}" hostname in
+    let data = Yojson.Safe.to_string (request_crawl_body hostname) in
     Lwt_main.run (Cohttp_client.post_data_with_headers url data headers)
 
   (* Deprecated 2023 endpoints kept as thin wrappers so older call sites compile. *)

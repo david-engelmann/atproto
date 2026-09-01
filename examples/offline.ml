@@ -41,6 +41,7 @@ open Atproto.Http_client
 open Atproto.Auth
 open Atproto.Session
 open Atproto.Label
+open Atproto.Firehose
 
 let () =
   (* TID used as record keys and commit revs *)
@@ -984,4 +985,10 @@ let () =
     match (List.hd list_page.items).subject_opted_out with
     | Some true -> true
     | _ -> false);
+  assert (
+    Firehose.subscribe_url ~host:"localhost:2583" ()
+    = "ws://localhost:2583/xrpc/com.atproto.sync.subscribeRepos");
+  assert (
+    Firehose.subscribe_url ()
+    = "wss://bsky.network/xrpc/com.atproto.sync.subscribeRepos");
   print_endline "examples/offline: public API typechecks and fixtures pass"

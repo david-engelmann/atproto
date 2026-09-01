@@ -15,7 +15,19 @@ let test_subscribe_url _ =
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "wss://relay.example/xrpc/com.atproto.sync.subscribeRepos?cursor=99"
-    (Firehose.subscribe_url ~host:"relay.example" ~cursor:99L ())
+    (Firehose.subscribe_url ~host:"relay.example" ~cursor:99L ());
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "ws://localhost:2583/xrpc/com.atproto.sync.subscribeRepos"
+    (Firehose.subscribe_url ~host:"localhost:2583" ());
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "ws://127.0.0.1:2583/xrpc/com.atproto.sync.subscribeRepos?cursor=0"
+    (Firehose.subscribe_url ~host:"127.0.0.1:2583" ~cursor:0L ());
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "wss://localhost:2583/xrpc/com.atproto.sync.subscribeRepos"
+    (Firehose.subscribe_url ~host:"localhost:2583" ~scheme:"wss" ())
 
 let test_decode_identity_frame _ =
   let header = Firehose.encode_header { op = 1; t = Some "#identity" } in
@@ -397,7 +409,29 @@ let test_parse_wss_url _ =
   OUnit2.assert_equal ~printer:string_of_int 443 port;
   OUnit2.assert_equal
     ~printer:(fun x -> x)
-    "/xrpc/com.atproto.sync.subscribeRepos?cursor=1" path
+    "/xrpc/com.atproto.sync.subscribeRepos?cursor=1" path;
+  let ws_host, ws_port, ws_path =
+    Websocket.parse_wss_url
+      "ws://localhost:2583/xrpc/com.atproto.sync.subscribeRepos"
+  in
+  OUnit2.assert_equal ~printer:(fun x -> x) "localhost" ws_host;
+  OUnit2.assert_equal ~printer:string_of_int 2583 ws_port;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "/xrpc/com.atproto.sync.subscribeRepos" ws_path;
+  let def = Websocket.parse_url "ws://relay.example/xrpc/ping" in
+  OUnit2.assert_equal false def.Websocket.secure;
+  OUnit2.assert_equal ~printer:string_of_int 80 def.port;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "relay.example:2583"
+    (Websocket.authority
+       {
+         Websocket.secure = false;
+         host = "relay.example";
+         port = 2583;
+         path = "/";
+       })
 
 let test_subscribe_live _ =
   let old =
