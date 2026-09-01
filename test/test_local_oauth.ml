@@ -6,9 +6,6 @@ open Atproto.Client
 open Atproto.Error
 open Atproto.Feed
 open Oauth
-open Client
-open Error
-open Feed
 
 (* Live OAuth against official @atproto/dev-env TestNetwork (PDS oauth-provider).
    Serves a loopback client-metadata document, discovers the local AS, runs
