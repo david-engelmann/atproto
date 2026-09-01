@@ -2,6 +2,31 @@
 
 OCaml toolkit for the [AT Protocol](https://atproto.com) (XRPC, lexicons, repo sync, identity, AppView, Ozone, chat).
 
+## Install
+
+This library is **not** published to the public [opam-repository](https://github.com/ocaml/opam-repository). Depend on it by pinning this GitHub repo (OCaml **4.14.1**, package version **0.1.0**):
+
+```shell
+opam pin add atproto git+https://github.com/david-engelmann/atproto.git
+```
+
+From a local clone:
+
+```shell
+opam pin add atproto .
+# or install build/test deps without pinning a release
+opam install . --deps-only --with-test
+dune build -p atproto
+```
+
+In a dependent `dune` stanza:
+
+```lisp
+(libraries atproto)
+```
+
+`opam pin` / `opam install .` invoke `dune build -p atproto` (the same build a dependent sees) and install the public `atproto` library. That does not publish the package to opam-repository.
+
 ## Environment
 
 Create a `.env` (see `sample.env`) with at least:
@@ -30,7 +55,7 @@ dune build
 dune runtest
 ```
 
-`dune build` also typechecks `examples/offline.ml` against the current public API (no network, no credentials).
+`dune build` also typechecks `examples/offline.ml` against the current public API (no network, no credentials). `dune runtest` executes that example. A release-style build (what `opam install` / a dependent sees) is `dune build -p atproto` and `dune runtest -p atproto`.
 
 Live Bluesky tests that need credentials are skipped unless `ATP_AUTH` is set to a real `email:app-password` pair (placeholder values in `sample.env` do not count). Public-network tests (handle resolve, PLC directory, `getLatestCommit`, `subscribeRepos`, AppView feed/search/labeler reads) run without auth and skip only if the request itself fails.
 

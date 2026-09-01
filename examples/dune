@@ -2,3 +2,8 @@
  (name offline)
  (libraries atproto yojson)
  (modules offline))
+
+(rule
+ (alias runtest)
+ (action
+  (run %{exe:offline.exe})))
