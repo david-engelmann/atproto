@@ -726,6 +726,15 @@ let test_parse_assignment_moderator _ =
       OUnit2.assert_equal (Some "tools.ozone.team.defs#roleModerator") m.role
   | None -> OUnit2.assert_failure "expected assignment.moderator"
 
+let test_service_auth_helpers_exist _ =
+  (* OAuth DPoP cannot be proxied; these talk to the Ozone host with a
+     PDS-minted service-auth Bearer. Live coverage is test_live_oauth_ozone. *)
+  ignore Ozone.emit_event_service;
+  ignore Ozone.query_events_service;
+  ignore Ozone.get_config_service;
+  OUnit2.assert_bool "ozone host env"
+    (String.length Atproto.Client.Client.ozone_host_from_env > 0)
+
 let test_list_queues_auth_skipped _ =
   skip_if
     (not Auth.has_live_credentials)
@@ -759,6 +768,7 @@ let suite =
          "test_parse_assignment_moderator" >:: test_parse_assignment_moderator;
          "test_official_safelink_and_verification_bodies"
          >:: test_official_safelink_and_verification_bodies;
+         "test_service_auth_helpers_exist" >:: test_service_auth_helpers_exist;
        ]
 
 let () = run_test_tt_main suite

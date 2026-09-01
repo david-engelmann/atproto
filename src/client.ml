@@ -24,6 +24,20 @@ module Client = struct
         if d = "" then "did:web:api.bsky.app" else d
     | None -> "did:web:api.bsky.app"
 
+  (* Local official @atproto/dev-env Ozone is localhost:2587. *)
+  let ozone_host_from_env : string =
+    match Sys.getenv_opt "ATP_OZONE_HOST" with
+    | Some h ->
+        let h = String.trim h in
+        if h = "" then "localhost:2587" else h
+    | None -> "localhost:2587"
+
+  (* Local @atproto/dev-env writes ATP_OZONE_DID. Empty when unset. *)
+  let ozone_did_from_env : string =
+    match Sys.getenv_opt "ATP_OZONE_DID" with
+    | Some d -> String.trim d
+    | None -> ""
+
   let bearer_jwt (token : string) : string * string =
     ("Authorization", "Bearer " ^ token)
 

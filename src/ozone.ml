@@ -2,7 +2,10 @@ open Session
 open Client
 open Xrpc
 
-(** tools.ozone.* — Ozone moderation client. Always send atproto-proxy. *)
+(** tools.ozone.* — Ozone moderation client.
+    Password [at+jwt] sessions send [atproto-proxy] through the PDS.
+    OAuth DPoP cannot be proxied: mint [getServiceAuth] ([aud] = Ozone DID)
+    and call the Ozone host with that JWT ([emit_event_service] / …). *)
 module Ozone = struct
   let labeler_proxy (did : string) : Xrpc.proxy = Xrpc.labeler_proxy did
   let proxy_headers proxy = [ Xrpc.proxy_header proxy ]
@@ -620,6 +623,31 @@ module Ozone = struct
          (emit_event_body ~event ~subject ~created_by ?subject_blob_cids
             ?external_id ?mod_tool ?report_action ()))
     |> parse_mod_event
+
+  (* Ozone host + PDS-minted service-auth JWT (OAuth DPoP getServiceAuth).
+     No [atproto-proxy] and no createSession at+jwt — DPoP cannot be
+     proxied, and Ozone rejects the PDS access token. *)
+  let emit_event_service ~bearer ~host ~event ~subject ~created_by
+      ?subject_blob_cids ?external_id ?mod_tool ?report_action () : mod_event =
+    Client.post_json ~bearer ~host "tools.ozone.moderation.emitEvent"
+      (Yojson.Safe.to_string
+         (emit_event_body ~event ~subject ~created_by ?subject_blob_cids
+            ?external_id ?mod_tool ?report_action ()))
+    |> parse_mod_event
+
+  let query_events_service ~bearer ~host ?types ?created_by ?subject ?limit
+      ?cursor () : events =
+    Client.get_json ~bearer ~host "tools.ozone.moderation.queryEvents"
+      (Client.repeat_param "types" (Option.value types ~default:[])
+      @ Client.opt_pair "createdBy" created_by
+      @ Client.opt_pair "subject" subject
+      @ Client.opt_int "limit" limit
+      @ Client.opt_pair "cursor" cursor)
+    |> parse_events
+
+  let get_config_service ~bearer ~host () : server_config =
+    Client.get_json ~bearer ~host "tools.ozone.server.getConfig" []
+    |> parse_server_config
 
   let get_event (s : Session.session) ~proxy ~id () : mod_event =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
