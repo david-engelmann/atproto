@@ -289,4 +289,27 @@ module Dag_cbor = struct
     | _ -> fail "expected text or null"
 
   let as_cid_opt = function Null -> None | v -> Some (as_cid v)
+
+  (* IPLD JSON → DAG-CBOR. `{ "$link": cid }` and `{ "$bytes": b64 }` are
+     the official JSON encodings for CID and bytes. *)
+  let rec of_yojson (json : Yojson.Safe.t) : value =
+    match json with
+    | `Null -> Null
+    | `Bool b -> Bool b
+    | `Int n -> Int n
+    | `Intlit s -> (
+        try
+          let n = Int64.of_string s in
+          if n >= Int64.of_int min_int && n <= Int64.of_int max_int then
+            Int (Int64.to_int n)
+          else Int64 n
+        with _ -> Text s)
+    | `Float _ -> fail "DAG-CBOR does not encode IEEE floats"
+    | `String s -> Text s
+    | `List xs -> Array (List.map of_yojson xs)
+    | `Assoc fields -> (
+        match fields with
+        | [ ("$link", `String link) ] -> Cid (Cid.of_string link)
+        | [ ("$bytes", `String b64) ] -> Bytes (Base64url.Base64url.decode b64)
+        | _ -> Map (List.map (fun (k, v) -> (k, of_yojson v)) fields))
 end

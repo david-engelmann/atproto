@@ -13,6 +13,7 @@ module Records = struct
   let nsid_list = "app.bsky.graph.list"
   let nsid_listitem = "app.bsky.graph.listitem"
   let nsid_starterpack = "app.bsky.graph.starterpack"
+  let nsid_referencelistoptout = "app.bsky.graph.referencelistoptout"
   let nsid_profile = "app.bsky.actor.profile"
   let nsid_chat_declaration = "chat.bsky.actor.declaration"
   let nsid_status = "app.bsky.actor.status"
@@ -145,6 +146,16 @@ module Records = struct
         ("$type", `String nsid_listitem);
         ("subject", `String subject);
         ("list", `String list);
+        ("createdAt", `String created_at);
+      ]
+
+  (* Official app.bsky.graph.referencelistoptout — omit the author from a
+     reference list's public presentation. Key is tid. *)
+  let referencelistoptout ~subject ~created_at () : Yojson.Safe.t =
+    `Assoc
+      [
+        ("$type", `String nsid_referencelistoptout);
+        ("subject", `String subject);
         ("createdAt", `String created_at);
       ]
 
@@ -450,6 +461,8 @@ module Records = struct
     created_at : string;
   }
 
+  type referencelistoptout_record = { subject : string; created_at : string }
+
   type starterpack_record = {
     name : string;
     list : string;
@@ -566,6 +579,14 @@ module Records = struct
     {
       subject = (match json |> member "subject" with `String s -> s | _ -> "");
       list = (match json |> member "list" with `String s -> s | _ -> "");
+      created_at =
+        (match json |> member "createdAt" with `String s -> s | _ -> "");
+    }
+
+  let parse_referencelistoptout json : referencelistoptout_record =
+    let open Yojson.Safe.Util in
+    {
+      subject = (match json |> member "subject" with `String s -> s | _ -> "");
       created_at =
         (match json |> member "createdAt" with `String s -> s | _ -> "");
     }

@@ -499,4 +499,52 @@ module Repo_sync = struct
   let backfill ?host ?session ?keys (acct : account) : record_change list =
     let snap = fetch_repo ?host ?session acct.did in
     resync_from_car ?keys ~live:false acct snap.car
+
+  type commit_signer =
+    did:string -> data:Cid.t -> rev:string -> ?prev:Cid.t -> unit -> string
+
+  (* Offline signed repo: JSON records → DAG-CBOR → MST → commit → CAR. *)
+  let write_signed_repo ~did ~rev ?prev ~(sign : commit_signer)
+      ~(records : (string * Yojson.Safe.t) list) () : snapshot =
+    List.iter
+      (fun (path, _) ->
+        if not (Syntax.Syntax.is_valid_repo_path path) then
+          fail ("write_signed_repo: invalid repo path " ^ path))
+      records;
+    if not (Tid.is_valid rev) then fail ("write_signed_repo: invalid rev " ^ rev);
+    let store = Mst.store_of_get (fun _ -> None) in
+    let tree = Mst.empty_tree store in
+    let record_blocks = ref [] in
+    let tree =
+      List.fold_left
+        (fun t (path, json) ->
+          let bytes = Dag_cbor.encode (Dag_cbor.of_yojson json) in
+          let cid = Cid.create bytes in
+          record_blocks := { Car.cid; data = bytes } :: !record_blocks;
+          fst (Mst.insert t path cid))
+        tree records
+    in
+    let data = Mst.root_cid tree in
+    let commit_bytes = sign ~did ~data ~rev ?prev () in
+    let commit_cid = Cid.create commit_bytes in
+    let mst_blocks =
+      Hashtbl.fold
+        (fun k block_data acc ->
+          { Car.cid = Cid.of_string k; data = block_data } :: acc)
+        tree.store.created []
+    in
+    let seen = Hashtbl.create 16 in
+    let blocks =
+      List.filter
+        (fun (b : Car.block) ->
+          let k = Cid.to_string b.cid in
+          if Hashtbl.mem seen k then false
+          else (
+            Hashtbl.add seen k ();
+            true))
+        (({ Car.cid = commit_cid; data = commit_bytes } :: mst_blocks)
+        @ !record_blocks)
+    in
+    let car = { Car.roots = [ commit_cid ]; blocks } in
+    open_car car
 end

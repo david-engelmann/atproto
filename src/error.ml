@@ -50,11 +50,13 @@ module Error = struct
     aux 0
 
   (* Local AppView implements some NSIDs but keeps them flag-off
-     (e.g. InvalidRequest: Search v2 is not enabled). *)
+     (e.g. InvalidRequest: Search v2 is not enabled). A local PDS can
+     also reject a record $type it has not bundled yet. *)
   let is_feature_disabled (e : t) : bool =
     e.error = "InvalidRequest"
     && (contains_ci e.message "not enabled"
-       || contains_ci e.message "not available")
+       || contains_ci e.message "not available"
+       || contains_ci e.message "unknown lexicon")
 
   let is_not_served (e : t) : bool =
     is_not_implemented e || is_feature_disabled e

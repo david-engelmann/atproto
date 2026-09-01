@@ -119,6 +119,14 @@ let test_par_and_token_shapes _ =
   OUnit2.assert_equal (Some "S256") (List.assoc_opt "code_challenge_method" par);
   OUnit2.assert_equal (Some "atproto transition:generic")
     (List.assoc_opt "scope" par);
+  let signup =
+    Oauth.pushed_authorization_body
+      ~client_id:"https://client.example/client-metadata.json"
+      ~redirect_uri:"https://client.example/cb" ~code_challenge:pkce.challenge
+      ~state:"abc" ~prompt:"create" ~login_hint:"alice.test" ()
+  in
+  OUnit2.assert_equal (Some "create") (List.assoc_opt "prompt" signup);
+  OUnit2.assert_equal (Some "alice.test") (List.assoc_opt "login_hint" signup);
   let token =
     Oauth.token_body ~client_id:"https://client.example/client-metadata.json"
       ~redirect_uri:"https://client.example/cb" ~code:"authz-code"
@@ -576,6 +584,57 @@ let test_live_as_metadata _ =
           ("oauth authorization-server metadata skipped: "
          ^ Printexc.to_string exn))
 
+let test_par_prompt_and_dpop_jkt _ =
+  let priv, pub = p256_pair () in
+  let jkt = Oauth.dpop_jkt pub in
+  OUnit2.assert_bool "dpop_jkt is base64url" (String.length jkt >= 32);
+  let again = Oauth.jwk_thumbprint (Oauth.p256_jwk pub) in
+  OUnit2.assert_equal ~printer:(fun x -> x) jkt again;
+  let par =
+    Oauth.pushed_authorization_body ~client_id ~redirect_uri
+      ~code_challenge:rfc7636_challenge ~state:"s" ~prompt:"create"
+      ~dpop_jkt:jkt ()
+  in
+  OUnit2.assert_equal (Some "create") (List.assoc_opt "prompt" par);
+  OUnit2.assert_equal (Some jkt) (List.assoc_opt "dpop_jkt" par);
+  ignore priv
+
+let test_revoke_body_and_loop _ =
+  let priv, pub = p256_pair () in
+  let form =
+    Oauth.revoke_body ~client_id ~token:"access-token"
+      ~token_type_hint:"access_token" ()
+  in
+  OUnit2.assert_equal (Some "access-token") (List.assoc_opt "token" form);
+  OUnit2.assert_equal (Some "access_token")
+    (List.assoc_opt "token_type_hint" form);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "https://bsky.social/oauth/revoke" (Oauth.revocation_url ());
+  let with_revocation =
+    match sample_as_json with
+    | `Assoc fields ->
+        `Assoc
+          (("revocation_endpoint", `String "https://bsky.social/oauth/revoke")
+          :: fields)
+    | other -> other
+  in
+  let as_ = Oauth.parse_as_metadata with_revocation in
+  OUnit2.assert_equal (Some "https://bsky.social/oauth/revoke")
+    as_.revocation_endpoint;
+  let calls = ref 0 in
+  let http ~url ~headers ~body =
+    incr calls;
+    ignore url;
+    ignore headers;
+    ignore body;
+    { Oauth.status = 200; headers = []; body = "" }
+  in
+  let (), _nonce =
+    Oauth.revoke ~http ~priv ~pub ~revoke_url:(Oauth.revocation_url ()) ~form ()
+  in
+  OUnit2.assert_equal 1 !calls
+
 let suite =
   "oauth"
   >::: [
@@ -613,6 +672,8 @@ let suite =
          >:: test_use_dpop_nonce_without_header_fails;
          "test_metadata_optional_uris" >:: test_metadata_optional_uris;
          "test_live_as_metadata" >:: test_live_as_metadata;
+         "test_par_prompt_and_dpop_jkt" >:: test_par_prompt_and_dpop_jkt;
+         "test_revoke_body_and_loop" >:: test_revoke_body_and_loop;
        ]
 
 let () = run_test_tt_main suite

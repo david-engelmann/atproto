@@ -152,6 +152,59 @@ module Oauth_scope = struct
         | None -> fail "include scope requires a permission-set NSID")
     | Blob | Other _ -> ()
 
+  (* Official AT Protocol permission-set NSIDs referenced by include:. *)
+  let official_include_nsids =
+    [
+      "app.bsky.authCreatePosts";
+      "app.bsky.authDeleteContent";
+      "app.bsky.authFullApp";
+      "app.bsky.authManageFeedDeclarations";
+      "app.bsky.authManageLabelerService";
+      "app.bsky.authManageModeration";
+      "app.bsky.authManageNotifications";
+      "app.bsky.authManageProfile";
+      "app.bsky.authViewAll";
+      "chat.bsky.authFullChatClient";
+    ]
+
+  let is_official_include (nsid : string) : bool =
+    List.mem nsid official_include_nsids
+
+  let scopes_of_permission (p : Lexicon.Lexicon.permission) : t list =
+    match p.resource with
+    | "repo" ->
+        let collections = if p.collection = [] then [ "*" ] else p.collection in
+        let actions = if p.action = [] then [] else p.action in
+        List.map
+          (fun collection ->
+            {
+              resource = Repo;
+              positional = Some collection;
+              params = List.map (fun a -> ("action", a)) actions;
+            })
+          collections
+    | "rpc" ->
+        let lxms = if p.lxm = [] then [ "*" ] else p.lxm in
+        let aud =
+          match p.inherit_aud with Some true -> [ ("aud", "*") ] | _ -> []
+        in
+        List.map
+          (fun lxm -> { resource = Rpc; positional = Some lxm; params = aud })
+          lxms
+    | _ -> []
+
+  let expand_include (set : Lexicon.Lexicon.permission_set) : t list =
+    List.concat (List.map scopes_of_permission set.permissions)
+
+  let expand_include_nsid (nsid : string) : t list option =
+    match List.assoc_opt nsid Lexicon.Lexicon.official_lexicons with
+    | None -> None
+    | Some body ->
+        Some
+          (expand_include
+             (Lexicon.Lexicon.parse_permission_set
+                (Yojson.Safe.from_string body)))
+
   let parse_one (raw : string) : t =
     let token = String.trim raw in
     if token = "" then fail "empty scope token";

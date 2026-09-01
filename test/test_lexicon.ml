@@ -38,7 +38,9 @@ let test_parse_document _ =
 let test_lookup_helpers _ =
   OUnit2.assert_equal Lexicon.Cid_link (Lexicon.lookup_primitive "cid-link");
   OUnit2.assert_equal Lexicon.Subscription
-    (Lexicon.lookup_definition "subscription")
+    (Lexicon.lookup_definition "subscription");
+  OUnit2.assert_equal Lexicon.Permission_set
+    (Lexicon.lookup_definition "permission-set")
 
 let test_nested_parameters_and_codegen _ =
   let doc = Lexicon.of_string sample in
@@ -256,7 +258,26 @@ let test_union_codegen_and_official_bundle _ =
               "com.atproto.server.checkAccountStatus";
               "com.atproto.label.defs";
               "chat.bsky.convo.getMessages";
+              "app.bsky.graph.referencelistoptout";
+              "app.bsky.authCreatePosts";
+              "chat.bsky.authFullChatClient";
             ];
+          let auth =
+            List.find
+              (fun (d : Lexicon.document) -> d.id = "app.bsky.authCreatePosts")
+              docs
+          in
+          (match Lexicon.main auth with
+          | None -> OUnit2.assert_failure "missing authCreatePosts main"
+          | Some main -> OUnit2.assert_equal Lexicon.Permission_set main.kind);
+          let set =
+            Lexicon.parse_permission_set
+              (Yojson.Safe.from_string
+                 (List.assoc "app.bsky.authCreatePosts"
+                    Lexicon.official_lexicons))
+          in
+          OUnit2.assert_equal (Some "Create Bluesky Posts") set.title;
+          OUnit2.assert_equal 2 (List.length set.permissions);
           let defs =
             List.find
               (fun (d : Lexicon.document) -> d.id = "app.bsky.feed.defs")

@@ -890,4 +890,32 @@ let () =
          })
   in
   assert (jss_hdr.version = 1);
+  let optout =
+    Records.referencelistoptout
+      ~subject:"at://did:plc:abc123xyz0001112223333/app.bsky.graph.list/3k"
+      ~created_at:"2024-01-01T00:00:00.000Z" ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "$type" optout with
+    | `String "app.bsky.graph.referencelistoptout" -> true
+    | _ -> false);
+  let par =
+    Oauth.pushed_authorization_body
+      ~client_id:"https://client.example/client-metadata.json"
+      ~redirect_uri:"https://client.example/cb"
+      ~code_challenge:"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM" ~state:"s"
+      ~prompt:"create" ()
+  in
+  assert (List.assoc_opt "prompt" par = Some "create");
+  let _revoke =
+    Oauth.revoke_body ~client_id:"https://client.example/client-metadata.json"
+      ~token:"access" ~token_type_hint:"access_token" ()
+  in
+  assert (Oauth_scope.is_official_include "app.bsky.authCreatePosts");
+  let set =
+    Lexicon.parse_permission_set
+      (Yojson.Safe.from_string
+         (List.assoc "app.bsky.authCreatePosts" Lexicon.official_lexicons))
+  in
+  assert (List.length set.permissions = 2);
   print_endline "examples/offline: public API typechecks and fixtures pass"

@@ -129,6 +129,20 @@ let test_list_and_starterpack_builders _ =
     "app.bsky.graph.starterpack"
     (pack |> member "$type" |> to_string);
   OUnit2.assert_equal 1 (pack |> member "feeds" |> to_list |> List.length);
+  let optout =
+    Records.referencelistoptout
+      ~subject:"at://did:plc:alice000111222333444555666/app.bsky.graph.list/3k"
+      ~created_at:"2024-01-01T00:00:00.000Z" ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "app.bsky.graph.referencelistoptout"
+    (optout |> member "$type" |> to_string);
+  let parsed_optout = Records.parse_referencelistoptout optout in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "at://did:plc:alice000111222333444555666/app.bsky.graph.list/3k"
+    parsed_optout.subject;
   let parsed_list = Records.parse_list list in
   OUnit2.assert_equal ~printer:(fun x -> x) "Friends" parsed_list.name;
   let parsed_item = Records.parse_listitem item in

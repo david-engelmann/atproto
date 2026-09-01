@@ -143,6 +143,19 @@ module Client = struct
       let resp = Http_client.run (Http_client.get url ~headers ()) in
       json_of_body (Response.body_string resp)
 
+  (* Symmetric HTTP/2 POST. Local :port hosts stay on Cohttp. *)
+  let post_json_h2 ?session ?host ?bearer ?(extra = []) nsid data =
+    let host = host_of ?session ?host () in
+    if String.contains host ':' then
+      post_json ?session ~host ?bearer ~extra nsid data
+    else
+      let headers = header_pairs ?session ?bearer ~extra () in
+      let resp =
+        Http_client.run
+          (Http_client.xrpc_post ~host ~nsid ~headers ~body:data ())
+      in
+      json_of_body (Response.body_string resp)
+
   (* PDS accessJwt is at+jwt. AppView requires a service-auth JWT
      (com.atproto.server.getServiceAuth, aud=AppView DID, lxm=NSID). *)
   let get_service_auth (s : Session.session) ~aud ~lxm () : string =

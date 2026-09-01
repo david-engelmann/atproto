@@ -133,6 +133,32 @@ let test_dag_cbor_hard_types _ =
   in
   OUnit2.assert_equal 2 (List.length seq)
 
+let test_dag_cbor_of_yojson _ =
+  let json =
+    `Assoc
+      [
+        ("$type", `String "app.bsky.feed.post");
+        ("text", `String "hello");
+        ("n", `Int 3);
+        ("flag", `Bool true);
+        ( "nested",
+          `Assoc [ ("$link", `String (Cid.to_string (Cid.create "x"))) ] );
+      ]
+  in
+  (match Dag_cbor.of_yojson json with
+  | Dag_cbor.Map fields -> (
+      OUnit2.assert_equal "hello"
+        (Dag_cbor.as_text (Dag_cbor.require "text" fields));
+      OUnit2.assert_equal 3 (Dag_cbor.as_int (Dag_cbor.require "n" fields));
+      match Dag_cbor.require "nested" fields with
+      | Dag_cbor.Cid _ -> ()
+      | _ -> OUnit2.assert_failure "expected $link CID")
+  | _ -> OUnit2.assert_failure "expected map");
+  let bytes_json = `Assoc [ ("$bytes", `String "Y2Fy") ] in
+  match Dag_cbor.of_yojson bytes_json with
+  | Dag_cbor.Bytes b -> OUnit2.assert_equal ~printer:(fun x -> x) "car" b
+  | _ -> OUnit2.assert_failure "expected $bytes"
+
 let suite =
   "car"
   >::: [
@@ -143,6 +169,7 @@ let suite =
          "test_dag_cbor_ipld_key_sort" >:: test_dag_cbor_ipld_key_sort;
          "test_dag_cbor_cid_tag" >:: test_dag_cbor_cid_tag;
          "test_dag_cbor_hard_types" >:: test_dag_cbor_hard_types;
+         "test_dag_cbor_of_yojson" >:: test_dag_cbor_of_yojson;
        ]
 
 let () = run_test_tt_main suite

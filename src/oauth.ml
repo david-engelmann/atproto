@@ -193,11 +193,15 @@ module Oauth = struct
   let token_url ?(host = "bsky.social") () =
     Printf.sprintf "https://%s/oauth/token" host
 
+  let revocation_url ?(host = "bsky.social") () =
+    Printf.sprintf "https://%s/oauth/revoke" host
+
   let jwt_bearer_assertion_type =
     "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 
   let pushed_authorization_body ~client_id ~redirect_uri ~code_challenge ~state
-      ?(scope = "atproto transition:generic") ?login_hint ?client_assertion () =
+      ?(scope = "atproto transition:generic") ?login_hint ?prompt ?dpop_jkt
+      ?client_assertion () =
     [
       ("response_type", "code");
       ("client_id", client_id);
@@ -208,6 +212,8 @@ module Oauth = struct
       ("scope", scope);
     ]
     @ (match login_hint with Some h -> [ ("login_hint", h) ] | None -> [])
+    @ (match prompt with Some p -> [ ("prompt", p) ] | None -> [])
+    @ (match dpop_jkt with Some j -> [ ("dpop_jkt", j) ] | None -> [])
     @
     match client_assertion with
     | Some assertion ->
@@ -216,6 +222,24 @@ module Oauth = struct
           ("client_assertion", assertion);
         ]
     | None -> []
+
+  (* RFC 7638 JWK thumbprint for the DPoP EC key (PAR dpop_jkt). *)
+  let jwk_thumbprint (jwk : Yojson.Safe.t) : string =
+    let open Yojson.Safe.Util in
+    let kty = jwk |> member "kty" |> to_string in
+    let canonical =
+      match kty with
+      | "EC" ->
+          let crv = jwk |> member "crv" |> to_string in
+          let x = jwk |> member "x" |> to_string in
+          let y = jwk |> member "y" |> to_string in
+          Printf.sprintf {|{"crv":"%s","kty":"EC","x":"%s","y":"%s"}|} crv x y
+      | _ -> failwith "Oauth: JWK thumbprint is only defined here for EC keys"
+    in
+    Base64url.encode (Hash.sha256 canonical)
+
+  let dpop_jkt (pub : Mirage_crypto_ec.P256.Dsa.pub) : string =
+    jwk_thumbprint (p256_jwk pub)
 
   let token_body ~client_id ~redirect_uri ~code ~code_verifier ?client_assertion
       () =
@@ -241,6 +265,20 @@ module Oauth = struct
       ("client_id", client_id);
       ("refresh_token", refresh_token);
     ]
+    @
+    match client_assertion with
+    | Some assertion ->
+        [
+          ("client_assertion_type", jwt_bearer_assertion_type);
+          ("client_assertion", assertion);
+        ]
+    | None -> []
+
+  let revoke_body ~client_id ~token ?token_type_hint ?client_assertion () =
+    [ ("client_id", client_id); ("token", token) ]
+    @ (match token_type_hint with
+      | Some h -> [ ("token_type_hint", h) ]
+      | None -> [])
     @
     match client_assertion with
     | Some assertion ->
@@ -575,6 +613,7 @@ module Oauth = struct
     authorization_response_iss_parameter_supported : bool;
     client_id_metadata_document_supported : bool;
     require_request_uri_registration : bool;
+    revocation_endpoint : string option;
   }
 
   type resource_metadata = {
@@ -637,6 +676,7 @@ module Oauth = struct
         (match json |> member "require_request_uri_registration" with
         | `Bool b -> b
         | _ -> true);
+      revocation_endpoint = json_string_opt json "revocation_endpoint";
     }
 
   let require_mem label xs value =
@@ -859,6 +899,19 @@ module Oauth = struct
   let refresh ~(http : http_post) ~priv ~pub ~token_url ~form ?nonce () :
       token * string option =
     exchange_code ~http ~priv ~pub ~token_url ~form ?nonce ()
+
+  (* RFC 7009 token revocation. 200 with an empty body is success. *)
+  let revoke ~(http : http_post) ~priv ~pub ~revoke_url ~form ?nonce () :
+      unit * string option =
+    let body = form_encode form in
+    let resp, nonce =
+      post_with_dpop ~http ~priv ~pub ~url:revoke_url ~htm:"POST" ~body ?nonce
+        ()
+    in
+    if resp.status < 200 || resp.status >= 300 then
+      ignore (ensure_ok "revoke" resp)
+    else ();
+    ((), nonce)
 
   let resource_request_headers ~priv ~pub ~htm ~htu ~access_token ?ath ?nonce ()
       =
