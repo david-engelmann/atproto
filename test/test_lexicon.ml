@@ -261,6 +261,14 @@ let test_union_codegen_and_official_bundle _ =
               "app.bsky.graph.referencelistoptout";
               "app.bsky.authCreatePosts";
               "chat.bsky.authFullChatClient";
+              "app.bsky.authFullApp";
+              "app.bsky.authViewAll";
+              "app.bsky.authDeleteContent";
+              "app.bsky.authManageFeedDeclarations";
+              "app.bsky.authManageLabelerService";
+              "app.bsky.authManageModeration";
+              "app.bsky.authManageNotifications";
+              "app.bsky.authManageProfile";
             ];
           let auth =
             List.find
@@ -278,6 +286,50 @@ let test_union_codegen_and_official_bundle _ =
           in
           OUnit2.assert_equal (Some "Create Bluesky Posts") set.title;
           OUnit2.assert_equal 2 (List.length set.permissions);
+          let full_app =
+            List.find
+              (fun (d : Lexicon.document) -> d.id = "app.bsky.authFullApp")
+              docs
+          in
+          (match Lexicon.main full_app with
+          | None -> OUnit2.assert_failure "missing authFullApp main"
+          | Some main -> OUnit2.assert_equal Lexicon.Permission_set main.kind);
+          let full_set =
+            Lexicon.parse_permission_set
+              (Yojson.Safe.from_string
+                 (List.assoc "app.bsky.authFullApp" Lexicon.official_lexicons))
+          in
+          OUnit2.assert_equal (Some "Full Bluesky Social App Permissions")
+            full_set.title;
+          OUnit2.assert_bool "authFullApp grants referencelistoptout"
+            (List.exists
+               (fun (p : Lexicon.permission) ->
+                 p.resource = "repo"
+                 && List.mem "app.bsky.graph.referencelistoptout" p.collection)
+               full_set.permissions);
+          let graph_defs =
+            List.find
+              (fun (d : Lexicon.document) -> d.id = "app.bsky.graph.defs")
+              docs
+          in
+          let list_viewer =
+            List.find
+              (fun (d : Lexicon.def) -> d.name = "listViewerState")
+              graph_defs.defs
+          in
+          OUnit2.assert_bool "referenceListOptOut"
+            (List.exists
+               (fun (name, _) -> name = "referenceListOptOut")
+               list_viewer.properties);
+          let list_item_view =
+            List.find
+              (fun (d : Lexicon.def) -> d.name = "listItemView")
+              graph_defs.defs
+          in
+          OUnit2.assert_bool "subjectOptedOut"
+            (List.exists
+               (fun (name, _) -> name = "subjectOptedOut")
+               list_item_view.properties);
           let defs =
             List.find
               (fun (d : Lexicon.document) -> d.id = "app.bsky.feed.defs")

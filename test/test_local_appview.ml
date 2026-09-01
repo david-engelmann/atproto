@@ -11,6 +11,7 @@ open Atproto.Error
 open Atproto.Notification
 open Atproto.Labeler
 open Atproto.Unspecced
+open Atproto.Bookmark
 open Actor
 open Feed
 open Graph
@@ -616,8 +617,50 @@ let test_leftover_appview _ =
        [ ("list", listed.uri); ("limit", "5") ]
    with
   | None -> ()
-  | Some json -> (
-      match Yojson.Safe.Util.member "list" json with `Assoc _ -> () | _ -> ()));
+  | Some json ->
+      let page = Graph.parse_list_page json in
+      OUnit2.assert_equal ~printer:(fun x -> x) listed.uri page.list.uri;
+      (* Pinned @atproto/dev-env@0.6.4 does not hydrate APP-2933 opt-out
+         fields. Parser still accepts them when present. *)
+      (match page.list.viewer with
+      | Some v ->
+          OUnit2.assert_bool "referenceListOptOut optional"
+            (match v.reference_list_opt_out with Some _ | None -> true)
+      | None -> ());
+      List.iter
+        (fun (item : Graph.list_item) ->
+          OUnit2.assert_bool "subjectOptedOut optional"
+            (match item.subject_opted_out with Some _ | None -> true))
+        page.items);
+  (match
+     Yojson.Safe.Util.member "feed"
+       (av_get "app.bsky.feed.getAuthorFeed"
+          [ ("actor", "alice.test"); ("limit", "1") ])
+   with
+  | `List (item :: _) -> (
+      match Yojson.Safe.Util.member "post" item with
+      | `Assoc _ as post -> (
+          match
+            ( Yojson.Safe.Util.member "uri" post,
+              Yojson.Safe.Util.member "cid" post )
+          with
+          | `String uri, `String cid
+            when String.length uri > 0 && String.length cid > 0 ->
+              ignore
+                (av_post_if_served ~session:s "app.bsky.bookmark.createBookmark"
+                   (Yojson.Safe.to_string
+                      (Bookmark.create_bookmark_body ~uri ~cid)));
+              ignore
+                (av_post_if_served ~session:s "app.bsky.bookmark.deleteBookmark"
+                   (Yojson.Safe.to_string (Bookmark.delete_bookmark_body ~uri)))
+          | _ -> ())
+      | _ -> ())
+  | _ -> ());
+  ignore
+    (av_post_if_served ~session:s "app.bsky.graph.muteActor"
+       (Yojson.Safe.to_string
+          (Graph.mute_actor_body ~actor:"carla.test" ~only_reposts:true
+             ~only_quoteposts:false ())));
   (match
      av_get_if_served ~session:s "app.bsky.graph.getListsWithMembership"
        [ ("actor", "alice.test"); ("limit", "5") ]

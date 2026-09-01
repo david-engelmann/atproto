@@ -82,7 +82,7 @@ let test_official_permission_sets _ =
     Oauth_scope.official_include_nsids;
   OUnit2.assert_bool "unknown include"
     (not (Oauth_scope.is_official_include "app.bsky.authBasicFeatures"));
-  match Oauth_scope.expand_include_nsid "app.bsky.authCreatePosts" with
+  (match Oauth_scope.expand_include_nsid "app.bsky.authCreatePosts" with
   | None -> OUnit2.assert_failure "expected bundled authCreatePosts"
   | Some scopes ->
       OUnit2.assert_bool "expands repo:post"
@@ -96,6 +96,40 @@ let test_official_permission_sets _ =
            (fun s ->
              s.Oauth_scope.resource = Oauth_scope.Rpc
              && s.Oauth_scope.positional = Some "app.bsky.video.uploadVideo")
+           scopes));
+  (match Oauth_scope.expand_include_nsid "app.bsky.authFullApp" with
+  | None -> OUnit2.assert_failure "expected bundled authFullApp"
+  | Some scopes ->
+      OUnit2.assert_bool "expands repo:referencelistoptout"
+        (List.exists
+           (fun s ->
+             s.Oauth_scope.resource = Oauth_scope.Repo
+             && s.Oauth_scope.positional
+                = Some "app.bsky.graph.referencelistoptout")
+           scopes);
+      OUnit2.assert_bool "expands bookmark rpc"
+        (List.exists
+           (fun s ->
+             s.Oauth_scope.resource = Oauth_scope.Rpc
+             && s.Oauth_scope.positional
+                = Some "app.bsky.bookmark.createBookmark")
+           scopes));
+  (match Oauth_scope.expand_include_nsid "app.bsky.authViewAll" with
+  | None -> OUnit2.assert_failure "expected bundled authViewAll"
+  | Some scopes ->
+      OUnit2.assert_bool "authViewAll is rpc-only"
+        (List.for_all
+           (fun s -> s.Oauth_scope.resource = Oauth_scope.Rpc)
+           scopes));
+  match Oauth_scope.expand_include_nsid "app.bsky.authDeleteContent" with
+  | None -> OUnit2.assert_failure "expected bundled authDeleteContent"
+  | Some scopes ->
+      OUnit2.assert_bool "authDeleteContent deletes posts"
+        (List.exists
+           (fun s ->
+             s.Oauth_scope.resource = Oauth_scope.Repo
+             && s.Oauth_scope.positional = Some "app.bsky.feed.post"
+             && List.mem ("action", "delete") s.Oauth_scope.params)
            scopes)
 
 let suite =
