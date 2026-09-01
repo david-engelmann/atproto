@@ -303,6 +303,150 @@ let test_search_starter_packs_live _ =
   with exn ->
     skip_if true ("searchStarterPacks skipped: " ^ Printexc.to_string exn)
 
+let test_parse_list_opt_out_fields _ =
+  let json =
+    `Assoc
+      [
+        ( "list",
+          `Assoc
+            [
+              ( "uri",
+                `String
+                  "at://did:plc:abc123xyz0001112223333/app.bsky.graph.list/3k"
+              );
+              ("cid", `String "bafyreiabc");
+              ("name", `String "Starter refs");
+              ("purpose", `String "app.bsky.graph.defs#referencelist");
+              ( "creator",
+                `Assoc
+                  [
+                    ("did", `String "did:plc:abc123xyz0001112223333");
+                    ("handle", `String "alice.test");
+                  ] );
+              ("indexedAt", `String "2024-01-01T00:00:00.000Z");
+              ("listItemCount", `Int 1);
+              ( "viewer",
+                `Assoc
+                  [
+                    ("muted", `Bool false);
+                    ( "referenceListOptOut",
+                      `String
+                        "at://did:plc:optout000111222333444555/app.bsky.graph.referencelistoptout/3k"
+                    );
+                  ] );
+            ] );
+        ( "items",
+          `List
+            [
+              `Assoc
+                [
+                  ( "uri",
+                    `String
+                      "at://did:plc:abc123xyz0001112223333/app.bsky.graph.listitem/1"
+                  );
+                  ( "subject",
+                    `Assoc
+                      [
+                        ("did", `String "did:plc:xyz789aaa0001112223333");
+                        ("handle", `String "bob.test");
+                      ] );
+                  ("subjectOptedOut", `Bool true);
+                ];
+            ] );
+      ]
+  in
+  let page = Graph.parse_list_page json in
+  (match page.list.viewer with
+  | Some v ->
+      OUnit2.assert_equal (Some false) v.muted;
+      OUnit2.assert_equal None v.blocked;
+      OUnit2.assert_equal
+        (Some
+           "at://did:plc:optout000111222333444555/app.bsky.graph.referencelistoptout/3k")
+        v.reference_list_opt_out
+  | None -> OUnit2.assert_failure "expected listViewerState");
+  OUnit2.assert_equal 1 (List.length page.items);
+  OUnit2.assert_equal (Some true) (List.hd page.items).subject_opted_out
+
+let test_parse_starter_pack_opt_out_fields _ =
+  let json =
+    `Assoc
+      [
+        ( "uri",
+          `String
+            "at://did:plc:abc123xyz0001112223333/app.bsky.graph.starterpack/3k"
+        );
+        ("cid", `String "bafyreiabc");
+        ( "record",
+          `Assoc
+            [
+              ("name", `String "New folks");
+              ( "list",
+                `String
+                  "at://did:plc:abc123xyz0001112223333/app.bsky.graph.list/3k"
+              );
+            ] );
+        ( "creator",
+          `Assoc
+            [
+              ("did", `String "did:plc:abc123xyz0001112223333");
+              ("handle", `String "alice.test");
+            ] );
+        ("indexedAt", `String "2024-01-01T00:00:00.000Z");
+        ( "list",
+          `Assoc
+            [
+              ( "uri",
+                `String
+                  "at://did:plc:abc123xyz0001112223333/app.bsky.graph.list/3k"
+              );
+              ("cid", `String "bafyreilist");
+              ("name", `String "Refs");
+              ("purpose", `String "app.bsky.graph.defs#referencelist");
+              ( "viewer",
+                `Assoc
+                  [
+                    ( "referenceListOptOut",
+                      `String
+                        "at://did:plc:optout000111222333444555/app.bsky.graph.referencelistoptout/3k"
+                    );
+                  ] );
+            ] );
+        ( "listItemsSample",
+          `List
+            [
+              `Assoc
+                [
+                  ( "uri",
+                    `String
+                      "at://did:plc:abc123xyz0001112223333/app.bsky.graph.listitem/1"
+                  );
+                  ( "subject",
+                    `Assoc
+                      [
+                        ("did", `String "did:plc:xyz789aaa0001112223333");
+                        ("handle", `String "bob.test");
+                      ] );
+                  ("subjectOptedOut", `Bool true);
+                ];
+            ] );
+      ]
+  in
+  let pack = Graph.parse_starter_pack json in
+  (match pack.list with
+  | Some list -> (
+      match list.viewer with
+      | Some v ->
+          OUnit2.assert_equal
+            (Some
+               "at://did:plc:optout000111222333444555/app.bsky.graph.referencelistoptout/3k")
+            v.reference_list_opt_out
+      | None -> OUnit2.assert_failure "expected nested list viewer")
+  | None -> OUnit2.assert_failure "expected nested listView");
+  OUnit2.assert_equal 1 (List.length pack.list_items_sample);
+  OUnit2.assert_equal (Some true)
+    (List.hd pack.list_items_sample).subject_opted_out
+
 let test_parse_membership_and_v2 _ =
   let list_json =
     `Assoc
@@ -391,7 +535,10 @@ let suite =
          "test_unmute_actor" >:: test_unmute_actor;
          "test_mute_actor_body" >:: test_mute_actor_body;
          "test_parse_list" >:: test_parse_list;
+         "test_parse_list_opt_out_fields" >:: test_parse_list_opt_out_fields;
          "test_parse_starter_pack" >:: test_parse_starter_pack;
+         "test_parse_starter_pack_opt_out_fields"
+         >:: test_parse_starter_pack_opt_out_fields;
          "test_parse_relationships" >:: test_parse_relationships;
          "test_relationships_live" >:: test_relationships_live;
          "test_search_starter_packs_live" >:: test_search_starter_packs_live;

@@ -912,10 +912,76 @@ let () =
       ~token:"access" ~token_type_hint:"access_token" ()
   in
   assert (Oauth_scope.is_official_include "app.bsky.authCreatePosts");
+  assert (Oauth_scope.is_official_include "app.bsky.authFullApp");
   let set =
     Lexicon.parse_permission_set
       (Yojson.Safe.from_string
          (List.assoc "app.bsky.authCreatePosts" Lexicon.official_lexicons))
   in
   assert (List.length set.permissions = 2);
+  (match Oauth_scope.expand_include_nsid "app.bsky.authFullApp" with
+  | None -> assert false
+  | Some scopes ->
+      assert (
+        List.exists
+          (fun s ->
+            s.Oauth_scope.resource = Oauth_scope.Repo
+            && s.Oauth_scope.positional
+               = Some "app.bsky.graph.referencelistoptout")
+          scopes));
+  let list_page =
+    Graph.parse_list_page
+      (`Assoc
+        [
+          ( "list",
+            `Assoc
+              [
+                ( "uri",
+                  `String
+                    "at://did:plc:abc123xyz0001112223333/app.bsky.graph.list/3k"
+                );
+                ("cid", `String "bafyreiabc");
+                ("name", `String "Refs");
+                ("purpose", `String "app.bsky.graph.defs#referencelist");
+                ("indexedAt", `String "2024-01-01T00:00:00.000Z");
+                ( "viewer",
+                  `Assoc
+                    [
+                      ( "referenceListOptOut",
+                        `String
+                          "at://did:plc:optout000111222333444555/app.bsky.graph.referencelistoptout/3k"
+                      );
+                    ] );
+              ] );
+          ( "items",
+            `List
+              [
+                `Assoc
+                  [
+                    ( "uri",
+                      `String
+                        "at://did:plc:abc123xyz0001112223333/app.bsky.graph.listitem/1"
+                    );
+                    ( "subject",
+                      `Assoc
+                        [
+                          ("did", `String "did:plc:xyz789aaa0001112223333");
+                          ("handle", `String "bob.test");
+                        ] );
+                    ("subjectOptedOut", `Bool true);
+                  ];
+              ] );
+        ])
+  in
+  (match list_page.list.viewer with
+  | Some v ->
+      assert (
+        match v.reference_list_opt_out with
+        | Some uri -> String.length uri > 10
+        | None -> false)
+  | None -> assert false);
+  assert (
+    match (List.hd list_page.items).subject_opted_out with
+    | Some true -> true
+    | _ -> false);
   print_endline "examples/offline: public API typechecks and fixtures pass"

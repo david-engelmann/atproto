@@ -202,7 +202,12 @@ module Graph = struct
 
   (* ---- lists, starter packs, relationships ----------------------------- *)
 
-  type list_viewer = { muted : bool option; blocked : string option }
+  (* app.bsky.graph.defs#listViewerState — APP-2933 adds referenceListOptOut. *)
+  type list_viewer = {
+    muted : bool option;
+    blocked : string option;
+    reference_list_opt_out : string option;
+  }
 
   type list_view = {
     uri : string;
@@ -223,7 +228,12 @@ module Graph = struct
     display_name : string option;
   }
 
-  type list_item = { uri : string; subject : list_item_subject }
+  (* app.bsky.graph.defs#listItemView — subjectOptedOut is const true when set. *)
+  type list_item = {
+    uri : string;
+    subject : list_item_subject;
+    subject_opted_out : bool option;
+  }
 
   type list_page = {
     cursor : string option;
@@ -244,6 +254,7 @@ module Graph = struct
     cid : string;
     name : string option;
     creator_did : string option;
+    list : list_view option;
     list_uri : string option;
     list_item_count : int option;
     joined_week_count : int option;
@@ -303,6 +314,10 @@ module Graph = struct
         | _ -> None);
       blocked =
         (match Yojson.Safe.Util.member "blocked" json with
+        | `String s -> Some s
+        | _ -> None);
+      reference_list_opt_out =
+        (match Yojson.Safe.Util.member "referenceListOptOut" json with
         | `String s -> Some s
         | _ -> None);
     }
@@ -375,6 +390,10 @@ module Graph = struct
             | `String s -> Some s
             | _ -> None);
         };
+      subject_opted_out =
+        (match Yojson.Safe.Util.member "subjectOptedOut" json with
+        | `Bool b -> Some b
+        | _ -> None);
     }
 
   let parse_list_page json : list_page =
@@ -414,12 +433,14 @@ module Graph = struct
           | _ -> None)
       | _ -> None
     in
-    let list_uri =
+    let nested_list =
       match Yojson.Safe.Util.member "list" json with
-      | `Assoc _ as l -> (
-          match Yojson.Safe.Util.member "uri" l with
-          | `String s -> Some s
-          | _ -> None)
+      | `Assoc _ as l -> Some (parse_list_view l)
+      | _ -> None
+    in
+    let list_uri =
+      match nested_list with
+      | Some l when l.uri <> "" -> Some l.uri
       | _ -> (
           match record with
           | `Assoc _ -> (
@@ -445,6 +466,7 @@ module Graph = struct
             | _ -> None)
         | _ -> None);
       creator_did;
+      list = nested_list;
       list_uri;
       list_item_count =
         (match Yojson.Safe.Util.member "listItemCount" json with
