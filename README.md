@@ -95,7 +95,7 @@ Pinned `@atproto/dev-env@0.6.4` `TestNetwork.create()` does **not** start a `cha
 | --- | --- | --- |
 | Session / JWT | `Auth`, `Session` | `createSession` URL uses `ATP_HOST` + `BASE_ENDPOINT`; optional `authFactorToken` / `allowTakendown`; typed `getSession` (`emailConfirmed`, `active`, `status`) |
 | AppView actor | `Actor` | Profiles, search, suggestions, get/put preferences (all current `app.bsky.actor.defs#preferences` kinds). Profile views parse pronouns/website, `associated` (chat / germ / activitySubscription), verification, status, `joinedViaStarterPack`, and viewer scoped mutes / knownFollowers |
-| AppView feed | `Feed` | Timeline, `getPostThread` (`threadViewPost` / `notFoundPost` / `blockedPost`, optional parent, top-level embed + quote/bookmark counts, `viewer.knownLikers`), `getAuthorFeed` (`filter` / `includePins` + public `get_author_feed_page`), reply `grandparentAuthor`, generators, `searchPosts` + `searchPostsV2` (array filters, `detectedQueryLanguages`), quotes, list feed, interactions |
+| AppView feed | `Feed` | Timeline, `getPostThread` (`threadViewPost` / `notFoundPost` / `blockedPost`, optional parent, top-level embed + quote/bookmark counts, `viewer.knownLikers`), `getAuthorFeed` (`filter` knownValues `posts_with_replies` / `posts_no_replies` / `posts_with_media` / `posts_and_author_threads` / `posts_with_video` + `includePins` + public `get_author_feed_page`), reply `grandparentAuthor`, generators, `searchPosts` + `searchPostsV2` (array filters, `detectedQueryLanguages`), quotes, list feed, interactions |
 | AppView graph | `Graph` | Follows/blocks/mutes (including `muteActor` `onlyReposts` / `onlyQuoteposts` scoped mutes), lists, starter packs (`listItemsSample` / official `feeds` / `labels`), `searchStarterPacks` + `searchStarterPacksV2`, `getListsWithMembership` / `getStarterPacksWithMembership`, relationships (`blockedByList` / `blockingByList`), known followers |
 | Bookmarks | `Bookmark` | `createBookmark` / `deleteBookmark` / `getBookmarks`; bookmark `item` is the feed `#postView` / `#notFoundPost` / `#blockedPost` union |
 | Jetstream | `Jetstream` | v2 live tail, collection/DID/kind filters, seq + unix-µs cursors, reconnect/dedupe, v1 `/subscribe` compat; Network Replay planner + skippable unauthenticated HTTP (no invented archive token); `.jss` v1 header / block-index / columnar decode (zstd via injected callback) |
@@ -172,8 +172,8 @@ let discover =
     ~feed:"at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot"
     ()
 let author =
-  Feed.get_author_feed_page ~actor:"jay.bsky.team" ~limit:5 ~include_pins:true
-    ()
+  Feed.get_author_feed_page ~actor:"jay.bsky.team" ~limit:5
+    ~filter:Feed.filter_posts_no_replies ~include_pins:true ()
 let posts = Feed.search_posts ~q:"atproto" ~limit:5 ()
 let posts_v2 = Feed.search_posts_v2 ~query:"atproto" ~hashtags:[ "atproto" ] ~limit:5 ()
 let packs = Graph.search_starter_packs_v2 ~q:"bluesky" ~limit:5 ()

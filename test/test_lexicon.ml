@@ -422,7 +422,48 @@ let test_union_codegen_and_official_bundle _ =
                             "getSuggestedFollowsByActor recIdStr"
                             (List.exists
                                (fun (name, _) -> name = "recIdStr")
-                               suggested_main.output.properties))))))
+                               suggested_main.output.properties);
+                          let get_author =
+                            List.find
+                              (fun (d : Lexicon.document) ->
+                                d.id = "app.bsky.feed.getAuthorFeed")
+                              docs
+                          in
+                          match Lexicon.main get_author with
+                          | None ->
+                              OUnit2.assert_failure
+                                "missing getAuthorFeed main"
+                          | Some author_main ->
+                              OUnit2.assert_bool "getAuthorFeed filter"
+                                (List.exists
+                                   (fun (name, _) -> name = "filter")
+                                   author_main.properties);
+                              OUnit2.assert_bool "getAuthorFeed cursor"
+                                (List.exists
+                                   (fun (name, _) -> name = "cursor")
+                                   author_main.properties);
+                              let body =
+                                List.assoc "app.bsky.feed.getAuthorFeed"
+                                  Lexicon.official_lexicons
+                              in
+                              List.iter
+                                (fun v ->
+                                  OUnit2.assert_bool
+                                    ("getAuthorFeed knownValue " ^ v)
+                                    (let rec contains i =
+                                       i + String.length v <= String.length body
+                                       && (String.sub body i (String.length v)
+                                           = v
+                                          || contains (i + 1))
+                                     in
+                                     contains 0))
+                                [
+                                  "posts_with_replies";
+                                  "posts_no_replies";
+                                  "posts_with_media";
+                                  "posts_and_author_threads";
+                                  "posts_with_video";
+                                ]))))))
 
 let test_parse_resolved_lexicon _ =
   let json =
