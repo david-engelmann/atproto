@@ -728,6 +728,34 @@ let test_revoke_body_and_loop _ =
   in
   OUnit2.assert_equal 1 !calls
 
+let test_provider_html_and_browser_headers _ =
+  let headers = Oauth.browser_navigation_headers () in
+  OUnit2.assert_equal (Some "navigate")
+    (List.assoc_opt "sec-fetch-mode" headers);
+  OUnit2.assert_equal (Some "document")
+    (List.assoc_opt "sec-fetch-dest" headers);
+  OUnit2.assert_equal (Some "none") (List.assoc_opt "sec-fetch-site" headers);
+  OUnit2.assert_bool "no Origin on first navigation"
+    (not (List.mem_assoc "Origin" headers));
+  let err_html =
+    {|<!doctype html><html><head><link rel="stylesheet" href="/@atproto/oauth-provider/~assets/client.css" /></head><body><script>window["__errorData"]=JSON.parse("{\"error\":\"invalid_request\",\"error_description\":\"Missing sec-fetch-mode header\"}");</script></body></html>|}
+  in
+  (match Oauth.parse_provider_html err_html with
+  | Oauth.Provider_error { error; description } ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "invalid_request" error;
+      OUnit2.assert_equal (Some "Missing sec-fetch-mode header") description;
+      OUnit2.assert_bool "browser navigation error"
+        (Oauth.is_browser_navigation_error error description)
+  | _ -> OUnit2.assert_failure "expected Provider_error");
+  let page_html =
+    {|<!doctype html><html><script>window["__authorizeData"]=JSON.parse("{\"requestUri\":\"urn:ietf:params:oauth:request_uri:x\",\"clientId\":\"http://localhost\"}");</script></html>|}
+  in
+  (match Oauth.parse_provider_html page_html with
+  | Oauth.Provider_authorize_page -> ()
+  | _ -> OUnit2.assert_failure "expected Provider_authorize_page");
+  OUnit2.assert_equal Oauth.Not_html
+    (Oauth.parse_provider_html {|{"error":"nope"}|})
+
 let suite =
   "oauth"
   >::: [
@@ -772,6 +800,8 @@ let suite =
          "test_live_as_metadata" >:: test_live_as_metadata;
          "test_par_prompt_and_dpop_jkt" >:: test_par_prompt_and_dpop_jkt;
          "test_revoke_body_and_loop" >:: test_revoke_body_and_loop;
+         "test_provider_html_and_browser_headers"
+         >:: test_provider_html_and_browser_headers;
        ]
 
 let () = run_test_tt_main suite

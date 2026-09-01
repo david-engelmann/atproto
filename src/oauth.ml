@@ -945,6 +945,117 @@ module Oauth = struct
   let csrf_cookie_name = "csrf-token"
   let csrf_header_name = "x-csrf-token"
 
+  (* oauth-provider 0.22 [GET /oauth/authorize] is a document navigation.
+     [validateFetchMode] / [validateFetchDest] / [validateFetchSite] reject a
+     bare Cohttp GET with HTTP 400 HTML ([Missing sec-fetch-mode header]).
+     Origin is optional on this route; omit it so we do not fail
+     [validateOrigin]. *)
+  let browser_navigation_headers () =
+    [
+      ("Accept", "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8");
+      ("Accept-Language", "en");
+      ("User-Agent", "atproto-ocaml-local-oauth/0.1");
+      ("sec-fetch-mode", "navigate");
+      ("sec-fetch-dest", "document");
+      ("sec-fetch-site", "none");
+      ("sec-fetch-user", "?1");
+    ]
+
+  let body_has hay needle =
+    let h = String.lowercase_ascii hay and n = String.lowercase_ascii needle in
+    let rec aux i =
+      if i + String.length n > String.length h then false
+      else if String.sub h i (String.length n) = n then true
+      else aux (i + 1)
+    in
+    aux 0
+
+  let find_substr hay needle =
+    let rec aux i =
+      if i + String.length needle > String.length hay then None
+      else if String.sub hay i (String.length needle) = needle then Some i
+      else aux (i + 1)
+    in
+    aux 0
+
+  let js_string_literal_at s start =
+    if start >= String.length s || s.[start] <> '"' then None
+    else
+      let buf = Buffer.create 64 in
+      let rec loop i escaped =
+        if i >= String.length s then None
+        else
+          let c = s.[i] in
+          if escaped then (
+            Buffer.add_char buf c;
+            loop (i + 1) false)
+          else if c = '\\' then loop (i + 1) true
+          else if c = '"' then Some (Buffer.contents buf, i + 1)
+          else (
+            Buffer.add_char buf c;
+            loop (i + 1) false)
+      in
+      loop (start + 1) false
+
+  let parse_provider_window_json body key =
+    match find_substr body key with
+    | None -> None
+    | Some i -> (
+        let rest = String.sub body i (String.length body - i) in
+        match find_substr rest "JSON.parse(" with
+        | None -> None
+        | Some j -> (
+            let at = i + j + String.length "JSON.parse(" in
+            match js_string_literal_at body at with
+            | None -> None
+            | Some (raw, _) -> (
+                try Some (Yojson.Safe.from_string raw) with _ -> None)))
+
+  type provider_html =
+    | Provider_authorize_page
+    | Provider_error of { error : string; description : string option }
+    | Provider_html
+    | Not_html
+
+  let parse_provider_html body =
+    match parse_provider_window_json body "__errorData" with
+    | Some json ->
+        let open Yojson.Safe.Util in
+        let error =
+          match json |> member "error" with `String s -> s | _ -> "error"
+        in
+        let description =
+          match json |> member "error_description" with
+          | `String s -> Some s
+          | _ -> None
+        in
+        Provider_error { error; description }
+    | None ->
+        if parse_provider_window_json body "__authorizeData" <> None then
+          Provider_authorize_page
+        else if
+          body_has body "<!doctype html"
+          && (body_has body "oauth-provider"
+             || body_has body "__authorizedata"
+             || body_has body "__errordata")
+        then Provider_html
+        else if body_has body "<!doctype html" || body_has body "<html" then
+          Provider_html
+        else Not_html
+
+  let is_browser_navigation_error error description =
+    let blob =
+      String.lowercase_ascii
+        (error ^ " " ^ match description with Some d -> d | None -> "")
+    in
+    body_has blob "sec-fetch"
+    || (body_has blob "missing" && body_has blob "header")
+    || (body_has blob "forbidden" && body_has blob "header")
+    || body_has blob "invalid origin"
+    || body_has blob "invalid referrer"
+    || body_has blob "err_cookies_unsupported"
+    || (body_has blob "cookie" && body_has blob "unsupported")
+
   let json_error_code body =
     match Error.Error.of_body body with
     | Some e -> Some e.Error.Error.error

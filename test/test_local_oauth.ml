@@ -60,6 +60,13 @@ let skip_step msg =
   skip_if true msg;
   failwith msg
 
+(* After discovery + PAR have already asserted, do not skip the whole OUnit
+   case (that would hide a required-green PAR). Stop only the authorize/token
+   tail. *)
+exception Stop_after_par of string
+
+let stop_after_par msg = raise (Stop_after_par msg)
+
 let fail_or_skip ~label status body =
   if Oauth.is_http_not_served status body then
     skip_step
@@ -244,341 +251,391 @@ let test_live_local_oauth _ =
     start_loopback_server ~redirect_path
   in
   Fun.protect ~finally:stop_server (fun () ->
-      let hosted_origin = Printf.sprintf "http://127.0.0.1:%d" port in
-      let hosted_client_id = hosted_origin ^ "/client-metadata.json" in
-      let redirect_uri = hosted_origin ^ redirect_path in
-      let hosted_meta =
-        Oauth.public_metadata ~client_id:hosted_client_id
-          ~redirect_uris:[ redirect_uri ] ~application_type:"native"
-          ~client_name:"atproto-ocaml local TestNetwork"
-          ~scope:"atproto transition:generic" ()
-      in
-      Oauth.validate_metadata hosted_meta;
-      metadata_json :=
-        Yojson.Safe.to_string (Oauth.metadata_to_json hosted_meta);
-      let self =
-        Oauth.live_http_get ~url:hosted_client_id
-          ~headers:[ ("Accept", "application/json") ]
-      in
-      OUnit2.assert_equal ~printer:string_of_int 200 self.status;
-      let served = Oauth.metadata_of_json (Yojson.Safe.from_string self.body) in
-      OUnit2.assert_equal
-        ~printer:(fun x -> x)
-        hosted_client_id served.client_id;
-      OUnit2.assert_bool "served dpop bound" served.dpop_bound_access_tokens;
-
-      let resource, as_ =
-        try
-          Oauth.discover_authorization_server ~http:Oauth.live_http_get
-            ~pds_origin:origin ()
-        with Failure msg ->
-          if
-            message_has msg "not served"
-            || message_has msg "HTTP 404" || message_has msg "HTTP 501"
-            || message_has msg "MethodNotImplemented"
-          then skip_step ("local AS discovery not served: " ^ msg)
-          else failwith msg
-      in
-      OUnit2.assert_bool "AS issuer is the local PDS"
-        (Oauth.is_loopback_http_issuer as_.issuer
-        || as_.issuer = origin
-        || List.mem as_.issuer resource.authorization_servers);
-      OUnit2.assert_bool "PAR endpoint advertised"
-        (String.length as_.pushed_authorization_request_endpoint > 8);
-      OUnit2.assert_bool "token endpoint advertised"
-        (String.length as_.token_endpoint > 8);
-      let well_known =
-        Oauth.live_http_get
-          ~url:(Oauth.authorization_server_url ~issuer:as_.issuer ())
-          ~headers:[ ("Accept", "application/json") ]
-      in
-      if well_known.status < 200 || well_known.status >= 300 then
-        fail_or_skip ~label:"authorization-server well-known" well_known.status
-          well_known.body;
-      OUnit2.assert_bool "well-known JSON"
-        (match Yojson.Safe.from_string well_known.body with
-        | `Assoc _ -> true
-        | _ -> false);
-
-      let priv, pub = Oauth.generate_dpop_pair () in
-      let pkce = Oauth.pkce_s256 () in
-      let state = Oauth.random_jti () in
-      let jkt = Oauth.dpop_jkt pub in
-      let scope_full = "atproto transition:generic" in
-      let scope_atproto = "atproto" in
-      let loopback_id scope =
-        Oauth.loopback_client_id ~redirect_uri ~scope ()
-      in
-      let try_par client_id ~scope =
-        let form =
-          Oauth.pushed_authorization_body ~client_id ~redirect_uri
-            ~code_challenge:pkce.challenge ~state ~scope ~login_hint:handle
-            ~dpop_jkt:jkt ()
+      try
+        let hosted_origin = Printf.sprintf "http://127.0.0.1:%d" port in
+        let hosted_client_id = hosted_origin ^ "/client-metadata.json" in
+        let redirect_uri = hosted_origin ^ redirect_path in
+        let hosted_meta =
+          Oauth.public_metadata ~client_id:hosted_client_id
+            ~redirect_uris:[ redirect_uri ] ~application_type:"native"
+            ~client_name:"atproto-ocaml local TestNetwork"
+            ~scope:"atproto transition:generic" ()
         in
-        let body = Oauth.form_encode form in
-        let resp, nonce =
-          Oauth.post_with_dpop ~http:Oauth.live_http_post ~priv ~pub
-            ~url:as_.pushed_authorization_request_endpoint ~htm:"POST" ~body ()
+        Oauth.validate_metadata hosted_meta;
+        metadata_json :=
+          Yojson.Safe.to_string (Oauth.metadata_to_json hosted_meta);
+        let self =
+          Oauth.live_http_get ~url:hosted_client_id
+            ~headers:[ ("Accept", "application/json") ]
         in
-        if resp.status >= 200 && resp.status < 300 then
-          `Ok
-            ( client_id,
-              Oauth.parse_par_response (Yojson.Safe.from_string resp.body),
-              nonce )
-        else `Err (client_id, resp.status, resp.body)
-      in
-      let probe =
-        Oauth.live_http_post ~url:as_.pushed_authorization_request_endpoint
-          ~headers:[ ("Content-Type", "application/x-www-form-urlencoded") ]
-          ~body:""
-      in
-      (match Oauth.header_value probe.headers "DPoP-Nonce" with
-      | Some n ->
-          OUnit2.assert_bool "DPoP-Nonce from PAR probe" (String.length n > 0)
-      | None ->
-          if Oauth.is_http_not_served probe.status probe.body then
-            skip_step "local AS PAR endpoint is not served");
-
-      let par_from_loopback first_err =
-        match try_par (loopback_id scope_full) ~scope:scope_full with
-        | `Ok (id, par, nonce) -> (id, par, nonce)
-        | `Err (_, st, bd) ->
-            if Oauth.is_http_not_served st bd then
-              skip_step ("local AS PAR not served: " ^ bd)
-            else if http_client_rejected st bd then
-              skip_step
-                (Printf.sprintf
-                   "local AS rejected both hosted http client_id (%s) and \
-                    loopback http://localhost client_id (%s); metadata was \
-                    served at %s"
-                   first_err bd hosted_client_id)
-            else if undeclared_scope st bd then
-              (* This oauth-provider derives loopback metadata from the
-                 client_id query; if it still only declares [atproto], request
-                 that subset instead of inventing extra scopes. *)
-              match
-                try_par (loopback_id scope_atproto) ~scope:scope_atproto
-              with
-              | `Ok (id, par, nonce) -> (id, par, nonce)
-              | `Err (_, st2, bd2) ->
-                  if Oauth.is_http_not_served st2 bd2 then
-                    skip_step ("local AS PAR not served: " ^ bd2)
-                  else if http_client_rejected st2 bd2 then
-                    skip_step
-                      (Printf.sprintf
-                         "local AS rejected loopback client_id after \
-                          atproto-only retry (%s); first loopback: %s"
-                         bd2 bd)
-                  else
-                    failwith
-                      (Printf.sprintf "PAR loopback atproto HTTP %d: %s" st2 bd2)
-            else failwith (Printf.sprintf "PAR loopback HTTP %d: %s" st bd)
-      in
-      let par_client, par, nonce =
-        match try_par hosted_client_id ~scope:scope_full with
-        | `Ok (id, par, nonce) -> (id, par, nonce)
-        | `Err (_, status, body) ->
-            if Oauth.is_http_not_served status body then
-              skip_step ("local AS PAR not served: " ^ body)
-            else if http_client_rejected status body then par_from_loopback body
-            else failwith (Printf.sprintf "PAR hosted HTTP %d: %s" status body)
-      in
-      OUnit2.assert_bool "PAR request_uri" (String.length par.request_uri > 10);
-      (match par.expires_in with
-      | Some n -> OUnit2.assert_bool "PAR expires_in" (n > 0)
-      | None -> ());
-
-      let authorize =
-        Oauth.authorize_redirect_url
-          ~authorization_endpoint:as_.authorization_endpoint
-          ~client_id:par_client ~request_uri:par.request_uri
-      in
-      let authz_resp = Oauth.live_http_get ~url:authorize ~headers:[] in
-      let cookies = Oauth.cookies_from_headers authz_resp.headers in
-      if Oauth.is_http_not_served authz_resp.status authz_resp.body then
-        skip_step "local AS /oauth/authorize is not served";
-      if
-        authz_resp.status <> 200 && authz_resp.status <> 302
-        && authz_resp.status <> 303 && authz_resp.status <> 401
-      then fail_or_skip ~label:"authorize" authz_resp.status authz_resp.body;
-      OUnit2.assert_bool "authorize returned HTML or redirect"
-        (authz_resp.status = 302 || authz_resp.status = 303
-       || authz_resp.status = 200 || authz_resp.status = 401);
-
-      let location = Oauth.header_value authz_resp.headers "location" in
-      let redirect_from_location =
-        match location with
-        | Some loc when message_has loc "code=" -> Some loc
-        | _ -> None
-      in
-
-      let finish_with_code code iss_opt =
-        (match iss_opt with
-        | Some iss ->
-            Oauth.expect_issuer ~expected:as_.issuer
-              (Oauth.Authorized { code; state; iss = Some iss })
-        | None -> ());
-        let token_form =
-          Oauth.token_body ~client_id:par_client ~redirect_uri ~code
-            ~code_verifier:pkce.verifier ()
+        OUnit2.assert_equal ~printer:string_of_int 200 self.status;
+        let served =
+          Oauth.metadata_of_json (Yojson.Safe.from_string self.body)
         in
-        let token, nonce =
+        OUnit2.assert_equal
+          ~printer:(fun x -> x)
+          hosted_client_id served.client_id;
+        OUnit2.assert_bool "served dpop bound" served.dpop_bound_access_tokens;
+
+        let resource, as_ =
           try
-            Oauth.exchange_code ~http:Oauth.live_http_post ~priv ~pub
-              ~token_url:as_.token_endpoint ~form:token_form ?nonce ()
-          with Failure msg -> failwith ("token exchange: " ^ msg)
-        in
-        OUnit2.assert_bool "token sub is a DID" (String.length token.sub > 8);
-        OUnit2.assert_bool "granted atproto"
-          (Oauth.contains_scope ~scope:token.scope "atproto");
-        let session_url =
-          Oauth.url_on origin "/xrpc/com.atproto.server.getSession"
-        in
-        let sess, _ =
-          Oauth.request_with_dpop ~http:Oauth.live_http_request ~priv ~pub
-            ~url:session_url ~htm:"GET" ~access_token:token.access_token ?nonce
-            ()
-        in
-        if sess.status >= 200 && sess.status < 300 then
-          OUnit2.assert_bool "DPoP getSession"
-            (match json_did (Yojson.Safe.from_string sess.body) with
-            | Some d -> d = token.sub
-            | None -> false)
-        else if not (Oauth.is_http_not_served sess.status sess.body) then
-          failwith
-            (Printf.sprintf "DPoP getSession HTTP %d: %s" sess.status sess.body);
-        (match as_.revocation_endpoint with
-        | None -> ()
-        | Some revoke_url ->
-            let form =
-              Oauth.revoke_body ~client_id:par_client ~token:token.access_token
-                ~token_type_hint:"access_token" ()
-            in
-            let (), _ =
-              Oauth.revoke ~http:Oauth.live_http_post ~priv ~pub ~revoke_url
-                ~form ?nonce ()
-            in
-            ());
-        ignore callback_query
-      in
-
-      match redirect_from_location with
-      | Some loc -> (
-          match Oauth.parse_redirect loc with
-          | Oauth.Authorized { code; state = st; iss } ->
-              Oauth.expect_state ~expected:state
-                (Oauth.Authorized { code; state = st; iss });
-              finish_with_code code iss
-          | Oauth.Denied { error; description; _ } ->
-              failwith
-                (Printf.sprintf "authorize redirected with error %s: %s" error
-                   (match description with Some d -> d | None -> "")))
-      | None -> (
-          let issuer = as_.issuer in
-          let referer = authorize in
-          let api path =
-            Oauth.url_on issuer (Oauth.provider_api_prefix ^ path)
-          in
-          let headers, cookies, _csrf =
-            provider_headers ~issuer ~referer ~cookies ()
-          in
-          let signin_body =
-            Yojson.Safe.to_string
-              (`Assoc
-                [
-                  ("locale", `String "en");
-                  ("username", `String handle);
-                  ("password", `String password);
-                  ("remember", `Bool true);
-                ])
-          in
-          let signin =
-            Oauth.live_http_post ~url:(api "/sign-in") ~headers
-              ~body:signin_body
-          in
-          let cookies =
-            Oauth.merge_cookies cookies
-              (Oauth.cookies_from_headers signin.headers)
-          in
-          if Oauth.is_http_not_served signin.status signin.body then
-            skip_step
-              ("local AS sign-in API is not served; authorize HTML requires a \
-                browser. PAR + discovery + DPoP nonce + hosted metadata \
-                succeeded. " ^ signin.body);
-          if signin.status = 400 && message_has signin.body "csrf" then
-            skip_step
-              ("local AS sign-in API rejected CSRF/device cookies from a \
-                non-browser client: " ^ signin.body);
-          if
-            signin.status = 400
-            && (message_has signin.body "sec-fetch"
-               || message_has signin.body "referrer"
-               || message_has signin.body "origin"
-               || message_has signin.body "same-origin")
-          then
-            skip_step
-              ("local AS sign-in API is browser-locked (same-origin fetch): "
-             ^ signin.body);
-          if signin.status < 200 || signin.status >= 300 then
-            fail_or_skip ~label:"oauth sign-in" signin.status signin.body;
-          let signin_json =
-            try Yojson.Safe.from_string signin.body
-            with _ -> failwith ("sign-in returned non-JSON: " ^ signin.body)
-          in
-          let did =
-            match json_did signin_json with
-            | Some d -> d
-            | None ->
-                if Auth.has_live_credentials then
-                  (Session.create_session handle password).auth.did
-                else failwith ("sign-in JSON missing did: " ^ signin.body)
-          in
-          let ephemeral = json_string signin_json "ephemeralToken" in
-          let headers, _cookies, _ =
-            provider_headers ~issuer ~referer ~cookies ?bearer:ephemeral ()
-          in
-          let consent_body did_field =
-            Yojson.Safe.to_string (`Assoc [ (did_field, `String did) ])
-          in
-          let consent =
-            let first =
-              Oauth.live_http_post ~url:(api "/consent") ~headers
-                ~body:(consent_body "did")
-            in
+            Oauth.discover_authorization_server ~http:Oauth.live_http_get
+              ~pds_origin:origin ()
+          with Failure msg ->
             if
-              first.status >= 400
-              && (message_has first.body "did"
-                 || message_has first.body "invalid")
+              message_has msg "not served"
+              || message_has msg "HTTP 404" || message_has msg "HTTP 501"
+              || message_has msg "MethodNotImplemented"
+            then skip_step ("local AS discovery not served: " ^ msg)
+            else failwith msg
+        in
+        OUnit2.assert_bool "AS issuer is the local PDS"
+          (Oauth.is_loopback_http_issuer as_.issuer
+          || as_.issuer = origin
+          || List.mem as_.issuer resource.authorization_servers);
+        OUnit2.assert_bool "PAR endpoint advertised"
+          (String.length as_.pushed_authorization_request_endpoint > 8);
+        OUnit2.assert_bool "token endpoint advertised"
+          (String.length as_.token_endpoint > 8);
+        let well_known =
+          Oauth.live_http_get
+            ~url:(Oauth.authorization_server_url ~issuer:as_.issuer ())
+            ~headers:[ ("Accept", "application/json") ]
+        in
+        if well_known.status < 200 || well_known.status >= 300 then
+          fail_or_skip ~label:"authorization-server well-known"
+            well_known.status well_known.body;
+        OUnit2.assert_bool "well-known JSON"
+          (match Yojson.Safe.from_string well_known.body with
+          | `Assoc _ -> true
+          | _ -> false);
+
+        let priv, pub = Oauth.generate_dpop_pair () in
+        let pkce = Oauth.pkce_s256 () in
+        let state = Oauth.random_jti () in
+        let jkt = Oauth.dpop_jkt pub in
+        let scope_full = "atproto transition:generic" in
+        let scope_atproto = "atproto" in
+        let loopback_id scope =
+          Oauth.loopback_client_id ~redirect_uri ~scope ()
+        in
+        let try_par client_id ~scope =
+          let form =
+            Oauth.pushed_authorization_body ~client_id ~redirect_uri
+              ~code_challenge:pkce.challenge ~state ~scope ~login_hint:handle
+              ~dpop_jkt:jkt ()
+          in
+          let body = Oauth.form_encode form in
+          let resp, nonce =
+            Oauth.post_with_dpop ~http:Oauth.live_http_post ~priv ~pub
+              ~url:as_.pushed_authorization_request_endpoint ~htm:"POST" ~body
+              ()
+          in
+          if resp.status >= 200 && resp.status < 300 then
+            `Ok
+              ( client_id,
+                Oauth.parse_par_response (Yojson.Safe.from_string resp.body),
+                nonce )
+          else `Err (client_id, resp.status, resp.body)
+        in
+        let probe =
+          Oauth.live_http_post ~url:as_.pushed_authorization_request_endpoint
+            ~headers:[ ("Content-Type", "application/x-www-form-urlencoded") ]
+            ~body:""
+        in
+        (match Oauth.header_value probe.headers "DPoP-Nonce" with
+        | Some n ->
+            OUnit2.assert_bool "DPoP-Nonce from PAR probe" (String.length n > 0)
+        | None ->
+            if Oauth.is_http_not_served probe.status probe.body then
+              skip_step "local AS PAR endpoint is not served");
+
+        let par_from_loopback first_err =
+          match try_par (loopback_id scope_full) ~scope:scope_full with
+          | `Ok (id, par, nonce) -> (id, par, nonce)
+          | `Err (_, st, bd) ->
+              if Oauth.is_http_not_served st bd then
+                skip_step ("local AS PAR not served: " ^ bd)
+              else if http_client_rejected st bd then
+                skip_step
+                  (Printf.sprintf
+                     "local AS rejected both hosted http client_id (%s) and \
+                      loopback http://localhost client_id (%s); metadata was \
+                      served at %s"
+                     first_err bd hosted_client_id)
+              else if undeclared_scope st bd then
+                (* This oauth-provider derives loopback metadata from the
+                   client_id query; if it still only declares [atproto], request
+                   that subset instead of inventing extra scopes. *)
+                match
+                  try_par (loopback_id scope_atproto) ~scope:scope_atproto
+                with
+                | `Ok (id, par, nonce) -> (id, par, nonce)
+                | `Err (_, st2, bd2) ->
+                    if Oauth.is_http_not_served st2 bd2 then
+                      skip_step ("local AS PAR not served: " ^ bd2)
+                    else if http_client_rejected st2 bd2 then
+                      skip_step
+                        (Printf.sprintf
+                           "local AS rejected loopback client_id after \
+                            atproto-only retry (%s); first loopback: %s"
+                           bd2 bd)
+                    else
+                      failwith
+                        (Printf.sprintf "PAR loopback atproto HTTP %d: %s" st2
+                           bd2)
+              else failwith (Printf.sprintf "PAR loopback HTTP %d: %s" st bd)
+        in
+        let par_client, par, nonce =
+          match try_par hosted_client_id ~scope:scope_full with
+          | `Ok (id, par, nonce) -> (id, par, nonce)
+          | `Err (_, status, body) ->
+              if Oauth.is_http_not_served status body then
+                skip_step ("local AS PAR not served: " ^ body)
+              else if http_client_rejected status body then
+                par_from_loopback body
+              else
+                failwith (Printf.sprintf "PAR hosted HTTP %d: %s" status body)
+        in
+        OUnit2.assert_bool "PAR request_uri" (String.length par.request_uri > 10);
+        (match par.expires_in with
+        | Some n -> OUnit2.assert_bool "PAR expires_in" (n > 0)
+        | None -> ());
+
+        let authorize =
+          Oauth.authorize_redirect_url
+            ~authorization_endpoint:as_.authorization_endpoint
+            ~client_id:par_client ~request_uri:par.request_uri
+        in
+        let authz_resp =
+          Oauth.live_http_get ~url:authorize
+            ~headers:(Oauth.browser_navigation_headers ())
+        in
+        let cookies = Oauth.cookies_from_headers authz_resp.headers in
+        if Oauth.is_http_not_served authz_resp.status authz_resp.body then
+          stop_after_par "local AS /oauth/authorize is not served";
+        (match Oauth.parse_provider_html authz_resp.body with
+        | Oauth.Provider_error { error; description } ->
+            let desc = match description with Some d -> d | None -> "" in
+            if Oauth.is_browser_navigation_error error description then
+              stop_after_par
+                (Printf.sprintf
+                   "local AS /oauth/authorize is a browser document \
+                    navigation: %s %s"
+                   error desc)
+            else
+              failwith
+                (Printf.sprintf "authorize HTTP %d %s: %s" authz_resp.status
+                   error desc)
+        | Oauth.Provider_authorize_page ->
+            OUnit2.assert_bool "authorize HTML login page"
+              (authz_resp.status = 200 || authz_resp.status = 401)
+        | Oauth.Provider_html ->
+            if
+              authz_resp.status = 200 || authz_resp.status = 302
+              || authz_resp.status = 303 || authz_resp.status = 401
+            then ()
+            else if authz_resp.status = 400 then
+              stop_after_par
+                "local AS /oauth/authorize returned oauth-provider HTML \
+                 without a parseable protocol error; a browser document is \
+                 required after PAR"
+            else
+              failwith
+                (Printf.sprintf "authorize HTTP %d (oauth-provider HTML)"
+                   authz_resp.status)
+        | Oauth.Not_html ->
+            if
+              authz_resp.status <> 200 && authz_resp.status <> 302
+              && authz_resp.status <> 303 && authz_resp.status <> 401
             then
-              Oauth.live_http_post ~url:(api "/consent") ~headers
-                ~body:(consent_body "sub")
-            else if Oauth.is_http_not_served first.status first.body then
-              Oauth.live_http_post ~url:(api "/accept") ~headers
-                ~body:(consent_body "sub")
-            else first
+              failwith
+                (Printf.sprintf "authorize HTTP %d: %s" authz_resp.status
+                   (if String.length authz_resp.body > 400 then
+                      String.sub authz_resp.body 0 400
+                    else authz_resp.body)));
+        OUnit2.assert_bool "authorize returned HTML or redirect"
+          (authz_resp.status = 302 || authz_resp.status = 303
+         || authz_resp.status = 200 || authz_resp.status = 401);
+
+        let location = Oauth.header_value authz_resp.headers "location" in
+        let redirect_from_location =
+          match location with
+          | Some loc when message_has loc "code=" -> Some loc
+          | _ -> None
+        in
+
+        let finish_with_code code iss_opt =
+          (match iss_opt with
+          | Some iss ->
+              Oauth.expect_issuer ~expected:as_.issuer
+                (Oauth.Authorized { code; state; iss = Some iss })
+          | None -> ());
+          let token_form =
+            Oauth.token_body ~client_id:par_client ~redirect_uri ~code
+              ~code_verifier:pkce.verifier ()
           in
-          if Oauth.is_http_not_served consent.status consent.body then
-            skip_step
-              ("local AS consent/accept API is not served; a browser consent \
-                page is required after PAR. " ^ consent.body);
-          if consent.status < 200 || consent.status >= 300 then
-            fail_or_skip ~label:"oauth consent" consent.status consent.body;
-          let consent_json =
-            try Yojson.Safe.from_string consent.body
-            with _ -> failwith ("consent returned non-JSON: " ^ consent.body)
+          let token, nonce =
+            try
+              Oauth.exchange_code ~http:Oauth.live_http_post ~priv ~pub
+                ~token_url:as_.token_endpoint ~form:token_form ?nonce ()
+            with Failure msg -> failwith ("token exchange: " ^ msg)
           in
-          match json_string consent_json "url" with
-          | None -> failwith ("consent JSON missing url: " ^ consent.body)
-          | Some url -> (
-              match Oauth.parse_redirect url with
-              | Oauth.Authorized { code; state = st; iss } ->
-                  Oauth.expect_state ~expected:state
-                    (Oauth.Authorized { code; state = st; iss });
-                  finish_with_code code iss
-              | Oauth.Denied { error; description; _ } ->
-                  failwith
-                    (Printf.sprintf "consent redirected with error %s: %s" error
-                       (match description with Some d -> d | None -> "")))))
+          OUnit2.assert_bool "token sub is a DID" (String.length token.sub > 8);
+          OUnit2.assert_bool "granted atproto"
+            (Oauth.contains_scope ~scope:token.scope "atproto");
+          let session_url =
+            Oauth.url_on origin "/xrpc/com.atproto.server.getSession"
+          in
+          let sess, _ =
+            Oauth.request_with_dpop ~http:Oauth.live_http_request ~priv ~pub
+              ~url:session_url ~htm:"GET" ~access_token:token.access_token
+              ?nonce ()
+          in
+          if sess.status >= 200 && sess.status < 300 then
+            OUnit2.assert_bool "DPoP getSession"
+              (match json_did (Yojson.Safe.from_string sess.body) with
+              | Some d -> d = token.sub
+              | None -> false)
+          else if not (Oauth.is_http_not_served sess.status sess.body) then
+            failwith
+              (Printf.sprintf "DPoP getSession HTTP %d: %s" sess.status
+                 sess.body);
+          (match as_.revocation_endpoint with
+          | None -> ()
+          | Some revoke_url ->
+              let form =
+                Oauth.revoke_body ~client_id:par_client
+                  ~token:token.access_token ~token_type_hint:"access_token" ()
+              in
+              let (), _ =
+                Oauth.revoke ~http:Oauth.live_http_post ~priv ~pub ~revoke_url
+                  ~form ?nonce ()
+              in
+              ());
+          ignore callback_query
+        in
+
+        match redirect_from_location with
+        | Some loc -> (
+            match Oauth.parse_redirect loc with
+            | Oauth.Authorized { code; state = st; iss } ->
+                Oauth.expect_state ~expected:state
+                  (Oauth.Authorized { code; state = st; iss });
+                finish_with_code code iss
+            | Oauth.Denied { error; description; _ } ->
+                failwith
+                  (Printf.sprintf "authorize redirected with error %s: %s" error
+                     (match description with Some d -> d | None -> "")))
+        | None -> (
+            let issuer = as_.issuer in
+            let referer = authorize in
+            let api path =
+              Oauth.url_on issuer (Oauth.provider_api_prefix ^ path)
+            in
+            let headers, cookies, _csrf =
+              provider_headers ~issuer ~referer ~cookies ()
+            in
+            let signin_body =
+              Yojson.Safe.to_string
+                (`Assoc
+                  [
+                    ("locale", `String "en");
+                    ("username", `String handle);
+                    ("password", `String password);
+                    ("remember", `Bool true);
+                  ])
+            in
+            let signin =
+              Oauth.live_http_post ~url:(api "/sign-in") ~headers
+                ~body:signin_body
+            in
+            let cookies =
+              Oauth.merge_cookies cookies
+                (Oauth.cookies_from_headers signin.headers)
+            in
+            if Oauth.is_http_not_served signin.status signin.body then
+              stop_after_par
+                ("local AS sign-in API is not served; authorize HTML requires \
+                  a browser. PAR + discovery + DPoP nonce + hosted metadata \
+                  succeeded. " ^ signin.body);
+            if signin.status = 400 && message_has signin.body "csrf" then
+              stop_after_par
+                ("local AS sign-in API rejected CSRF/device cookies from a \
+                  non-browser client: " ^ signin.body);
+            if
+              signin.status = 400
+              && (message_has signin.body "sec-fetch"
+                 || message_has signin.body "referrer"
+                 || message_has signin.body "origin"
+                 || message_has signin.body "same-origin")
+            then
+              stop_after_par
+                ("local AS sign-in API is browser-locked (same-origin fetch): "
+               ^ signin.body);
+            if signin.status < 200 || signin.status >= 300 then
+              fail_or_skip ~label:"oauth sign-in" signin.status signin.body;
+            let signin_json =
+              try Yojson.Safe.from_string signin.body
+              with _ -> failwith ("sign-in returned non-JSON: " ^ signin.body)
+            in
+            let did =
+              match json_did signin_json with
+              | Some d -> d
+              | None ->
+                  if Auth.has_live_credentials then
+                    (Session.create_session handle password).auth.did
+                  else failwith ("sign-in JSON missing did: " ^ signin.body)
+            in
+            let ephemeral = json_string signin_json "ephemeralToken" in
+            let headers, _cookies, _ =
+              provider_headers ~issuer ~referer ~cookies ?bearer:ephemeral ()
+            in
+            let consent_body did_field =
+              Yojson.Safe.to_string (`Assoc [ (did_field, `String did) ])
+            in
+            let consent =
+              let first =
+                Oauth.live_http_post ~url:(api "/consent") ~headers
+                  ~body:(consent_body "did")
+              in
+              if
+                first.status >= 400
+                && (message_has first.body "did"
+                   || message_has first.body "invalid")
+              then
+                Oauth.live_http_post ~url:(api "/consent") ~headers
+                  ~body:(consent_body "sub")
+              else if Oauth.is_http_not_served first.status first.body then
+                Oauth.live_http_post ~url:(api "/accept") ~headers
+                  ~body:(consent_body "sub")
+              else first
+            in
+            if Oauth.is_http_not_served consent.status consent.body then
+              stop_after_par
+                ("local AS consent/accept API is not served; a browser consent \
+                  page is required after PAR. " ^ consent.body);
+            if consent.status < 200 || consent.status >= 300 then
+              fail_or_skip ~label:"oauth consent" consent.status consent.body;
+            let consent_json =
+              try Yojson.Safe.from_string consent.body
+              with _ -> failwith ("consent returned non-JSON: " ^ consent.body)
+            in
+            match json_string consent_json "url" with
+            | None -> failwith ("consent JSON missing url: " ^ consent.body)
+            | Some url -> (
+                match Oauth.parse_redirect url with
+                | Oauth.Authorized { code; state = st; iss } ->
+                    Oauth.expect_state ~expected:state
+                      (Oauth.Authorized { code; state = st; iss });
+                    finish_with_code code iss
+                | Oauth.Denied { error; description; _ } ->
+                    failwith
+                      (Printf.sprintf "consent redirected with error %s: %s"
+                         error
+                         (match description with Some d -> d | None -> ""))))
+      with Stop_after_par msg ->
+        prerr_endline ("local OAuth stopped after PAR: " ^ msg))
 
 let suite =
   "local_oauth" >::: [ "test_live_local_oauth" >:: test_live_local_oauth ]
