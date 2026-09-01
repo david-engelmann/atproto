@@ -572,6 +572,135 @@ let test_parse_server_config_leftovers _ =
   OUnit2.assert_equal (Some "did:plc:verifier000111222333444555")
     cfg.verifier_did
 
+let test_official_safelink_and_verification_bodies _ =
+  let open Yojson.Safe.Util in
+  let add =
+    Ozone.add_safelink_rule_body ~url:"https://phish.example" ~pattern:"domain"
+      ~action:"block" ~reason:"phishing" ~comment:"caught" ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "domain"
+    (add |> member "pattern" |> to_string);
+  OUnit2.assert_equal `Null (member "patternType" add);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "phishing"
+    (add |> member "reason" |> to_string);
+  let remove =
+    Ozone.remove_safelink_rule_body ~url:"https://phish.example"
+      ~pattern:"domain" ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "domain"
+    (remove |> member "pattern" |> to_string);
+  let rules =
+    Ozone.parse_url_rules
+      (`Assoc
+        [
+          ( "rules",
+            `List
+              [
+                `Assoc
+                  [
+                    ("url", `String "https://evil.example");
+                    ("pattern", `String "url");
+                    ("action", `String "warn");
+                    ("reason", `String "spam");
+                    ("createdBy", `String "did:plc:mod000111222333444555666");
+                    ("createdAt", `String "2026-01-01T00:00:00.000Z");
+                    ("updatedAt", `String "2026-01-01T00:00:00.000Z");
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal (Some "url") (List.hd rules.rules).pattern_type;
+  let grant_in =
+    Ozone.verification_input ~subject:"did:plc:abc123xyz0001112223333"
+      ~handle:"alice.test" ~display_name:"Alice" ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "Alice"
+    (grant_in |> member "displayName" |> to_string);
+  let granted =
+    Ozone.parse_grant_verifications
+      (`Assoc
+        [
+          ( "verifications",
+            `List
+              [
+                `Assoc
+                  [
+                    ( "uri",
+                      `String
+                        "at://did:plc:mod000111222333444555666/app.bsky.graph.verification/3jzfcijpj2z2a"
+                    );
+                    ("issuer", `String "did:plc:mod000111222333444555666");
+                    ("subject", `String "did:plc:abc123xyz0001112223333");
+                    ("handle", `String "alice.test");
+                    ("displayName", `String "Alice");
+                    ("createdAt", `String "2026-01-01T00:00:00.000Z");
+                  ];
+              ] );
+          ( "failedVerifications",
+            `List
+              [
+                `Assoc
+                  [
+                    ("error", `String "already verified");
+                    ("subject", `String "did:plc:bob000111222333444555666");
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal 1 (List.length granted.verifications);
+  OUnit2.assert_equal (Some "Alice")
+    (List.hd granted.verifications).display_name;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "already verified" (List.hd granted.failed_verifications).error;
+  let revoked =
+    Ozone.parse_revoke_verifications
+      (`Assoc
+        [
+          ( "revokedVerifications",
+            `List
+              [
+                `String
+                  "at://did:plc:mod000111222333444555666/app.bsky.graph.verification/3jzfcijpj2z2a";
+              ] );
+          ( "failedRevocations",
+            `List
+              [
+                `Assoc
+                  [
+                    ( "uri",
+                      `String
+                        "at://did:plc:mod000111222333444555666/app.bsky.graph.verification/missing"
+                    );
+                    ("error", `String "not found");
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal 1 (List.length revoked.revoked_verifications);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "not found" (List.hd revoked.failed_revocations).error;
+  let emit =
+    Ozone.emit_event_body
+      ~event:(Ozone.comment_event "linked")
+      ~subject:(Ozone.repo_ref "did:plc:abc123xyz0001112223333")
+      ~created_by:"did:plc:mod000111222333444555666"
+      ~report_action:(Ozone.report_action ~ids:[ 11 ] ~note:"seen" ())
+      ()
+  in
+  OUnit2.assert_equal ~printer:string_of_int 11
+    (emit |> member "reportAction" |> member "ids" |> to_list |> List.hd
+   |> to_int)
+
 let test_parse_assignment_moderator _ =
   let asg =
     Ozone.parse_assignment_view
@@ -628,6 +757,8 @@ let suite =
          "test_parse_server_config_leftovers"
          >:: test_parse_server_config_leftovers;
          "test_parse_assignment_moderator" >:: test_parse_assignment_moderator;
+         "test_official_safelink_and_verification_bodies"
+         >:: test_official_safelink_and_verification_bodies;
        ]
 
 let () = run_test_tt_main suite
