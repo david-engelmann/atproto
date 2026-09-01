@@ -5,13 +5,7 @@ open Base64url
 module Websocket = struct
   type transport = Tls of Ssl.socket | Tcp of Unix.file_descr
   type t = { transport : transport }
-
-  type parsed_url = {
-    secure : bool;
-    host : string;
-    port : int;
-    path : string;
-  }
+  type parsed_url = { secure : bool; host : string; port : int; path : string }
 
   type message =
     | Text of string
@@ -301,7 +295,7 @@ module Websocket = struct
   let close (ws : t) =
     (try send_close ws with _ -> ());
     match ws.transport with
-    | Tls ssl -> (try Ssl.shutdown ssl with _ -> ())
+    | Tls ssl -> ( try Ssl.shutdown ssl with _ -> ())
     | Tcp fd -> (
         (try Unix.shutdown fd Unix.SHUTDOWN_ALL with _ -> ());
         try Unix.close fd with _ -> ())

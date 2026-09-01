@@ -77,8 +77,7 @@ let is_ws_not_served msg =
   message_has msg "methodnotimplemented"
   || message_has msg "methodnotfound"
   || message_has msg "unknown lexicon"
-  || message_has msg " 501"
-  || message_has msg " 404"
+  || message_has msg " 501" || message_has msg " 404"
 
 let rfc3339_z () =
   let t = Unix.gmtime (Unix.gettimeofday ()) in
@@ -329,15 +328,16 @@ let test_sync_hosts_if_served _ =
   let s = session () in
   let listed_hostname =
     match
-      pds_get_if_served ~session:s "com.atproto.sync.listHosts" [ ("limit", "5") ]
+      pds_get_if_served ~session:s "com.atproto.sync.listHosts"
+        [ ("limit", "5") ]
     with
     | None -> None
-    | Some json ->
+    | Some json -> (
         let page = Sync.parse_list_hosts json in
         OUnit2.assert_bool "listHosts" (List.length page.hosts >= 0);
         match page.hosts with
         | h :: _ when String.length h.hostname > 0 -> Some h.hostname
-        | _ -> None
+        | _ -> None)
   in
   (match listed_hostname with
   | Some hostname -> (
@@ -352,7 +352,8 @@ let test_sync_hosts_if_served _ =
   | None -> (
       let json =
         Client.get_json ~session:s ~host:(pds_host ())
-          "com.atproto.sync.getHostStatus" [ ("hostname", "localhost") ]
+          "com.atproto.sync.getHostStatus"
+          [ ("hostname", "localhost") ]
       in
       if Error.is_not_served_json json then ()
       else
@@ -365,10 +366,10 @@ let test_sync_hosts_if_served _ =
      pds_get_if_served ~session:s "com.atproto.sync.listReposByCollection"
        [ ("collection", Records.nsid_post); ("limit", "5") ]
    with
-   | None -> ()
-   | Some json ->
-       let page = Sync.parse_list_repos_by_collection json in
-       OUnit2.assert_bool "listReposByCollection" (List.length page.repos >= 0));
+  | None -> ()
+  | Some json ->
+      let page = Sync.parse_list_repos_by_collection json in
+      OUnit2.assert_bool "listReposByCollection" (List.length page.repos >= 0));
   let crawl =
     Client.post_json ~session:s ~host:(pds_host ())
       "com.atproto.sync.requestCrawl"
@@ -379,8 +380,7 @@ let test_sync_hosts_if_served _ =
     match Error.check_for_error crawl with
     | None -> ()
     | Some "InvalidRequest" -> ()
-    | Some _ ->
-        failwith ("XRPC error: " ^ Error.to_string (Error.of_json crawl))
+    | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json crawl))
 
 let with_alarm seconds f =
   let old =
@@ -420,7 +420,8 @@ let test_subscribe_repos_one_frame _ =
             OUnit2.assert_bool "local subscribeRepos control frame" true
         | `Error (err, _) ->
             if
-              err = "MethodNotImplemented" || err = "MethodNotFound"
+              err = "MethodNotImplemented"
+              || err = "MethodNotFound"
               || Error.is_not_served { error = err; message = "" }
             then skip_if true ("subscribeRepos not served: " ^ err)
             else failwith ("subscribeRepos error frame: " ^ err))
