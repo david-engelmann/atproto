@@ -214,6 +214,30 @@ let () =
   | Some kl -> assert (kl.count = 1)
   | None -> assert false);
   assert (liked.bookmarked = None);
+  let null_viewer_post =
+    Feed.parse_post
+      (`Assoc
+        [
+          ( "uri",
+            `String "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k"
+          );
+          ("cid", `String "bafyreiabc");
+          ( "author",
+            `Assoc
+              [
+                ("did", `String "did:plc:abc123xyz0001112223333");
+                ("handle", `String "alice.test");
+              ] );
+          ("record", `Assoc [ ("text", `String "hi") ]);
+          ("indexedAt", `String "2024-01-01T00:00:00.000Z");
+          ("viewer", `Assoc [ ("repost", `Null); ("like", `Null) ]);
+        ])
+  in
+  (match null_viewer_post.viewer with
+  | `RepostViewer v ->
+      assert (v.repost = None);
+      assert (v.like = None)
+  | _ -> assert false);
   let mute = Graph.mute_actor_body ~actor:"alice.test" ~only_reposts:true () in
   assert (
     match Yojson.Safe.Util.member "onlyReposts" mute with

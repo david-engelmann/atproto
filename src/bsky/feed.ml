@@ -34,8 +34,8 @@ module Feed = struct
   type thread_record = post_record
   type reply_record = post_record
   type repost_record = post_record
-  type like_viewer = { like : string }
-  type repost_viewer = { repost : string; like : string }
+  type like_viewer = { like : string option }
+  type repost_viewer = { repost : string option; like : string option }
 
   type feed_viewer =
     [ `LikeViewer of like_viewer
@@ -159,6 +159,11 @@ module Feed = struct
   let string_or_empty json field =
     match Yojson.Safe.Util.member field json with `String s -> s | _ -> ""
 
+  let string_opt json field =
+    match Yojson.Safe.Util.member field json with
+    | `String s -> Some s
+    | _ -> None
+
   let int_or_zero json field =
     match Yojson.Safe.Util.member field json with `Int n -> n | _ -> 0
 
@@ -203,17 +208,12 @@ module Feed = struct
   let parse_reply_record json : reply_record = parse_post_record json
   let parse_thread_record json : thread_record = parse_post_record json
   let parse_repost_record json : repost_record = parse_post_record json
+  let parse_like_viewer json : like_viewer = { like = string_opt json "like" }
 
-  let parse_like_viewer json : like_viewer =
-    let open Yojson.Safe.Util in
-    let like = json |> member "like" |> to_string in
-    { like }
-
+  (* app.bsky.feed.defs#viewerState `repost` / `like` are optional AT-URIs.
+     Live AppView may send JSON null; treat null/absent as None. *)
   let parse_repost_viewer json : repost_viewer =
-    let open Yojson.Safe.Util in
-    let repost = json |> member "repost" |> to_string in
-    let like = json |> member "like" |> to_string in
-    { repost; like }
+    { repost = string_opt json "repost"; like = string_opt json "like" }
 
   let parse_feed_viewer json : feed_viewer =
     let repost_check = check_for_field "repost" json in
