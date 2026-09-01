@@ -74,6 +74,21 @@ let () =
   assert (
     Oauth.par_url ~scheme:"http" ~host:"localhost:2583" ()
     = "http://localhost:2583/oauth/par");
+  (* Ozone privileged writes over OAuth: getServiceAuth JWT, not DPoP proxy. *)
+  let ozone_ev =
+    Ozone.emit_event_body
+      ~event:(Ozone.comment_event "oauth dpop")
+      ~subject:(Ozone.repo_ref "did:plc:abc123xyz0001112223333")
+      ~created_by:"did:plc:mod000111222333444555666" ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "createdBy" ozone_ev with
+    | `String "did:plc:mod000111222333444555666" -> true
+    | _ -> false);
+  ignore Ozone.emit_event_service;
+  ignore Ozone.query_events_service;
+  ignore Ozone.get_config_service;
+  ignore Oauth.xrpc_post_dpop;
   (* Video byte-upload pipeline — URL, service-auth audience, embed JSON *)
   let url =
     Video.upload_video_url ~did:"did:plc:abc123xyz0001112223333"

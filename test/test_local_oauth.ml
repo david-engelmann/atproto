@@ -5,17 +5,22 @@ open Atproto.Oauth
 open Atproto.Client
 open Atproto.Error
 open Atproto.Feed
+open Atproto.Ozone
+open Atproto.Xrpc
 open Oauth
+open Ozone
 
 (* Live OAuth against official @atproto/dev-env TestNetwork (PDS oauth-provider).
    Serves a loopback client-metadata document, discovers the local AS, runs
    PAR + DPoP, then GET /oauth/authorize (document navigation). The HTML SPA
    does not mint a code itself; oauth-provider ~api/sign-in + /consent accept
-   alice.test / hunter2 with the real csrf-token / dev-id / ses-id cookies.
+   the account password with the real csrf-token / dev-id / ses-id cookies.
    Token exchange, DPoP getSession, DPoP getServiceAuth, refresh, and RFC 7009
    revoke are required when ATP_REQUIRE_LOCAL_PDS=1. Authed AppView
    (getTimeline / listNotifications) uses the OAuth-minted service-auth JWT
-   (aud=AppView DID). If AppView rejects that hop, only that hop is skipped. *)
+   (aud=AppView DID). Ozone privileged writes mint getServiceAuth
+   (aud=Ozone DID) and POST to the Ozone host — DPoP cannot be proxied.
+   If AppView/Ozone rejects that hop, only that hop is skipped. *)
 
 let env_truthy name =
   match Sys.getenv_opt name with
@@ -325,11 +330,161 @@ let assert_oauth_authed_appview ~origin ~priv ~pub ~token ?nonce () =
                 "oauth listNotifications missing notifications" );
     ]
 
-let test_live_local_oauth _ =
+type live_oauth = {
+  origin : string;
+  priv : Mirage_crypto_ec.P256.Dsa.priv;
+  pub : Mirage_crypto_ec.P256.Dsa.pub;
+  token : Oauth.token;
+  nonce : string option;
+  client_id : string;
+  as_ : Oauth.as_metadata;
+}
+
+let ozone_admin_handle () =
+  match Sys.getenv_opt "ATP_AUTH_OZONE" with
+  | Some auth -> (
+      match String.split_on_char ':' auth with
+      | u :: _ when String.trim u <> "" -> String.trim u
+      | _ -> "admin-mod.test")
+  | None -> "admin-mod.test"
+
+let ozone_admin_password () =
+  match Sys.getenv_opt "ATP_AUTH_OZONE" with
+  | Some auth -> (
+      match String.split_on_char ':' auth with
+      | _ :: rest -> String.trim (String.concat ":" rest)
+      | _ -> "admin-mod-pass")
+  | None -> "admin-mod-pass"
+
+let leftover_tag () =
+  Printf.sprintf "ocaml-oauth-ozone-%d"
+    (int_of_float (Unix.gettimeofday () *. 1000.) mod 100_000_000)
+
+let dpop_proxy_rejected status body =
+  message_has body "cannot be proxied"
+  || message_has body "dpop requests cannot"
+  || message_has body "dpop proof"
+  || ((status = 400 || status = 401) && message_has body "dpop")
+
+let ozone_rejects_service_auth json =
+  match Error.check_for_error json with
+  | None -> false
+  | Some err ->
+      let e = Error.of_json json in
+      err = "InvalidToken"
+      || err = "AuthenticationRequired"
+      || err = "InvalidDpopProof" || err = "ExpiredToken"
+      || err = "BadJwtAudience" || err = "BadJwt"
+      || message_has e.message "dpop"
+      || message_has e.message "oauth"
+      || message_has e.message "malformed token"
+      || message_has e.message "malformed jwt"
+      || message_has e.message "cannot be proxied"
+
+let classify_ozone json =
+  if Error.is_not_served_json json then `Not_served
+  else if ozone_rejects_service_auth json then `Rejected json
+  else
+    match Error.check_for_error json with
+    | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
+    | None -> `Ok json
+
+(* DPoP is bound to the PDS. Sending atproto-proxy with a DPoP proof is
+   rejected ("DPoP requests cannot be proxied"). Ozone writes use
+   getServiceAuth + Bearer on the Ozone host instead. *)
+let assert_dpop_ozone_not_proxied ~origin ~priv ~pub ~token ~ozone_did ?nonce ()
+    =
+  let url = Oauth.xrpc_url ~origin "tools.ozone.moderation.emitEvent" [] in
+  let proxy = Xrpc.proxy_header (Ozone.labeler_proxy ozone_did) in
+  let body =
+    Yojson.Safe.to_string
+      (Ozone.emit_event_body
+         ~event:(Ozone.comment_event "dpop-proxy-must-fail")
+         ~subject:(Ozone.repo_ref token.sub) ~created_by:token.sub ())
+  in
+  let resp, nonce =
+    Oauth.request_with_dpop ~http:Oauth.live_http_request ~priv ~pub ~url
+      ~htm:"POST" ~access_token:token.access_token ~body:(Some body) ?nonce
+      ~extra:[ proxy ] ()
+  in
+  if Oauth.is_http_not_served resp.status resp.body then nonce
+  else if dpop_proxy_rejected resp.status resp.body then nonce
+  else if resp.status >= 200 && resp.status < 300 then
+    failwith
+      "DPoP+atproto-proxy emitEvent succeeded; ozone-proxy is not supposed to \
+       forward DPoP"
+  else
+    (* Other 4xx (scope, invalid_request) still prove the PDS handled the
+       DPoP request instead of forwarding it. *)
+    nonce
+
+let assert_oauth_ozone_write ~origin ~priv ~pub ~token ?nonce () =
+  let ozone_did = Client.ozone_did_from_env in
+  if ozone_did = "" then
+    if require_local then
+      failwith "ATP_OZONE_DID is required (see scripts/local-atproto.sh env)"
+    else skip_step "ATP_OZONE_DID not set";
+  let ozone_host = Client.ozone_host_from_env in
+  let nonce =
+    assert_dpop_ozone_not_proxied ~origin ~priv ~pub ~token ~ozone_did ?nonce ()
+  in
+  let auds = [ ozone_did; ozone_did ^ "#atproto_labeler" ] in
+  let rec mint_aud nonce = function
+    | [] -> (`Not_served, nonce)
+    | aud :: rest -> (
+        match
+          mint_service_auth ~origin ~priv ~pub ~token ~aud
+            ~lxm:"tools.ozone.moderation.emitEvent" ?nonce ()
+        with
+        | `Not_served, nonce -> mint_aud nonce rest
+        | (`Token _ as tok), nonce -> (tok, nonce))
+  in
+  match mint_aud nonce auds with
+  | `Not_served, nonce ->
+      prerr_endline
+        "DPoP getServiceAuth not served for Ozone; skipping Ozone hop";
+      nonce
+  | `Token svc, nonce -> (
+      let tag = leftover_tag () in
+      let ev =
+        Ozone.emit_event_service ~bearer:svc ~host:ozone_host
+          ~event:(Ozone.comment_event ("oauth dpop " ^ tag))
+          ~subject:(Ozone.repo_ref token.sub) ~created_by:token.sub ()
+      in
+      match classify_ozone ev.original with
+      | `Not_served ->
+          prerr_endline
+            "Ozone emitEvent not served for OAuth service-auth; skipping hop";
+          nonce
+      | `Rejected _ ->
+          prerr_endline
+            "Ozone rejected OAuth service-auth emitEvent; skipping hop";
+          nonce
+      | `Ok _ -> (
+          OUnit2.assert_bool "oauth ozone emitEvent"
+            (match ev.id with Some n -> n >= 0 | None -> true);
+          match
+            mint_service_auth ~origin ~priv ~pub ~token ~aud:ozone_did
+              ~lxm:"tools.ozone.moderation.queryEvents" ?nonce ()
+          with
+          | `Not_served, nonce -> nonce
+          | `Token qsvc, nonce -> (
+              let json =
+                Client.get_json ~bearer:qsvc ~host:ozone_host
+                  "tools.ozone.moderation.queryEvents"
+                  [ ("subject", token.sub); ("limit", "10") ]
+              in
+              match classify_ozone json with
+              | `Not_served | `Rejected _ -> nonce
+              | `Ok json ->
+                  let events = Ozone.parse_events json in
+                  OUnit2.assert_bool "oauth ozone queryEvents"
+                    (List.length events.events >= 1);
+                  nonce)))
+
+let with_live_oauth ~handle ~password f =
   skip_unless_local ();
   let origin = pds_origin () in
-  let handle = local_handle () in
-  let password = local_password () in
   let redirect_path = "/cb" in
   let port, callback_query, metadata_json, stop_server =
     start_loopback_server ~redirect_path
@@ -542,46 +697,9 @@ let test_live_local_oauth _ =
           OUnit2.assert_bool "token sub is a DID" (String.length token.sub > 8);
           OUnit2.assert_bool "granted atproto"
             (Oauth.contains_scope ~scope:token.scope "atproto");
-          let expected_sub = token.sub in
           let nonce = assert_dpop_session ~origin ~priv ~pub ~token ?nonce () in
-          let nonce =
-            assert_oauth_authed_appview ~origin ~priv ~pub ~token ?nonce ()
-          in
-          let token, nonce =
-            match token.refresh_token with
-            | None -> (token, nonce)
-            | Some refresh_token ->
-                let form =
-                  Oauth.refresh_body ~client_id:par_client ~refresh_token ()
-                in
-                let token, nonce =
-                  try
-                    Oauth.refresh ~http:Oauth.live_http_post ~priv ~pub
-                      ~token_url:as_.token_endpoint ~form ?nonce ()
-                  with Failure msg -> failwith ("token refresh: " ^ msg)
-                in
-                OUnit2.assert_equal ~printer:(fun x -> x) expected_sub token.sub;
-                let nonce =
-                  assert_dpop_session ~origin ~priv ~pub ~token ?nonce ()
-                in
-                (token, nonce)
-          in
-          (match as_.revocation_endpoint with
-          | None ->
-              if require_local then
-                failwith
-                  "local AS omitted revocation_endpoint (RFC 7009 required)"
-          | Some revoke_url ->
-              let form =
-                Oauth.revoke_body ~client_id:par_client
-                  ~token:token.access_token ~token_type_hint:"access_token" ()
-              in
-              let (), _ =
-                Oauth.revoke ~http:Oauth.live_http_post ~priv ~pub ~revoke_url
-                  ~form ?nonce ()
-              in
-              ());
-          ignore callback_query
+          ignore callback_query;
+          f { origin; priv; pub; token; nonce; client_id = par_client; as_ }
         in
 
         match redirect_from_location with
@@ -653,8 +771,61 @@ let test_live_local_oauth _ =
       with Stop_after_par msg ->
         prerr_endline ("local OAuth stopped after PAR: " ^ msg))
 
+let test_live_local_oauth _ =
+  with_live_oauth ~handle:(local_handle ()) ~password:(local_password ())
+    (fun o ->
+      let nonce =
+        assert_oauth_authed_appview ~origin:o.origin ~priv:o.priv ~pub:o.pub
+          ~token:o.token ?nonce:o.nonce ()
+      in
+      let token, nonce =
+        match o.token.refresh_token with
+        | None -> (o.token, nonce)
+        | Some refresh_token ->
+            let form =
+              Oauth.refresh_body ~client_id:o.client_id ~refresh_token ()
+            in
+            let token, nonce =
+              try
+                Oauth.refresh ~http:Oauth.live_http_post ~priv:o.priv ~pub:o.pub
+                  ~token_url:o.as_.token_endpoint ~form ?nonce ()
+              with Failure msg -> failwith ("token refresh: " ^ msg)
+            in
+            OUnit2.assert_equal ~printer:(fun x -> x) o.token.sub token.sub;
+            let nonce =
+              assert_dpop_session ~origin:o.origin ~priv:o.priv ~pub:o.pub
+                ~token ?nonce ()
+            in
+            (token, nonce)
+      in
+      match o.as_.revocation_endpoint with
+      | None ->
+          if require_local then
+            failwith "local AS omitted revocation_endpoint (RFC 7009 required)"
+      | Some revoke_url ->
+          let form =
+            Oauth.revoke_body ~client_id:o.client_id ~token:token.access_token
+              ~token_type_hint:"access_token" ()
+          in
+          let (), _ =
+            Oauth.revoke ~http:Oauth.live_http_post ~priv:o.priv ~pub:o.pub
+              ~revoke_url ~form ?nonce ()
+          in
+          ())
+
+let test_live_oauth_ozone _ =
+  with_live_oauth ~handle:(ozone_admin_handle ())
+    ~password:(ozone_admin_password ()) (fun o ->
+      ignore
+        (assert_oauth_ozone_write ~origin:o.origin ~priv:o.priv ~pub:o.pub
+           ~token:o.token ?nonce:o.nonce ()))
+
 let suite =
-  "local_oauth" >::: [ "test_live_local_oauth" >:: test_live_local_oauth ]
+  "local_oauth"
+  >::: [
+         "test_live_local_oauth" >:: test_live_local_oauth;
+         "test_live_oauth_ozone" >:: test_live_oauth_ozone;
+       ]
 
 let () =
   Unix.putenv "OUNIT_RUNNER" "sequential";

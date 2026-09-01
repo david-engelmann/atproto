@@ -9,8 +9,10 @@ let ensure_rng = lazy (Mirage_crypto_rng_unix.use_default ())
     discovery / PAR / DPoP, then the oauth-provider ~api sign-in + consent
     (real authorize cookies) through token / refresh / RFC 7009 revoke.
     DPoP resource helpers mint [com.atproto.server.getServiceAuth]
-    ([aud]=AppView DID) so authed [app.bsky.*] calls use a service-auth JWT,
-    not the DPoP access token and not a [createSession] at+jwt.
+    ([aud]=AppView or Ozone DID) so authed [app.bsky.*] / [tools.ozone.*]
+    calls use a service-auth JWT, not the DPoP access token and not a
+    [createSession] at+jwt. DPoP cannot be sent through [atproto-proxy];
+    Ozone privileged writes go to the Ozone host with that JWT.
     A public HTTPS client_id and a production browser login remain
     application-level. *)
 module Oauth = struct
@@ -1364,16 +1366,21 @@ module Oauth = struct
     body:string option ->
     http_response
 
-  (* DPoP-bound resource request with one use_dpop_nonce retry. *)
+  (* DPoP-bound resource request with one use_dpop_nonce retry.
+     [extra] is for headers such as [atproto-proxy]; DPoP still cannot be
+     proxied — the PDS rejects that combination. *)
   let request_with_dpop ~(http : http_request) ~priv ~pub ~url ~htm
-      ~access_token ?body ?ath ?nonce () : http_response * string option =
+      ~access_token ?body ?ath ?nonce ?(extra = []) () :
+      http_response * string option =
     let ath =
       match ath with Some a -> a | None -> ath_of_access_token access_token
     in
     let htu = htu_of_url url in
     let rec attempt nonce tries =
       let proof = dpop_proof ~priv ~pub ~htm ~htu ~ath ?nonce () in
-      let headers = [ authorization_dpop access_token; dpop_header proof ] in
+      let headers =
+        [ authorization_dpop access_token; dpop_header proof ] @ extra
+      in
       let resp = http ~url ~method_:htm ~headers ~body in
       let next_nonce = header_value resp.headers "DPoP-Nonce" in
       if use_dpop_nonce resp.status resp.body && tries > 0 then
@@ -1393,21 +1400,37 @@ module Oauth = struct
 
   (* DPoP GET that decodes JSON and fails on non-2xx / XRPC error bodies. *)
   let get_json_dpop ~(http : http_request) ~priv ~pub ~url ~access_token ?body
-      ?nonce () : Yojson.Safe.t * string option =
+      ?nonce ?(extra = []) () : Yojson.Safe.t * string option =
     let resp, nonce =
       request_with_dpop ~http ~priv ~pub ~url ~htm:"GET" ~access_token ?body
-        ?nonce ()
+        ?nonce ~extra ()
     in
     (ensure_ok ("DPoP GET " ^ url) resp, nonce)
 
   let xrpc_get_dpop ~(http : http_request) ~priv ~pub ~origin ~access_token
-      ?nonce nsid pairs : Yojson.Safe.t * string option =
+      ?nonce ?(extra = []) nsid pairs : Yojson.Safe.t * string option =
     let url = xrpc_url ~origin nsid pairs in
-    get_json_dpop ~http ~priv ~pub ~url ~access_token ?nonce ()
+    get_json_dpop ~http ~priv ~pub ~url ~access_token ?nonce ~extra ()
+
+  (* DPoP POST (PDS-native writes). Do not send [atproto-proxy] — DPoP
+     proofs are bound to the PDS and cannot be forwarded. *)
+  let post_json_dpop ~(http : http_request) ~priv ~pub ~url ~access_token ?body
+      ?nonce ?(extra = []) () : Yojson.Safe.t * string option =
+    let resp, nonce =
+      request_with_dpop ~http ~priv ~pub ~url ~htm:"POST" ~access_token ?body
+        ?nonce ~extra ()
+    in
+    (ensure_ok ("DPoP POST " ^ url) resp, nonce)
+
+  let xrpc_post_dpop ~(http : http_request) ~priv ~pub ~origin ~access_token
+      ?nonce ?(extra = []) nsid body : Yojson.Safe.t * string option =
+    let url = xrpc_url ~origin nsid [] in
+    post_json_dpop ~http ~priv ~pub ~url ~access_token ~body:(Some body) ?nonce
+      ~extra ()
 
   (* Mint com.atproto.server.getServiceAuth with the DPoP access token.
-     AppView still wants this JWT ([aud] = AppView DID, [lxm] = NSID), not
-     the OAuth token and not a createSession at+jwt. *)
+     AppView and Ozone want this JWT ([aud] = service DID, [lxm] = NSID),
+     not the OAuth token and not a createSession at+jwt. *)
   let get_service_auth ~(http : http_request) ~priv ~pub ~pds_origin
       ~access_token ~aud ?lxm ?exp ?nonce () : string * string option =
     let pairs =

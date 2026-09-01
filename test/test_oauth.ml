@@ -765,6 +765,58 @@ let test_get_service_auth_dpop _ =
     "appview-service-jwt"
     (Oauth.parse_service_auth_token json)
 
+let test_xrpc_post_dpop _ =
+  let priv, pub = p256_pair () in
+  let hits = ref 0 in
+  let seen_proxy = ref "" in
+  let seen_htm = ref "" in
+  let http ~url:_ ~method_ ~headers ~body =
+    incr hits;
+    seen_htm := method_;
+    seen_proxy :=
+      match List.assoc_opt "atproto-proxy" headers with
+      | Some v -> v
+      | None ->
+          "";
+          OUnit2.assert_equal
+            ~printer:(fun x -> x)
+            "DPoP oauth-tok"
+            (List.assoc "Authorization" headers);
+          let claims = Oauth.parse_dpop (List.assoc "DPoP" headers) in
+          OUnit2.assert_equal ~printer:(fun x -> x) "POST" claims.htm;
+          OUnit2.assert_bool "POST body"
+            (match body with Some b -> b <> "" | None -> false);
+          if !hits = 1 then
+            {
+              Oauth.status = 400;
+              headers = [ ("DPoP-Nonce", "post-nonce-1") ];
+              body = {|{"error":"use_dpop_nonce"}|};
+            }
+          else
+            {
+              Oauth.status = 200;
+              headers = [ ("DPoP-Nonce", "post-nonce-2") ];
+              body = {|{"id":1}|};
+            }
+  in
+  let json, nonce =
+    Oauth.xrpc_post_dpop ~http ~priv ~pub ~origin:"http://localhost:2583"
+      ~access_token:"oauth-tok"
+      ~extra:
+        [
+          ("atproto-proxy", "did:plc:mod000111222333444555666#atproto_labeler");
+        ]
+      "tools.ozone.moderation.emitEvent" {|{"event":{}}|}
+  in
+  OUnit2.assert_equal 2 !hits;
+  OUnit2.assert_equal ~printer:(fun x -> x) "POST" !seen_htm;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:mod000111222333444555666#atproto_labeler" !seen_proxy;
+  OUnit2.assert_equal (Some "post-nonce-2") nonce;
+  OUnit2.assert_equal ~printer:string_of_int 1
+    (Yojson.Safe.Util.to_int (Yojson.Safe.Util.member "id" json))
+
 let test_par_prompt_and_dpop_jkt _ =
   let priv, pub = p256_pair () in
   let jkt = Oauth.dpop_jkt pub in
@@ -977,6 +1029,7 @@ let suite =
          "test_xrpc_url_and_service_auth_parse"
          >:: test_xrpc_url_and_service_auth_parse;
          "test_get_service_auth_dpop" >:: test_get_service_auth_dpop;
+         "test_xrpc_post_dpop" >:: test_xrpc_post_dpop;
          "test_par_prompt_and_dpop_jkt" >:: test_par_prompt_and_dpop_jkt;
          "test_revoke_body_and_loop" >:: test_revoke_body_and_loop;
          "test_provider_html_and_browser_headers"
