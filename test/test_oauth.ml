@@ -218,8 +218,26 @@ let test_localhost_client_metadata _ =
     Oauth.loopback_client_id ~redirect_uri:"http://127.0.0.1:8080/cb"
       ~scope:"atproto transition:generic" ()
   in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "http://localhost?redirect_uri=http%3A%2F%2F127.0.0.1%3A8080%2Fcb&scope=atproto%20transition%3Ageneric"
+    built;
   let again = Oauth.localhost_metadata built in
-  OUnit2.assert_equal [ "http://127.0.0.1:8080/cb" ] again.redirect_uris
+  OUnit2.assert_equal [ "http://127.0.0.1:8080/cb" ] again.redirect_uris;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "atproto transition:generic" again.scope;
+  let encoded =
+    Oauth.form_encode
+      [ ("client_id", built); ("scope", "atproto transition:generic") ]
+  in
+  let pairs = Oauth.parse_query_pairs encoded in
+  OUnit2.assert_equal ~printer:(fun x -> x) built (List.assoc "client_id" pairs);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "atproto transition:generic" (List.assoc "scope" pairs);
+  OUnit2.assert_equal ~printer:string_of_int 1
+    (List.length (List.find_all (fun (k, _) -> k = "scope") pairs))
 
 let test_origin_aware_oauth_urls _ =
   OUnit2.assert_equal

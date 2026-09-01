@@ -76,6 +76,11 @@ let http_client_rejected status body =
      || message_has body "https"
      || message_has body "client_id")
 
+let undeclared_scope status body =
+  status = 400
+  && message_has body "invalid_scope"
+  && message_has body "not declared"
+
 let local_handle () =
   match Sys.getenv_opt "ATP_AUTH" with
   | Some _ when Auth.has_live_credentials ->
@@ -299,16 +304,16 @@ let test_live_local_oauth _ =
       let pkce = Oauth.pkce_s256 () in
       let state = Oauth.random_jti () in
       let jkt = Oauth.dpop_jkt pub in
-      let loopback_id =
-        Oauth.loopback_client_id ~redirect_uri
-          ~scope:"atproto transition:generic" ()
+      let scope_full = "atproto transition:generic" in
+      let scope_atproto = "atproto" in
+      let loopback_id scope =
+        Oauth.loopback_client_id ~redirect_uri ~scope ()
       in
-      let try_par client_id =
+      let try_par client_id ~scope =
         let form =
           Oauth.pushed_authorization_body ~client_id ~redirect_uri
-            ~code_challenge:pkce.challenge ~state
-            ~scope:"atproto transition:generic" ~login_hint:handle ~dpop_jkt:jkt
-            ()
+            ~code_challenge:pkce.challenge ~state ~scope ~login_hint:handle
+            ~dpop_jkt:jkt ()
         in
         let body = Oauth.form_encode form in
         let resp, nonce =
@@ -334,27 +339,48 @@ let test_live_local_oauth _ =
           if Oauth.is_http_not_served probe.status probe.body then
             skip_step "local AS PAR endpoint is not served");
 
+      let par_from_loopback first_err =
+        match try_par (loopback_id scope_full) ~scope:scope_full with
+        | `Ok (id, par, nonce) -> (id, par, nonce)
+        | `Err (_, st, bd) ->
+            if Oauth.is_http_not_served st bd then
+              skip_step ("local AS PAR not served: " ^ bd)
+            else if http_client_rejected st bd then
+              skip_step
+                (Printf.sprintf
+                   "local AS rejected both hosted http client_id (%s) and \
+                    loopback http://localhost client_id (%s); metadata was \
+                    served at %s"
+                   first_err bd hosted_client_id)
+            else if undeclared_scope st bd then
+              (* This oauth-provider derives loopback metadata from the
+                 client_id query; if it still only declares [atproto], request
+                 that subset instead of inventing extra scopes. *)
+              match
+                try_par (loopback_id scope_atproto) ~scope:scope_atproto
+              with
+              | `Ok (id, par, nonce) -> (id, par, nonce)
+              | `Err (_, st2, bd2) ->
+                  if Oauth.is_http_not_served st2 bd2 then
+                    skip_step ("local AS PAR not served: " ^ bd2)
+                  else if http_client_rejected st2 bd2 then
+                    skip_step
+                      (Printf.sprintf
+                         "local AS rejected loopback client_id after \
+                          atproto-only retry (%s); first loopback: %s"
+                         bd2 bd)
+                  else
+                    failwith
+                      (Printf.sprintf "PAR loopback atproto HTTP %d: %s" st2 bd2)
+            else failwith (Printf.sprintf "PAR loopback HTTP %d: %s" st bd)
+      in
       let par_client, par, nonce =
-        match try_par hosted_client_id with
+        match try_par hosted_client_id ~scope:scope_full with
         | `Ok (id, par, nonce) -> (id, par, nonce)
         | `Err (_, status, body) ->
             if Oauth.is_http_not_served status body then
               skip_step ("local AS PAR not served: " ^ body)
-            else if http_client_rejected status body then
-              match try_par loopback_id with
-              | `Ok (id, par, nonce) -> (id, par, nonce)
-              | `Err (_, st, bd) ->
-                  if Oauth.is_http_not_served st bd then
-                    skip_step ("local AS PAR not served: " ^ bd)
-                  else if http_client_rejected st bd then
-                    skip_step
-                      (Printf.sprintf
-                         "local AS rejected both hosted http client_id (%s) \
-                          and loopback http://localhost client_id (%s); \
-                          metadata was served at %s"
-                         body bd hosted_client_id)
-                  else
-                    failwith (Printf.sprintf "PAR loopback HTTP %d: %s" st bd)
+            else if http_client_rejected status body then par_from_loopback body
             else failwith (Printf.sprintf "PAR hosted HTTP %d: %s" status body)
       in
       OUnit2.assert_bool "PAR request_uri" (String.length par.request_uri > 10);

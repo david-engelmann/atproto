@@ -312,8 +312,15 @@ module Oauth = struct
         ]
     | None -> []
 
+  (* application/x-www-form-urlencoded. [Generic] encodes [&] and [=] so a
+     loopback [client_id] ([http://localhost?redirect_uri=…&scope=…]) is one
+     field. Default [Uri.pct_encode] is path-safe and would leak extra pairs. *)
   let form_encode (pairs : (string * string) list) : string =
-    let kv (k, v) = Uri.pct_encode k ^ "=" ^ Uri.pct_encode v in
+    let kv (k, v) =
+      Uri.pct_encode ~component:`Generic k
+      ^ "="
+      ^ Uri.pct_encode ~component:`Generic v
+    in
     String.concat "&" (List.map kv pairs)
 
   let loopback_client_id ?(redirect_uri = "http://127.0.0.1/")
