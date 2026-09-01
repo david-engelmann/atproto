@@ -720,7 +720,8 @@ let test_leftover_appview _ =
       | None -> ()
       | Some json ->
           let page = Feed.parse_timeline json in
-          OUnit2.assert_bool ("getAuthorFeed filter=" ^ filter)
+          OUnit2.assert_bool
+            ("getAuthorFeed filter=" ^ filter)
             (List.length page.feed >= 0))
     [
       Feed.filter_posts_with_replies;

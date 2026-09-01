@@ -591,16 +591,21 @@ let test_search_posts_v2_live _ =
   with exn -> skip_if true ("searchPostsV2 skipped: " ^ Printexc.to_string exn)
 
 let test_author_feed_filter_known_values _ =
-  OUnit2.assert_equal ~printer:(fun x -> x) "posts_with_replies"
-    Feed.filter_posts_with_replies;
-  OUnit2.assert_equal ~printer:(fun x -> x) "posts_no_replies"
-    Feed.filter_posts_no_replies;
-  OUnit2.assert_equal ~printer:(fun x -> x) "posts_with_media"
-    Feed.filter_posts_with_media;
-  OUnit2.assert_equal ~printer:(fun x -> x) "posts_and_author_threads"
-    Feed.filter_posts_and_author_threads;
-  OUnit2.assert_equal ~printer:(fun x -> x) "posts_with_video"
-    Feed.filter_posts_with_video
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "posts_with_replies" Feed.filter_posts_with_replies;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "posts_no_replies" Feed.filter_posts_no_replies;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "posts_with_media" Feed.filter_posts_with_media;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "posts_and_author_threads" Feed.filter_posts_and_author_threads;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "posts_with_video" Feed.filter_posts_with_video
 
 let test_get_author_feed_page_live _ =
   try

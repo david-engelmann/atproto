@@ -417,7 +417,7 @@ let test_union_codegen_and_official_bundle _ =
                       | None ->
                           OUnit2.assert_failure
                             "missing getSuggestedFollowsByActor main"
-                      | Some suggested_main ->
+                      | Some suggested_main -> (
                           OUnit2.assert_bool
                             "getSuggestedFollowsByActor recIdStr"
                             (List.exists
@@ -431,8 +431,7 @@ let test_union_codegen_and_official_bundle _ =
                           in
                           match Lexicon.main get_author with
                           | None ->
-                              OUnit2.assert_failure
-                                "missing getAuthorFeed main"
+                              OUnit2.assert_failure "missing getAuthorFeed main"
                           | Some author_main ->
                               OUnit2.assert_bool "getAuthorFeed filter"
                                 (List.exists
