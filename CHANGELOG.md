@@ -1,66 +1,30 @@
 # Changelog
 
-Notes for the packaged **0.1.0** library. [#135](https://github.com/david-engelmann/atproto/pull/135)
-adds remaining function-level odoc on Admin XRPC wrappers.
-[#138](https://github.com/david-engelmann/atproto/pull/138) adds
-remaining function-level odoc on Session / Moderation / Temp helpers.
-This file records what actually shipped through
-[#137](https://github.com/david-engelmann/atproto/pull/137)
-(live TestNetwork `getAccountPreferences`), including
-[#136](https://github.com/david-engelmann/atproto/pull/136)
-(remaining function-level odoc on Server XRPC wrappers), including
-[#134](https://github.com/david-engelmann/atproto/pull/134)
-(function-level odoc on remaining Error / Xrpc / Request / Response /
-Http_client / Http_method / Websocket helpers) and this PR
-(function-level odoc on Tid / At_uri / Dag_cbor / K256 / Did_key /
-Did_web), including
-[#127](https://github.com/david-engelmann/atproto/pull/127)
-(CHANGELOG through #126), including
+Notes for the packaged **0.1.0** library. This file records what actually
+shipped through [#138](https://github.com/david-engelmann/atproto/pull/138):
+official lexicon pin `5c154f9c` and `Ozone.get_account_preferences`
+([#132](https://github.com/david-engelmann/atproto/pull/132)), live leftover
+TestNetwork NSIDs ([#129](https://github.com/david-engelmann/atproto/pull/129))
+plus live `getAccountPreferences`
+([#137](https://github.com/david-engelmann/atproto/pull/137)), and remaining
+function-level odoc ([#122](https://github.com/david-engelmann/atproto/pull/122)
+Graph / Ozone / Repo / Sync / MST / Jetstream / Chat / Bookmark /
+Notification, [#125](https://github.com/david-engelmann/atproto/pull/125)
+Label / Video / CID/CAR / PLC / Records,
 [#126](https://github.com/david-engelmann/atproto/pull/126)
-(function-level odoc on remaining Firehose / Oauth / Session / Auth /
-Client / Server entry points),
-[#125](https://github.com/david-engelmann/atproto/pull/125)
-(function-level odoc on Label / Video / CID/CAR / PLC / Records
-entry points),
-[#124](https://github.com/david-engelmann/atproto/pull/124)
-(CHANGELOG through #123),
-[#123](https://github.com/david-engelmann/atproto/pull/123)
-(live leftover TestNetwork `getListBlocks` / `getStarterPack` /
-`getFeedGenerator` / `putActivitySubscription`, PLC
-request/sign/submit, ozone queue assign / report get-close-stats /
-setting upsert-remove),
-[#122](https://github.com/david-engelmann/atproto/pull/122)
-(function-level odoc on Graph / Ozone / Repo / Sync / MST /
-Jetstream / Chat / Bookmark / Notification — comment-only, targeting
-`main` in parallel),
-[#121](https://github.com/david-engelmann/atproto/pull/121)
-(CHANGELOG through #120 + `sample.env` leftover cleanup),
-[#120](https://github.com/david-engelmann/atproto/pull/120)
-(github-actions group bump),
-[#119](https://github.com/david-engelmann/atproto/pull/119) (README Quick
-start + `make doc` + live ozone `createTemplate` / `upsertSet` with
-`createdBy` / `updatedBy`),
-[#117](https://github.com/david-engelmann/atproto/pull/117)
-(function-level odoc on public entry points),
-[#116](https://github.com/david-engelmann/atproto/pull/116) (live
-TestNetwork `updateHandle` / deactivate-activate / drafts /
-`getListFeed` / `muteActorList` / `putPreferencesV2`),
-[#114](https://github.com/david-engelmann/atproto/pull/114) (odoc landing
-page, Dependabot, lexicon-pin drift CI, CODEOWNERS / templates),
-[#113](https://github.com/david-engelmann/atproto/pull/113) (live GitHub
-Pages URL https://david-engelmann.github.io/atproto/ +
-`Label.subscribe_url` localhost `ws://`),
-[#112](https://github.com/david-engelmann/atproto/pull/112) (odoc HTML
-deploy to GitHub Pages on main),
-[#111](https://github.com/david-engelmann/atproto/pull/111) (docs/repo
-cleanup),
-[#110](https://github.com/david-engelmann/atproto/pull/110)
-(Jetstream v2 `Sec-WebSocket-Protocol: xrpc.v1.json`),
-[#109](https://github.com/david-engelmann/atproto/pull/109) (live Jetstream
-dict-zstd), [#108](https://github.com/david-engelmann/atproto/pull/108)
-(lexicon pin `60c4395951`, coverage gate, OCaml `< 5.0`, odoc HTML CI
-artifact), changelog [#107](https://github.com/david-engelmann/atproto/pull/107),
-and [#106](https://github.com/david-engelmann/atproto/pull/106).
+Firehose / Oauth / Session / Auth / Client / Server,
+[#128](https://github.com/david-engelmann/atproto/pull/128)
+remaining Ozone / Repo_sync,
+[#130](https://github.com/david-engelmann/atproto/pull/130) Identity,
+[#131](https://github.com/david-engelmann/atproto/pull/131)
+User / Cohttp / Base32/58/64url,
+[#133](https://github.com/david-engelmann/atproto/pull/133)
+Tid / At_uri / Dag_cbor / K256 / Did,
+[#134](https://github.com/david-engelmann/atproto/pull/134)
+Error / Xrpc / HTTP, [#135](https://github.com/david-engelmann/atproto/pull/135)
+Admin, [#136](https://github.com/david-engelmann/atproto/pull/136) Server,
+[#138](https://github.com/david-engelmann/atproto/pull/138)
+Session / Moderation / Temp).
 
 This package is **not** published to the public
 [opam-repository](https://github.com/ocaml/opam-repository). Depend on it by
