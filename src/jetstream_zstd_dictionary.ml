@@ -1,9 +1,9 @@
-(* Fallback copy of the production zstd dictionary served by
-   network.bsky.jetstream.getZstdDictionary (id 20260811, etag
-   zstd-dict-20260811) on jetstream.us-west.bsky.network. The rewritten
-   bluesky-social/jetstream main no longer vendors pkg/models/zstd_dictionary;
-   production clients fetch this blob over HTTPS. Prefer the live GET; this
-   module is the checked-in fallback. Do not edit by hand. *)
+(** Fallback copy of the production zstd dictionary served by
+    [network.bsky.jetstream.getZstdDictionary] (id 20260811, etag
+    zstd-dict-20260811) on jetstream.us-west.bsky.network. The rewritten
+    bluesky-social/jetstream main no longer vendors pkg/models/zstd_dictionary;
+    production clients fetch this blob over HTTPS. Prefer the live GET; this
+    module is the checked-in fallback. Do not edit the [bytes] blob by hand. *)
 
 [@@@ocamlformat "disable"]
 

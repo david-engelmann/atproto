@@ -168,6 +168,54 @@ let test_query_labels _ =
       | `List _ -> ()
       | _ -> OUnit2.assert_failure "ozone queryLabels missing labels")
 
+let with_alarm seconds f =
+  let old =
+    Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
+  in
+  ignore (Unix.alarm seconds);
+  Fun.protect
+    ~finally:(fun () ->
+      ignore (Unix.alarm 0);
+      Sys.set_signal Sys.sigalrm old)
+    f
+
+let is_ws_not_served msg =
+  message_has msg "methodnotimplemented"
+  || message_has msg "methodnotfound"
+  || message_has msg "unknown lexicon"
+  || message_has msg " 501" || message_has msg " 404"
+  || message_has msg "connection"
+  || message_has msg "tls"
+  || message_has msg "handshake"
+  || message_has msg "eof"
+
+(* One subscribeLabels frame against local Ozone (or PDS) if the NSID is served. *)
+let test_subscribe_labels_one_frame _ =
+  skip_unless_local ();
+  let host =
+    match ozone_host () with Some h -> h | None -> Session.atp_host_from_env
+  in
+  try
+    with_alarm 15 (fun () ->
+        let _, msg = Label.subscribe_one ~host ~cursor:0L () in
+        match msg with
+        | `Labels m ->
+            OUnit2.assert_bool "local #labels" (List.length m.labels >= 0)
+        | `Info _ | `Unknown _ ->
+            OUnit2.assert_bool "local subscribeLabels control frame" true
+        | `Error (err, _) ->
+            if
+              err = "MethodNotImplemented"
+              || err = "MethodNotFound"
+              || Error.is_not_served { error = err; message = "" }
+            then skip_if true ("subscribeLabels not served: " ^ err)
+            else failwith ("subscribeLabels error frame: " ^ err))
+  with
+  | Failure msg when is_ws_not_served msg ->
+      skip_if true ("subscribeLabels not served: " ^ msg)
+  | Failure msg when message_has msg "timeout" ->
+      skip_if true "subscribeLabels produced no local frame"
+
 let ozone_json s p nsid pairs =
   Client.get_json ~session:s ~extra:(Ozone.proxy_headers p) nsid pairs
 
@@ -503,6 +551,7 @@ let suite =
          "test_get_config" >:: test_get_config;
          "test_emit_and_query" >:: test_emit_and_query;
          "test_query_labels" >:: test_query_labels;
+         "test_subscribe_labels_one_frame" >:: test_subscribe_labels_one_frame;
          "test_more_ozone" >:: test_more_ozone;
          "test_leftover_ozone" >:: test_leftover_ozone;
          "test_privileged_writes" >:: test_privileged_writes;

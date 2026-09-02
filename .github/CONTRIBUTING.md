@@ -14,16 +14,16 @@ pinning the GitHub repository.
 Do not hand-edit `atproto.opam`; it is generated from `dune-project`.
 odoc HTML is a CI artifact (`odoc-html`) on pull requests. On push to
 `main`, TestSuite deploys `_build/default/_doc/_html` with GitHub
-Actions Pages. GitHub Pages is not enabled yet (API enable returned
-403); turn it on once under Settings → Pages → Source: GitHub
-Actions. Until then, `dune-project` `documentation` stays this GitHub
-repo (do not point `doc:` at a 404 Pages URL).
+Actions Pages. GitHub Pages is enabled (Settings → Pages → Source:
+GitHub Actions). The live site is
+https://david-engelmann.github.io/atproto/. `dune-project`
+`documentation` points at that URL.
 
 ## Checks
 
 CI jobs: `build`, `lint-doc`, `lint-fmt`, `lint-opam`, `local-pds`.
-On push to `main`, `deploy-pages` publishes odoc HTML after Pages is
-enabled.
+On push to `main`, `deploy-pages` publishes odoc HTML to
+https://david-engelmann.github.io/atproto/.
 
 ```shell
 opam install . --deps-only --with-test
