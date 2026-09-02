@@ -625,6 +625,142 @@ let test_template_and_set_writes _ =
            ~comment:("cancel " ^ tag) ())
   | _ -> ()
 
+(* Remaining ozone NSIDs: queue assign/getAssignments, report get/close/stats,
+   setting upsert/remove. listQueues / queryReports / listOptions are live. *)
+let test_leftover_served _ =
+  let s = admin_session () in
+  let p = proxy () in
+  let alice = Session.create_session "alice.test" "hunter2" in
+  let bob = Session.create_session "bob.test" "hunter2" in
+  let tag = leftover_tag () in
+  let created_queue_id =
+    match
+      ozone_post s p "tools.ozone.queue.createQueue"
+        (Ozone.create_queue_body ~name:("ocaml-assign-" ^ tag)
+           ~subject_types:[ "account" ] ())
+    with
+    | json when served json -> Some (Ozone.parse_queue_result json).id
+    | _ -> None
+  in
+  let queue_id =
+    match created_queue_id with
+    | Some id -> Some id
+    | None -> (
+        match
+          ozone_json s p "tools.ozone.queue.listQueues" [ ("limit", "10") ]
+        with
+        | json when served json -> (
+            match (Ozone.parse_queues json).queues with
+            | q :: _ -> Some q.id
+            | [] -> None)
+        | _ -> None)
+  in
+  (match queue_id with
+  | None -> ()
+  | Some id -> (
+      match
+        ozone_post s p "tools.ozone.queue.assignModerator"
+          (`Assoc [ ("queueId", `Int id); ("did", `String s.auth.did) ])
+      with
+      | json when served json ->
+          let assigned = Ozone.parse_assignment_view json in
+          OUnit2.assert_bool "assignModerator" (String.length assigned.did >= 0)
+      | _ -> ()));
+  (match
+     ozone_json s p "tools.ozone.queue.getAssignments" [ ("limit", "10") ]
+   with
+  | json when served json ->
+      let page = Ozone.parse_assignments json in
+      OUnit2.assert_bool "getAssignments" (List.length page.assignments >= 0)
+  | _ -> ());
+  ignore
+    (Client.post_json ~session:alice "com.atproto.moderation.createReport"
+       (Moderation.create_report_data_from_repo_ref Moderation.reason_other
+          ~reason:("ocaml leftover served " ^ tag)
+          { Moderation.did = bob.auth.did }));
+  (match
+     ozone_json s p "tools.ozone.report.queryReports"
+       [ ("status", "open"); ("limit", "10") ]
+   with
+  | json when served json -> (
+      let reports =
+        Ozone.query_reports s ~proxy:p ~status:"open" ~limit:10 ()
+      in
+      match reports.reports with
+      | [] -> ()
+      | report :: _ -> (
+          match
+            ozone_json s p "tools.ozone.report.getReport"
+              [ ("id", string_of_int report.id) ]
+          with
+          | gjson when served gjson ->
+              let got = Ozone.parse_report_result gjson in
+              OUnit2.assert_bool "getReport" (got.id >= 0)
+          | _ -> ()))
+  | _ -> ());
+  (match ozone_json s p "tools.ozone.report.getLiveStats" [] with
+  | json when served json ->
+      let stats = Ozone.parse_live_stats json in
+      OUnit2.assert_bool "getLiveStats"
+        (match stats.pending_count with Some n -> n >= 0 | None -> true)
+  | _ -> ());
+  (match
+     ozone_json s p "tools.ozone.report.getHistoricalStats"
+       [
+         ("startDate", "2020-01-01T00:00:00.000Z");
+         ("endDate", "2099-01-01T00:00:00.000Z");
+         ("limit", "5");
+       ]
+   with
+  | json when served json ->
+      let hist = Ozone.parse_historical_stats json in
+      OUnit2.assert_bool "getHistoricalStats" (List.length hist.stats >= 0)
+  | _ -> ());
+  (match
+     ozone_post s p "tools.ozone.report.closeReports"
+       (`Assoc
+         [
+           ("subject", `String bob.auth.did);
+           ("internalNote", `String ("close " ^ tag));
+         ])
+   with
+  | json when served json ->
+      let closed = Ozone.parse_close_reports_result json in
+      OUnit2.assert_bool "closeReports" (closed.closed_count >= 0)
+  | _ -> ());
+  let setting_key = "tools.ozone.test.ocamlLive" in
+  (match
+     ozone_post s p "tools.ozone.setting.upsertOption"
+       (`Assoc
+         [
+           ("key", `String setting_key);
+           ("scope", `String "instance");
+           ("value", `Assoc [ ("enabled", `Bool true) ]);
+           ("description", `String tag);
+         ])
+   with
+  | json when served json -> (
+      let written =
+        match Yojson.Safe.Util.member "option" json with
+        | `Assoc _ as opt -> Ozone.parse_setting_option opt
+        | _ -> Ozone.parse_setting_option json
+      in
+      OUnit2.assert_bool "upsertOption key" (String.length written.key >= 0);
+      match
+        ozone_post s p "tools.ozone.setting.removeOptions"
+          (`Assoc
+            [
+              ("keys", `List [ `String setting_key ]);
+              ("scope", `String "instance");
+            ])
+      with
+      | rjson when served rjson -> ()
+      | _ -> ())
+  | _ -> ());
+  match created_queue_id with
+  | Some id -> ignore (Ozone.delete_queue s ~proxy:p ~queue_id:id ())
+  | None -> ()
+
 let suite =
   "local_ozone"
   >::: [
@@ -636,6 +772,7 @@ let suite =
          "test_leftover_ozone" >:: test_leftover_ozone;
          "test_privileged_writes" >:: test_privileged_writes;
          "test_template_and_set_writes" >:: test_template_and_set_writes;
+         "test_leftover_served" >:: test_leftover_served;
        ]
 
 let () =

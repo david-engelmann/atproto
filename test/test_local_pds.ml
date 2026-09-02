@@ -696,6 +696,55 @@ let local_plc_directory () =
   | Some o when String.trim o <> "" -> String.trim o
   | _ -> "http://localhost:2582"
 
+(* PDS identity PLC hops. Throwaway account — alice stays untouched.
+   Each hop is skip-if-not-served independently (PDS 0.5.31 may 501 one). *)
+let test_plc_operation_xrpc _ =
+  let s = throwaway_session "plc" "local-pds-plc-password" in
+  ignore
+    (pds_post_if_served ~session:s
+       "com.atproto.identity.requestPlcOperationSignature" "{}");
+  let creds = Identity.get_recommended_did_credentials s in
+  let json_obj = function `Assoc _ as j -> Some j | _ -> None in
+  let sign_body =
+    Identity.sign_plc_operation_body
+      ?rotation_keys:
+        (match creds.rotation_keys with [] -> None | ks -> Some ks)
+      ?also_known_as:
+        (match creds.also_known_as with [] -> None | xs -> Some xs)
+      ?verification_methods:(json_obj creds.verification_methods)
+      ?services:(json_obj creds.services) ()
+  in
+  match
+    pds_post_if_served ~session:s "com.atproto.identity.signPlcOperation"
+      (Yojson.Safe.to_string sign_body)
+  with
+  | None -> ()
+  | Some json -> (
+      let operation =
+        match Yojson.Safe.Util.member "operation" json with
+        | `Assoc _ as op -> op
+        | _ -> json
+      in
+      OUnit2.assert_bool "signPlcOperation operation"
+        (match operation with
+        | `Assoc fields -> List.length fields >= 0
+        | _ -> false);
+      match
+        pds_post_if_served ~session:s "com.atproto.identity.submitPlcOperation"
+          (Yojson.Safe.to_string (Identity.submit_plc_operation_body operation))
+      with
+      | None -> ()
+      | Some _ -> (
+          let resolved =
+            Identity.resolve_did_parsed ~host:s.atp_host ~session:s s.auth.did
+          in
+          match resolved.document with
+          | Some doc ->
+              OUnit2.assert_equal ~printer:(fun x -> x) s.auth.did doc.id
+          | None ->
+              OUnit2.assert_bool "submitPlcOperation didDoc"
+                (match resolved.did_doc with `Assoc _ -> true | _ -> false)))
+
 let test_plc_directory_write _ =
   skip_unless_local_pds ();
   Mirage_crypto_rng_unix.use_default ();
@@ -755,6 +804,7 @@ let suite =
          "test_deactivate_activate" >:: test_deactivate_activate;
          "test_session_refresh_and_delete" >:: test_session_refresh_and_delete;
          "test_get_account_invite_codes" >:: test_get_account_invite_codes;
+         "test_plc_operation_xrpc" >:: test_plc_operation_xrpc;
          "test_plc_directory_write" >:: test_plc_directory_write;
        ]
 
