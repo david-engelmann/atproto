@@ -1,5 +1,9 @@
 # Security Policy
 
+## Supported Versions
+
+**0.1.0** is the current release (OCaml **4.14.x**: `>= 4.14.1` and `< 5.0`).
+
 ## Reporting a Vulnerability
 
 Report security issues privately via
