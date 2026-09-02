@@ -1,7 +1,9 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#134](https://github.com/david-engelmann/atproto/pull/134)
+shipped through [#136](https://github.com/david-engelmann/atproto/pull/136)
+(remaining function-level odoc on Server XRPC wrappers), including
+[#134](https://github.com/david-engelmann/atproto/pull/134)
 (function-level odoc on remaining Error / Xrpc / Request / Response /
 Http_client / Http_method / Websocket helpers), including
 [#127](https://github.com/david-engelmann/atproto/pull/127)
@@ -241,6 +243,12 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   Http_client / Http_method / Websocket helpers
   (`parse_error_from_json`, `parse_proxy`, `parse_service_auth`,
   `xrpc_put`, `recv_message`). Comment-only
+- [#136](https://github.com/david-engelmann/atproto/pull/136):
+  function-level odoc on remaining Server XRPC wrappers
+  (`create_account`, `get_account_invite_codes`, `create_invite_code`,
+  `create_invite_codes`, `request_account_delete`, `delete_account`,
+  `reset_password`, `revoke_app_password`, `request_email_confirmation`,
+  `request_email_update`). Comment-only
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 

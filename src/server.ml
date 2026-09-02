@@ -24,6 +24,7 @@ module Server = struct
     in
     server_description
 
+  (** JSON body for [com.atproto.server.createAccount]. *)
   let create_account_body ~handle ?email ?did ?invite_code ?verification_code
       ?verification_phone ?password ?recovery_key ?plc_op () : Yojson.Safe.t =
     let fields =
@@ -49,6 +50,8 @@ module Server = struct
     in
     `Assoc fields
 
+  (** Create an account via [com.atproto.server.createAccount] on [s].
+      [handle], [email], and [password] are required. *)
   let create_account (s : Session.session) (handle : string) (email : string)
       ?invite_code ?recovery_key ?did ?verification_code ?verification_phone
       ?plc_op (password : string) : string =
@@ -136,6 +139,8 @@ module Server = struct
       (Yojson.Safe.to_string (create_app_password_body ~name ?privileged ()))
     |> Yojson.Safe.to_string
 
+  (** Invite codes for the current account via
+      [com.atproto.server.getAccountInviteCodes]. *)
   let get_account_invite_codes (s : Session.session) (include_used : bool)
       (create_available : bool) : string =
     let bearer_token = Session.bearer_token_from_session s in
@@ -162,6 +167,7 @@ module Server = struct
     in
     account_invite_codes
 
+  (** JSON body for [com.atproto.server.createInviteCode]. *)
   let create_invite_code_body ~use_count ?for_account () : Yojson.Safe.t =
     let fields =
       ("useCount", `Int use_count)
@@ -172,6 +178,8 @@ module Server = struct
     in
     `Assoc fields
 
+  (** Create an invite code via [com.atproto.server.createInviteCode].
+      Optional [for_account] is the recipient DID. *)
   let create_invite_code ?for_account (s : Session.session) (use_count : int) :
       string =
     Client.Client.post_json ~session:s "com.atproto.server.createInviteCode"
@@ -179,6 +187,8 @@ module Server = struct
          (create_invite_code_body ~use_count ?for_account ()))
     |> Yojson.Safe.to_string
 
+  (** Bulk invite codes via [com.atproto.server.createInviteCodes].
+      Optional [for_accounts] is a list of recipient DIDs. *)
   let create_invite_codes ?for_accounts (s : Session.session) (code_count : int)
       (use_count : int) : string =
     let accounts = Option.value ~default:[] for_accounts in
@@ -212,11 +222,14 @@ module Server = struct
     in
     app_passwords
 
+  (** JSON body for [com.atproto.server.requestAccountDelete]
+      (empty object). *)
   let request_account_delete_body () : Yojson.Safe.t = `Assoc []
 
   let request_password_reset_body ~email : Yojson.Safe.t =
     `Assoc [ ("email", `String email) ]
 
+  (** JSON body for [com.atproto.server.deleteAccount]. *)
   let delete_account_body ~did ~password ~token : Yojson.Safe.t =
     `Assoc
       [
@@ -225,12 +238,15 @@ module Server = struct
         ("token", `String token);
       ]
 
+  (** JSON body for [com.atproto.server.resetPassword]. *)
   let reset_password_body ~token ~password : Yojson.Safe.t =
     `Assoc [ ("token", `String token); ("password", `String password) ]
 
+  (** JSON body for [com.atproto.server.revokeAppPassword]. *)
   let revoke_app_password_body ~name : Yojson.Safe.t =
     `Assoc [ ("name", `String name) ]
 
+  (** Email a deletion token via [com.atproto.server.requestAccountDelete]. *)
   let request_account_delete (s : Session.session) : string =
     Client.Client.post_json ~session:s "com.atproto.server.requestAccountDelete"
       (Yojson.Safe.to_string (request_account_delete_body ()))
@@ -242,18 +258,24 @@ module Server = struct
       (Yojson.Safe.to_string (request_password_reset_body ~email))
     |> Yojson.Safe.to_string
 
+  (** Delete the account via [com.atproto.server.deleteAccount] with
+      [did], [password], and the token from {!request_account_delete}. *)
   let delete_account (s : Session.session) (did : string) (password : string)
       (token : string) =
     Client.Client.post_json ~session:s "com.atproto.server.deleteAccount"
       (Yojson.Safe.to_string (delete_account_body ~did ~password ~token))
     |> Yojson.Safe.to_string
 
+  (** Set a new [password] via [com.atproto.server.resetPassword] with
+      the token from {!request_password_reset}. *)
   let reset_password (s : Session.session) (token : string) (password : string)
       : string =
     Client.Client.post_json ~session:s "com.atproto.server.resetPassword"
       (Yojson.Safe.to_string (reset_password_body ~token ~password))
     |> Yojson.Safe.to_string
 
+  (** Revoke the app password named [name] via
+      [com.atproto.server.revokeAppPassword]. *)
   let revoke_app_password (s : Session.session) (name : string) : string =
     Client.Client.post_json ~session:s "com.atproto.server.revokeAppPassword"
       (Yojson.Safe.to_string (revoke_app_password_body ~name))
@@ -448,6 +470,8 @@ module Server = struct
     in
     `Assoc fields
 
+  (** JSON body for [com.atproto.server.requestEmailUpdate]
+      (empty object). *)
   let request_email_update_body () : Yojson.Safe.t = `Assoc []
 
   (** Confirm [email] with [token] via [com.atproto.server.confirmEmail]. *)
@@ -456,6 +480,8 @@ module Server = struct
       (Client.Client.post_json ~session:s "com.atproto.server.confirmEmail"
          (Yojson.Safe.to_string (confirm_email_body ~email ~token)))
 
+  (** Email a confirmation token via
+      [com.atproto.server.requestEmailConfirmation]. *)
   let request_email_confirmation (s : Session.session) : unit =
     ignore
       (Client.Client.post_json ~session:s
@@ -471,6 +497,8 @@ module Server = struct
         | _ -> false);
     }
 
+  (** Request an email-update token via
+      [com.atproto.server.requestEmailUpdate]. *)
   let request_email_update (s : Session.session) : email_update =
     Client.Client.post_json ~session:s "com.atproto.server.requestEmailUpdate"
       (Yojson.Safe.to_string (request_email_update_body ()))
