@@ -1110,7 +1110,8 @@ let test_leftover_admin _ =
     (admin_leftover_post admin "com.atproto.admin.sendEmail"
        (Yojson.Safe.to_string
           (Admin.send_email_body ~recipient_did:doomed.auth.did
-             ~content:"ocaml leftover admin hop" ~subject:"ocaml leftover" ())));
+             ~content:"ocaml leftover admin hop" ~subject:"ocaml leftover"
+             ~sender_did:admin.auth.did ())));
   ignore
     (admin_leftover_post admin "com.atproto.admin.updateAccountEmail"
        (Yojson.Safe.to_string
