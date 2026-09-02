@@ -155,10 +155,15 @@ let av_get_until ?session ~attempts ~retry_message nsid pairs =
   in
   go attempts
 
-(* Same as av_get_until, but a persistent retry_message is skip (None),
-   not a hard fail. getFeedGenerator says "could not find feed" until
-   AppView indexes the generator record (or never does). *)
-let av_get_until_or_skip ?session ~attempts ~retry_message nsid pairs =
+(* Same as av_get_until, but a persistent skip-needle is None, not a
+   hard fail. AppView 0.0.277 getFeedGenerator / getFeed say
+   "could not find feed" or "invalid feed generator service" when the
+   generator DID has no #bsky_fg (TestNetwork policy). *)
+let feed_generator_unhosted msg =
+  message_has msg "could not find feed"
+  || message_has msg "invalid feed generator service"
+
+let av_get_until_or_skip ?session ~attempts nsid pairs =
   let rec go n =
     let json =
       Client.get_json_appview ?session ~host:(appview_host ()) nsid pairs
@@ -169,7 +174,7 @@ let av_get_until_or_skip ?session ~attempts ~retry_message nsid pairs =
       | None -> Some json
       | Some _ ->
           let e = Error.of_json json in
-          if message_has e.message retry_message then
+          if feed_generator_unhosted e.message then
             if n > 1 then (
               Unix.sleep 1;
               go (n - 1))
@@ -177,6 +182,21 @@ let av_get_until_or_skip ?session ~attempts ~retry_message nsid pairs =
           else failwith ("XRPC error: " ^ Error.to_string e)
   in
   go attempts
+
+let av_get_feed_if_hosted ?session feed =
+  let json =
+    Client.get_json_appview ?session ~host:(appview_host ())
+      "app.bsky.feed.getFeed"
+      [ ("feed", feed); ("limit", "5") ]
+  in
+  if Error.is_not_served_json json then None
+  else
+    match Error.check_for_error json with
+    | None -> Some json
+    | Some _ ->
+        let e = Error.of_json json in
+        if feed_generator_unhosted e.message then None
+        else Some (ensure_ok json)
 
 let test_get_profile _ =
   let s = session () in
@@ -974,8 +994,7 @@ let test_leftover_served _ =
   in
   let generator_info =
     match
-      av_get_until_or_skip ~attempts:20 ~retry_message:"could not find feed"
-        "app.bsky.feed.getFeedGenerator"
+      av_get_until_or_skip ~attempts:20 "app.bsky.feed.getFeedGenerator"
         [ ("feed", generated.uri) ]
     with
     | None -> None
@@ -984,37 +1003,16 @@ let test_leftover_served _ =
         OUnit2.assert_equal ~printer:(fun x -> x) generated.uri info.view.uri;
         Some info
   in
-  (* getFeed needs a live feed generator service. Call only when AppView
-     already listed a feed, or marked our generator online. *)
-  let suggested_feed =
-    match
-      av_get_if_served "app.bsky.feed.getSuggestedFeeds" [ ("limit", "5") ]
-    with
-    | Some json -> (
-        match (Feed.parse_generators json).feeds with
-        | f :: _ when String.length f.uri > 0 -> Some f.uri
-        | _ -> None)
-    | None -> None
-  in
-  let feed_uri =
-    match suggested_feed with
-    | Some uri -> Some uri
-    | None -> (
-        match generator_info with
-        | Some info when info.is_online -> Some generated.uri
-        | _ -> None)
-  in
-  (match feed_uri with
-  | None -> ()
-  | Some feed -> (
-      match
-        av_get_if_served "app.bsky.feed.getFeed"
-          [ ("feed", feed); ("limit", "5") ]
-      with
+  (* getFeed only against OUR generator, and only if AppView marked it
+     online. Suggested feeds are not live TestNetwork services. *)
+  (match generator_info with
+  | Some info when info.is_online -> (
+      match av_get_feed_if_hosted generated.uri with
       | None -> ()
       | Some json ->
           let page = Feed.parse_timeline json in
-          OUnit2.assert_bool "getFeed" (List.length page.feed >= 0)));
+          OUnit2.assert_bool "getFeed" (List.length page.feed >= 0))
+  | _ -> ());
   let bob = bob_session () in
   (match
      av_post_if_served ~session:s
