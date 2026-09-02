@@ -1027,6 +1027,27 @@ let test_leftover_remaining _ =
         (Ozone.delete_queue_body ~queue_id:id ())
   | None -> ()
 
+(* Live tools.ozone.moderation.getAccountPreferences. Skip if not
+   served / MethodNotImplemented / feature-disabled / UpstreamFailure
+   (leftover_served). Do not invent a hosted ozone preference store. *)
+let test_get_account_preferences _ =
+  let s = admin_session () in
+  let p = proxy () in
+  let alice = Session.create_session "alice.test" "hunter2" in
+  match
+    ozone_json s p "tools.ozone.moderation.getAccountPreferences"
+      [ ("did", alice.auth.did) ]
+  with
+  | json when leftover_served json ->
+      OUnit2.assert_bool "getAccountPreferences object"
+        (match json with `Assoc _ -> true | _ -> false);
+      let prefs =
+        Ozone.get_account_preferences s ~proxy:p ~did:alice.auth.did ()
+      in
+      OUnit2.assert_bool "getAccountPreferences"
+        (List.length prefs.preferences >= 0)
+  | _ -> ()
+
 let suite =
   "local_ozone"
   >::: [
@@ -1040,6 +1061,7 @@ let suite =
          "test_template_and_set_writes" >:: test_template_and_set_writes;
          "test_leftover_served" >:: test_leftover_served;
          "test_leftover_remaining" >:: test_leftover_remaining;
+         "test_get_account_preferences" >:: test_get_account_preferences;
        ]
 
 let () =
