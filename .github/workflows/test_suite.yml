@@ -32,7 +32,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Install libzstd
         run: sudo apt-get update && sudo apt-get install -y libzstd-dev
@@ -61,7 +61,7 @@ jobs:
           ATP_HOST: ${{ secrets.ATP_HOST }}
       - name: Upload Log
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: dune_runtest
           path: dune_runtest.log
@@ -80,7 +80,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Install libzstd
         run: sudo apt-get update && sudo apt-get install -y libzstd-dev
@@ -102,7 +102,7 @@ jobs:
 
       - name: Upload odoc HTML
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: odoc-html
           path: _build/default/_doc/_html
@@ -149,7 +149,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Use OCaml ${{ matrix.ocaml-compiler }}
         uses: ocaml/setup-ocaml@v3
@@ -173,7 +173,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Install libzstd
         run: sudo apt-get update && sudo apt-get install -y libzstd-dev
@@ -204,16 +204,16 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Use Node.js 22
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: "22"
           package-manager-cache: false
 
       - name: Cache @atproto/dev-env
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: docker/dev-env/node_modules
           key: ${{ runner.os }}-dev-env-${{ hashFiles('docker/dev-env/package.json') }}
@@ -265,7 +265,7 @@ jobs:
 
       - name: Upload Log
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: local_pds_runtest
           path: local_pds_runtest.log
