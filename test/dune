@@ -154,3 +154,15 @@
   test_download_image
   test_video
   test_xrpc))
+
+(tests
+ (package atproto)
+ (flags
+  (:standard -w +33 -warn-error +33))
+ (names test_lexicon_coverage)
+ (modules test_lexicon_coverage)
+ (deps
+  ../lexicons/official-nsids.json
+  ../lexicons/coverage-skips.json
+  (source_tree ../src))
+ (libraries unix yojson ounit2 atproto))

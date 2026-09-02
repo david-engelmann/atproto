@@ -9,7 +9,7 @@ Public modules include Auth, Session, Actor, Feed, Graph, Bookmark, Video, Unspe
 
 Video support is a client for the hosted video service (byte upload + job-status poll). This package does not host a PDS, OAuth client-metadata document, browser login, or video transcoder.
 
-This package is not published to the public opam-repository; pin the GitHub repository (see the README). Requires OCaml 4.14.1."""
+This package is not published to the public opam-repository; pin the GitHub repository (see the README). Requires OCaml >= 4.14.1 and < 5.0."""
 maintainer: ["david-engelmann <david.engelmann44@gmail.com>"]
 authors: ["david-engelmann <david.engelmann44@gmail.com>"]
 license: "MIT"
@@ -19,7 +19,7 @@ doc: "https://github.com/david-engelmann/atproto"
 bug-reports: "https://github.com/david-engelmann/atproto/issues"
 depends: [
   "dune" {>= "2.9"}
-  "ocaml" {>= "4.14.1"}
+  "ocaml" {>= "4.14.1" & < "5.0"}
   "core"
   "async"
   "uri" {>= "4.2.0"}

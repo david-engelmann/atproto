@@ -1,0 +1,1458 @@
+{
+  "source": "https://github.com/bluesky-social/atproto",
+  "sha": "60c439595101fbcbe612463e6f23200590c5daaf",
+  "main_types": [
+    "query",
+    "procedure",
+    "subscription",
+    "record",
+    "permission-set"
+  ],
+  "lexicon_json_count": 403,
+  "nsid_count": 359,
+  "counts": {
+    "query": 177,
+    "procedure": 142,
+    "subscription": 3,
+    "record": 27,
+    "permission-set": 10
+  },
+  "nsids": [
+    {
+      "id": "app.bsky.actor.contentVisibilityDeclaration",
+      "type": "record"
+    },
+    {
+      "id": "app.bsky.actor.getPreferences",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.actor.getProfile",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.actor.getProfiles",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.actor.getSuggestions",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.actor.profile",
+      "type": "record"
+    },
+    {
+      "id": "app.bsky.actor.putPreferences",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.actor.searchActors",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.actor.searchActorsTypeahead",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.actor.status",
+      "type": "record"
+    },
+    {
+      "id": "app.bsky.ageassurance.begin",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.ageassurance.getConfig",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.ageassurance.getState",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.authCreatePosts",
+      "type": "permission-set"
+    },
+    {
+      "id": "app.bsky.authDeleteContent",
+      "type": "permission-set"
+    },
+    {
+      "id": "app.bsky.authFullApp",
+      "type": "permission-set"
+    },
+    {
+      "id": "app.bsky.authManageFeedDeclarations",
+      "type": "permission-set"
+    },
+    {
+      "id": "app.bsky.authManageLabelerService",
+      "type": "permission-set"
+    },
+    {
+      "id": "app.bsky.authManageModeration",
+      "type": "permission-set"
+    },
+    {
+      "id": "app.bsky.authManageNotifications",
+      "type": "permission-set"
+    },
+    {
+      "id": "app.bsky.authManageProfile",
+      "type": "permission-set"
+    },
+    {
+      "id": "app.bsky.authViewAll",
+      "type": "permission-set"
+    },
+    {
+      "id": "app.bsky.bookmark.createBookmark",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.bookmark.deleteBookmark",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.bookmark.getBookmarks",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.contact.dismissMatch",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.contact.getMatches",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.contact.getSyncStatus",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.contact.importContacts",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.contact.removeData",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.contact.sendNotification",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.contact.startPhoneVerification",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.contact.verifyPhone",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.draft.createDraft",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.draft.deleteDraft",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.draft.getDrafts",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.draft.updateDraft",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.embed.getEmbedExternalView",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.feed.describeFeedGenerator",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.feed.generator",
+      "type": "record"
+    },
+    {
+      "id": "app.bsky.feed.getActorFeeds",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.feed.getActorLikes",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.feed.getAuthorFeed",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.feed.getFeed",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.feed.getFeedGenerator",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.feed.getFeedGenerators",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.feed.getFeedSkeleton",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.feed.getLikes",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.feed.getListFeed",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.feed.getPostThread",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.feed.getPosts",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.feed.getQuotes",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.feed.getRepostedBy",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.feed.getSuggestedFeeds",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.feed.getTimeline",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.feed.like",
+      "type": "record"
+    },
+    {
+      "id": "app.bsky.feed.post",
+      "type": "record"
+    },
+    {
+      "id": "app.bsky.feed.postgate",
+      "type": "record"
+    },
+    {
+      "id": "app.bsky.feed.repost",
+      "type": "record"
+    },
+    {
+      "id": "app.bsky.feed.searchPosts",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.feed.searchPostsV2",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.feed.sendInteractions",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.feed.threadgate",
+      "type": "record"
+    },
+    {
+      "id": "app.bsky.graph.block",
+      "type": "record"
+    },
+    {
+      "id": "app.bsky.graph.follow",
+      "type": "record"
+    },
+    {
+      "id": "app.bsky.graph.getActorStarterPacks",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.graph.getBlocks",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.graph.getFollowers",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.graph.getFollows",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.graph.getKnownFollowers",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.graph.getList",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.graph.getListBlocks",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.graph.getListMutes",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.graph.getLists",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.graph.getListsWithMembership",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.graph.getMutes",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.graph.getRelationships",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.graph.getStarterPack",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.graph.getStarterPacks",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.graph.getStarterPacksWithMembership",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.graph.getSuggestedFollowsByActor",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.graph.list",
+      "type": "record"
+    },
+    {
+      "id": "app.bsky.graph.listblock",
+      "type": "record"
+    },
+    {
+      "id": "app.bsky.graph.listitem",
+      "type": "record"
+    },
+    {
+      "id": "app.bsky.graph.muteActor",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.graph.muteActorList",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.graph.muteThread",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.graph.referencelistoptout",
+      "type": "record"
+    },
+    {
+      "id": "app.bsky.graph.searchStarterPacks",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.graph.searchStarterPacksV2",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.graph.starterpack",
+      "type": "record"
+    },
+    {
+      "id": "app.bsky.graph.unmuteActor",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.graph.unmuteActorList",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.graph.unmuteThread",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.graph.verification",
+      "type": "record"
+    },
+    {
+      "id": "app.bsky.labeler.getServices",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.labeler.service",
+      "type": "record"
+    },
+    {
+      "id": "app.bsky.notification.declaration",
+      "type": "record"
+    },
+    {
+      "id": "app.bsky.notification.getPreferences",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.notification.getUnreadCount",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.notification.listActivitySubscriptions",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.notification.listNotifications",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.notification.putActivitySubscription",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.notification.putPreferences",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.notification.putPreferencesV2",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.notification.registerPush",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.notification.unregisterPush",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.notification.updateSeen",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.unspecced.getAgeAssuranceState",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getConfig",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getOnboardingSuggestedStarterPacks",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getOnboardingSuggestedStarterPacksSkeleton",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getOnboardingSuggestedUsersSkeleton",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getPopularFeedGenerators",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getPostThreadOtherV2",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getPostThreadV2",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getSuggestedFeeds",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getSuggestedFeedsSkeleton",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getSuggestedOnboardingUsers",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getSuggestedStarterPacks",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getSuggestedStarterPacksSkeleton",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getSuggestedUsers",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getSuggestedUsersForDiscover",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getSuggestedUsersForDiscoverSkeleton",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getSuggestedUsersForExplore",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getSuggestedUsersForExploreSkeleton",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getSuggestedUsersForSeeMore",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getSuggestedUsersForSeeMoreSkeleton",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getSuggestedUsersSkeleton",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getSuggestionsSkeleton",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getTaggedSuggestions",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getTrendingTopics",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getTrends",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.getTrendsSkeleton",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.initAgeAssurance",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.unspecced.searchActorsSkeleton",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.searchPostsSkeleton",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.unspecced.searchStarterPacksSkeleton",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.video.abortUpload",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.video.finishUpload",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.video.getJobStatus",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.video.getUploadLimits",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.video.getUploadStatus",
+      "type": "query"
+    },
+    {
+      "id": "app.bsky.video.startUpload",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.video.uploadPart",
+      "type": "procedure"
+    },
+    {
+      "id": "app.bsky.video.uploadVideo",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.actor.declaration",
+      "type": "record"
+    },
+    {
+      "id": "chat.bsky.actor.deleteAccount",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.actor.exportAccountData",
+      "type": "query"
+    },
+    {
+      "id": "chat.bsky.actor.getStatus",
+      "type": "query"
+    },
+    {
+      "id": "chat.bsky.authFullChatClient",
+      "type": "permission-set"
+    },
+    {
+      "id": "chat.bsky.convo.acceptConvo",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.convo.addReaction",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.convo.deleteMessageForSelf",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.convo.getConvo",
+      "type": "query"
+    },
+    {
+      "id": "chat.bsky.convo.getConvoAvailability",
+      "type": "query"
+    },
+    {
+      "id": "chat.bsky.convo.getConvoForMembers",
+      "type": "query"
+    },
+    {
+      "id": "chat.bsky.convo.getConvoMembers",
+      "type": "query"
+    },
+    {
+      "id": "chat.bsky.convo.getLog",
+      "type": "query"
+    },
+    {
+      "id": "chat.bsky.convo.getMessages",
+      "type": "query"
+    },
+    {
+      "id": "chat.bsky.convo.getUnreadCounts",
+      "type": "query"
+    },
+    {
+      "id": "chat.bsky.convo.leaveConvo",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.convo.listConvoRequests",
+      "type": "query"
+    },
+    {
+      "id": "chat.bsky.convo.listConvos",
+      "type": "query"
+    },
+    {
+      "id": "chat.bsky.convo.lockConvo",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.convo.muteConvo",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.convo.removeReaction",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.convo.sendMessage",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.convo.sendMessageBatch",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.convo.unlockConvo",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.convo.unmuteConvo",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.convo.updateAllRead",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.convo.updateRead",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.group.addMembers",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.group.approveJoinRequest",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.group.createGroup",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.group.createJoinLink",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.group.disableJoinLink",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.group.editGroup",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.group.editJoinLink",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.group.enableJoinLink",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.group.getJoinLinkPreviews",
+      "type": "query"
+    },
+    {
+      "id": "chat.bsky.group.listJoinRequests",
+      "type": "query"
+    },
+    {
+      "id": "chat.bsky.group.listMutualGroups",
+      "type": "query"
+    },
+    {
+      "id": "chat.bsky.group.rejectJoinRequest",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.group.removeMembers",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.group.requestJoin",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.group.updateJoinRequestsRead",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.group.withdrawJoinRequest",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.moderation.getActorMetadata",
+      "type": "query"
+    },
+    {
+      "id": "chat.bsky.moderation.getConvo",
+      "type": "query"
+    },
+    {
+      "id": "chat.bsky.moderation.getConvoMembers",
+      "type": "query"
+    },
+    {
+      "id": "chat.bsky.moderation.getConvos",
+      "type": "query"
+    },
+    {
+      "id": "chat.bsky.moderation.getMessageContext",
+      "type": "query"
+    },
+    {
+      "id": "chat.bsky.moderation.subscribeModEvents",
+      "type": "subscription"
+    },
+    {
+      "id": "chat.bsky.moderation.updateActorAccess",
+      "type": "procedure"
+    },
+    {
+      "id": "chat.bsky.notification.getPreferences",
+      "type": "query"
+    },
+    {
+      "id": "chat.bsky.notification.putPreferences",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.admin.deleteAccount",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.admin.disableAccountInvites",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.admin.disableInviteCodes",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.admin.enableAccountInvites",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.admin.getAccountInfo",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.admin.getAccountInfos",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.admin.getInviteCodes",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.admin.getSubjectStatus",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.admin.searchAccounts",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.admin.sendEmail",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.admin.updateAccountEmail",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.admin.updateAccountHandle",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.admin.updateAccountPassword",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.admin.updateAccountSigningKey",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.admin.updateSubjectStatus",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.identity.getRecommendedDidCredentials",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.identity.refreshIdentity",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.identity.requestPlcOperationSignature",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.identity.resolveDid",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.identity.resolveHandle",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.identity.resolveIdentity",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.identity.signPlcOperation",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.identity.submitPlcOperation",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.identity.updateHandle",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.label.queryLabels",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.label.subscribeLabels",
+      "type": "subscription"
+    },
+    {
+      "id": "com.atproto.lexicon.resolveLexicon",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.lexicon.schema",
+      "type": "record"
+    },
+    {
+      "id": "com.atproto.moderation.createReport",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.repo.applyWrites",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.repo.createRecord",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.repo.deleteRecord",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.repo.describeRepo",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.repo.getRecord",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.repo.importRepo",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.repo.listMissingBlobs",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.repo.listRecords",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.repo.putRecord",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.repo.uploadBlob",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.server.activateAccount",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.server.checkAccountStatus",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.server.confirmEmail",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.server.createAccount",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.server.createAppPassword",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.server.createInviteCode",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.server.createInviteCodes",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.server.createSession",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.server.deactivateAccount",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.server.deleteAccount",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.server.deleteSession",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.server.describeServer",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.server.getAccountInviteCodes",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.server.getServiceAuth",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.server.getSession",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.server.listAppPasswords",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.server.refreshSession",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.server.requestAccountDelete",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.server.requestEmailConfirmation",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.server.requestEmailUpdate",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.server.requestPasswordReset",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.server.reserveSigningKey",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.server.resetPassword",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.server.revokeAppPassword",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.server.updateEmail",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.sync.getBlob",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.sync.getBlocks",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.sync.getCheckout",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.sync.getHead",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.sync.getHostStatus",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.sync.getLatestCommit",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.sync.getRecord",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.sync.getRepo",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.sync.getRepoStatus",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.sync.listBlobs",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.sync.listHosts",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.sync.listRepos",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.sync.listReposByCollection",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.sync.notifyOfUpdate",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.sync.requestCrawl",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.sync.subscribeRepos",
+      "type": "subscription"
+    },
+    {
+      "id": "com.atproto.temp.addReservedHandle",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.temp.checkHandleAvailability",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.temp.checkSignupQueue",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.temp.dereferenceScope",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.temp.fetchLabels",
+      "type": "query"
+    },
+    {
+      "id": "com.atproto.temp.requestPhoneVerification",
+      "type": "procedure"
+    },
+    {
+      "id": "com.atproto.temp.revokeAccountCredentials",
+      "type": "procedure"
+    },
+    {
+      "id": "com.germnetwork.declaration",
+      "type": "record"
+    },
+    {
+      "id": "internal.bsky.actor.getProfiles",
+      "type": "query"
+    },
+    {
+      "id": "site.standard.document",
+      "type": "record"
+    },
+    {
+      "id": "site.standard.graph.recommend",
+      "type": "record"
+    },
+    {
+      "id": "site.standard.graph.subscription",
+      "type": "record"
+    },
+    {
+      "id": "site.standard.publication",
+      "type": "record"
+    },
+    {
+      "id": "site.standard.theme.basic",
+      "type": "record"
+    },
+    {
+      "id": "tools.ozone.communication.createTemplate",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.communication.deleteTemplate",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.communication.listTemplates",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.communication.updateTemplate",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.hosting.getAccountHistory",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.moderation.cancelScheduledActions",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.moderation.emitEvent",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.moderation.getAccountTimeline",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.moderation.getEvent",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.moderation.getRecord",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.moderation.getRecords",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.moderation.getRepo",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.moderation.getReporterStats",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.moderation.getRepos",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.moderation.getSubjects",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.moderation.listScheduledActions",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.moderation.queryEvents",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.moderation.queryStatuses",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.moderation.scheduleAction",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.moderation.searchRepos",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.queue.assignModerator",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.queue.createQueue",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.queue.deleteQueue",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.queue.getAssignments",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.queue.listQueues",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.queue.routeReports",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.queue.unassignModerator",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.queue.updateQueue",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.report.assignModerator",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.report.closeReports",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.report.createActivity",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.report.getAssignments",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.report.getHistoricalStats",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.report.getLatestReport",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.report.getLiveStats",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.report.getReport",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.report.listActivities",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.report.queryActivities",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.report.queryReports",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.report.reassignQueue",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.report.refreshStats",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.report.unassignModerator",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.safelink.addRule",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.safelink.queryEvents",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.safelink.queryRules",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.safelink.removeRule",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.safelink.updateRule",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.server.getConfig",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.set.addValues",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.set.deleteSet",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.set.deleteValues",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.set.getValues",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.set.querySets",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.set.upsertSet",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.setting.listOptions",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.setting.removeOptions",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.setting.upsertOption",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.signature.findCorrelation",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.signature.findRelatedAccounts",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.signature.searchAccounts",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.team.addMember",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.team.deleteMember",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.team.listMembers",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.team.updateMember",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.verification.grantVerifications",
+      "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.verification.listVerifications",
+      "type": "query"
+    },
+    {
+      "id": "tools.ozone.verification.revokeVerifications",
+      "type": "procedure"
+    }
+  ]
+}

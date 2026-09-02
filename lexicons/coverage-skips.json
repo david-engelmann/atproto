@@ -1,0 +1,24 @@
+{
+  "skips": [
+    {
+      "id": "com.atproto.sync.getCheckout",
+      "reason": "Deprecated leftover; Sync.get_checkout wraps getRepo and does not send getCheckout."
+    },
+    {
+      "id": "com.atproto.sync.getHead",
+      "reason": "Deprecated leftover; Sync.get_head wraps getLatestCommit and does not send getHead."
+    },
+    {
+      "id": "com.atproto.sync.notifyOfUpdate",
+      "reason": "Deprecated leftover; Sync.notify_of_update fails and points callers at requestCrawl."
+    },
+    {
+      "id": "com.atproto.temp.fetchLabels",
+      "reason": "Deprecated leftover; use Label.query_labels / subscribeLabels."
+    },
+    {
+      "id": "internal.bsky.actor.getProfiles",
+      "reason": "Service-to-service AppView query, not a public client surface."
+    }
+  ]
+}
