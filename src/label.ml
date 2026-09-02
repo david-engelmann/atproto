@@ -392,7 +392,8 @@ module Label = struct
       | None -> if host_uses_cleartext host then "ws" else "wss"
     in
     let base =
-      Printf.sprintf "%s://%s/xrpc/com.atproto.label.subscribeLabels" scheme host
+      Printf.sprintf "%s://%s/xrpc/com.atproto.label.subscribeLabels" scheme
+        host
     in
     match cursor with
     | None -> base

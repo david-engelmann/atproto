@@ -184,16 +184,16 @@ let is_ws_not_served msg =
   || message_has msg "methodnotfound"
   || message_has msg "unknown lexicon"
   || message_has msg " 501" || message_has msg " 404"
-  || message_has msg "connection" || message_has msg "tls"
-  || message_has msg "handshake" || message_has msg "eof"
+  || message_has msg "connection"
+  || message_has msg "tls"
+  || message_has msg "handshake"
+  || message_has msg "eof"
 
 (* One subscribeLabels frame against local Ozone (or PDS) if the NSID is served. *)
 let test_subscribe_labels_one_frame _ =
   skip_unless_local ();
   let host =
-    match ozone_host () with
-    | Some h -> h
-    | None -> Session.atp_host_from_env
+    match ozone_host () with Some h -> h | None -> Session.atp_host_from_env
   in
   try
     with_alarm 15 (fun () ->
