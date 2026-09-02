@@ -73,6 +73,10 @@ let pds_get_if_served ?session nsid pairs =
   let json = Client.get_json ?session ~host:(pds_host ()) nsid pairs in
   if Error.is_not_served_json json then None else Some (ensure_ok json)
 
+let pds_post_if_served ?session nsid data =
+  let json = Client.post_json ?session ~host:(pds_host ()) nsid data in
+  if Error.is_not_served_json json then None else Some (ensure_ok json)
+
 let is_ws_not_served msg =
   message_has msg "methodnotimplemented"
   || message_has msg "methodnotfound"
@@ -115,6 +119,15 @@ let live_session =
      Session.create_session username password)
 
 let session () = Lazy.force live_session
+
+let throwaway_session prefix password =
+  skip_unless_local_pds ();
+  let handle = unique_handle prefix in
+  let email = handle ^ "@test.local" in
+  ignore
+    (Server.create_account_at ~host:(pds_host ()) ~handle ~email ~password ()
+    |> ensure_ok);
+  Session.create_session handle password
 
 let test_describe_server _ =
   skip_unless_local_pds ();
@@ -607,6 +620,50 @@ let test_referencelistoptout_and_import _ =
       in
       OUnit2.assert_bool "importRepo commit" (String.length again.cid > 0)
 
+let test_update_handle _ =
+  let s = throwaway_session "hdl" "local-pds-handle-password" in
+  let new_handle = unique_handle "hdlu" in
+  match
+    pds_post_if_served ~session:s "com.atproto.identity.updateHandle"
+      (Yojson.Safe.to_string (Identity.update_handle_body new_handle))
+  with
+  | None -> ()
+  | Some _ ->
+      Identity.update_handle s ~handle:new_handle ();
+      let info = Session.get_session s in
+      OUnit2.assert_equal ~printer:(fun x -> x) new_handle info.handle;
+      let resolved =
+        Identity.resolve_handle ~host:s.atp_host ~session:s new_handle
+      in
+      OUnit2.assert_equal ~printer:(fun x -> x) s.auth.did resolved.did
+
+let test_deactivate_activate _ =
+  let s = throwaway_session "deact" "local-pds-deact-password" in
+  let activated_of status =
+    match status.Server.activated with
+    | Some b -> string_of_bool b
+    | None -> "none"
+  in
+  match
+    pds_post_if_served ~session:s "com.atproto.server.deactivateAccount"
+      (Yojson.Safe.to_string (Server.deactivate_account_body ()))
+  with
+  | None -> ()
+  | Some _ ->
+      Server.deactivate_account s ();
+      let deactivated = Server.check_account_status s in
+      OUnit2.assert_equal ~printer:activated_of (Some false)
+        deactivated.activated;
+      (match
+         pds_post_if_served ~session:s "com.atproto.server.activateAccount" "{}"
+       with
+      | None -> ()
+      | Some _ ->
+          Server.activate_account s;
+          let activated = Server.check_account_status s in
+          OUnit2.assert_equal ~printer:activated_of (Some true)
+            activated.activated)
+
 let test_session_refresh_and_delete _ =
   skip_unless_local_pds ();
   let handle = unique_handle "ref" in
@@ -698,6 +755,8 @@ let suite =
          "test_other_pds_xrpc" >:: test_other_pds_xrpc;
          "test_referencelistoptout_and_import"
          >:: test_referencelistoptout_and_import;
+         "test_update_handle" >:: test_update_handle;
+         "test_deactivate_activate" >:: test_deactivate_activate;
          "test_session_refresh_and_delete" >:: test_session_refresh_and_delete;
          "test_get_account_invite_codes" >:: test_get_account_invite_codes;
          "test_plc_directory_write" >:: test_plc_directory_write;

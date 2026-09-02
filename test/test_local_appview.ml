@@ -12,6 +12,7 @@ open Atproto.Notification
 open Atproto.Labeler
 open Atproto.Unspecced
 open Atproto.Bookmark
+open Atproto.Draft
 open Actor
 open Feed
 open Graph
@@ -509,6 +510,14 @@ let test_leftover_appview _ =
       | `List _ -> ()
       | _ -> OUnit2.assert_failure "getActorLikes missing feed"));
   (match
+     av_get_if_served "app.bsky.feed.getActorFeeds"
+       [ ("actor", "alice.test"); ("limit", "5") ]
+   with
+  | None -> ()
+  | Some json ->
+      let gens = Feed.parse_generators json in
+      OUnit2.assert_bool "getActorFeeds" (List.length gens.feeds >= 0));
+  (match
      av_get_if_served "app.bsky.feed.getSuggestedFeeds" [ ("limit", "5") ]
    with
   | None -> ()
@@ -586,6 +595,15 @@ let test_leftover_appview _ =
               | Some json ->
                   OUnit2.assert_bool "getPostThreadV2"
                     (match json with `Assoc _ -> true | _ -> false));
+              (match
+                 av_get_if_served "app.bsky.unspecced.getPostThreadOtherV2"
+                   [ ("anchor", uri) ]
+               with
+              | None -> ()
+              | Some json ->
+                  let other = Unspecced.parse_thread_other_v2 json in
+                  OUnit2.assert_bool "getPostThreadOtherV2"
+                    (List.length other.thread >= 0));
               ignore
                 (av_post_if_served ~session:s "app.bsky.graph.muteThread"
                    (Yojson.Safe.to_string (`Assoc [ ("root", `String uri) ])));
@@ -629,6 +647,15 @@ let test_leftover_appview _ =
           OUnit2.assert_bool "subjectOptedOut optional"
             (match item.subject_opted_out with Some _ | None -> true))
         page.items);
+  (match
+     av_get_until ~attempts:20 ~retry_message:"not found"
+       "app.bsky.feed.getListFeed"
+       [ ("list", listed.uri); ("limit", "5") ]
+   with
+  | None -> ()
+  | Some json ->
+      let page = Feed.parse_timeline json in
+      OUnit2.assert_bool "getListFeed" (List.length page.feed >= 0));
   (match
      Yojson.Safe.Util.member "feed"
        (av_get "app.bsky.feed.getAuthorFeed"
@@ -690,6 +717,24 @@ let test_leftover_appview _ =
       match Yojson.Safe.Util.member "listsWithMembership" json with
       | `List _ -> ()
       | _ -> ()));
+  (match
+     av_get_if_served ~session:s "app.bsky.graph.getStarterPacksWithMembership"
+       [ ("actor", "alice.test"); ("limit", "5") ]
+   with
+  | None -> ()
+  | Some json ->
+      let page = Graph.parse_starter_packs_with_membership json in
+      OUnit2.assert_bool "getStarterPacksWithMembership"
+        (List.length page.starter_packs >= 0));
+  (match
+     av_get_if_served ~session:s
+       "app.bsky.notification.listActivitySubscriptions" [ ("limit", "5") ]
+   with
+  | None -> ()
+  | Some json ->
+      let page = Notification.parse_activity_subscription_page json in
+      OUnit2.assert_bool "listActivitySubscriptions"
+        (List.length page.subscriptions >= 0));
   ignore
     (av_post_if_served ~session:s "app.bsky.actor.putPreferences"
        (Yojson.Safe.to_string
@@ -731,6 +776,105 @@ let test_leftover_appview _ =
       Feed.filter_posts_with_video;
     ]
 
+let draft_post text : Draft.draft_post =
+  {
+    text;
+    labels = None;
+    embed_images = [];
+    embed_gallery = None;
+    embed_videos = [];
+    embed_externals = [];
+    embed_records = [];
+  }
+
+(* AppView 0.0.277 registers the draft family. PDS stash proxy may 501. *)
+let test_drafts _ =
+  let s = session () in
+  let draft =
+    Draft.draft_json ~langs:[ "en" ] ~posts:[ draft_post "av draft" ] ()
+  in
+  match
+    av_post_if_served ~session:s "app.bsky.draft.createDraft"
+      (Yojson.Safe.to_string (Draft.create_draft_body draft))
+  with
+  | None -> ()
+  | Some json ->
+      let id = Client.string_member json "id" in
+      OUnit2.assert_bool "createDraft id" (String.length id > 0);
+      (match
+         av_get_if_served ~session:s "app.bsky.draft.getDrafts"
+           [ ("limit", "10") ]
+       with
+      | None -> ()
+      | Some page_json ->
+          let page = Draft.parse_drafts_page page_json in
+          OUnit2.assert_bool "getDrafts includes created"
+            (List.exists (fun (d : Draft.draft_view) -> d.id = id) page.drafts));
+      let updated =
+        Draft.draft_json ~langs:[ "en" ]
+          ~posts:[ draft_post "av draft updated" ]
+          ()
+      in
+      ignore
+        (av_post_if_served ~session:s "app.bsky.draft.updateDraft"
+           (Yojson.Safe.to_string (Draft.update_draft_body ~id updated)));
+      ignore
+        (av_post_if_served ~session:s "app.bsky.draft.deleteDraft"
+           (Yojson.Safe.to_string (Draft.delete_draft_body ~id)))
+
+let test_mute_actor_list _ =
+  let s = session () in
+  let created_at = rfc3339_z () in
+  let list =
+    Records.list ~name:"List mute" ~purpose:Records.purpose_curatelist
+      ~created_at ()
+  in
+  let listed =
+    Repo.create_record s s.auth.did Records.nsid_list
+      (Yojson.Safe.to_string list)
+    |> fun body ->
+    match Error.check_for_error (Yojson.Safe.from_string body) with
+    | Some e -> failwith ("create list: " ^ e)
+    | None -> Repo.parse_write_result (Yojson.Safe.from_string body)
+  in
+  ignore
+    (av_get_until ~attempts:20 ~retry_message:"not found"
+       "app.bsky.graph.getList"
+       [ ("list", listed.uri); ("limit", "5") ]);
+  ignore
+    (av_post_if_served ~session:s "app.bsky.graph.muteActorList"
+       (Yojson.Safe.to_string (`Assoc [ ("list", `String listed.uri) ])));
+  (match
+     av_get_if_served ~session:s "app.bsky.graph.getListMutes"
+       [ ("limit", "10") ]
+   with
+  | None -> ()
+  | Some json ->
+      let page = Graph.parse_lists json in
+      OUnit2.assert_bool "getListMutes" (List.length page.lists >= 0));
+  ignore
+    (av_post_if_served ~session:s "app.bsky.graph.unmuteActorList"
+       (Yojson.Safe.to_string (`Assoc [ ("list", `String listed.uri) ])))
+
+let test_put_preferences_v2 _ =
+  let s = session () in
+  let prefs =
+    match
+      av_get_if_served ~session:s "app.bsky.notification.getPreferences" []
+    with
+    | Some json -> Notification.parse_preferences json
+    | None -> Notification.parse_preferences (`Assoc [])
+  in
+  match
+    av_post_if_served ~session:s "app.bsky.notification.putPreferencesV2"
+      (Yojson.Safe.to_string (Notification.preferences_to_json prefs))
+  with
+  | None -> ()
+  | Some json ->
+      let written = Notification.parse_preferences json in
+      OUnit2.assert_bool "putPreferencesV2"
+        (match written.original with `Assoc _ | _ -> true)
+
 let suite =
   "local_appview"
   >::: [
@@ -742,6 +886,9 @@ let suite =
          "test_more_appview" >:: test_more_appview;
          "test_notifications" >:: test_notifications;
          "test_leftover_appview" >:: test_leftover_appview;
+         "test_drafts" >:: test_drafts;
+         "test_mute_actor_list" >:: test_mute_actor_list;
+         "test_put_preferences_v2" >:: test_put_preferences_v2;
        ]
 
 let () =
