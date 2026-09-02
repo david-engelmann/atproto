@@ -482,7 +482,7 @@ module Server = struct
   let activate_account (s : Session.session) : unit =
     ignore
       (Client.Client.post_json ~session:s "com.atproto.server.activateAccount"
-         "{}")
+         "")
 
   let check_account_status (s : Session.session) : account_status =
     Client.Client.get_json ~session:s "com.atproto.server.checkAccountStatus" []
