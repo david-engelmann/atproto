@@ -258,6 +258,7 @@ module Dag_cbor = struct
   let get_map (v : value) : (string * value) list =
     match v with Map m -> m | _ -> fail "expected map"
 
+  (** Optional map field [key]. *)
   let find key fields =
     try Some (List.assoc key fields) with Not_found -> None
 
@@ -283,6 +284,7 @@ module Dag_cbor = struct
   let as_bytes = function Bytes b -> b | _ -> fail "expected bytes"
   let as_array = function Array a -> a | _ -> fail "expected array"
 
+  (** Unwrap a [Cid] (or a text CID string). *)
   let as_cid = function
     | Cid c -> c
     | Text t -> Cid.of_string t

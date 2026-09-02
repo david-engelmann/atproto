@@ -75,6 +75,7 @@ module Error = struct
     | Some "MethodNotImplemented" | Some "MethodNotFound" -> true
     | _ -> false
 
+  (** [is_not_served] for an XRPC JSON body. *)
   let is_not_served_json json : bool =
     match check_for_error json with
     | None -> false

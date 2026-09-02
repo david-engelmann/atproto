@@ -62,6 +62,7 @@ module Session = struct
       did_doc;
     }
 
+  (** PDS host from [ATP_HOST] (default [bsky.social]). *)
   let atp_host_from_env : string =
     let atp_host =
       try Sys.getenv "ATP_HOST" with Not_found -> "bsky.social"

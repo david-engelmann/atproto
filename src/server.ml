@@ -236,6 +236,7 @@ module Server = struct
       (Yojson.Safe.to_string (request_account_delete_body ()))
     |> Yojson.Safe.to_string
 
+  (** Request a reset email via [com.atproto.server.requestPasswordReset]. *)
   let request_password_reset (s : Session.session) (email : string) : string =
     Client.Client.post_json ~session:s "com.atproto.server.requestPasswordReset"
       (Yojson.Safe.to_string (request_password_reset_body ~email))
@@ -426,6 +427,7 @@ module Server = struct
         | _ -> "");
     }
 
+  (** Reserve a signing key via [com.atproto.server.reserveSigningKey]. *)
   let reserve_signing_key ?session ?host ?did () : reserved_signing_key =
     Client.Client.post_json ?session ?host
       "com.atproto.server.reserveSigningKey"
@@ -474,6 +476,7 @@ module Server = struct
       (Yojson.Safe.to_string (request_email_update_body ()))
     |> parse_email_update
 
+  (** Update account email via [com.atproto.server.updateEmail]. *)
   let update_email (s : Session.session) ~email ?token ?email_auth_factor () :
       unit =
     ignore

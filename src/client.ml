@@ -121,6 +121,7 @@ module Client = struct
     in
     json_of_body resp
 
+  (** XRPC GET [nsid] returning the raw body string. *)
   let get_text ?session ?host ?bearer ?(extra = []) nsid pairs =
     let headers = request_headers ?session ?bearer ~extra () in
     let url = nsid_url ?session ?host nsid in

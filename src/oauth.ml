@@ -183,6 +183,7 @@ module Oauth = struct
         (match payload |> member "nonce" with `String s -> Some s | _ -> None);
     }
 
+  (** Verify a DPoP JWT against [pub] (ES256, low-S). *)
   let verify_dpop ~(pub : Mirage_crypto_ec.P256.Dsa.pub) (jwt : string) : bool =
     try
       let h, p, s = split_jwt jwt in
@@ -210,6 +211,7 @@ module Oauth = struct
     else if path.[0] = '/' then origin ^ path
     else origin ^ "/" ^ path
 
+  (** [scheme://host/oauth/par] (default [https://bsky.social]). *)
   let par_url ?(scheme = "https") ?(host = "bsky.social") () =
     Printf.sprintf "%s://%s/oauth/par" scheme host
 
@@ -1390,6 +1392,7 @@ module Oauth = struct
   (* DPoP-bound resource request with one use_dpop_nonce retry.
      [extra] is for headers such as [atproto-proxy]; DPoP still cannot be
      proxied — the PDS rejects that combination. *)
+  (** DPoP-bound resource request with one [use_dpop_nonce] retry. *)
   let request_with_dpop ~(http : http_request) ~priv ~pub ~url ~htm
       ~access_token ?body ?ath ?nonce ?(extra = []) () :
       http_response * string option =

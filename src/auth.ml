@@ -36,6 +36,7 @@ module Auth = struct
         if s = "http" then "http" else "https"
     | None -> "https"
 
+  (** [ATP_SCHEME://host] ([https] unless [ATP_SCHEME=http]). *)
   let origin_of_host (host : string) : string = scheme_from_env ^ "://" ^ host
 
   let print_auth (a : auth) : unit =

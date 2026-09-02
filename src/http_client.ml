@@ -198,9 +198,11 @@ module Http_client = struct
   let post url ?(headers = []) ?body ?timeout () : Response.response Lwt.t =
     request ?timeout (Request.post url ~headers ?body ())
 
+  (** HTTP/2 PUT [url] with optional [body]. *)
   let put url ?(headers = []) ?body ?timeout () : Response.response Lwt.t =
     request ?timeout (Request.put url ~headers ?body ())
 
+  (** HTTP/2 DELETE [url]. *)
   let delete url ?(headers = []) ?body ?timeout () : Response.response Lwt.t =
     request ?timeout (Request.delete url ~headers ?body ())
 

@@ -29,6 +29,7 @@ module Did_web = struct
 
   let parse_document = Did_plc.parse_document
 
+  (** Fetch the [did:web:] document as JSON. *)
   let resolve_json (did : string) : Yojson.Safe.t =
     let url = document_url did in
     let headers =

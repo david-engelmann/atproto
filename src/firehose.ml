@@ -295,6 +295,8 @@ module Firehose = struct
     | None -> failwith "Firehose: commit block missing from CAR"
     | Some block -> Mst.Mst.parse_repo_commit (Dag_cbor.decode block.data)
 
+  (** Invert [c]'s MST ops and return the previous-root CID. Fails on
+      [too_big] or rebase. *)
   let invert_commit (c : commit) : Cid.t =
     if c.too_big then
       failwith "Firehose.invert_commit: tooBig (CAR is incomplete)";
@@ -344,6 +346,8 @@ module Firehose = struct
                    (Cid.to_string inverted) (Cid.to_string expected))
         | None -> ())
 
+  (** Check the signed commit object against [c.repo] / [c.rev] and the
+      CAR root. *)
   let verify_commit_object (c : commit) : Mst.Mst.repo_commit =
     (match Car.root c.blocks with
     | Some root when not (Cid.equal root c.commit) ->
@@ -364,9 +368,12 @@ module Firehose = struct
        ^ signed.rev);
     signed
 
+  (** Verify the commit signature with [keys] (PLC / did:key). *)
   let verify_commit_sig ~keys (c : commit) : Mst.Mst.sig_status =
     Mst.Mst.verify_commit_sig ~keys (repo_commit_of c)
 
+  (** Verify a [#sync] frame: CAR root, DID, and rev match the signed
+      commit. *)
   let verify_sync (s : sync) : Mst.Mst.repo_commit =
     let root =
       match Car.root s.blocks with

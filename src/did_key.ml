@@ -47,6 +47,7 @@ module Did_key = struct
   (** Wrap secp256k1 public-key octets as a [did:key]. *)
   let of_k256_octets (public_key : string) : t = { curve = K256; public_key }
 
+  (** P-256 public key for [k], or [None] if the curve is not p256. *)
   let p256_pub (k : t) : Mirage_crypto_ec.P256.Dsa.pub option =
     if k.curve <> P256 then None
     else
@@ -54,6 +55,7 @@ module Did_key = struct
       | Ok pub -> Some pub
       | Error _ -> None
 
+  (** secp256k1 public key for [k], or [None] if the curve is not k256. *)
   let k256_pub (k : t) : K256.pub option =
     if k.curve <> K256 then None
     else
