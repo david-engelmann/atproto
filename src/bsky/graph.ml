@@ -80,6 +80,7 @@ module Graph = struct
     in
     { mutes; cursor }
 
+  (** Accounts the session blocks via [app.bsky.graph.getBlocks]. *)
   let get_blocks (s : Session.session) (limit : int) : blocks =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
@@ -157,6 +158,7 @@ module Graph = struct
       (follow_page_pairs ~actor ?limit ?cursor ?sort ())
     |> parse_follows
 
+  (** Accounts the session mutes via [app.bsky.graph.getMutes]. *)
   let get_mutes (s : Session.session) (limit : int) : mutes =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
@@ -217,6 +219,7 @@ module Graph = struct
     in
     muted_actor
 
+  (** Unmute [actor] via [app.bsky.graph.unmuteActor]. *)
   let unmute_actor (s : Session.session) (actor : string) : string =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
@@ -692,6 +695,7 @@ module Graph = struct
       @ Client.Client.opt_pair "cursor" cursor)
     |> parse_list_page
 
+  (** Lists created by [actor] via [app.bsky.graph.getLists]. *)
   let get_lists ?session ?host ~actor ?limit ?cursor () : lists =
     Client.Client.get_json ?session ?host "app.bsky.graph.getLists"
       ((("actor", actor) :: Client.Client.opt_int "limit" limit)
@@ -780,6 +784,8 @@ module Graph = struct
       @ Client.Client.opt_pair "cursor" cursor)
     |> parse_starter_packs_with_membership
 
+  (** Follow/block relationships for [actor] vs [others] via
+      [app.bsky.graph.getRelationships]. *)
   let get_relationships ?session ?host ~actor ?others () : relationships =
     Client.Client.get_json ?session ?host "app.bsky.graph.getRelationships"
       (("actor", actor)

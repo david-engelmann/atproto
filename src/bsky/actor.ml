@@ -539,6 +539,7 @@ module Actor = struct
     let profiles_json = profiles |> convert_body_to_json in
     profiles_json |> parse_profiles
 
+  (** Suggested accounts via [app.bsky.actor.getSuggestions]. *)
   let get_suggestions (s : Session.session) (limit : int) : short_profile list =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
@@ -559,6 +560,7 @@ module Actor = struct
     in
     suggestions |> convert_body_to_json |> parse_short_profiles
 
+  (** Actor search via [app.bsky.actor.searchActors] ([q] = [term]). *)
   let search_actors (s : Session.session) (term : string) (limit : int) :
       short_profile list =
     let bearer_token = Session.bearer_token_from_session s in
@@ -581,6 +583,7 @@ module Actor = struct
     in
     profiles |> convert_body_to_json |> parse_short_profiles
 
+  (** Typeahead via [app.bsky.actor.searchActorsTypeahead]. *)
   let search_actors_typeahead (s : Session.session) (term : string)
       (limit : int) : typeahead_profile list =
     let bearer_token = Session.bearer_token_from_session s in
@@ -896,6 +899,7 @@ module Actor = struct
     Client.Client.get_json ~session:s "app.bsky.actor.getPreferences" []
     |> parse_preferences
 
+  (** Replace stored preferences via [app.bsky.actor.putPreferences]. *)
   let put_preferences (s : Session.session) preferences : unit =
     ignore
       (Client.Client.post_json ~session:s "app.bsky.actor.putPreferences"

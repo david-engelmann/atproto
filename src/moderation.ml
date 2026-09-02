@@ -117,6 +117,8 @@ module Moderation = struct
     Yojson.Safe.to_string
       (`Assoc (report_fields reason_type ?reason ?mod_tool subject))
 
+  (** User report via [com.atproto.moderation.createReport] on a record
+      ([com.atproto.repo.strongRef]). Not an Ozone operator tool. *)
   let create_report_with_strong_ref (s : Session.session) (reason_type : string)
       ?reason ?mod_tool (subject : strong_ref) : report_response =
     let bearer_token = Session.bearer_token_from_session s in
@@ -138,6 +140,8 @@ module Moderation = struct
     in
     created_report |> convert_body_to_json |> parse_report_response
 
+  (** User report via [com.atproto.moderation.createReport] on an
+      account ([com.atproto.admin.defs#repoRef]). *)
   let create_report_with_repo_ref (s : Session.session) (reason_type : string)
       ?reason ?mod_tool (subject : repo_ref) : report_response =
     let bearer_token = Session.bearer_token_from_session s in

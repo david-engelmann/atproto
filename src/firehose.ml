@@ -80,6 +80,8 @@ module Firehose = struct
     let bare = String.lowercase_ascii bare in
     bare = "localhost" || bare = "127.0.0.1" || bare = "[::1]" || bare = "::1"
 
+  (** WebSocket URL for [com.atproto.sync.subscribeRepos]. Defaults to
+      [wss://bsky.network]; localhost uses [ws]. Optional [cursor]. *)
   let subscribe_url ?(host = default_relay_host) ?scheme ?cursor () =
     let scheme =
       match scheme with
@@ -218,6 +220,8 @@ module Firehose = struct
         | _ -> None);
     }
 
+  (** Decode a binary subscribeRepos frame into a header and [message]
+      ([#commit], [#sync], [#identity], [#account], [#info], or error). *)
   let decode_frame (bytes : string) : header * message =
     match Dag_cbor.decode_sequence bytes with
     | header_v :: body :: _ ->
@@ -257,6 +261,8 @@ module Firehose = struct
     in
     Dag_cbor.encode (Dag_cbor.Map fields)
 
+  (** Stream [com.atproto.sync.subscribeRepos] frames to [f]. Optional
+      [host], [cursor], and [max_messages]. *)
   let subscribe ?(host = default_relay_host) ?cursor ?max_messages f =
     let url = subscribe_url ~host ?cursor () in
     Websocket.with_connection url (fun ws ->
@@ -318,6 +324,8 @@ module Firehose = struct
           failwith "Firehose.validate_limits: block exceeds 1,000,000 bytes")
       c.blocks.blocks
 
+  (** Check commit limits and invert MST ops against [prev_data] when
+      the CAR is complete (not [too_big] / rebase). *)
   let verify_commit (c : commit) : unit =
     validate_limits c;
     match (c.too_big, c.rebase, c.ops) with
@@ -382,6 +390,8 @@ module Firehose = struct
         (Printf.sprintf "Firehose.verify_sync: rev %s != %s" signed.rev s.rev);
     signed
 
+  (** Verify [c] and apply its ops to [prev_tree]. The resulting MST
+      root must match the signed commit [data] CID. *)
   let apply_commit ~(prev_tree : Mst.Mst.tree) (c : commit) : Mst.Mst.tree =
     let signed = verify_commit_object c in
     verify_commit c;

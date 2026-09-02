@@ -320,6 +320,7 @@ module Notification = struct
     let json = Yojson.Safe.from_string body in
     json
 
+  (** Unread count via [app.bsky.notification.getUnreadCount]. *)
   let get_unread_count (s : Session.session) : unread_count =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
@@ -362,6 +363,8 @@ module Notification = struct
       @ Client.Client.opt_pair "seenAt" seen_at)
     |> parse_notification_page
 
+  (** Mark notifications seen at [seen_at] via
+      [app.bsky.notification.updateSeen]. *)
   let update_seen (s : Session.session) (seen_at : string) : string =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
@@ -518,6 +521,7 @@ module Notification = struct
         ("verified", preference_to_json p.verified);
       ]
 
+  (** Notification preferences via [app.bsky.notification.getPreferences]. *)
   let get_preferences (s : Session.session) : preferences =
     Client.Client.get_json ~session:s "app.bsky.notification.getPreferences" []
     |> parse_preferences

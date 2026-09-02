@@ -74,6 +74,8 @@ module Auth = struct
     in
     aux 0
 
+  (** True when [ATP_AUTH] is [user:password] and not a placeholder
+      dummy pair. *)
   let has_live_credentials : bool =
     match Sys.getenv_opt "ATP_AUTH" with
     | None -> false
@@ -81,6 +83,7 @@ module Auth = struct
         String.contains auth ':'
         && not (List.exists (string_contains auth) dummy_auth_markers)
 
+  (** [username, password] from [ATP_AUTH] ([user:password]). *)
   let username_and_password_from_env : string * string =
     let atp_auth =
       match Sys.getenv_opt "ATP_AUTH" with
@@ -92,6 +95,8 @@ module Auth = struct
   let create_server_endpoint (query_name : string) : string =
     "com.atproto.server" ^ "." ^ query_name
 
+  (** Parse [createSession] / [refreshSession] JSON into [auth]
+      ([accessJwt] claims plus optional [refreshJwt]). *)
   let parse_auth json : auth =
     let open Yojson.Safe.Util in
     let token = json |> member "accessJwt" |> to_string in
@@ -141,6 +146,7 @@ module Auth = struct
     in
     `Assoc fields
 
+  (** POST [com.atproto.server.createSession] and return the raw body. *)
   let make_auth_token_request ?auth_factor_token ?allow_takendown
       (username : string) (password : string) (personal_data_server : string) :
       string =
@@ -161,6 +167,8 @@ module Auth = struct
 
   (* com.atproto.server.refreshSession is POST with no input lexicon.
      Authorization is Bearer refreshJwt. Do not send a JSON body. *)
+  (** POST [com.atproto.server.refreshSession] with Bearer [refreshJwt]
+      (no JSON body). *)
   let refresh_auth_token_request (_access_jwt : string) (refresh_jwt : string)
       (_handle : string) (_did : string) (personal_data_server : string) :
       string =
@@ -171,6 +179,7 @@ module Auth = struct
     in
     Lwt_main.run (Cohttp_client.post_request_with_headers url headers)
 
+  (** True when [a.exp] is within one minute of now. *)
   let is_token_expired (a : auth) : bool =
     let expired_at = Ptime.of_float_s (float_of_int a.exp) |> Option.get in
     let expired_at =

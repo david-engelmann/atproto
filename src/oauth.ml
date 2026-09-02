@@ -45,6 +45,8 @@ module Oauth = struct
       failwith "Oauth.pkce_challenge: verifier must be 43-128 chars";
     Base64url.encode (Hash.sha256 verifier)
 
+  (** S256 PKCE pair: random [verifier] (43-128 chars) and its SHA-256
+      challenge. *)
   let pkce_s256 ?(verifier = random_verifier ()) () : pkce =
     { verifier; challenge = pkce_challenge verifier; method_ = "S256" }
 
@@ -118,6 +120,9 @@ module Oauth = struct
     done;
     Base64url.encode (Bytes.to_string bytes)
 
+  (** RFC 9449 DPoP proof (ES256, low-S). [htu] is the HTTP URI without
+      query or fragment; optional [ath] / [nonce] for resource and
+      [use_dpop_nonce] retries. *)
   let dpop_proof ~(priv : Mirage_crypto_ec.P256.Dsa.priv)
       ~(pub : Mirage_crypto_ec.P256.Dsa.pub) ~htm ~htu ?ath ?jti ?iat ?nonce ()
       : string =
@@ -222,6 +227,7 @@ module Oauth = struct
   let token_url_of_origin origin = url_on origin "/oauth/token"
   let revocation_url_of_origin origin = url_on origin "/oauth/revoke"
 
+  (** Fresh P-256 key pair for DPoP proofs. *)
   let generate_dpop_pair () :
       Mirage_crypto_ec.P256.Dsa.priv * Mirage_crypto_ec.P256.Dsa.pub =
     Lazy.force ensure_rng;
@@ -388,6 +394,8 @@ module Oauth = struct
   let assoc_opt key pairs =
     match List.assoc_opt key pairs with Some "" -> None | other -> other
 
+  (** Parse an OAuth redirect URI into [Authorized] ([code]+[state]) or
+      [Denied]. *)
   let parse_redirect (uri : string) : callback =
     let q =
       match String.index_opt uri '?' with
@@ -494,6 +502,8 @@ module Oauth = struct
       policy_uri;
     }
 
+  (** Confidential client metadata ([private_key_jwt] / ES256) with
+      public [jwks]. *)
   let confidential_metadata ~client_id ~redirect_uris ~jwks
       ?(scope = default_scope) ?(application_type = "web") ?client_name
       ?client_uri ?logo_uri ?tos_uri ?policy_uri () : client_metadata =
@@ -1280,6 +1290,8 @@ module Oauth = struct
         (Printf.sprintf "Oauth: GET %s HTTP %d: %s" url resp.status resp.body);
     (resp, decode_json_body ("GET " ^ url) resp.body)
 
+  (** Fetch protected-resource and authorization-server metadata for
+      [pds_origin], then [validate_as_metadata]. *)
   let discover_authorization_server ~(http : http_get) ~pds_origin () :
       resource_metadata * as_metadata =
     let origin = trim_slash pds_origin in
@@ -1318,6 +1330,8 @@ module Oauth = struct
     validate_as_metadata as_;
     (resource, as_)
 
+  (** Pushed Authorization Request (PAR) with DPoP. Returns
+      [request_uri] and the next DPoP nonce. *)
   let push_authorization ~(http : http_post) ~priv ~pub ~par_url ~form ?nonce ()
       : par_response * string option =
     let body = form_encode form in
@@ -1326,6 +1340,8 @@ module Oauth = struct
     in
     (parse_par_response (ensure_ok "PAR" resp), nonce)
 
+  (** Authorization-code token exchange with DPoP. [token_type] must be
+      [DPoP]; [sub] is the account DID. *)
   let exchange_code ~(http : http_post) ~priv ~pub ~token_url ~form ?nonce () :
       token * string option =
     let body = form_encode form in
@@ -1334,11 +1350,14 @@ module Oauth = struct
     in
     (parse_token_response (ensure_ok "token" resp), nonce)
 
+  (** Refresh-token grant with DPoP (same response shape as
+      [exchange_code]). *)
   let refresh ~(http : http_post) ~priv ~pub ~token_url ~form ?nonce () :
       token * string option =
     exchange_code ~http ~priv ~pub ~token_url ~form ?nonce ()
 
-  (* RFC 7009 token revocation. 200 with an empty body is success. *)
+  (** RFC 7009 token revocation with DPoP. HTTP 200 with an empty body
+      is success. *)
   let revoke ~(http : http_post) ~priv ~pub ~revoke_url ~form ?nonce () :
       unit * string option =
     let body = form_encode form in
@@ -1429,9 +1448,10 @@ module Oauth = struct
     let url = xrpc_url ~origin nsid [] in
     post_json_dpop ~http ~priv ~pub ~url ~access_token ~body ?nonce ~extra ()
 
-  (* Mint com.atproto.server.getServiceAuth with the DPoP access token.
-     AppView and Ozone want this JWT ([aud] = service DID, [lxm] = NSID),
-     not the OAuth token and not a createSession at+jwt. *)
+  (** Mint [com.atproto.server.getServiceAuth] with the DPoP access
+      token. AppView and Ozone want this JWT ([aud] = service DID,
+      [lxm] = NSID), not the OAuth token and not a [createSession]
+      at+jwt. *)
   let get_service_auth ~(http : http_request) ~priv ~pub ~pds_origin
       ~access_token ~aud ?lxm ?exp ?nonce () : string * string option =
     let pairs =

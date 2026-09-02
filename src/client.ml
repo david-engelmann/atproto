@@ -109,6 +109,8 @@ module Client = struct
     let body = String.trim body in
     if body = "" then `Assoc [] else Yojson.Safe.from_string body
 
+  (** XRPC GET [nsid] with query [pairs]. Auth from [session] or
+      [bearer]; optional [host] and extra headers. *)
   let get_json ?session ?host ?bearer ?(extra = []) nsid pairs =
     let headers = request_headers ?session ?bearer ~extra () in
     let url = nsid_url ?session ?host nsid in
@@ -126,6 +128,8 @@ module Client = struct
     Lwt_main.run
       (Cohttp_client.get_request_with_body_and_headers url body headers)
 
+  (** XRPC POST [nsid] with JSON [data]. Auth from [session] or
+      [bearer]; optional [host] and extra headers. *)
   let post_json ?session ?host ?bearer ?(extra = []) nsid data =
     let headers = request_headers ?session ?bearer ~extra () in
     let url = nsid_url ?session ?host nsid in
@@ -174,6 +178,9 @@ module Client = struct
      (com.atproto.server.getServiceAuth, aud=AppView DID, lxm=NSID).
      OAuth sessions mint the same JWT with Oauth.get_service_auth (DPoP)
      and pass it here as ~bearer — Client cannot depend on Oauth. *)
+  (** Mint [com.atproto.server.getServiceAuth] for [aud] / [lxm] using
+      the session [at+jwt]. AppView and Ozone want this JWT, not the
+      PDS access token. *)
   let get_service_auth (s : Session.session) ~aud ~lxm () : string =
     let json =
       get_json ~session:s "com.atproto.server.getServiceAuth"
@@ -183,6 +190,8 @@ module Client = struct
     | `String t when String.trim t <> "" -> t
     | _ -> failwith ("getServiceAuth failed: " ^ Yojson.Safe.to_string json)
 
+  (** XRPC GET against AppView ([ATP_APPVIEW_HOST]). With a session,
+      mints a service-auth JWT ([aud] = AppView DID, [lxm] = [nsid]). *)
   let get_json_appview ?session ?host ?aud ?(extra = []) nsid pairs =
     let host = match host with Some h -> h | None -> appview_host_from_env in
     match session with
@@ -192,6 +201,8 @@ module Client = struct
         let token = get_service_auth s ~aud ~lxm:nsid () in
         get_json ~host ~bearer:token ~extra nsid pairs
 
+  (** XRPC POST against AppView. With a session, mints a service-auth
+      JWT like [get_json_appview]. *)
   let post_json_appview ?session ?host ?aud ?(extra = []) nsid data =
     let host = match host with Some h -> h | None -> appview_host_from_env in
     match session with

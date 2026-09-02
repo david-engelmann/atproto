@@ -145,6 +145,7 @@ module Unspecced = struct
       feeds = List.map parse_generator_view (Client.list_member json "feeds");
     }
 
+  (** Post search skeleton via [app.bsky.unspecced.searchPostsSkeleton]. *)
   let search_posts_skeleton ?session ?host ~q ?sort ?since ?until ?mentions
       ?author ?lang ?domain ?url ?viewer ?limit ?cursor () : skeleton_posts =
     Client.get_json ?session ?host "app.bsky.unspecced.searchPostsSkeleton"
@@ -182,6 +183,7 @@ module Unspecced = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_skeleton_starter_packs
 
+  (** Trending topics via [app.bsky.unspecced.getTrendingTopics]. *)
   let get_trending_topics ?session ?host ?viewer ?limit () : trending_topics =
     Client.get_json ?session ?host "app.bsky.unspecced.getTrendingTopics"
       (Client.opt_pair "viewer" viewer @ Client.opt_int "limit" limit)

@@ -12,6 +12,8 @@ module Did_web = struct
     if not (is_web_did did) then
       failwith ("Did_web: not a did:web identifier: " ^ did)
 
+  (** HTTPS URL for the [did:web:] document ([/.well-known/did.json] or
+      a path [did.json]). *)
   let document_url (did : string) : string =
     validate_web_did did;
     let rest = String.sub did 8 (String.length did - 8) in
@@ -40,5 +42,6 @@ module Did_web = struct
     | Some e -> failwith ("Did_web.resolve: " ^ Error.Error.to_string e)
     | None -> Yojson.Safe.from_string body
 
+  (** Fetch and parse the [did:web:] document. *)
   let resolve (did : string) : did_document = parse_document (resolve_json did)
 end

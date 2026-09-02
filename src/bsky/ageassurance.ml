@@ -149,6 +149,7 @@ module Ageassurance = struct
     Client.get_json ?session ?host "app.bsky.ageassurance.getConfig" []
     |> parse_config
 
+  (** Age-assurance state via [app.bsky.ageassurance.getState]. *)
   let get_state (s : Session.session) ~country_code ?region_code () :
       state_bundle =
     Client.get_json ~session:s "app.bsky.ageassurance.getState"
@@ -156,6 +157,7 @@ module Ageassurance = struct
       @ Client.opt_pair "regionCode" region_code)
     |> parse_state_bundle
 
+  (** Start age assurance via [app.bsky.ageassurance.begin]. *)
   let begin_assurance (s : Session.session) ~email ~language ~country_code
       ?region_code () : state =
     Client.post_json ~session:s "app.bsky.ageassurance.begin"

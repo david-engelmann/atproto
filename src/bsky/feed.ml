@@ -539,6 +539,8 @@ module Feed = struct
   let create_feed_endpoint (query_name : string) : string =
     "app.bsky.feed" ^ "." ^ query_name
 
+  (** Author feed via [app.bsky.feed.getAuthorFeed] (session required).
+      Prefer [get_author_feed_page] for public AppView + cursor. *)
   let get_author_feed ?filter ?include_pins (s : Session.session)
       (actor : string) (limit : int) : feed list =
     let open Yojson.Safe.Util in
@@ -568,6 +570,7 @@ module Feed = struct
     let feed = author_feed |> convert_body_to_json |> member "feed" in
     feed |> to_list |> List.map parse_feed
 
+  (** Likes on [uri] / [cid] via [app.bsky.feed.getLikes]. *)
   let get_likes (s : Session.session) (uri : string) (cid : string)
       (limit : int) : likes =
     let bearer_token = Session.bearer_token_from_session s in
@@ -590,6 +593,7 @@ module Feed = struct
     in
     likes |> convert_body_to_json |> parse_likes
 
+  (** Thread for [uri] via [app.bsky.feed.getPostThread]. *)
   let get_post_thread (s : Session.session) (uri : string) (depth : int) :
       thread_feed =
     let bearer_token = Session.bearer_token_from_session s in
@@ -612,6 +616,7 @@ module Feed = struct
     in
     post_thread |> convert_body_to_json |> parse_thread_feed
 
+  (** Hydrated posts for [uris] via [app.bsky.feed.getPosts]. *)
   let get_posts (s : Session.session) (uris : string list) : posts_feed =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
@@ -652,6 +657,7 @@ module Feed = struct
     in
     reposted_by |> convert_body_to_json |> parse_reposted_by_feed
 
+  (** Home timeline via [app.bsky.feed.getTimeline]. *)
   let get_timeline (s : Session.session) (algorithm : string) (limit : int) :
       timeline =
     let bearer_token = Session.bearer_token_from_session s in
@@ -1027,6 +1033,8 @@ module Feed = struct
     in
     `Assoc fields
 
+  (** Custom feed [feed] (AT URI) via [app.bsky.feed.getFeed]. Works
+      without a session against public AppView. *)
   let get_feed ?session ?host ~feed ?limit ?cursor () : timeline =
     Client.Client.get_json ?session ?host "app.bsky.feed.getFeed"
       ((("feed", feed) :: Client.Client.opt_int "limit" limit)
@@ -1068,6 +1076,7 @@ module Feed = struct
       @ Client.Client.opt_bool "includePins" include_pins)
     |> parse_timeline
 
+  (** Posts from list [list] (AT URI) via [app.bsky.feed.getListFeed]. *)
   let get_list_feed ?session ?host ~list ?limit ?cursor () : timeline =
     Client.Client.get_json ?session ?host "app.bsky.feed.getListFeed"
       ((("list", list) :: Client.Client.opt_int "limit" limit)

@@ -558,6 +558,8 @@ module Chat = struct
       @ Client.opt_pair "kind" kind)
     |> parse_convos
 
+  (** Conversation [convo_id] via [chat.bsky.convo.getConvo]. Hosted
+      chat service; always sends [atproto-proxy]. *)
   let get_convo (s : Session.session) ?proxy ~convo_id () : convo =
     Client.get_json ~session:s
       ~extra:(session_proxy_headers ?proxy s)
@@ -578,6 +580,8 @@ module Chat = struct
     | `Assoc _ as c -> parse_convo c
     | _ -> parse_convo json
 
+  (** Messages in [convo_id] via [chat.bsky.convo.getMessages]. Hosted
+      chat service; always sends [atproto-proxy]. *)
   let get_messages (s : Session.session) ?proxy ~convo_id ?limit ?cursor () :
       messages =
     Client.get_json ~session:s
@@ -588,6 +592,8 @@ module Chat = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_messages
 
+  (** Send [text] via [chat.bsky.convo.sendMessage]. Hosted chat
+      service; always sends [atproto-proxy]. *)
   let send_message (s : Session.session) ?proxy ~convo_id ~text ?facets ?embed
       ?reply_to () : message =
     Client.post_json ~session:s

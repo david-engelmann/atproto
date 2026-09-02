@@ -7,6 +7,7 @@ module Server = struct
   let create_server_endpoint (query_name : string) : string =
     "com.atproto.server" ^ "." ^ query_name
 
+  (** Raw JSON from [com.atproto.server.describeServer] for [s]. *)
   let describe_server (s : Session.session) : string =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
@@ -71,7 +72,9 @@ module Server = struct
     in
     created_account
 
-  (* Public signup — createAccount is unauthenticated on an open PDS. *)
+  (** Public signup via [com.atproto.server.createAccount] on [host]
+      (or the session / [ATP_HOST] PDS). Unauthenticated on an open
+      PDS. *)
   let create_account_at ?session ?host ~handle ~email ~password ?invite_code
       ?recovery_key ?did ?verification_code ?verification_phone ?plc_op () :
       Yojson.Safe.t =
@@ -125,6 +128,8 @@ module Server = struct
     | `List xs -> List.map parse_app_password xs
     | _ -> []
 
+  (** Create an app password via [com.atproto.server.createAppPassword].
+      The secret is only present on create. *)
   let create_app_password (s : Session.session) ?privileged (name : string) :
       string =
     Client.Client.post_json ~session:s "com.atproto.server.createAppPassword"
@@ -188,6 +193,8 @@ module Server = struct
       (Yojson.Safe.to_string (`Assoc fields))
     |> Yojson.Safe.to_string
 
+  (** App passwords via [com.atproto.server.listAppPasswords] (secrets
+      omitted). *)
   let list_app_passwords (s : Session.session) : string =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
@@ -269,6 +276,8 @@ module Server = struct
     let qs = Cohttp_client.create_body_from_pairs pairs in
     if qs = "" then base else base ^ "?" ^ qs
 
+  (** Service-auth JWT via [com.atproto.server.getServiceAuth] for
+      [aud] (optional [lxm] / [exp]). *)
   let get_service_auth (s : Session.session) ~aud ?lxm ?exp () : service_auth =
     let _ = Xrpc.Xrpc.service_auth_body ~aud ?lxm ?exp () in
     let bearer_token = Session.bearer_token_from_session s in
@@ -398,6 +407,8 @@ module Server = struct
         | _ -> None);
     }
 
+  (** Parsed [com.atproto.server.describeServer] (DID, invite/phone
+      flags, links). Works without a session. *)
   let describe_server_parsed ?session ?host () : server_description =
     Client.Client.get_json ?session ?host "com.atproto.server.describeServer" []
     |> parse_describe_server
@@ -437,6 +448,7 @@ module Server = struct
 
   let request_email_update_body () : Yojson.Safe.t = `Assoc []
 
+  (** Confirm [email] with [token] via [com.atproto.server.confirmEmail]. *)
   let confirm_email (s : Session.session) ~email ~token () : unit =
     ignore
       (Client.Client.post_json ~session:s "com.atproto.server.confirmEmail"
@@ -474,16 +486,20 @@ module Server = struct
     | Some t -> `Assoc [ ("deleteAfter", `String t) ]
     | None -> `Assoc []
 
+  (** Deactivate the account via [com.atproto.server.deactivateAccount].
+      Optional [delete_after] is an ISO datetime. *)
   let deactivate_account (s : Session.session) ?delete_after () : unit =
     ignore
       (Client.Client.post_json ~session:s "com.atproto.server.deactivateAccount"
          (Yojson.Safe.to_string (deactivate_account_body ?delete_after ())))
 
+  (** Reactivate via [com.atproto.server.activateAccount]. *)
   let activate_account (s : Session.session) : unit =
     ignore
       (Client.Client.post_json ~session:s "com.atproto.server.activateAccount"
          "")
 
+  (** Import / activation status via [com.atproto.server.checkAccountStatus]. *)
   let check_account_status (s : Session.session) : account_status =
     Client.Client.get_json ~session:s "com.atproto.server.checkAccountStatus" []
     |> parse_account_status
