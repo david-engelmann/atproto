@@ -126,6 +126,8 @@ let is_policy_invalid json =
       || message_has e.message "already a member"
       || message_has e.message "already exists"
       || message_has e.message "member already"
+      || message_has e.message
+           "request body was provided when none was expected"
 
 let leftover_served json =
   if Error.is_not_served_json json || cannot_moderate json then false
@@ -796,8 +798,7 @@ let test_leftover_remaining _ =
   let added_bob =
     match
       ozone_post s p "tools.ozone.team.addMember"
-        (`Assoc
-          [ ("did", `String bob.auth.did); ("role", `String role_mod) ])
+        (`Assoc [ ("did", `String bob.auth.did); ("role", `String role_mod) ])
     with
     | json when leftover_served json ->
         let member =
@@ -811,8 +812,7 @@ let test_leftover_remaining _ =
   in
   (match
      ozone_post s p "tools.ozone.team.updateMember"
-       (`Assoc
-         [ ("did", `String bob.auth.did); ("role", `String role_triage) ])
+       (`Assoc [ ("did", `String bob.auth.did); ("role", `String role_triage) ])
    with
   | json when leftover_served json ->
       let member =
@@ -843,8 +843,7 @@ let test_leftover_remaining _ =
    with
   | json when leftover_served json ->
       let page = Ozone.parse_related_accounts json in
-      OUnit2.assert_bool "findRelatedAccounts"
-        (List.length page.accounts >= 0)
+      OUnit2.assert_bool "findRelatedAccounts" (List.length page.accounts >= 0)
   | _ -> ());
   (match
      ozone_json s p "tools.ozone.signature.searchAccounts"
@@ -886,7 +885,7 @@ let test_leftover_remaining _ =
   in
   (match queue_id with
   | None -> ()
-  | Some id -> (
+  | Some id ->
       ignore
         (ozone_post s p "tools.ozone.queue.assignModerator"
            (`Assoc [ ("queueId", `Int id); ("did", `String s.auth.did) ]));
@@ -898,8 +897,7 @@ let test_leftover_remaining _ =
       | _ -> ());
       ignore
         (Client.post_json ~session:alice "com.atproto.moderation.createReport"
-           (Moderation.create_report_data_from_repo_ref
-              Moderation.reason_other
+           (Moderation.create_report_data_from_repo_ref Moderation.reason_other
               ~reason:("ocaml leftover remain " ^ tag)
               { Moderation.did = bob.auth.did }));
       let report_id =
@@ -962,7 +960,7 @@ let test_leftover_remaining _ =
               let view = Ozone.parse_report_result json in
               OUnit2.assert_bool "reassignQueue" (view.id >= 0)
           | _ -> ()));
-      ()));
+      ());
   (match
      ozone_json s p "tools.ozone.report.queryActivities" [ ("limit", "10") ]
    with
@@ -979,8 +977,7 @@ let test_leftover_remaining _ =
          ])
    with
   | json when leftover_served json ->
-      OUnit2.assert_bool "refreshStats"
-        (match json with `Assoc _ | _ -> true)
+      OUnit2.assert_bool "refreshStats" (match json with `Assoc _ | _ -> true)
   | _ -> ());
   let set_name = "ocaml-delval-" ^ tag in
   (match
@@ -993,10 +990,7 @@ let test_leftover_remaining _ =
       (match
          ozone_post s p "tools.ozone.set.deleteValues"
            (`Assoc
-             [
-               ("name", `String set_name);
-               ("values", `List [ `String tag ]);
-             ])
+             [ ("name", `String set_name); ("values", `List [ `String tag ]) ])
        with
       | djson when leftover_served djson -> (
           match

@@ -148,6 +148,8 @@ let is_policy_invalid (e : Error.t) =
   || message_has e.message "could not find feed"
   || message_has e.message "invalid feed generator"
   || message_has e.message "not implemented"
+  || message_has e.message
+       "request body was provided when none was expected"
 
 let av_leftover_json json =
   if Error.is_not_served_json json then None
@@ -1083,32 +1085,39 @@ let test_unspecced_and_ageassurance _ =
     | None -> ()
     | Some json -> parse json
   in
-  get "app.bsky.unspecced.getTrendsSkeleton" [ ("limit", "5") ] (fun json ->
+  get "app.bsky.unspecced.getTrendsSkeleton"
+    [ ("limit", "5") ]
+    (fun json ->
       let page = Unspecced.parse_trends_skeleton json in
       OUnit2.assert_bool "getTrendsSkeleton" (List.length page.trends >= 0));
   get "app.bsky.unspecced.getSuggestionsSkeleton"
-    [ ("limit", "5"); ("viewer", viewer) ] (fun json ->
+    [ ("limit", "5"); ("viewer", viewer) ]
+    (fun json ->
       let page = Unspecced.parse_suggestions_skeleton json in
-      OUnit2.assert_bool "getSuggestionsSkeleton"
-        (List.length page.actors >= 0));
-  get "app.bsky.unspecced.getSuggestedFeeds" [ ("limit", "5") ] (fun json ->
+      OUnit2.assert_bool "getSuggestionsSkeleton" (List.length page.actors >= 0));
+  get "app.bsky.unspecced.getSuggestedFeeds"
+    [ ("limit", "5") ]
+    (fun json ->
       let page = Unspecced.parse_suggested_feeds json in
       OUnit2.assert_bool "unspecced getSuggestedFeeds"
         (List.length page.feeds >= 0));
   get "app.bsky.unspecced.getSuggestedFeedsSkeleton"
-    [ ("limit", "5"); ("viewer", viewer) ] (fun json ->
+    [ ("limit", "5"); ("viewer", viewer) ]
+    (fun json ->
       let page = Unspecced.parse_uri_list json "feeds" in
-      OUnit2.assert_bool "getSuggestedFeedsSkeleton"
-        (List.length page.uris >= 0));
-  get "app.bsky.unspecced.getSuggestedUsers" [ ("limit", "5") ] (fun json ->
+      OUnit2.assert_bool "getSuggestedFeedsSkeleton" (List.length page.uris >= 0));
+  get "app.bsky.unspecced.getSuggestedUsers"
+    [ ("limit", "5") ]
+    (fun json ->
       let page = Unspecced.parse_suggested_users json in
       OUnit2.assert_bool "getSuggestedUsers" (List.length page.actors >= 0));
   get "app.bsky.unspecced.getSuggestedUsersSkeleton"
-    [ ("limit", "5"); ("viewer", viewer) ] (fun json ->
+    [ ("limit", "5"); ("viewer", viewer) ]
+    (fun json ->
       let page = Unspecced.parse_did_skeleton json in
-      OUnit2.assert_bool "getSuggestedUsersSkeleton"
-        (List.length page.dids >= 0));
-  get "app.bsky.unspecced.getSuggestedStarterPacks" [ ("limit", "5") ]
+      OUnit2.assert_bool "getSuggestedUsersSkeleton" (List.length page.dids >= 0));
+  get "app.bsky.unspecced.getSuggestedStarterPacks"
+    [ ("limit", "5") ]
     (fun json ->
       let packs =
         List.map Graph.parse_starter_pack
@@ -1116,11 +1125,13 @@ let test_unspecced_and_ageassurance _ =
       in
       OUnit2.assert_bool "getSuggestedStarterPacks" (List.length packs >= 0));
   get "app.bsky.unspecced.getSuggestedStarterPacksSkeleton"
-    [ ("limit", "5"); ("viewer", viewer) ] (fun json ->
+    [ ("limit", "5"); ("viewer", viewer) ]
+    (fun json ->
       let page = Unspecced.parse_uri_list json "starterPacks" in
       OUnit2.assert_bool "getSuggestedStarterPacksSkeleton"
         (List.length page.uris >= 0));
-  get "app.bsky.unspecced.getOnboardingSuggestedStarterPacks" [ ("limit", "5") ]
+  get "app.bsky.unspecced.getOnboardingSuggestedStarterPacks"
+    [ ("limit", "5") ]
     (fun json ->
       let packs =
         List.map Graph.parse_starter_pack
@@ -1129,68 +1140,80 @@ let test_unspecced_and_ageassurance _ =
       OUnit2.assert_bool "getOnboardingSuggestedStarterPacks"
         (List.length packs >= 0));
   get "app.bsky.unspecced.getOnboardingSuggestedStarterPacksSkeleton"
-    [ ("limit", "5"); ("viewer", viewer) ] (fun json ->
+    [ ("limit", "5"); ("viewer", viewer) ]
+    (fun json ->
       let page = Unspecced.parse_uri_list json "starterPacks" in
       OUnit2.assert_bool "getOnboardingSuggestedStarterPacksSkeleton"
         (List.length page.uris >= 0));
-  get "app.bsky.unspecced.getSuggestedOnboardingUsers" [ ("limit", "5") ]
+  get "app.bsky.unspecced.getSuggestedOnboardingUsers"
+    [ ("limit", "5") ]
     (fun json ->
       let page = Unspecced.parse_suggested_users json in
       OUnit2.assert_bool "getSuggestedOnboardingUsers"
         (List.length page.actors >= 0));
   get "app.bsky.unspecced.getOnboardingSuggestedUsersSkeleton"
-    [ ("limit", "5"); ("viewer", viewer) ] (fun json ->
+    [ ("limit", "5"); ("viewer", viewer) ]
+    (fun json ->
       let page = Unspecced.parse_did_skeleton json in
       OUnit2.assert_bool "getOnboardingSuggestedUsersSkeleton"
         (List.length page.dids >= 0));
-  get "app.bsky.unspecced.getSuggestedUsersForDiscover" [ ("limit", "5") ]
+  get "app.bsky.unspecced.getSuggestedUsersForDiscover"
+    [ ("limit", "5") ]
     (fun json ->
       let page = Unspecced.parse_suggested_users json in
       OUnit2.assert_bool "getSuggestedUsersForDiscover"
         (List.length page.actors >= 0));
   get "app.bsky.unspecced.getSuggestedUsersForDiscoverSkeleton"
-    [ ("limit", "5"); ("viewer", viewer) ] (fun json ->
+    [ ("limit", "5"); ("viewer", viewer) ]
+    (fun json ->
       let page = Unspecced.parse_did_skeleton json in
       OUnit2.assert_bool "getSuggestedUsersForDiscoverSkeleton"
         (List.length page.dids >= 0));
-  get "app.bsky.unspecced.getSuggestedUsersForExplore" [ ("limit", "5") ]
+  get "app.bsky.unspecced.getSuggestedUsersForExplore"
+    [ ("limit", "5") ]
     (fun json ->
       let page = Unspecced.parse_suggested_users json in
       OUnit2.assert_bool "getSuggestedUsersForExplore"
         (List.length page.actors >= 0));
   get "app.bsky.unspecced.getSuggestedUsersForExploreSkeleton"
-    [ ("limit", "5"); ("viewer", viewer) ] (fun json ->
+    [ ("limit", "5"); ("viewer", viewer) ]
+    (fun json ->
       let page = Unspecced.parse_did_skeleton json in
       OUnit2.assert_bool "getSuggestedUsersForExploreSkeleton"
         (List.length page.dids >= 0));
-  get "app.bsky.unspecced.getSuggestedUsersForSeeMore" [ ("limit", "5") ]
+  get "app.bsky.unspecced.getSuggestedUsersForSeeMore"
+    [ ("limit", "5") ]
     (fun json ->
       let page = Unspecced.parse_suggested_users json in
       OUnit2.assert_bool "getSuggestedUsersForSeeMore"
         (List.length page.actors >= 0));
   get "app.bsky.unspecced.getSuggestedUsersForSeeMoreSkeleton"
-    [ ("limit", "5"); ("viewer", viewer) ] (fun json ->
+    [ ("limit", "5"); ("viewer", viewer) ]
+    (fun json ->
       let page = Unspecced.parse_did_skeleton json in
       OUnit2.assert_bool "getSuggestedUsersForSeeMoreSkeleton"
         (List.length page.dids >= 0));
   get "app.bsky.unspecced.searchPostsSkeleton"
-    [ ("q", "integration"); ("limit", "5") ] (fun json ->
+    [ ("q", "integration"); ("limit", "5") ]
+    (fun json ->
       let page = Unspecced.parse_skeleton_posts json in
       OUnit2.assert_bool "searchPostsSkeleton" (List.length page.posts >= 0));
   get "app.bsky.unspecced.searchActorsSkeleton"
-    [ ("q", "alice"); ("limit", "5") ] (fun json ->
+    [ ("q", "alice"); ("limit", "5") ]
+    (fun json ->
       let page = Unspecced.parse_skeleton_actors json in
       OUnit2.assert_bool "searchActorsSkeleton" (List.length page.actors >= 0));
   get "app.bsky.unspecced.searchStarterPacksSkeleton"
-    [ ("q", "test"); ("limit", "5") ] (fun json ->
+    [ ("q", "test"); ("limit", "5") ]
+    (fun json ->
       let page = Unspecced.parse_skeleton_starter_packs json in
       OUnit2.assert_bool "searchStarterPacksSkeleton"
         (List.length page.starter_packs >= 0));
   get "app.bsky.ageassurance.getConfig" [] (fun json ->
       let cfg = Ageassurance.parse_config json in
-      OUnit2.assert_bool "ageassurance.getConfig"
-        (List.length cfg.regions >= 0));
-  get ~session:s "app.bsky.ageassurance.getState" [ ("countryCode", "US") ]
+      OUnit2.assert_bool "ageassurance.getConfig" (List.length cfg.regions >= 0));
+  get ~session:s "app.bsky.ageassurance.getState"
+    [ ("countryCode", "US") ]
     (fun json ->
       let bundle = Ageassurance.parse_state_bundle json in
       OUnit2.assert_bool "ageassurance.getState"

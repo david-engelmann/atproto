@@ -91,6 +91,8 @@ let is_policy_invalid (e : Error.t) =
   || message_has e.message "could not find feed"
   || message_has e.message "invalid feed generator"
   || message_has e.message "not implemented"
+  || message_has e.message
+       "request body was provided when none was expected"
 
 let pds_leftover_json json =
   if Error.is_not_served_json json then None
@@ -837,23 +839,24 @@ let test_leftover_served _ =
   | Some json ->
       let info = Identity.parse_identity_info json in
       OUnit2.assert_equal ~printer:(fun x -> x) s.auth.did info.did;
-      OUnit2.assert_bool "refreshIdentity handle"
-        (String.length info.handle > 0));
+      OUnit2.assert_bool "refreshIdentity handle" (String.length info.handle > 0));
   let avail = unique_handle "avail" in
   (match
      pds_leftover_json
        (Client.get_json ~session:s ~host:(pds_host ())
-          "com.atproto.temp.checkHandleAvailability" [ ("handle", avail) ])
+          "com.atproto.temp.checkHandleAvailability"
+          [ ("handle", avail) ])
    with
   | None -> ()
-  | Some json ->
+  | Some json -> (
       let check = Temp.parse_handle_check json in
       OUnit2.assert_equal ~printer:(fun x -> x) avail check.handle;
-      match check.result with `Available | `Unavailable _ | `Unknown _ -> ());
+      match check.result with `Available | `Unavailable _ | `Unknown _ -> ()));
   (match
      pds_leftover_json
        (Client.get_json ~session:s ~host:(pds_host ())
-          "com.atproto.temp.dereferenceScope" [ ("scope", "account:email") ])
+          "com.atproto.temp.dereferenceScope"
+          [ ("scope", "account:email") ])
    with
   | None -> ()
   | Some json ->
@@ -871,11 +874,12 @@ let test_leftover_served _ =
       OUnit2.assert_bool "resolveLexicon schema"
         (match resolved.schema with `Assoc _ -> true | _ -> false));
   let doomed = throwaway_session "del" "local-pds-delete-password" in
+  (* Empty body, same as requestPlcOperationSignature. PDS 0.5.31
+     rejects JSON {}. *)
   (match
      pds_leftover_json
        (Client.post_json ~session:doomed ~host:(pds_host ())
-          "com.atproto.server.requestAccountDelete"
-          (Yojson.Safe.to_string (Server.request_account_delete_body ())))
+          "com.atproto.server.requestAccountDelete" "")
    with
   | None -> ()
   | Some _ ->
@@ -904,8 +908,7 @@ let test_leftover_served _ =
     | None -> (
         ignore (ensure_ok created);
         match
-          pds_post_if_served ~session:pw
-            "com.atproto.server.revokeAppPassword"
+          pds_post_if_served ~session:pw "com.atproto.server.revokeAppPassword"
             (Yojson.Safe.to_string
                (Server.revoke_app_password_body ~name:pw_name))
         with
