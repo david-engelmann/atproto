@@ -88,6 +88,20 @@ jobs:
       - name: Lint doc
         uses: ocaml/setup-ocaml/lint-doc@v3
 
+      - name: Install doc dependencies
+        run: opam install . --deps-only --with-doc
+
+      - name: Build odoc HTML
+        run: opam exec -- dune build @doc
+
+      - name: Upload odoc HTML
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: odoc-html
+          path: _build/default/_doc/_html
+          if-no-files-found: warn
+
   lint-fmt:
     strategy:
       fail-fast: false

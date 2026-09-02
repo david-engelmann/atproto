@@ -2,7 +2,11 @@
 
 Notes for the packaged **0.1.0** library. This file records what actually
 shipped through pull request [#106](https://github.com/david-engelmann/atproto/pull/106)
-(merge `79aeb75c`, 2026-09-01).
+(merge `79aeb75c`, 2026-09-01), changelog
+[#107](https://github.com/david-engelmann/atproto/pull/107) (merge `3a7bd82f`,
+2026-09-02), and
+[#108](https://github.com/david-engelmann/atproto/pull/108)
+(lexicon pin `60c4395951`, coverage gate, OCaml `< 5.0`, odoc artifact).
 
 This package is **not** published to the public
 [opam-repository](https://github.com/ocaml/opam-repository). Depend on it by
@@ -11,7 +15,7 @@ pinning the GitHub repository (see the README).
 ## 0.1.0 — 2026-09-01
 
 First installable opam package (`dune-project` / `atproto.opam` version
-`0.1.0`, OCaml `>= 4.14.1`). `opam pin add atproto git+https://github.com/david-engelmann/atproto.git`
+`0.1.0`, OCaml `>= 4.14.1` and `< 5.0`). `opam pin add atproto git+https://github.com/david-engelmann/atproto.git`
 exposes `(libraries atproto)`. That pin is not an opam-repository publish.
 
 ### Protocol client
@@ -54,7 +58,7 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
 
-### Packaging and quality (#101, #106)
+### Packaging and quality (#101, #106, #107, #108)
 
 - `public_name atproto`, generated `atproto.opam`, `opam lint`,
   `dune build -p atproto` / `dune runtest -p atproto`
@@ -64,9 +68,15 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `actions/upload-artifact@v6`
 - Unused `open`s are errors (`-w +33 -warn-error +33`) on the library,
   tests, and `examples/offline.ml`
-- Module-level odoc on public modules
+- Module-level odoc on public modules; TestSuite `lint-doc` runs
+  `dune build @doc` and uploads HTML as the `odoc-html` artifact (no
+  GitHub Pages site)
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
+- Official lexicon pin bluesky-social/atproto `60c4395951` (APP-2933) as
+  `lexicons/official-nsids.json`, plus TestSuite `test_lexicon_coverage`
+  (client helper / record builder / bundled permission-set / explicit skip)
+- OCaml constraint `(and (>= 4.14.1) (< 5.0))` — CI tests 4.14.1 only
 
 ### Not in this release
 
@@ -76,4 +86,5 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
 - Hosted Tap service or video transcoder
 - Official OSS chat backend (TestNetwork does not start one)
 - Newly published official lexicons after bluesky-social/atproto
-  `60c4395` (APP-2933) — none on official `main` as of this date
+  `60c4395951` (APP-2933) — the coverage gate fails until the pin
+  snapshot and bindings (or an explicit skip) are updated
