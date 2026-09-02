@@ -78,13 +78,17 @@ module Syntax = struct
   let ensure_handle s =
     if not (is_valid_handle s) then fail ("invalid handle " ^ s)
 
+  (** Lowercase [s] for handle comparison (DNS is case-insensitive). *)
   let normalize_handle s = ascii_lower s
 
+  (** Lowercase [s] and raise [Invalid] if it is not a valid handle. *)
   let normalize_and_ensure_handle s =
     let n = normalize_handle s in
     ensure_handle n;
     n
 
+  (** True when [handle]'s TLD is allowed for resolution (rejects
+      [.onion], [.local], [.arpa], …). *)
   let is_valid_tld (handle : string) : bool =
     let lower = ascii_lower handle in
     not (List.exists (fun tld -> ends_with lower tld) disallowed_tlds)
@@ -145,6 +149,7 @@ module Syntax = struct
         ( String.sub input 0 i,
           Some (String.sub input (i + 1) (String.length input - i - 1)) )
 
+  (** True when [frag] is a valid DID service/key fragment (no [#]). *)
   let is_valid_did_fragment (frag : string) : bool =
     let n = String.length frag in
     n > 0
@@ -158,11 +163,14 @@ module Syntax = struct
     in
     loop 0
 
+  (** True when [input] is a DID plus optional [#fragment] (service-auth
+      [aud], [atproto-proxy]). *)
   let is_valid_did_ref (input : string) : bool =
     let did, frag = split_did_ref input in
     is_valid_did did
     && match frag with None -> true | Some f -> is_valid_did_fragment f
 
+  (** Parse a DID plus optional [#fragment]. Raises [Invalid]. *)
   let parse_did_ref (input : string) : did_ref =
     let did, frag = split_did_ref input in
     ensure_did did;
@@ -172,12 +180,14 @@ module Syntax = struct
     | None -> ());
     { did; fragment = frag }
 
+  (** Serialize a [did_ref] as [did] or [did#fragment]. *)
   let did_ref_to_string (r : did_ref) : string =
     match r.fragment with None -> r.did | Some f -> r.did ^ "#" ^ f
 
   let ensure_did_ref s =
     if not (is_valid_did_ref s) then fail ("invalid DID reference " ^ s)
 
+  (** DID method name ([plc], [web], [key]) when [input] is a valid DID. *)
   let did_method (input : string) : string option =
     if not (is_valid_did input) then None
     else
@@ -185,6 +195,7 @@ module Syntax = struct
       | "did" :: method_ :: _ -> Some method_
       | _ -> None
 
+  (** True when [s] is a blessed AT Protocol DID method ([plc] or [web]). *)
   let is_blessed_did s =
     match did_method s with Some "plc" | Some "web" -> true | _ -> false
 
@@ -196,6 +207,7 @@ module Syntax = struct
     | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '.' | '-' -> true
     | _ -> false
 
+  (** True when [v] is a valid NSID name segment (no leading digit). *)
   let is_valid_identifier_name (v : string) : bool =
     String.length v > 0
     && (not (is_ascii_digit v.[0]))
@@ -238,25 +250,32 @@ module Syntax = struct
 
   type nsid = { segments : string list }
 
+  (** Split a valid NSID into segments. Raises [Invalid]. *)
   let parse_nsid (input : string) : nsid =
     ensure_nsid input;
     { segments = String.split_on_char '.' input }
 
+  (** Last segment of [n] (the name). *)
   let nsid_name (n : nsid) : string = List.hd (List.rev n.segments)
 
-  (* DNS hostname form, matching @atproto/syntax (com.example.foo -> example.com). *)
+  (** DNS hostname form of [n] ([com.example.foo] → [example.com]). *)
   let nsid_authority (n : nsid) : string =
     n.segments |> List.rev |> List.tl |> String.concat "."
 
+  (** Authority prefix of [n] in NSID order ([com.example.foo] →
+      [com.example]). *)
   let nsid_authority_nsid (n : nsid) : string =
     n.segments |> List.rev |> List.tl |> List.rev |> String.concat "."
 
+  (** Join [n]'s segments with dots. *)
   let nsid_to_string (n : nsid) : string = String.concat "." n.segments
 
+  (** Build an NSID from a DNS [authority] and [name]. Raises [Invalid]. *)
   let create_nsid ~authority ~name : nsid =
     let segs = List.rev (String.split_on_char '.' authority) @ [ name ] in
     parse_nsid (String.concat "." segs)
 
+  (** True when [input] is [*] or an authority glob ([com.atproto.*]). *)
   let is_valid_nsid_glob (input : string) : bool =
     if input = "*" then true
     else if ends_with input ".*" then
@@ -268,6 +287,8 @@ module Syntax = struct
 
   type nsid_ref = { nsid : string; fragment : string option }
 
+  (** Parse an NSID plus optional [#fragment] (not empty or [#main]).
+      Raises [Invalid]. *)
   let parse_nsid_ref (input : string) : nsid_ref =
     match String.index_opt input '#' with
     | None ->
@@ -306,8 +327,9 @@ module Syntax = struct
   let ensure_record_key s =
     if not (is_valid_record_key s) then fail ("invalid record key " ^ s)
 
-  (* Repo paths are exactly `collection/rkey` (no leading slash, two segments).
-     https://atproto.com/specs/repository#repository-paths *)
+  (** Split a repo path into [collection] / [rkey], or [None].
+      Paths are exactly [collection/rkey] (no leading slash).
+      https://atproto.com/specs/repository#repository-paths *)
   let split_repo_path (input : string) : (string * string) option =
     match String.index_opt input '/' with
     | None -> None
@@ -316,6 +338,7 @@ module Syntax = struct
         let rkey = String.sub input (i + 1) (String.length input - i - 1) in
         if String.contains rkey '/' then None else Some (collection, rkey)
 
+  (** True when [input] is [collection/rkey] (NSID and record key). *)
   let is_valid_repo_path (input : string) : bool =
     match split_repo_path input with
     | None -> false
@@ -327,6 +350,7 @@ module Syntax = struct
 
   (* ---- at-identifier (handle or DID) ----------------------------------- *)
 
+  (** True when [s] is a valid handle or DID. *)
   let is_valid_at_identifier s = is_valid_did s || is_valid_handle s
 
   let ensure_at_identifier s =
@@ -353,6 +377,8 @@ module Syntax = struct
     in
     loop 0
 
+  (** True when [input] is a valid AT Protocol datetime (ISO-8601 with
+      timezone; no [-00:00]). *)
   let is_valid_datetime (input : string) : bool =
     let len = String.length input in
     if len < 20 || len > datetime_max_len then false
@@ -442,6 +468,7 @@ module Syntax = struct
   let ensure_datetime s =
     if not (is_valid_datetime s) then fail ("invalid datetime " ^ s)
 
+  (** Current UTC time as an AT Protocol datetime. *)
   let now_datetime () : string =
     let tm = Unix.gmtime (Unix.gettimeofday ()) in
     Printf.sprintf "%04d-%02d-%02dT%02d:%02d:%02d.000Z" (tm.Unix.tm_year + 1900)
@@ -504,6 +531,7 @@ module Syntax = struct
       "zh-xiang";
     ]
 
+  (** True when [input] is a well-formed BCP 47 language tag. *)
   let is_valid_language (input : string) : bool =
     if input = "" then false
     else
@@ -576,10 +604,12 @@ module Syntax = struct
 
   (* ---- Handle resolution helpers (no network) -------------------------- *)
 
+  (** DNS TXT name for handle resolution ([_atproto.] plus normalized handle). *)
   let handle_txt_name (handle : string) : string =
     ensure_handle handle;
     "_atproto." ^ normalize_handle handle
 
+  (** Parse a [did=…] TXT record value, or [None] if invalid. *)
   let parse_txt_did (value : string) : string option =
     let v = String.trim value in
     if starts_with v "did=" then
@@ -587,11 +617,13 @@ module Syntax = struct
       if is_valid_did did then Some did else None
     else None
 
+  (** HTTPS [.well-known/atproto-did] URL for [handle]. *)
   let handle_well_known_url (handle : string) : string =
     ensure_handle handle;
     Printf.sprintf "https://%s/.well-known/atproto-did"
       (normalize_handle handle)
 
+  (** Parse a well-known DID body (trimmed), or [None] if invalid. *)
   let parse_well_known_did (body : string) : string option =
     let did = String.trim body in
     if is_valid_did did then Some did else None

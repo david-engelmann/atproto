@@ -30,6 +30,8 @@ module Oauth_scope = struct
     params : (string * string) list;
   }
 
+  (** Canonical resource-name string for a [resource_kind] ([atproto],
+      [repo], …). *)
   let resource_name = function
     | Atproto -> "atproto"
     | Transition -> "transition"
@@ -41,6 +43,7 @@ module Oauth_scope = struct
     | Include -> "include"
     | Other s -> s
 
+  (** Parse a resource-name string into [resource_kind] ([Other] if unknown). *)
   let resource_of_string = function
     | "atproto" -> Atproto
     | "transition" -> Transition
@@ -76,23 +79,29 @@ module Oauth_scope = struct
   let param_one key params =
     match params_get key params with [] -> None | hd :: _ -> Some hd
 
+  (** Collection NSIDs on a [repo] scope: positional plus [collection] params. *)
   let collections_of (s : t) : string list =
     match s.positional with
     | Some p when p <> "" -> p :: params_get "collection" s.params
     | _ -> params_get "collection" s.params
 
+  (** [action] values on a [repo] scope. Defaults to create/update/delete. *)
   let actions_of (s : t) : string list =
     let acts = params_get "action" s.params in
     if acts = [] then [ "create"; "update"; "delete" ] else acts
 
+  (** Lexicon method NSIDs ([lxm]) on an [rpc] scope. *)
   let lxm_of (s : t) : string list =
     match s.positional with
     | Some p when p <> "" -> p :: params_get "lxm" s.params
     | _ -> params_get "lxm" s.params
 
+  (** Audience DIDs ([aud]) on an [rpc] or [include] scope. *)
   let aud_of (s : t) : string list = params_get "aud" s.params
+
   let is_wildcard = function "*" -> true | _ -> false
 
+  (** Check [s] against the granular-scope grammar. Raises [Invalid]. *)
   let validate (s : t) : unit =
     match s.resource with
     | Atproto ->
@@ -152,7 +161,8 @@ module Oauth_scope = struct
         | None -> fail "include scope requires a permission-set NSID")
     | Blob | Other _ -> ()
 
-  (* Official AT Protocol permission-set NSIDs referenced by include:. *)
+  (** Official [app.bsky.auth*] / [chat.bsky.authFullChatClient]
+      permission-set NSIDs referenced by [include:]. *)
   let official_include_nsids =
     [
       "app.bsky.authCreatePosts";
@@ -167,9 +177,11 @@ module Oauth_scope = struct
       "chat.bsky.authFullChatClient";
     ]
 
+  (** True when [nsid] is a bundled official permission-set. *)
   let is_official_include (nsid : string) : bool =
     List.mem nsid official_include_nsids
 
+  (** Expand one lexicon [permission] into granular scope tokens. *)
   let scopes_of_permission (p : Lexicon.Lexicon.permission) : t list =
     match p.resource with
     | "repo" ->
@@ -193,9 +205,11 @@ module Oauth_scope = struct
           lxms
     | _ -> []
 
+  (** Expand a parsed permission-set into granular scope tokens. *)
   let expand_include (set : Lexicon.Lexicon.permission_set) : t list =
     List.concat (List.map scopes_of_permission set.permissions)
 
+  (** Expand a bundled official permission-set NSID, or [None] if unknown. *)
   let expand_include_nsid (nsid : string) : t list option =
     match List.assoc_opt nsid Lexicon.Lexicon.official_lexicons with
     | None -> None
@@ -205,6 +219,7 @@ module Oauth_scope = struct
              (Lexicon.Lexicon.parse_permission_set
                 (Yojson.Safe.from_string body)))
 
+  (** Parse and validate one scope token. Raises [Invalid]. *)
   let parse_one (raw : string) : t =
     let token = String.trim raw in
     if token = "" then fail "empty scope token";
@@ -232,6 +247,7 @@ module Oauth_scope = struct
       Does not require [atproto] — use [parse_and_require] for that. *)
   let parse (scope : string) : t list = List.map parse_one (split_scopes scope)
 
+  (** Serialize one scope token ([resource[:positional][?k=v]]). *)
   let to_string (s : t) : string =
     let head =
       match s.positional with
@@ -245,21 +261,26 @@ module Oauth_scope = struct
         ^ String.concat "&"
             (List.map (fun (k, v) -> pct_encode k ^ "=" ^ pct_encode v) ps)
 
+  (** Space-separated serialization of [scopes]. *)
   let serialize (scopes : t list) : string =
     String.concat " " (List.map to_string scopes)
 
+  (** True when [scopes] includes the mandatory [atproto] token. *)
   let has_atproto (scopes : t list) : bool =
     List.exists (fun s -> s.resource = Atproto) scopes
 
+  (** Raise [Invalid] unless [scopes] includes [atproto]. *)
   let require_atproto (scopes : t list) : unit =
     if not (has_atproto scopes) then fail "scope list must include atproto"
 
   let token_set scope = split_scopes scope |> List.sort_uniq String.compare
 
+  (** True when every token in [requested] appears in [declared]. *)
   let is_subset ~requested ~declared =
     let dec = token_set declared in
     List.for_all (fun t -> List.mem t dec) (split_scopes requested)
 
+  (** [parse] then [require_atproto]. Raises [Invalid] if [atproto] is missing. *)
   let parse_and_require (scope : string) : t list =
     let scopes = parse scope in
     require_atproto scopes;
