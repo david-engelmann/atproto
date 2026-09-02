@@ -130,6 +130,23 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `tools.ozone.report.getReport` / `closeReports` / `getLiveStats` /
   `getHistoricalStats`, and `tools.ozone.setting.upsertOption` /
   `removeOptions` (skip only when the NSID is not served)
+- [#129](https://github.com/david-engelmann/atproto/pull/129): live leftover
+  TestNetwork coverage after [#123](https://github.com/david-engelmann/atproto/pull/123):
+  PDS `com.atproto.identity.refreshIdentity`,
+  `com.atproto.temp.checkHandleAvailability` /
+  `com.atproto.temp.dereferenceScope`,
+  `com.atproto.lexicon.resolveLexicon`, throwaway
+  `requestAccountDelete` / `deleteAccount` (email-token InvalidRequest
+  skipped), and `revokeAppPassword` only when `createAppPassword` is
+  not the known PDS 0.5.x 500; AppView unspecced skeletons /
+  `getSuggested*` / `getTrendsSkeleton` and `app.bsky.ageassurance.*`
+  if served; ozone `team.addMember` / `updateMember` / `deleteMember`,
+  `signature.findCorrelation` / `findRelatedAccounts` / `searchAccounts`,
+  `hosting.getAccountHistory`, `queue.unassignModerator` /
+  `routeReports`, `report.assignModerator` / `listActivities` /
+  `queryActivities` / `reassignQueue` / `refreshStats`, and
+  `set.deleteValues` (skip only when the NSID is not served or the
+  InvalidRequest / UpstreamFailure is TestNetwork policy)
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -152,6 +169,10 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   skip); OCaml constraint `(and (>= 4.14.1) (< 5.0))` — CI tests 4.14.1
   only; TestSuite `lint-doc` runs `dune build @doc` and uploads HTML as
   the `odoc-html` artifact on pull requests
+- [#132](https://github.com/david-engelmann/atproto/pull/132): official
+  lexicon pin bluesky-social/atproto `5c154f9c` (the commit that added
+  `tools.ozone.moderation.getAccountPreferences`) plus
+  `Ozone.get_account_preferences` so the coverage gate stays green
 - [#112](https://github.com/david-engelmann/atproto/pull/112): on push to
   `main`, the same HTML is deployed with GitHub Actions Pages
   (`actions/upload-pages-artifact` + `actions/deploy-pages`). GitHub
@@ -223,7 +244,7 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
 - Hosted Tap service or video transcoder
 - Official OSS chat backend (TestNetwork does not start one)
 - Newly published official lexicons after bluesky-social/atproto
-  `60c4395951` (APP-2933) — the coverage gate fails until the pin
+  `5c154f9c` — the coverage gate fails until the pin
   snapshot and bindings (or an explicit skip) are updated
 - Jetstream archive HTTP download still needs an operator token this
   library does not invent (live compressed `subscribeEvents` and
