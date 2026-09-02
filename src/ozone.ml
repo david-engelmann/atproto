@@ -604,6 +604,8 @@ module Ozone = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_statuses
 
+  (** Moderation events via [tools.ozone.moderation.queryEvents]. Password
+      [at+jwt] sessions send [atproto-proxy] through the PDS. *)
   let query_events (s : Session.session) ~proxy ?host ?types ?created_by
       ?subject ?limit ?cursor () : events =
     Client.get_json ~session:s ?host ~extra:(proxy_headers proxy)
@@ -615,6 +617,8 @@ module Ozone = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_events
 
+  (** Emit a moderation event via [tools.ozone.moderation.emitEvent]. Password
+      [at+jwt] sessions send [atproto-proxy] through the PDS. *)
   let emit_event (s : Session.session) ~proxy ?host ~event ~subject ~created_by
       ?subject_blob_cids ?external_id ?mod_tool ?report_action () : mod_event =
     Client.post_json ~session:s ?host ~extra:(proxy_headers proxy)
@@ -667,6 +671,8 @@ module Ozone = struct
       (("uri", uri) :: Client.opt_pair "cid" cid)
     |> parse_record
 
+  (** Ozone server config via [tools.ozone.server.getConfig] ([appview] /
+      [pds] / [chat] / [viewer.role]). *)
   let get_config (s : Session.session) ~proxy ?host () : server_config =
     Client.get_json ~session:s ?host ~extra:(proxy_headers proxy)
       "tools.ozone.server.getConfig" []

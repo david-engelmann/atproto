@@ -110,12 +110,17 @@ module Sync = struct
   let optional_pairs pairs =
     List.filter_map (fun (k, v) -> Option.map (fun x -> (k, x)) v) pairs
 
+  (** Latest commit CID and rev for [did] via
+      [com.atproto.sync.getLatestCommit]. Optional [host] / [session] select
+      the PDS; otherwise [ATP_HOST] or [bsky.social]. *)
   let get_latest_commit ?host ?session (did : string) : latest_commit =
     request_json ?host ?session
       (create_sync_endpoint "getLatestCommit")
       [ ("did", did) ]
     |> parse_latest_commit
 
+  (** Full repo CAR bytes for [did] via [com.atproto.sync.getRepo]. Optional
+      [since] is a rev to diff from. *)
   let get_repo ?host ?session ?since (did : string) : string =
     request_bytes ?host ?session
       (create_sync_endpoint "getRepo")

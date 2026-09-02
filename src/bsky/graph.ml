@@ -100,6 +100,7 @@ module Graph = struct
     in
     blocks |> convert_body_to_json |> parse_blocks
 
+  (** Followers of [actor] (handle or DID) via [app.bsky.graph.getFollowers]. *)
   let get_followers (s : Session.session) (actor : string) (limit : int) :
       followers =
     let bearer_token = Session.bearer_token_from_session s in
@@ -128,6 +129,7 @@ module Graph = struct
       (follow_page_pairs ~actor ?limit ?cursor ?sort ())
     |> parse_followers
 
+  (** Accounts [actor] follows via [app.bsky.graph.getFollows]. *)
   let get_follows (s : Session.session) (actor : string) (limit : int) : follows
       =
     let bearer_token = Session.bearer_token_from_session s in
@@ -191,6 +193,9 @@ module Graph = struct
     in
     `Assoc fields
 
+  (** Mute [actor] via [app.bsky.graph.muteActor]. Optional [only_reposts] /
+      [only_quoteposts] store a scoped mute; later calls replace the stored
+      scope. *)
   let mute_actor (s : Session.session) ?only_reposts ?only_quoteposts
       (actor : string) : string =
     let bearer_token = Session.bearer_token_from_session s in
@@ -679,6 +684,8 @@ module Graph = struct
           | _ -> []);
     }
 
+  (** List view and items for [list] (AT URI) via [app.bsky.graph.getList].
+      Works without a session against public AppView. *)
   let get_list ?session ?host ~list ?limit ?cursor () : list_page =
     Client.Client.get_json ?session ?host "app.bsky.graph.getList"
       ((("list", list) :: Client.Client.opt_int "limit" limit)

@@ -128,6 +128,9 @@ module Jetstream = struct
     | V2, Some n when n > 0 -> [ ("maxMessageSizeBytes", string_of_int n) ]
     | _ -> []
 
+  (** WebSocket URL for [network.bsky.jetstream.subscribeEvents] (v2) or
+      [/subscribe] (v1). Optional [filter] and [compress] become query
+      params; v2 dict-zstd uses [zstdDictionary=<id>]. *)
   let subscribe_url ?(host = default_host) ?(version = V2)
       ?(filter = empty_filter) ?(compress = false) ?zstd_dictionary_id () =
     validate_filter filter;
@@ -573,6 +576,8 @@ module Jetstream = struct
     in
     attempt 0
 
+  (** Receive one Jetstream event. v2 offers
+      [Sec-WebSocket-Protocol: xrpc.v1.json] (the server must echo it). *)
   let subscribe_one ?host ?version ?filter ?(compress = false) () : event =
     let cell = ref None in
     subscribe ?host ?version ?filter ~compress ~max_messages:1 ~max_reconnects:0
