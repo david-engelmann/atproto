@@ -1,8 +1,10 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#120](https://github.com/david-engelmann/atproto/pull/120)
-(github-actions group bump), including
+shipped through [#121](https://github.com/david-engelmann/atproto/pull/121)
+(CHANGELOG through #120 + `sample.env` leftover cleanup), including
+[#120](https://github.com/david-engelmann/atproto/pull/120)
+(github-actions group bump),
 [#119](https://github.com/david-engelmann/atproto/pull/119) (README Quick
 start + `make doc` + live ozone `createTemplate` / `upsertSet` with
 `createdBy` / `updatedBy`),
@@ -156,6 +158,10 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   github-actions group bump — `actions/checkout@v7`,
   `actions/setup-node@v7`, `actions/upload-artifact@v7`,
   `actions/cache@v6`
+- [#121](https://github.com/david-engelmann/atproto/pull/121): drop unused
+  leftover `REGISTRY_DB_CONNECTION_STRING` / `REDIS_*` / `POSTGRES_*`
+  from `sample.env` (ATP client vars stay). `SECURITY.md` adds a
+  supported-versions line for **0.1.0** (OCaml **4.14.x**)
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
