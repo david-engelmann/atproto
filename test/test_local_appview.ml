@@ -155,6 +155,49 @@ let av_get_until ?session ~attempts ~retry_message nsid pairs =
   in
   go attempts
 
+(* Same as av_get_until, but a persistent skip-needle is None, not a
+   hard fail. AppView 0.0.277 getFeedGenerator / getFeed say
+   "could not find feed" or "invalid feed generator service" when the
+   generator DID has no #bsky_fg (TestNetwork policy). *)
+let feed_generator_unhosted msg =
+  message_has msg "could not find feed"
+  || message_has msg "invalid feed generator service"
+
+let av_get_until_or_skip ?session ~attempts nsid pairs =
+  let rec go n =
+    let json =
+      Client.get_json_appview ?session ~host:(appview_host ()) nsid pairs
+    in
+    if Error.is_not_served_json json then None
+    else
+      match Error.check_for_error json with
+      | None -> Some json
+      | Some _ ->
+          let e = Error.of_json json in
+          if feed_generator_unhosted e.message then
+            if n > 1 then (
+              Unix.sleep 1;
+              go (n - 1))
+            else None
+          else failwith ("XRPC error: " ^ Error.to_string e)
+  in
+  go attempts
+
+let av_get_feed_if_hosted ?session feed =
+  let json =
+    Client.get_json_appview ?session ~host:(appview_host ())
+      "app.bsky.feed.getFeed"
+      [ ("feed", feed); ("limit", "5") ]
+  in
+  if Error.is_not_served_json json then None
+  else
+    match Error.check_for_error json with
+    | None -> Some json
+    | Some _ ->
+        let e = Error.of_json json in
+        if feed_generator_unhosted e.message then None
+        else Some (ensure_ok json)
+
 let test_get_profile _ =
   let s = session () in
   let json = av_get "app.bsky.actor.getProfile" [ ("actor", s.username) ] in
@@ -876,6 +919,130 @@ let test_put_preferences_v2 _ =
       OUnit2.assert_bool "putPreferencesV2"
         (match written.original with `Assoc _ | _ -> true)
 
+(* Remaining AppView NSIDs that 0.0.277 registers. Skip if this revision
+   501s the method. getActorStarterPacks / getStarterPacksWithMembership /
+   getFeedGenerators / listActivitySubscriptions are already live above. *)
+let test_leftover_served _ =
+  let s = session () in
+  (match
+     av_get_if_served ~session:s "app.bsky.graph.getListBlocks"
+       [ ("limit", "10") ]
+   with
+  | None -> ()
+  | Some json ->
+      let page = Graph.parse_lists json in
+      OUnit2.assert_bool "getListBlocks" (List.length page.lists >= 0));
+  let created_at = rfc3339_z () in
+  let list =
+    Records.list ~name:"Served pack list" ~purpose:Records.purpose_curatelist
+      ~created_at ()
+  in
+  let listed =
+    Repo.create_record s s.auth.did Records.nsid_list
+      (Yojson.Safe.to_string list)
+    |> fun body ->
+    match Error.check_for_error (Yojson.Safe.from_string body) with
+    | Some e -> failwith ("create list: " ^ e)
+    | None -> Repo.parse_write_result (Yojson.Safe.from_string body)
+  in
+  ignore
+    (av_get_until ~attempts:20 ~retry_message:"not found"
+       "app.bsky.graph.getList"
+       [ ("list", listed.uri); ("limit", "5") ]);
+  let pack =
+    Records.starterpack ~name:"Served pack" ~list:listed.uri ~created_at ()
+  in
+  let packed =
+    Repo.create_record s s.auth.did Records.nsid_starterpack
+      (Yojson.Safe.to_string pack)
+    |> fun body ->
+    match Error.check_for_error (Yojson.Safe.from_string body) with
+    | Some e -> failwith ("create starterpack: " ^ e)
+    | None -> Repo.parse_write_result (Yojson.Safe.from_string body)
+  in
+  (match
+     av_get_until ~attempts:20 ~retry_message:"not found"
+       "app.bsky.graph.getStarterPack"
+       [ ("starterPack", packed.uri) ]
+   with
+  | None -> ()
+  | Some json ->
+      let view =
+        match Yojson.Safe.Util.member "starterPack" json with
+        | `Assoc _ as sp -> Graph.parse_starter_pack sp
+        | _ -> Graph.parse_starter_pack json
+      in
+      OUnit2.assert_equal ~printer:(fun x -> x) packed.uri view.uri);
+  (match
+     av_get_if_served "app.bsky.graph.getStarterPacks" [ ("uris", packed.uri) ]
+   with
+  | None -> ()
+  | Some json ->
+      let page = Graph.parse_starter_packs json in
+      OUnit2.assert_bool "getStarterPacks" (List.length page.starter_packs >= 0));
+  let gen =
+    Records.generator ~did:s.auth.did ~display_name:"Served generator"
+      ~created_at ()
+  in
+  let generated =
+    Repo.create_record s s.auth.did Records.nsid_generator
+      (Yojson.Safe.to_string gen)
+    |> fun body ->
+    match Error.check_for_error (Yojson.Safe.from_string body) with
+    | Some e -> failwith ("create generator: " ^ e)
+    | None -> Repo.parse_write_result (Yojson.Safe.from_string body)
+  in
+  let generator_info =
+    match
+      av_get_until_or_skip ~attempts:20 "app.bsky.feed.getFeedGenerator"
+        [ ("feed", generated.uri) ]
+    with
+    | None -> None
+    | Some json ->
+        let info = Feed.parse_generator_info json in
+        OUnit2.assert_equal ~printer:(fun x -> x) generated.uri info.view.uri;
+        Some info
+  in
+  (* getFeed only against OUR generator, and only if AppView marked it
+     online. Suggested feeds are not live TestNetwork services. *)
+  (match generator_info with
+  | Some info when info.is_online -> (
+      match av_get_feed_if_hosted generated.uri with
+      | None -> ()
+      | Some json ->
+          let page = Feed.parse_timeline json in
+          OUnit2.assert_bool "getFeed" (List.length page.feed >= 0))
+  | _ -> ());
+  let bob = bob_session () in
+  (match
+     av_post_if_served ~session:s
+       "app.bsky.notification.putActivitySubscription"
+       (Yojson.Safe.to_string
+          (`Assoc
+            [
+              ("subject", `String bob.auth.did);
+              ( "activitySubscription",
+                Notification.activity_subscription_to_json
+                  { Notification.post = true; reply = false } );
+            ]))
+   with
+  | None -> ()
+  | Some json ->
+      let subject = Client.string_member json "subject" in
+      OUnit2.assert_bool "putActivitySubscription subject"
+        (String.length subject >= 0));
+  ignore
+    (av_post_if_served ~session:s
+       "app.bsky.notification.putActivitySubscription"
+       (Yojson.Safe.to_string
+          (`Assoc
+            [
+              ("subject", `String bob.auth.did);
+              ( "activitySubscription",
+                Notification.activity_subscription_to_json
+                  { Notification.post = false; reply = false } );
+            ])))
+
 let suite =
   "local_appview"
   >::: [
@@ -890,6 +1057,7 @@ let suite =
          "test_drafts" >:: test_drafts;
          "test_mute_actor_list" >:: test_mute_actor_list;
          "test_put_preferences_v2" >:: test_put_preferences_v2;
+         "test_leftover_served" >:: test_leftover_served;
        ]
 
 let () =

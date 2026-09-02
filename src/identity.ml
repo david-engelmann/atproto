@@ -325,7 +325,7 @@ module Identity = struct
   let request_plc_operation_signature (s : Session.session) : unit =
     ignore
       (Client.Client.post_json ~session:s
-         "com.atproto.identity.requestPlcOperationSignature" "{}")
+         "com.atproto.identity.requestPlcOperationSignature" "")
 
   let refresh_identity_body ~identifier : Yojson.Safe.t =
     `Assoc [ ("identifier", `String identifier) ]

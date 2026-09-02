@@ -1,8 +1,19 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#121](https://github.com/david-engelmann/atproto/pull/121)
-(CHANGELOG through #120 + `sample.env` leftover cleanup), including
+shipped through [#124](https://github.com/david-engelmann/atproto/pull/124)
+(CHANGELOG through #123), including
+[#123](https://github.com/david-engelmann/atproto/pull/123)
+(live leftover TestNetwork `getListBlocks` / `getStarterPack` /
+`getFeedGenerator` / `putActivitySubscription`, PLC
+request/sign/submit, ozone queue assign / report get-close-stats /
+setting upsert-remove),
+[#122](https://github.com/david-engelmann/atproto/pull/122)
+(function-level odoc on Graph / Ozone / Repo / Sync / MST /
+Jetstream / Chat / Bookmark / Notification — comment-only, targeting
+`main` in parallel),
+[#121](https://github.com/david-engelmann/atproto/pull/121)
+(CHANGELOG through #120 + `sample.env` leftover cleanup),
 [#120](https://github.com/david-engelmann/atproto/pull/120)
 (github-actions group bump),
 [#119](https://github.com/david-engelmann/atproto/pull/119) (README Quick
@@ -100,6 +111,17 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `createdBy` on `createTemplate`; `Ozone.create_template` /
   `create_template_body` send it (session DID by default) and
   `update_template` sends `updatedBy` the same way
+- [#123](https://github.com/david-engelmann/atproto/pull/123): live leftover
+  TestNetwork coverage for AppView `app.bsky.graph.getListBlocks`,
+  `getStarterPack` / `getStarterPacks`,
+  `app.bsky.feed.getFeedGenerator`,
+  `app.bsky.notification.putActivitySubscription`; PDS
+  `com.atproto.identity.requestPlcOperationSignature` /
+  `signPlcOperation` / `submitPlcOperation`; ozone
+  `tools.ozone.queue.assignModerator` / `getAssignments`,
+  `tools.ozone.report.getReport` / `closeReports` / `getLiveStats` /
+  `getHistoricalStats`, and `tools.ozone.setting.upsertOption` /
+  `removeOptions` (skip only when the NSID is not served)
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -162,6 +184,13 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   leftover `REGISTRY_DB_CONNECTION_STRING` / `REDIS_*` / `POSTGRES_*`
   from `sample.env` (ATP client vars stay). `SECURITY.md` adds a
   supported-versions line for **0.1.0** (OCaml **4.14.x**)
+- [#122](https://github.com/david-engelmann/atproto/pull/122):
+  function-level odoc on public Graph / Ozone / Repo / Sync / MST /
+  Jetstream / Chat / Bookmark / Notification entry points
+  (`get_follows`, `emit_event`, `create_record`, `get_latest_commit`,
+  `layer_for_key`, `subscribe_url`, `list_convos`, `get_bookmarks`,
+  `list_notifications`). Comment-only; that PR targets `main` in
+  parallel
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
