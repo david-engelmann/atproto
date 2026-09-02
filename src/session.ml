@@ -68,6 +68,9 @@ module Session = struct
     in
     atp_host
 
+  (** Create a password session ([com.atproto.server.createSession]) on
+      [ATP_HOST] (default [bsky.social]). Optional [auth_factor_token] and
+      [allow_takendown] map to the lexicon inputs. *)
   let create_session ?auth_factor_token ?allow_takendown (username : string)
       (password : string) : session =
     let atp_host = atp_host_from_env in
@@ -111,6 +114,8 @@ module Session = struct
     in
     session
 
+  (** Current account info for [s] via [com.atproto.server.getSession]
+      (handle, DID, email flags, active/status). *)
   let get_session (s : session) : session_request =
     Yojson.Safe.from_string (get_session_request s) |> parse_session_request
 

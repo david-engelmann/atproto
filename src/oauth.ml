@@ -338,9 +338,9 @@ module Oauth = struct
   let form_decode_value s =
     Uri.pct_decode (String.map (function '+' -> ' ' | c -> c) s)
 
-  (* Official loopback client_id. The AS synthesizes metadata from this query
-     ([atprotoLoopbackClientMetadata]); [scope] must list every scope PAR will
-     request. *)
+  (** Official loopback [client_id]. The authorization server synthesizes
+      metadata from this query ([atprotoLoopbackClientMetadata]); [scope]
+      must list every scope PAR will request. *)
   let loopback_client_id ?(redirect_uri = "http://127.0.0.1/")
       ?(scope = default_scope) () : string =
     "http://localhost?"
@@ -470,6 +470,8 @@ module Oauth = struct
   let contains_scope ~scope needle =
     List.mem needle (String.split_on_char ' ' scope)
 
+  (** Public client metadata for a hosted HTTPS [client_id]
+      ([token_endpoint_auth_method] = [none], DPoP-bound access tokens). *)
   let public_metadata ~client_id ~redirect_uris ?(scope = default_scope)
       ?(application_type = "web") ?client_name ?client_uri ?logo_uri ?tos_uri
       ?policy_uri () : client_metadata =

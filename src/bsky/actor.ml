@@ -498,6 +498,8 @@ module Actor = struct
   let create_actor_endpoint (query_name : string) : string =
     "app.bsky.actor" ^ "." ^ query_name
 
+  (** Profile view for [actor] (handle or DID) via
+      [app.bsky.actor.getProfile]. *)
   let get_profile (s : Session.session) (actor : string) : profile =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
@@ -517,6 +519,7 @@ module Actor = struct
     let profile_json = profile |> convert_body_to_json in
     profile_json |> parse_profile
 
+  (** Profile views for several actors via [app.bsky.actor.getProfiles]. *)
   let get_profiles (s : Session.session) (actors : string list) : profile list =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
@@ -888,6 +891,7 @@ module Actor = struct
   let put_preferences_body preferences : Yojson.Safe.t =
     `Assoc [ ("preferences", `List preferences) ]
 
+  (** The session's stored preferences ([app.bsky.actor.getPreferences]). *)
   let get_preferences (s : Session.session) : preferences =
     Client.Client.get_json ~session:s "app.bsky.actor.getPreferences" []
     |> parse_preferences

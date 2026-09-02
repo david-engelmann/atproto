@@ -92,6 +92,9 @@ module Identity = struct
     | None -> rest
     | Some i -> String.sub rest 0 i
 
+  (** Resolve [handle] to a DID via [com.atproto.identity.resolveHandle].
+      Optional [host] / [session] select the PDS; otherwise [ATP_HOST] or
+      [bsky.social]. *)
   let resolve_handle ?host ?session (handle : string) : resolved_handle =
     get_json ?host ?session
       (create_identity_endpoint "resolveHandle")
@@ -127,6 +130,9 @@ module Identity = struct
   let resolve_did_via_directory ?host ?session (did : string) : Yojson.Safe.t =
     `Assoc [ ("didDoc", document_json_of_did ?host ?session did) ]
 
+  (** Fetch a DID document via [com.atproto.identity.resolveDid].
+      Falls back to the PLC directory or did:web when the PDS returns
+      [MethodNotImplemented] (common on PDS 0.5.x). *)
   let resolve_did ?host ?session (did : string) : Yojson.Safe.t =
     let json =
       get_json_allow_error ?host ?session
@@ -226,6 +232,8 @@ module Identity = struct
         (try Some (document_json_of_did ?host ?session did) with _ -> None);
     }
 
+  (** Resolve a handle or DID to [did], [handle], and optional [didDoc].
+      Same XRPC-then-directory fallback as {!resolve_did}. *)
   let resolve_identity ?host ?session (identifier : string) : identity_info =
     let json =
       get_json_allow_error ?host ?session
