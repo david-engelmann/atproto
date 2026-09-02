@@ -112,15 +112,18 @@ let leftover_tag () =
   Printf.sprintf "ocaml-leftover-%d"
     (int_of_float (Unix.gettimeofday () *. 1000.) mod 100_000_000)
 
-(* TestNetwork policy InvalidRequest: email token, not-implemented.
-   Never fail leftover hops on those. *)
+(* TestNetwork policy: email token, not-implemented, or ozone
+   UpstreamFailure when an upstream is not reachable. Never fail leftover
+   hops on those. *)
 let is_policy_invalid json =
   match Error.check_for_error json with
   | None -> false
   | Some _ ->
       let e = Error.of_json json in
       Error.is_not_served e || e.error = "InvalidToken"
+      || e.error = "UpstreamFailure"
       || message_has e.error "invalidtoken"
+      || message_has e.error "upstreamfailure"
       || message_has e.message "email confirmation token"
       || message_has e.message "email token"
       || message_has e.message "invalid token"
@@ -132,6 +135,8 @@ let is_policy_invalid json =
       || message_has e.message "member already"
       || message_has e.message
            "request body was provided when none was expected"
+      || message_has e.message "upstream service unreachable"
+      || message_has e.message "upstream failure"
 
 let leftover_served json =
   if Error.is_not_served_json json || cannot_moderate json then false
@@ -449,6 +454,11 @@ let test_leftover_ozone _ =
 let ozone_post s p nsid body =
   Client.post_json ~session:s ~extra:(Ozone.proxy_headers p) nsid
     (Yojson.Safe.to_string body)
+
+let leftover_post_ignore s p nsid body =
+  match ozone_post s p nsid body with
+  | json when leftover_served json -> ()
+  | _ -> ()
 
 let test_privileged_writes _ =
   let s = admin_session () in
@@ -990,7 +1000,9 @@ let test_leftover_remaining _ =
          [ ("name", `String set_name); ("description", `String ("set " ^ tag)) ])
    with
   | json when leftover_served json ->
-      Ozone.add_set_values s ~proxy:p ~name:set_name ~values:[ tag ] ();
+      leftover_post_ignore s p "tools.ozone.set.addValues"
+        (`Assoc
+          [ ("name", `String set_name); ("values", `List [ `String tag ]) ]);
       (match
          ozone_post s p "tools.ozone.set.deleteValues"
            (`Assoc
@@ -1006,10 +1018,13 @@ let test_leftover_remaining _ =
                 (not (List.mem tag got.values))
           | _ -> ())
       | _ -> ());
-      Ozone.delete_set s ~proxy:p ~name:set_name ()
+      leftover_post_ignore s p "tools.ozone.set.deleteSet"
+        (`Assoc [ ("name", `String set_name) ])
   | _ -> ());
   match created_queue_id with
-  | Some id -> ignore (Ozone.delete_queue s ~proxy:p ~queue_id:id ())
+  | Some id ->
+      leftover_post_ignore s p "tools.ozone.queue.deleteQueue"
+        (Ozone.delete_queue_body ~queue_id:id ())
   | None -> ()
 
 let suite =

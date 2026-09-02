@@ -146,7 +146,7 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `routeReports`, `report.assignModerator` / `listActivities` /
   `queryActivities` / `reassignQueue` / `refreshStats`, and
   `set.deleteValues` (skip only when the NSID is not served or the
-  InvalidRequest is TestNetwork policy)
+  InvalidRequest / UpstreamFailure is TestNetwork policy)
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert

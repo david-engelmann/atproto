@@ -95,6 +95,10 @@ let is_policy_invalid (e : Error.t) =
   || message_has e.message "invalid feed generator"
   || message_has e.message "not implemented"
   || message_has e.message "request body was provided when none was expected"
+  || e.error = "UpstreamFailure"
+  || message_has e.error "upstreamfailure"
+  || message_has e.message "upstream service unreachable"
+  || message_has e.message "upstream failure"
 
 let pds_leftover_json json =
   if Error.is_not_served_json json then None
