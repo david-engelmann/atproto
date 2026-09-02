@@ -91,8 +91,7 @@ let is_policy_invalid (e : Error.t) =
   || message_has e.message "could not find feed"
   || message_has e.message "invalid feed generator"
   || message_has e.message "not implemented"
-  || message_has e.message
-       "request body was provided when none was expected"
+  || message_has e.message "request body was provided when none was expected"
 
 let pds_leftover_json json =
   if Error.is_not_served_json json then None
