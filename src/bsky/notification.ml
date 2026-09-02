@@ -337,6 +337,9 @@ module Notification = struct
     in
     unread_count |> convert_body_to_json |> parse_unread_count
 
+  (** Notifications for the session via
+      [app.bsky.notification.listNotifications]. Optional [reasons] /
+      [priority] / [cursor] / [seen_at] map to the lexicon query. *)
   let list_notifications (s : Session.session) ?reasons ?priority ?cursor
       ?seen_at (limit : int) : notification list =
     Client.Client.get_json ~session:s "app.bsky.notification.listNotifications"

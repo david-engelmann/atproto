@@ -192,6 +192,8 @@ module Repo = struct
     in
     repo_description
 
+  (** Fetch a record via [com.atproto.repo.getRecord]. Returns the raw JSON
+      body. *)
   let get_record (s : Session.session) (repo : string) (collection : string)
       (rkey : string) (cid : string) : string =
     let bearer_token = Session.bearer_token_from_session s in
@@ -246,6 +248,9 @@ module Repo = struct
     in
     records
 
+  (** Create a record via [com.atproto.repo.createRecord]. [record] is a JSON
+      object string; optional [rkey] and [swap_commit] map to the lexicon
+      inputs. *)
   let create_record (s : Session.session) (repo : string) (collection : string)
       ?rkey ?(validate = true) ?swap_commit (record : string) : string =
     let bearer_token = Session.bearer_token_from_session s in
@@ -397,6 +402,8 @@ module Repo = struct
     in
     `Assoc fields
 
+  (** Apply a batch of create/update/delete ops via
+      [com.atproto.repo.applyWrites]. Returns the raw JSON body. *)
   let apply_writes (s : Session.session) ~repo ~writes ?validate ?swap_commit ()
       : string =
     let bearer_token = Session.bearer_token_from_session s in

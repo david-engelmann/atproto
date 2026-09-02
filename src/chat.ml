@@ -60,6 +60,9 @@ module Chat = struct
     try chat_proxy_of_document (Did_plc.Did_plc.parse_document json)
     with _ -> None
 
+  (** [atproto-proxy] for chat XRPC: explicit [proxy], else the chat service
+      in [did_doc], else [ATP_CHAT_DID], else [did:web:api.bsky.chat]. This
+      is a client for the hosted chat service, not an OSS chat backend. *)
   let effective_proxy ?proxy ?did_doc () : Xrpc.proxy =
     match proxy with
     | Some p -> p
@@ -541,6 +544,8 @@ module Chat = struct
     in
     `Assoc fields
 
+  (** Conversations via [chat.bsky.convo.listConvos]. Always sends
+      [atproto-proxy] ([effective_proxy]). *)
   let list_convos (s : Session.session) ?proxy ?limit ?cursor ?read_state
       ?status ?kind () : convos =
     Client.get_json ~session:s

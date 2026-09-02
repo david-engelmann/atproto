@@ -63,6 +63,8 @@ module Bookmark = struct
   let delete_bookmark_body ~uri : Yojson.Safe.t =
     `Assoc [ ("uri", `String uri) ]
 
+  (** Bookmark [uri] / [cid] via [app.bsky.bookmark.createBookmark] (auth
+      required). *)
   let create_bookmark (s : Session.session) ~uri ~cid () : unit =
     ignore
       (Client.post_json ~session:s "app.bsky.bookmark.createBookmark"
@@ -73,6 +75,7 @@ module Bookmark = struct
       (Client.post_json ~session:s "app.bsky.bookmark.deleteBookmark"
          (Yojson.Safe.to_string (delete_bookmark_body ~uri)))
 
+  (** The session's bookmarks via [app.bsky.bookmark.getBookmarks]. *)
   let get_bookmarks (s : Session.session) ?limit ?cursor () : bookmarks =
     Client.get_json ~session:s "app.bsky.bookmark.getBookmarks"
       (Client.opt_int "limit" limit @ Client.opt_pair "cursor" cursor)

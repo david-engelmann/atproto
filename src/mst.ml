@@ -39,6 +39,8 @@ module Mst = struct
     in
     loop 0 0
 
+  (** MST layer (height) for [key]: leading zero bits of SHA-256([key])
+      divided by 2 (fanout 4). Official vector: [layer_for_key "blue" = 1]. *)
   let layer_for_key (key : string) : int = leading_zeros_on_hash key / 2
 
   let common_prefix_len (a : string) (b : string) : int =
@@ -179,6 +181,8 @@ module Mst = struct
         check_child node.left;
         List.iter (fun r -> check_child r.right) items
 
+  (** Look up [key] in the MST rooted at [root], loading nodes through
+      [get_block]. Returns the record CID, or [None] if missing. *)
   let rec lookup ~(get_block : Cid.t -> string option) (root : Cid.t)
       (key : string) : Cid.t option =
     match get_block root with
@@ -643,6 +647,8 @@ module Mst = struct
       in
       (create_tree t.store ~layer:key_layer entries, None)
 
+  (** Insert or replace [key] with [value]. Returns the updated tree and the
+      previous CID when the key already existed. Empty keys fail. *)
   let insert (t : tree) (key : string) (value : Cid.t) : tree * Cid.t option =
     if key = "" then fail "MST insert: empty key";
     insert_rec t key value (layer_for_key key)
