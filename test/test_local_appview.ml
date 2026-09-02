@@ -728,7 +728,8 @@ let test_leftover_appview _ =
         (List.length page.starter_packs >= 0));
   (match
      av_get_if_served ~session:s
-       "app.bsky.notification.listActivitySubscriptions" [ ("limit", "5") ]
+       "app.bsky.notification.listActivitySubscriptions"
+       [ ("limit", "5") ]
    with
   | None -> ()
   | Some json ->

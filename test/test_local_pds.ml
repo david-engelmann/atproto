@@ -639,8 +639,7 @@ let test_update_handle _ =
 
 let test_deactivate_activate _ =
   let s = throwaway_session "deact" "local-pds-deact-password" in
-  let activated_of status =
-    match status.Server.activated with
+  let activated_of = function
     | Some b -> string_of_bool b
     | None -> "none"
   in
@@ -649,14 +648,14 @@ let test_deactivate_activate _ =
       (Yojson.Safe.to_string (Server.deactivate_account_body ()))
   with
   | None -> ()
-  | Some _ ->
+  | Some _ -> (
       Server.deactivate_account s ();
       let deactivated = Server.check_account_status s in
       OUnit2.assert_equal ~printer:activated_of (Some false)
         deactivated.activated;
-      (match
-         pds_post_if_served ~session:s "com.atproto.server.activateAccount" "{}"
-       with
+      match
+        pds_post_if_served ~session:s "com.atproto.server.activateAccount" "{}"
+      with
       | None -> ()
       | Some _ ->
           Server.activate_account s;
