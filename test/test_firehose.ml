@@ -373,6 +373,32 @@ let test_decode_update_and_delete_ops _ =
       OUnit2.assert_equal 1 (List.length commit.blobs)
   | _ -> OUnit2.assert_failure "expected #commit frame"
 
+let test_websocket_subprotocol_echo _ =
+  OUnit2.assert_equal [] (Websocket.offered_subprotocols []);
+  OUnit2.assert_equal []
+    (Websocket.offered_subprotocols [ ("Socket-Encoding", "zstd") ]);
+  OUnit2.assert_equal [ "xrpc.v1.json" ]
+    (Websocket.offered_subprotocols
+       [ ("Sec-WebSocket-Protocol", "xrpc.v1.json") ]);
+  OUnit2.assert_equal [ "xrpc.v1.json" ]
+    (Websocket.offered_subprotocols
+       [ ("sec-websocket-protocol", " xrpc.v1.json ") ]);
+  OUnit2.assert_equal
+    [ "xrpc.v1.json"; "other" ]
+    (Websocket.offered_subprotocols
+       [ ("Sec-WebSocket-Protocol", "xrpc.v1.json, other") ]);
+  Websocket.check_subprotocol_echo ~offered:[] None;
+  Websocket.check_subprotocol_echo ~offered:[ "xrpc.v1.json" ]
+    (Some "xrpc.v1.json");
+  OUnit2.assert_raises
+    (Websocket.Subprotocol_error
+       "server omitted Sec-WebSocket-Protocol after client offer") (fun () ->
+      Websocket.check_subprotocol_echo ~offered:[ "xrpc.v1.json" ] None);
+  OUnit2.assert_raises
+    (Websocket.Subprotocol_error
+       "Sec-WebSocket-Protocol \"nope\" was not in the client offer") (fun () ->
+      Websocket.check_subprotocol_echo ~offered:[ "xrpc.v1.json" ] (Some "nope"))
+
 let test_websocket_accept_rfc6455 _ =
   OUnit2.assert_equal
     ~printer:(fun x -> x)
@@ -546,6 +572,7 @@ let suite =
          "test_verify_live_shaped_cbor_frame"
          >:: test_verify_live_shaped_cbor_frame;
          "test_invert_rejects_wrong_op" >:: test_invert_rejects_wrong_op;
+         "test_websocket_subprotocol_echo" >:: test_websocket_subprotocol_echo;
          "test_websocket_accept_rfc6455" >:: test_websocket_accept_rfc6455;
          "test_websocket_unmasked_roundtrip"
          >:: test_websocket_unmasked_roundtrip;

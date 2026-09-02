@@ -4,9 +4,13 @@ Notes for the packaged **0.1.0** library. This file records what actually
 shipped through pull request [#106](https://github.com/david-engelmann/atproto/pull/106)
 (merge `79aeb75c`, 2026-09-01), changelog
 [#107](https://github.com/david-engelmann/atproto/pull/107) (merge `3a7bd82f`,
-2026-09-02), and
+2026-09-02),
 [#108](https://github.com/david-engelmann/atproto/pull/108)
-(lexicon pin `60c4395951`, coverage gate, OCaml `< 5.0`, odoc artifact).
+(lexicon pin `60c4395951`, coverage gate, OCaml `< 5.0`, odoc artifact),
+[#109](https://github.com/david-engelmann/atproto/pull/109)
+(live Jetstream dict-zstd `subscribeEvents`), and
+[#110](https://github.com/david-engelmann/atproto/pull/110)
+(Jetstream v2 `xrpc.v1.json` WebSocket subprotocol negotiation).
 
 This package is **not** published to the public
 [opam-repository](https://github.com/ocaml/opam-repository). Depend on it by
@@ -38,7 +42,12 @@ exposes `(libraries atproto)`. That pin is not an opam-repository publish.
   `chat.bsky.authFullChatClient` permission-sets
 - Jetstream v2 tail + live dict-zstd `subscribeEvents` (`getZstdDictionary`,
   Jane Street `zstandard` v0.16) + `.jss` v1 decode (no invented archive
-  token)
+  token). v2 `subscribe` / `subscribe_one` offer
+  `Sec-WebSocket-Protocol: xrpc.v1.json` through `Websocket.connect
+  ~extra_headers`; RFC 6455 §4.1 fails the handshake unless the 101
+  echoes that exact protocol. Unoffered connections (v1 `/subscribe`,
+  firehose) are unchanged. v2 stays server-push only (no client data
+  frames; v1 `options_update` / `requireHello` are not sent)
 - TAP-like local repo sync helpers (`Repo_sync`) — not a hosted Tap
 - `site.standard.*` and `com.germnetwork.declaration` record builders
 
@@ -91,4 +100,5 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `60c4395951` (APP-2933) — the coverage gate fails until the pin
   snapshot and bindings (or an explicit skip) are updated
 - Jetstream archive HTTP download still needs an operator token this
-  library does not invent (live compressed `subscribeEvents` is implemented)
+  library does not invent (live compressed `subscribeEvents` and
+  `xrpc.v1.json` subprotocol negotiation are implemented)

@@ -5,6 +5,14 @@ open Websocket
     Spec: https://bsky.network/docs/jetstream/
     Lexicon: network.bsky.jetstream.subscribeEvents (xrpc.v1.json)
 
+    v2 [subscribe] / [subscribe_one] offer
+    [Sec-WebSocket-Protocol: xrpc.v1.json] through [Websocket.connect]
+    [~extra_headers]. RFC 6455 §4.1 requires the server to echo that exact
+    protocol; the handshake fails otherwise. The same framing is the
+    lexicon default, so unnegotiated connections already look identical.
+    v2 is server-push only — this client never sends data frames there
+    (v1 [options_update] / [requireHello] do not exist on v2).
+
     Live [subscribe] with [~compress:true] requests dict-zstd frames.
     v2 sends [zstdDictionary=<id>] (the subscribeEvents opt-in). v1 sends
     [compress=true] and [Socket-Encoding: zstd]. The dictionary is fetched
@@ -23,6 +31,7 @@ module Jetstream = struct
   let v2_path = "/xrpc/network.bsky.jetstream.subscribeEvents"
   let v1_path = "/subscribe"
   let subscribe_nsid = "network.bsky.jetstream.subscribeEvents"
+  let xrpc_v1_json_subprotocol = "xrpc.v1.json"
   let max_collections = 100
   let max_dids = 10_000
   let time_us_floor = 1_000_000_000_000_000L
@@ -30,6 +39,17 @@ module Jetstream = struct
   type version = V1 | V2
   type kind = Commit | Identity | Account | Sync
   type cursor = Seq of int64 | Time_us of int64
+
+  (* v2 connections offer the proposal-0015 subprotocol. v1 [compress]
+     still uses [Socket-Encoding: zstd]; v2 never sends that header. *)
+  let subscribe_extra_headers ?(version = V2) ?(compress = false) () =
+    (match version with
+    | V2 -> [ ("Sec-WebSocket-Protocol", xrpc_v1_json_subprotocol) ]
+    | V1 -> [])
+    @
+    match (version, compress) with
+    | V1, true -> [ ("Socket-Encoding", "zstd") ]
+    | _ -> []
 
   type filter = {
     collections : string list;
@@ -495,11 +515,7 @@ module Jetstream = struct
         subscribe_url ~host ~version ~filter:!filter ~compress
           ?zstd_dictionary_id:dict_id ()
       in
-      let extra_headers =
-        match (version, compress) with
-        | V1, true -> [ ("Socket-Encoding", "zstd") ]
-        | _ -> []
-      in
+      let extra_headers = subscribe_extra_headers ~version ~compress () in
       try
         Websocket.with_connection ~extra_headers url (fun ws ->
             let rec loop () =
