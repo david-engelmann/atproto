@@ -133,6 +133,16 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   is not served, MethodNotImplemented, feature-disabled, or
   UpstreamFailure is TestNetwork policy. Does not fake a hosted ozone
   preference store
+- This PR: live leftover TestNetwork hops for remaining
+  `com.atproto.admin` NSIDs (`getSubjectStatus` / `updateSubjectStatus`,
+  `getAccountInfo` / `getAccountInfos` / `searchAccounts`,
+  `enableAccountInvites` / `disableAccountInvites` / `getInviteCodes` /
+  `disableInviteCodes`, `sendEmail`, `updateAccountEmail` /
+  `updateAccountHandle` / `updateAccountPassword` /
+  `updateAccountSigningKey`, throwaway `deleteAccount` — never
+  `alice.test`). Skip when not served, MethodNotImplemented,
+  feature-disabled, UpstreamFailure, email-token, or InvalidToken is
+  TestNetwork policy. Does not fake a hosted admin panel
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
