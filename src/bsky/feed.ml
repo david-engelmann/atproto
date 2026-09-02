@@ -635,6 +635,7 @@ module Feed = struct
     in
     posts |> convert_body_to_json |> parse_posts_feed (* used function name *)
 
+  (** Reposts of [uri] / [cid] via [app.bsky.feed.getRepostedBy]. *)
   let get_reposted_by (s : Session.session) (uri : string) (cid : string)
       (limit : int) : reposted_by_feed =
     let bearer_token = Session.bearer_token_from_session s in
@@ -680,6 +681,8 @@ module Feed = struct
     in
     timeline |> convert_body_to_json |> parse_timeline
 
+  (** Feed skeleton via [app.bsky.feed.getFeedSkeleton] (session required).
+      Prefer [get_feed_skeleton_parsed] for public AppView + cursor. *)
   let get_feed_skeleton (s : Session.session) (feed : string) (limit : int) :
       string =
     let bearer_token = Session.bearer_token_from_session s in
@@ -1026,6 +1029,8 @@ module Feed = struct
     in
     `Assoc fields
 
+  (** JSON body for [app.bsky.feed.sendInteractions]. Optional [feed] is
+      the generator AT URI. *)
   let send_interactions_body ?feed interactions : Yojson.Safe.t =
     let fields =
       [ ("interactions", `List (List.map interaction_to_json interactions)) ]
@@ -1041,23 +1046,33 @@ module Feed = struct
       @ Client.Client.opt_pair "cursor" cursor)
     |> parse_timeline
 
+  (** Feed generator metadata for [feed] (AT URI) via
+      [app.bsky.feed.getFeedGenerator]. Works without a session against
+      public AppView. *)
   let get_feed_generator ?session ?host ~feed () : generator_info =
     Client.Client.get_json ?session ?host "app.bsky.feed.getFeedGenerator"
       [ ("feed", feed) ]
     |> parse_generator_info
 
+  (** Feed generator views for [feeds] (AT URIs) via
+      [app.bsky.feed.getFeedGenerators]. Works without a session against
+      public AppView. *)
   let get_feed_generators ?session ?host ~feeds () : generator_view list =
     Client.Client.get_json ?session ?host "app.bsky.feed.getFeedGenerators"
       (Client.Client.repeat_param "feeds" feeds)
     |> parse_generators
     |> fun (g : generators) -> g.feeds
 
+  (** Feeds created by [actor] via [app.bsky.feed.getActorFeeds]. Works
+      without a session against public AppView. *)
   let get_actor_feeds ?session ?host ~actor ?limit ?cursor () : generators =
     Client.Client.get_json ?session ?host "app.bsky.feed.getActorFeeds"
       ((("actor", actor) :: Client.Client.opt_int "limit" limit)
       @ Client.Client.opt_pair "cursor" cursor)
     |> parse_generators
 
+  (** Suggested feeds via [app.bsky.feed.getSuggestedFeeds]. Works without
+      a session against public AppView. *)
   let get_suggested_feeds ?session ?host ?limit ?cursor () : generators =
     Client.Client.get_json ?session ?host "app.bsky.feed.getSuggestedFeeds"
       (Client.Client.opt_int "limit" limit
@@ -1083,6 +1098,9 @@ module Feed = struct
       @ Client.Client.opt_pair "cursor" cursor)
     |> parse_timeline
 
+  (** Parsed [app.bsky.feed.getFeedSkeleton] for [feed] (AT URI). Works
+      without a session. Client wrapper only; this library does not host
+      a feed generator. *)
   let get_feed_skeleton_parsed ?session ?host ~feed ?limit ?cursor () :
       feed_skeleton =
     Client.Client.get_json ?session ?host "app.bsky.feed.getFeedSkeleton"
@@ -1090,6 +1108,9 @@ module Feed = struct
       @ Client.Client.opt_pair "cursor" cursor)
     |> parse_feed_skeleton
 
+  (** Policies and feed URIs via [app.bsky.feed.describeFeedGenerator].
+      Feed-generator service (not AppView). Client wrapper only; this
+      library does not host a feed generator. *)
   let describe_feed_generator ?session ?host () : describe_feed_generator =
     Client.Client.get_json ?session ?host "app.bsky.feed.describeFeedGenerator"
       []
@@ -1112,6 +1133,8 @@ module Feed = struct
       @ Client.Client.opt_pair "cursor" cursor)
     |> parse_search_posts
 
+  (** Search posts ([app.bsky.feed.searchPostsV2]). Works without a session
+      against public AppView. *)
   let search_posts_v2 ?session ?host ?query ?sort ?(authors = [])
       ?(mentions = []) ?(domains = []) ?(urls = []) ?(embedded_at_uris = [])
       ?(hashtags = []) ?(exclude_authors = []) ?(exclude_mentions = [])
@@ -1154,6 +1177,8 @@ module Feed = struct
       @ Client.Client.opt_pair "cursor" cursor)
     |> parse_search_posts_v2
 
+  (** Quotes of [uri] via [app.bsky.feed.getQuotes]. Works without a
+      session against public AppView. *)
   let get_quotes ?session ?host ~uri ?cid ?limit ?cursor () : quotes =
     Client.Client.get_json ?session ?host "app.bsky.feed.getQuotes"
       ((("uri", uri) :: Client.Client.opt_pair "cid" cid)
@@ -1161,12 +1186,16 @@ module Feed = struct
       @ Client.Client.opt_pair "cursor" cursor)
     |> parse_quotes
 
+  (** Posts liked by [actor] via [app.bsky.feed.getActorLikes]. *)
   let get_actor_likes ?session ?host ~actor ?limit ?cursor () : timeline =
     Client.Client.get_json ?session ?host "app.bsky.feed.getActorLikes"
       ((("actor", actor) :: Client.Client.opt_int "limit" limit)
       @ Client.Client.opt_pair "cursor" cursor)
     |> parse_timeline
 
+  (** Send ranking interactions via [app.bsky.feed.sendInteractions]
+      (session required). Client wrapper; this library does not host a
+      feed generator. *)
   let send_interactions (s : Session.session) ?feed interactions : unit =
     ignore
       (Client.Client.post_json ~session:s "app.bsky.feed.sendInteractions"
