@@ -16,6 +16,8 @@ module Uri = struct
     search_params : (string * string) list option;
   }
 
+  (** Convert an AT URI to the legacy [uri] record ([host] / [path_name] /
+      [hash]). *)
   let to_legacy (u : t) : uri =
     {
       host = u.authority;
@@ -24,6 +26,7 @@ module Uri = struct
       search_params = u.query;
     }
 
+  (** Convert a legacy [uri] record to an AT URI ([fragment] is [None]). *)
   let of_legacy (u : uri) : t =
     {
       authority = u.host;
@@ -104,6 +107,8 @@ module Uri = struct
     in
     { authority; collection; rkey; query; fragment }
 
+  (** Serialize [u] as
+      [at://authority[/collection[/rkey]][?query][#fragment]]. *)
   let to_string (u : t) : string =
     let buf = Buffer.create 64 in
     Buffer.add_string buf "at://";
@@ -131,6 +136,8 @@ module Uri = struct
     | None -> ());
     Buffer.contents buf
 
+  (** Build an AT URI for [authority] (DID or handle), optional
+      [collection] NSID, and optional record key [rkey]. *)
   let record ?(collection = "") ?(rkey = "") (authority : string) : t =
     {
       authority;

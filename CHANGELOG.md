@@ -7,7 +7,9 @@ records what actually shipped through
 (remaining function-level odoc on Server XRPC wrappers), including
 [#134](https://github.com/david-engelmann/atproto/pull/134)
 (function-level odoc on remaining Error / Xrpc / Request / Response /
-Http_client / Http_method / Websocket helpers), including
+Http_client / Http_method / Websocket helpers) and this PR
+(function-level odoc on Tid / At_uri / Dag_cbor / K256 / Did_key /
+Did_web), including
 [#127](https://github.com/david-engelmann/atproto/pull/127)
 (CHANGELOG through #126), including
 [#126](https://github.com/david-engelmann/atproto/pull/126)
@@ -258,6 +260,9 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `update_account_email` / `update_account_handle` /
   `update_account_password` / `update_account_signing_key`).
   Comment-only
+- This PR: function-level odoc on remaining Tid / At_uri / Dag_cbor /
+  K256 / Did_key / Did_web helpers (`of_int64`, `to_string`, `as_text`,
+  `low_s`, `is_did_key`, `is_web_did`). Comment-only
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
