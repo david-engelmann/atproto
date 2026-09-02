@@ -581,7 +581,8 @@ let test_template_and_set_writes _ =
    with
   | json when served json ->
       let created =
-        Ozone.upsert_set s ~proxy:p ~name:set_name ~description:("set " ^ tag) ()
+        Ozone.upsert_set s ~proxy:p ~name:set_name ~description:("set " ^ tag)
+          ()
       in
       OUnit2.assert_equal ~printer:(fun x -> x) set_name created.name;
       Ozone.add_set_values s ~proxy:p ~name:set_name ~values:[ tag ] ();
@@ -606,8 +607,7 @@ let test_template_and_set_writes _ =
     ozone_post s p "tools.ozone.moderation.scheduleAction"
       (Ozone.schedule_action_body
          ~action:(Ozone.takedown_action ~comment:("sched " ^ tag) ())
-         ~subjects:[ alice.auth.did ]
-         ~created_by:s.auth.did
+         ~subjects:[ alice.auth.did ] ~created_by:s.auth.did
          ~scheduling:
            {
              execute_at = Some "2099-01-01T00:00:00.000Z";
