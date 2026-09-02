@@ -159,6 +159,7 @@ module Admin = struct
     in
     `Assoc fields
 
+  (** JSON body for [com.atproto.admin.enableAccountInvites]. *)
   let enable_invites_body ~account ?note () : Yojson.Safe.t =
     let fields =
       ("account", `String account)
@@ -166,9 +167,11 @@ module Admin = struct
     in
     `Assoc fields
 
+  (** JSON body for [com.atproto.admin.disableAccountInvites]. *)
   let disable_invites_body ~account ?note () : Yojson.Safe.t =
     enable_invites_body ~account ?note ()
 
+  (** JSON body for [com.atproto.admin.sendEmail]. *)
   let send_email_body ~recipient_did ~content ?subject ?sender_did () :
       Yojson.Safe.t =
     let fields =
@@ -205,6 +208,7 @@ module Admin = struct
       [ ("did", did) ]
     |> parse_account_info
 
+  (** Account views for [dids] via [com.atproto.admin.getAccountInfos]. *)
   let get_account_infos (s : Session.session) ~dids () : account_info list =
     Client.get_json ~session:s "com.atproto.admin.getAccountInfos"
       (Client.repeat_param "dids" dids)
@@ -221,16 +225,21 @@ module Admin = struct
       (Client.opt_pair "email" email @ Client.opt_pair "cursor" cursor)
     |> parse_accounts
 
+  (** Enable invites for [account] via
+      [com.atproto.admin.enableAccountInvites]. *)
   let enable_account_invites (s : Session.session) ~account ?note () : unit =
     ignore
       (Client.post_json ~session:s "com.atproto.admin.enableAccountInvites"
          (Yojson.Safe.to_string (enable_invites_body ~account ?note ())))
 
+  (** Disable invites for [account] via
+      [com.atproto.admin.disableAccountInvites]. *)
   let disable_account_invites (s : Session.session) ~account ?note () : unit =
     ignore
       (Client.post_json ~session:s "com.atproto.admin.disableAccountInvites"
          (Yojson.Safe.to_string (disable_invites_body ~account ?note ())))
 
+  (** Send an admin email via [com.atproto.admin.sendEmail]. *)
   let send_email (s : Session.session) ~recipient_did ~content ?subject
       ?sender_did () : Yojson.Safe.t =
     Client.post_json ~session:s "com.atproto.admin.sendEmail"
@@ -276,6 +285,7 @@ module Admin = struct
       codes = List.map parse_invite_code (Client.list_member json "codes");
     }
 
+  (** JSON body for [com.atproto.admin.disableInviteCodes]. *)
   let disable_invite_codes_body ?(codes = []) ?(accounts = []) () :
       Yojson.Safe.t =
     let fields =
@@ -289,21 +299,28 @@ module Admin = struct
     in
     `Assoc fields
 
+  (** JSON body for [com.atproto.admin.deleteAccount]. *)
   let delete_account_body ~did () : Yojson.Safe.t =
     `Assoc [ ("did", `String did) ]
 
+  (** JSON body for [com.atproto.admin.updateAccountEmail]. *)
   let update_account_email_body ~account ~email () : Yojson.Safe.t =
     `Assoc [ ("account", `String account); ("email", `String email) ]
 
+  (** JSON body for [com.atproto.admin.updateAccountHandle]. *)
   let update_account_handle_body ~did ~handle () : Yojson.Safe.t =
     `Assoc [ ("did", `String did); ("handle", `String handle) ]
 
+  (** JSON body for [com.atproto.admin.updateAccountPassword]. *)
   let update_account_password_body ~did ~password () : Yojson.Safe.t =
     `Assoc [ ("did", `String did); ("password", `String password) ]
 
+  (** JSON body for [com.atproto.admin.updateAccountSigningKey]. *)
   let update_account_signing_key_body ~did ~signing_key () : Yojson.Safe.t =
     `Assoc [ ("did", `String did); ("signingKey", `String signing_key) ]
 
+  (** Invite codes via [com.atproto.admin.getInviteCodes]. Optional
+      [sort] / [limit] / [cursor] map to the lexicon query. *)
   let get_invite_codes (s : Session.session) ?sort ?limit ?cursor () :
       invite_codes =
     Client.get_json ~session:s "com.atproto.admin.getInviteCodes"
@@ -312,33 +329,41 @@ module Admin = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_invite_codes
 
+  (** Disable invite [codes] or all codes for [accounts] via
+      [com.atproto.admin.disableInviteCodes]. *)
   let disable_invite_codes (s : Session.session) ?(codes = []) ?(accounts = [])
       () : unit =
     ignore
       (Client.post_json ~session:s "com.atproto.admin.disableInviteCodes"
          (Yojson.Safe.to_string (disable_invite_codes_body ~codes ~accounts ())))
 
+  (** Delete [did] via [com.atproto.admin.deleteAccount]. *)
   let delete_account (s : Session.session) ~did () : unit =
     ignore
       (Client.post_json ~session:s "com.atproto.admin.deleteAccount"
          (Yojson.Safe.to_string (delete_account_body ~did ())))
 
+  (** Update [account] email via [com.atproto.admin.updateAccountEmail]. *)
   let update_account_email (s : Session.session) ~account ~email () : unit =
     ignore
       (Client.post_json ~session:s "com.atproto.admin.updateAccountEmail"
          (Yojson.Safe.to_string (update_account_email_body ~account ~email ())))
 
+  (** Update [did] handle via [com.atproto.admin.updateAccountHandle]. *)
   let update_account_handle (s : Session.session) ~did ~handle () : unit =
     ignore
       (Client.post_json ~session:s "com.atproto.admin.updateAccountHandle"
          (Yojson.Safe.to_string (update_account_handle_body ~did ~handle ())))
 
+  (** Update [did] password via [com.atproto.admin.updateAccountPassword]. *)
   let update_account_password (s : Session.session) ~did ~password () : unit =
     ignore
       (Client.post_json ~session:s "com.atproto.admin.updateAccountPassword"
          (Yojson.Safe.to_string
             (update_account_password_body ~did ~password ())))
 
+  (** Update [did] signing key via
+      [com.atproto.admin.updateAccountSigningKey]. *)
   let update_account_signing_key (s : Session.session) ~did ~signing_key () :
       unit =
     ignore
