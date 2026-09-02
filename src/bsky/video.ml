@@ -12,9 +12,17 @@ open Client
     3. poll [get_job_status] until a blob ref is present
     4. embed the blob with [video_embed_json] *)
 module Video = struct
+  (** Hosted video service hostname (["video.bsky.app"]). *)
   let default_host = "video.bsky.app"
+
+  (** NSID for raw-byte upload ([app.bsky.video.uploadVideo]). *)
   let upload_nsid = "app.bsky.video.uploadVideo"
+
+  (** Service-auth [lxm] for video upload tokens
+      ([com.atproto.repo.uploadBlob]). *)
   let upload_blob_lxm = "com.atproto.repo.uploadBlob"
+
+  (** Recommended service-auth lifetime for video upload (1800s). *)
   let recommended_exp_seconds = 1800L
 
   type job_status = {
@@ -54,13 +62,18 @@ module Video = struct
     | None -> rest
     | Some i -> String.sub rest 0 i
 
+  (** PDS service-auth audience ([did:web:<pds-host>]). Optional [host]
+      overrides [s.atp_host]. *)
   let pds_audience ?host (s : Session.session) : string =
     let raw = match host with Some h -> h | None -> s.Session.atp_host in
     "did:web:" ^ host_of_endpoint raw
 
+  (** Unix expiry for a video upload token ([now] plus
+      [recommended_exp_seconds]). *)
   let recommended_exp ?(now = Unix.gettimeofday ()) () : int64 =
     Int64.add (Int64.of_float now) recommended_exp_seconds
 
+  (** Hosted video hostname ([host], or [default_host]). *)
   let video_host ?host () = Option.value host ~default:default_host
 
   let parse_job_status json : job_status =
@@ -92,6 +105,7 @@ module Video = struct
       error = Client.string_opt json "error";
     }
 
+  (** Map a job [state] string to [Completed] / [Failed] / [In_progress]. *)
   let classify_state (state : string) : job_phase =
     let upper =
       String.map
@@ -102,16 +116,21 @@ module Video = struct
     else if upper = "JOB_STATE_FAILED" || upper = "FAILED" then Failed
     else In_progress
 
+  (** True when [st] already carries a blob ref. *)
   let blob_ready (st : job_status) : bool = Option.is_some st.blob
 
   (* already_exists is not a hard failure — the tutorial notes the job
      may still carry a blob ref that can be embedded. *)
+  (** True when [st] is [Completed] or already carries a blob ref. *)
   let is_completed (st : job_status) : bool =
     classify_state st.state = Completed || blob_ready st
 
+  (** True when [st] is [Failed] and has no blob ref. *)
   let is_failed (st : job_status) : bool =
     classify_state st.state = Failed && not (blob_ready st)
 
+  (** True when [st] is completed, failed, or already carries a blob
+      ref. *)
   let is_terminal (st : job_status) : bool =
     blob_ready st
     ||
@@ -119,6 +138,8 @@ module Video = struct
     | Completed | Failed -> true
     | In_progress -> false
 
+  (** True when [st.error] is [already_exists] (not a hard failure;
+      the job may still carry a blob ref). *)
   let already_exists (st : job_status) : bool =
     match st.error with
     | Some e ->
@@ -139,12 +160,15 @@ module Video = struct
       | _ -> st
     else st
 
+  (** Job status via [app.bsky.video.getJobStatus]. Hosted video
+      service (default [video.bsky.app]); client poll only. *)
   let get_job_status ?session ?host ~job_id () : job_status =
     Client.get_json ?session ~host:(video_host ?host ())
       "app.bsky.video.getJobStatus"
       [ ("jobId", job_id) ]
     |> parse_job_status_response
 
+  (** Daily upload limits via [app.bsky.video.getUploadLimits]. *)
   let get_upload_limits (s : Session.session) : upload_limits =
     Client.get_json ~session:s "app.bsky.video.getUploadLimits" []
     |> parse_upload_limits
@@ -163,6 +187,8 @@ module Video = struct
   let upload_header_pairs ~token ~content_type =
     [ ("Authorization", "Bearer " ^ token); ("Content-Type", content_type) ]
 
+  (** POST bytes to [app.bsky.video.uploadVideo] with a service-auth
+      [token]. Client upload only — this is not a local transcoder. *)
   let upload_video ?host ~token ~did ~name ?(content_type = "video/mp4")
       (bytes : string) : job_status =
     let url = upload_video_url ?host ~did ~name () in
@@ -176,6 +202,8 @@ module Video = struct
     in
     parse_upload_response (Yojson.Safe.from_string body)
 
+  (** Poll [get_job_status] until a blob ref or terminal state.
+      Optional [get_status] / [sleep] are injectable. *)
   let poll_job_status ?(get_status : (string -> job_status) option)
       ?(sleep : (unit -> unit) option) ?session ?host ~job_id
       ?(max_attempts = 60) () : job_status =
@@ -196,20 +224,27 @@ module Video = struct
     in
     loop 1
 
+  (** Return [st] if it already has a blob ref; otherwise poll
+      [st.job_id] via [poll_job_status]. *)
   let ensure_blob ?get_status ?sleep ?session ?host (st : job_status) :
       job_status =
     if blob_ready st then st
     else if st.job_id = "" then st
     else poll_job_status ?get_status ?sleep ?session ?host ~job_id:st.job_id ()
 
+  (** Mint a PDS-scoped service-auth JWT ([pds_audience] +
+      [upload_blob_lxm], [recommended_exp]). *)
   let mint_upload_token (s : Session.session) ?pds_host ?exp () : string =
     let aud = pds_audience ?host:pds_host s in
     let exp = match exp with Some e -> e | None -> recommended_exp () in
     (Server.Server.get_service_auth s ~aud ~lxm:upload_blob_lxm ~exp ()).token
 
+  (** JSON [width] / [height] for [app.bsky.embed.video] aspectRatio. *)
   let aspect_ratio_json (ar : aspect_ratio) : Yojson.Safe.t =
     `Assoc [ ("width", `Int ar.width); ("height", `Int ar.height) ]
 
+  (** [app.bsky.embed.video] JSON. [video] is a blob ref; optional
+      [alt] / [aspect_ratio] / [presentation] map to the lexicon. *)
   let video_embed_json ~video ?alt ?aspect_ratio ?presentation () :
       Yojson.Safe.t =
     let fields =
@@ -365,6 +400,9 @@ module Video = struct
     | Some t -> [ ("Authorization", "Bearer " ^ t) ]
     | None -> []
 
+  (** Start a multipart session via [app.bsky.video.startUpload].
+      Client helper only — the hosted transcoder stays on
+      [video.bsky.app]. *)
   let start_upload ?session ?host ?token ~size_bytes ~mime_type ?name
       ?duration_ms ?width ?height () : upload_session =
     Client.post_json ?session ~host:(video_host ?host ())
@@ -384,6 +422,8 @@ module Video = struct
     in
     if qs = "" then base else base ^ "?" ^ qs
 
+  (** POST one part via [app.bsky.video.uploadPart]. Hosted video
+      service; client part upload only. *)
   let upload_part ?host ~token ~job_id ~part_number
       ?(content_type = "application/octet-stream") (bytes : string) : part_ack =
     let url = upload_part_url ?host ~job_id ~part_number () in
@@ -397,24 +437,32 @@ module Video = struct
     in
     parse_part_ack (Yojson.Safe.from_string body)
 
+  (** Finish a multipart session via [app.bsky.video.finishUpload].
+      Hosted video service; client helper only. *)
   let finish_upload ?session ?host ?token ~job_id () : finish_result =
     Client.post_json ?session ~host:(video_host ?host ())
       ~extra:(bearer_extra ?token ()) "app.bsky.video.finishUpload"
       (Yojson.Safe.to_string (job_id_body ~job_id))
     |> parse_finish_result
 
+  (** Abort a multipart session via [app.bsky.video.abortUpload].
+      Hosted video service; client helper only. *)
   let abort_upload ?session ?host ?token ~job_id () : abort_result =
     Client.post_json ?session ~host:(video_host ?host ())
       ~extra:(bearer_extra ?token ()) "app.bsky.video.abortUpload"
       (Yojson.Safe.to_string (job_id_body ~job_id))
     |> parse_abort_result
 
+  (** Multipart session status via [app.bsky.video.getUploadStatus].
+      Hosted video service; client poll only. *)
   let get_upload_status ?session ?host ?token ~job_id () : upload_status =
     Client.get_json ?session ~host:(video_host ?host ())
       ~extra:(bearer_extra ?token ()) "app.bsky.video.getUploadStatus"
       [ ("jobId", job_id) ]
     |> parse_upload_status
 
+  (** Expected byte size for [part_number] in [sess], or [None] if out
+      of range. The last part may be shorter. *)
   let expected_part_size (sess : upload_session) ~part_number : int option =
     if part_number < 1 || part_number > sess.part_count then None
     else if part_number < sess.part_count then Some sess.part_size_bytes
@@ -422,6 +470,7 @@ module Video = struct
       (* last part may be shorter; callers that know the total size can compute it *)
       Some sess.part_size_bytes
 
+  (** 1-based part numbers not yet in [st.received_parts]. *)
   let missing_parts (st : upload_status) : int list =
     let rec loop i acc =
       if i > st.part_count then List.rev acc
