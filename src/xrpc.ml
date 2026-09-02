@@ -52,6 +52,7 @@ module Xrpc = struct
 
   let proxy_to_string (p : proxy) : string = p.did ^ "#" ^ p.service
 
+  (** [atproto-proxy] header pair ([did#service]). *)
   let proxy_header (p : proxy) : string * string =
     ("atproto-proxy", proxy_to_string p)
 
@@ -100,9 +101,11 @@ module Xrpc = struct
          (fun (l : labeler) -> if l.redact then l.did ^ ";redact" else l.did)
          ls)
 
+  (** [atproto-accept-labelers] header from [ls] ([did] or [did;redact]). *)
   let accept_labelers_header (ls : labeler list) : string * string =
     ("atproto-accept-labelers", labelers_to_string ls)
 
+  (** [atproto-content-labelers] header from [ls]. *)
   let content_labelers_header (ls : labeler list) : string * string =
     ("atproto-content-labelers", labelers_to_string ls)
 

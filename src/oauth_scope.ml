@@ -227,6 +227,9 @@ module Oauth_scope = struct
   let split_scopes (scope : string) : string list =
     String.split_on_char ' ' scope |> List.filter (fun t -> t <> "")
 
+  (** Parse a space-separated scope string into validated tokens.
+      Raises [Invalid] on empty tokens or illegal resource params.
+      Does not require [atproto] — use [parse_and_require] for that. *)
   let parse (scope : string) : t list = List.map parse_one (split_scopes scope)
 
   let to_string (s : t) : string =

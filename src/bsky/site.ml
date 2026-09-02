@@ -197,6 +197,9 @@ module Site = struct
       Yojson.Safe.t =
     theme_to_json (theme ~background ~foreground ~accent ~accent_foreground)
 
+  (** Build a [site.standard.document] record. [site], [title], and
+      [published_at] are required; optional path, tags, contributors,
+      and content map to the lexicon. *)
   let document ~site ~title ~published_at ?path ?description ?text_content
       ?(tags = []) ?(contributors = []) ?updated_at ?bsky_post_ref ?self_labels
       ?cover_image ?content ?links () : Yojson.Safe.t =

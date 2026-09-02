@@ -693,6 +693,7 @@ module Embed = struct
       else `Record (parse_record_embed json)
     else `Unknown json
 
+  (** [chat.bsky.embed.joinLink] embed for invite [code]. *)
   let join_link ~code () : embed =
     `JoinLink { embed_type = "chat.bsky.embed.joinLink"; code }
 

@@ -137,6 +137,8 @@ module Facet = struct
   let facets_to_json (fs : facet list) : Yojson.Safe.t =
     `List (List.map facet_to_json fs)
 
+  (** Mention facet for [did] covering UTF-8 bytes from [byte_start]
+      (inclusive) to [byte_end] (exclusive). *)
   let mention ~byte_start ~byte_end did : facet =
     `Mention
       {
@@ -145,6 +147,8 @@ module Facet = struct
         features = [ { did; mention_type = "app.bsky.richtext.facet#mention" } ];
       }
 
+  (** Link facet for [uri] covering UTF-8 bytes from [byte_start]
+      (inclusive) to [byte_end] (exclusive). *)
   let link ~byte_start ~byte_end uri : facet =
     `Link
       {
@@ -153,6 +157,8 @@ module Facet = struct
           [ { uri; cid = ""; link_type = "app.bsky.richtext.facet#link" } ];
       }
 
+  (** Tag facet for [tag] covering UTF-8 bytes from [byte_start]
+      (inclusive) to [byte_end] (exclusive). *)
   let tag ~byte_start ~byte_end tag : facet =
     `Tag
       {

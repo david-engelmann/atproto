@@ -52,6 +52,8 @@ module Uri = struct
       in
       Some pairs
 
+  (** Parse an [at://] URI. Fails on a missing [at://] prefix, empty
+      authority, trailing slash, or more than two path segments. *)
   let of_string (raw : string) : t =
     let s =
       if String.length raw >= 5 && String.sub raw 0 5 = "at://" then

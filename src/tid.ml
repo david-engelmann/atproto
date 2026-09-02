@@ -16,6 +16,7 @@ module Tid = struct
     in
     loop 0
 
+  (** True when [s] is a 13-character TID (base32, top bit zero). *)
   let is_valid (s : string) : bool =
     String.length s = 13
     &&

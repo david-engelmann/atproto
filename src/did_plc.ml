@@ -347,6 +347,9 @@ module Did_plc = struct
          services)
 
   (* Field order matches @did-plc/lib formatAtprotoOp. DAG-CBOR sorts keys. *)
+
+  (** Unsigned genesis [plc_operation] ([prev] is null). Pass rotation
+      keys and optional alsoKnownAs / verificationMethods / services. *)
   let genesis_operation ?(also_known_as = [])
       ?(verification_methods : (string * string) list = [])
       ?(services : (string * plc_service) list = []) ~rotation_keys () :
@@ -361,6 +364,8 @@ module Did_plc = struct
         ("prev", `Null);
       ]
 
+  (** Unsigned update [plc_operation] chained from [prev] (CID of the
+      previous operation). *)
   let update_operation ?(also_known_as = [])
       ?(verification_methods : (string * string) list = [])
       ?(services : (string * plc_service) list = []) ~rotation_keys ~prev () :
@@ -383,6 +388,10 @@ module Did_plc = struct
 
   (* @did-plc/lib formatAtprotoOp: type plc_operation, verificationMethods.atproto,
      rotationKeys, alsoKnownAs [at://handle], services.atproto_pds, prev. *)
+
+  (** AT Protocol-shaped PLC op: [verificationMethods.atproto],
+      [alsoKnownAs] [at://handle], and [services.atproto_pds]. Omit
+      [prev] for genesis; pass it to update. *)
   let format_atproto_op ~signing_key ~rotation_keys ~handle ~pds ?prev () :
       Yojson.Safe.t =
     let also_known_as =

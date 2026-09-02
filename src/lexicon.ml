@@ -181,6 +181,8 @@ module Lexicon = struct
     in
     { lexicon; id; description = string_opt json "description"; defs }
 
+  (** Parse a Lexicon 1 document from a JSON string. Fails when [id] is
+      missing. *)
   let of_string (body : string) : document =
     of_json (Yojson.Safe.from_string body)
 

@@ -47,6 +47,8 @@ module Syntax = struct
     | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '.' | '-' -> true
     | _ -> false
 
+  (** True when [input] is a valid AT Protocol handle (DNS labels, max
+      253 chars). Does not check TLD policy. *)
   let is_valid_handle (input : string) : bool =
     let len = String.length input in
     if len = 0 || len > handle_max_len then false
@@ -106,6 +108,7 @@ module Syntax = struct
     in
     loop 0
 
+  (** True when [input] is a valid DID ([did:method:id], max 2048). *)
   let is_valid_did (input : string) : bool =
     let len = String.length input in
     if len < 7 || len > did_max_len then false
@@ -204,6 +207,7 @@ module Syntax = struct
     in
     loop 0
 
+  (** True when [input] is a valid NSID (at least three segments). *)
   let is_valid_nsid (input : string) : bool =
     let len = String.length input in
     if len = 0 || len > nsid_max_len then false
@@ -285,6 +289,8 @@ module Syntax = struct
     | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' | '~' | '.' | ':' | '-' -> true
     | _ -> false
 
+  (** True when [input] is a valid record key (1–512 chars, no [.] or
+      [..]). *)
   let is_valid_record_key (input : string) : bool =
     let len = String.length input in
     if len < 1 || len > record_key_max then false

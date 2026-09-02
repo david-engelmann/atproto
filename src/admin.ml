@@ -181,6 +181,8 @@ module Admin = struct
     in
     `Assoc fields
 
+  (** Subject status (takedown / deactivated) via
+      [com.atproto.admin.getSubjectStatus]. Pass [did], [uri], or [blob]. *)
   let get_subject_status (s : Session.session) ?did ?uri ?blob () :
       subject_status =
     Client.get_json ~session:s "com.atproto.admin.getSubjectStatus"
@@ -188,6 +190,8 @@ module Admin = struct
       @ Client.opt_pair "blob" blob)
     |> parse_subject_status
 
+  (** Update takedown / deactivated flags via
+      [com.atproto.admin.updateSubjectStatus]. *)
   let update_subject_status (s : Session.session) ~subject ?takedown
       ?deactivated () : subject_status =
     Client.post_json ~session:s "com.atproto.admin.updateSubjectStatus"
@@ -195,6 +199,7 @@ module Admin = struct
          (update_subject_status_body ~subject ?takedown ?deactivated ()))
     |> parse_subject_status
 
+  (** Account view for [did] via [com.atproto.admin.getAccountInfo]. *)
   let get_account_info (s : Session.session) ~did () : account_info =
     Client.get_json ~session:s "com.atproto.admin.getAccountInfo"
       [ ("did", did) ]
@@ -209,6 +214,8 @@ module Admin = struct
       | [] -> Client.list_member json "accounts"
       | xs -> xs)
 
+  (** Search accounts via [com.atproto.admin.searchAccounts]. Optional
+      [email] / [cursor] map to the lexicon query. *)
   let search_accounts (s : Session.session) ?email ?cursor () : accounts =
     Client.get_json ~session:s "com.atproto.admin.searchAccounts"
       (Client.opt_pair "email" email @ Client.opt_pair "cursor" cursor)

@@ -279,6 +279,9 @@ module Websocket = struct
                       "Sec-WebSocket-Protocol %S was not in the client offer"
                       got)))
 
+  (** Open a WebSocket to [url] ([wss://] TLS or [ws://] cleartext).
+      Optional [extra_headers] are sent on the handshake. Default
+      [tls_verify] is [false]. *)
   let connect ?(tls_verify = false) ?(extra_headers = []) (url : string) : t =
     Random.self_init ();
     let p = parse_url url in
