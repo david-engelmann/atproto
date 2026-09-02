@@ -315,10 +315,22 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `get_onboarding_*` skeletons, `get_post_thread_v2` /
   `get_post_thread_other_v2`). Comment-only. Hosted-only video / chat /
   Tap stay listed not faked
-- This PR: remaining function-level odoc on Label helpers
+- [#149](https://github.com/david-engelmann/atproto/pull/149): remaining
+  function-level odoc on Label helpers
   (`query_labels_parsed`, `query_labels_body`, `subscribe` /
   `subscribe_one`, `encode_unsigned` / `encode_signed`). Comment-only.
   Hosted-only chat / video / Tap stay listed not faked
+- This PR: remaining function-level odoc on Chat XRPC wrappers
+  (`get_convo_for_members`, `update_read`, `mute_convo` / `unmute_convo`,
+  `accept_convo` / `leave_convo`, `add_reaction` / `remove_reaction`,
+  `delete_message_for_self`, `get_convo_availability`, `get_log`,
+  `get_unread_counts`, `list_convo_requests`, `send_message_batch`,
+  `update_all_read`, `lock_convo` / `unlock_convo`, `add_members` /
+  `remove_members`, `edit_group`, `get_convo_members`, `create_group`,
+  join-link / join-request helpers, `get_notification_preferences` /
+  `put_notification_preferences`, `get_actor_status`, `delete_account`,
+  `export_account_data`, moderation views / `subscribe_mod_events`).
+  Comment-only. Hosted-only chat / video / Tap stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
