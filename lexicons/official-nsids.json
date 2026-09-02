@@ -1,6 +1,6 @@
 {
   "source": "https://github.com/bluesky-social/atproto",
-  "sha": "60c439595101fbcbe612463e6f23200590c5daaf",
+  "sha": "5c154f9c5173e7823a5353eab92207508a7dea99",
   "main_types": [
     "query",
     "procedure",
@@ -8,10 +8,10 @@
     "record",
     "permission-set"
   ],
-  "lexicon_json_count": 403,
-  "nsid_count": 359,
+  "lexicon_json_count": 404,
+  "nsid_count": 360,
   "counts": {
-    "query": 177,
+    "query": 178,
     "procedure": 142,
     "subscription": 3,
     "record": 27,
@@ -1213,6 +1213,10 @@
     {
       "id": "tools.ozone.moderation.emitEvent",
       "type": "procedure"
+    },
+    {
+      "id": "tools.ozone.moderation.getAccountPreferences",
+      "type": "query"
     },
     {
       "id": "tools.ozone.moderation.getAccountTimeline",

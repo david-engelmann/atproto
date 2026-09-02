@@ -4,7 +4,7 @@
 {{:https://atproto.com}AT Protocol}: XRPC, identity, repo sync,
 AppView, Ozone, and a chat client. Official lexicons are pinned at
 bluesky-social/atproto
-{{:https://github.com/bluesky-social/atproto/commit/60c439595101fbcbe612463e6f23200590c5daaf}[60c4395951]}.
+{{:https://github.com/bluesky-social/atproto/commit/5c154f9c5173e7823a5353eab92207508a7dea99}[5c154f9c51]}.
 Leftovers are hosted-only (no PDS, OSS chat backend, video transcoder,
 or Tap in this package).
 

@@ -92,6 +92,28 @@ let test_parse_timeline_and_schedule _ =
   in
   OUnit2.assert_equal 1 (List.length timeline.timeline);
   OUnit2.assert_equal 2 (List.hd (List.hd timeline.timeline).summary).count;
+  let prefs =
+    Ozone.parse_account_preferences
+      (`Assoc
+        [
+          ( "preferences",
+            `List
+              [
+                `Assoc
+                  [
+                    ( "$type",
+                      `String "app.bsky.actor.defs#adultContentPref" );
+                    ("enabled", `Bool true);
+                  ];
+              ] );
+        ])
+  in
+  OUnit2.assert_equal 1 (List.length prefs.preferences);
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "app.bsky.actor.defs#adultContentPref"
+    (List.hd prefs.preferences |> member "$type" |> to_string);
   let result =
     Ozone.parse_batch_result
       (`Assoc

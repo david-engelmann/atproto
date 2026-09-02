@@ -1,13 +1,13 @@
 open OUnit2
 
 (* Drift gate for official lexicon NSIDs pinned at bluesky-social/atproto
-   60c4395951 (APP-2933). Re-run scripts/gen-official-nsids.py against a newer
+   5c154f9c51. Re-run scripts/gen-official-nsids.py against a newer
    SHA to refresh lexicons/official-nsids.json; this test then fails until each
    new NSID has a client helper, record builder, bundled permission-set, or an
    explicit skip with a one-line reason. Hosted-only *servers* are not a reason
    to skip a public client NSID. *)
 
-let expected_pin = "60c439595101fbcbe612463e6f23200590c5daaf"
+let expected_pin = "5c154f9c5173e7823a5353eab92207508a7dea99"
 
 let covered_types =
   [ "query"; "procedure"; "subscription"; "record"; "permission-set" ]
