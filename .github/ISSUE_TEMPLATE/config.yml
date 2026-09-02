@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Library documentation
+    url: https://david-engelmann.github.io/atproto/
+    about: Live odoc HTML for the atproto OCaml package

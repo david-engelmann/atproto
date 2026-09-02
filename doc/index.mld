@@ -1,0 +1,67 @@
+{0 AT Protocol for OCaml}
+
+{!Atproto} is a typed client and protocol library for the
+{{:https://atproto.com}AT Protocol}: XRPC, identity, repo sync,
+AppView, Ozone, and a chat client. Official lexicons are pinned at
+bluesky-social/atproto
+{{:https://github.com/bluesky-social/atproto/commit/60c439595101fbcbe612463e6f23200590c5daaf}[60c4395951]}.
+Leftovers are hosted-only (no PDS, OSS chat backend, video transcoder,
+or Tap in this package).
+
+{1 Install}
+
+Not on the public opam-repository. Pin the GitHub repo (OCaml
+[>= 4.14.1] and [< 5.0]; CI tests 4.14.1):
+
+{[
+opam pin add atproto git+https://github.com/david-engelmann/atproto.git
+]}
+
+Then [(libraries atproto)] in dune.
+
+{1 Documentation}
+
+{{:https://david-engelmann.github.io/atproto/}https://david-engelmann.github.io/atproto/}
+([dune build @doc] on [main]; PRs also upload the [odoc-html] artifact).
+
+{1 Public modules}
+
+Auth / Session
+
+{!modules: Atproto.Auth Atproto.Session}
+
+XRPC
+
+{!modules: Atproto.Xrpc}
+
+Identity / PLC
+
+{!modules: Atproto.Identity Atproto.Did_plc Atproto.Did_web Atproto.Did_key}
+
+MST / CID / CAR
+
+{!modules: Atproto.Mst Atproto.Cid Atproto.Car Atproto.Dag_cbor Atproto.Repo_sync}
+
+Firehose / Jetstream
+
+{!modules: Atproto.Firehose Atproto.Jetstream}
+
+OAuth / DPoP
+
+{!modules: Atproto.Oauth Atproto.Oauth_scope}
+
+AppView
+
+{!modules: Atproto.Actor Atproto.Feed Atproto.Graph Atproto.Bookmark Atproto.Notification Atproto.Labeler Atproto.Unspecced Atproto.Video}
+
+Ozone
+
+{!modules: Atproto.Ozone}
+
+Chat client
+
+{!modules: Atproto.Chat}
+
+Also {!Atproto.Repo}, {!Atproto.Records}, {!Atproto.Server},
+{!Atproto.Sync}, {!Atproto.Label}, {!Atproto.Lexicon}, and
+{!Atproto.Http_client}.

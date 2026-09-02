@@ -1,0 +1,22 @@
+# github-actions: TestSuite + lexicon-pin.
+# npm: confirmed docker/dev-env/package.json (@atproto/dev-env 0.6.4).
+# No Dockerfiles under docker/dev-env; no gomod.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: main
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: npm
+    directory: /docker/dev-env
+    target-branch: main
+    schedule:
+      interval: weekly
+      day: monday

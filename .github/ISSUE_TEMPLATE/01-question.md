@@ -1,17 +1,16 @@
-Your Environment
-----------------
-<!-- Include details of your environment. -->
+---
+name: Question
+about: Ask about using the library
+title: ""
+labels: ""
+---
 
-*   Operating System:
-*   OCaml Version:
-*   Package Version:
+**Question**
+What are you trying to do?
 
+**Environment**
+- OCaml version (`>= 4.14.1` and `< 5.0`):
+- Install method (`opam pin` / local clone):
+- `ATP_HOST` / `ATP_SCHEME` (if this is a live call):
 
-
-How to reproduce the behaviour
-------------------------------
-<!-- Before submitting an issue, make sure to check the docs and closed issues
-and FAQ to see if any of the solutions work for you. -->
-
-<!-- Include a code example or the steps that led to the problem. Please try to be as
-specific as possible. -->
+Docs: https://david-engelmann.github.io/atproto/
