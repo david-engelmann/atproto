@@ -251,6 +251,16 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `delete_record`, `apply_writes_body`, `write_op_to_json`,
   `upload_blob`, `verify_blob_bytes`, `list_missing_blobs`,
   `import_repo`). Comment-only
+- [#142](https://github.com/david-engelmann/atproto/pull/142): remaining
+  function-level odoc on Sync XRPC wrappers
+  (`get_repo_car`, `get_blob`, `download_image`, `get_blocks` /
+  `get_blocks_bytes` / `get_blocks_car`, `get_record` /
+  `get_record_car`, `list_blobs`, `list_repos`, `get_repo_status`,
+  `list_hosts`, `get_host_status`, `list_repos_by_collection`,
+  `request_crawl` / `request_crawl_body`). Comment-only. Deprecated
+  `get_head` / `get_checkout` / `notify_of_update` wrap
+  `getLatestCommit` / `getRepo` / `requestCrawl` (coverage-skips, not
+  leftover hops)
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 

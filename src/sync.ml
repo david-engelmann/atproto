@@ -126,9 +126,12 @@ module Sync = struct
       (create_sync_endpoint "getRepo")
       (("did", did) :: optional_pairs [ ("since", since) ])
 
+  (** Parsed repo CAR for [did] via [com.atproto.sync.getRepo]. Optional
+      [since] is a rev to diff from. *)
   let get_repo_car ?host ?session ?since (did : string) : Car.t =
     Car.parse (get_repo ?host ?session ?since did)
 
+  (** Blob bytes for [did] / [cid] via [com.atproto.sync.getBlob]. *)
   let get_blob (s : Session.session) (did : string) (cid : string) :
       string Lwt.t =
     let host = s.atp_host in
@@ -142,6 +145,8 @@ module Sync = struct
     let headers = headers_of (Some s) in
     Cohttp_client.get_request_with_body_and_headers url body headers
 
+  (** Write the [com.atproto.sync.getBlob] image for [did] / [cid] to
+      [filename] when the Content-Type is an image. *)
   let download_image (s : Session.session) (did : string) (cid : string)
       (filename : string) : unit Lwt.t =
     let open Lwt.Infix in
@@ -189,18 +194,24 @@ module Sync = struct
     in
     if body = "" then url else url ^ "?" ^ body
 
+  (** Raw [com.atproto.sync.getBlocks] CAR bytes for [did] / [cids]. *)
   let get_blocks_bytes ?host ?session ~did ~cids () : string =
     let url = get_blocks_url ?host ?session ~did ~cids () in
     let headers = headers_of session in
     Lwt_main.run (Cohttp_client.get_request_with_headers url headers)
 
+  (** Parsed CAR from [com.atproto.sync.getBlocks] for [did] / [cids]. *)
   let get_blocks_car ?host ?session ~did ~cids () : Car.t =
     Car.parse (get_blocks_bytes ?host ?session ~did ~cids ())
 
+  (** [com.atproto.sync.getBlocks] CAR bytes for [did] / [cids] (Lwt
+      wrapper around {!get_blocks_bytes}). *)
   let get_blocks (s : Session.session) (did : string) (cids : string list) :
       string Lwt.t =
     Lwt.return (get_blocks_bytes ~session:s ~did ~cids ())
 
+  (** Record proof CAR bytes for [did] / [collection] / [rkey] via
+      [com.atproto.sync.getRecord]. Optional [commit] pins the rev. *)
   let get_record ?host ?session ?commit (did : string) (collection : string)
       (rkey : string) : string =
     request_bytes ?host ?session
@@ -208,12 +219,15 @@ module Sync = struct
       (("did", did) :: ("collection", collection) :: ("rkey", rkey)
       :: optional_pairs [ ("commit", commit) ])
 
+  (** Parsed record proof CAR via [com.atproto.sync.getRecord]. *)
   let get_record_car ?host ?session ?commit (did : string) (collection : string)
       (rkey : string) : Car.t =
     Car.parse (get_record ?host ?session ?commit did collection rkey)
 
   let record_path ~collection ~rkey = collection ^ "/" ^ rkey
 
+  (** Blob CIDs for [did] via [com.atproto.sync.listBlobs]. Optional
+      [since] / [cursor] / [limit] map to the lexicon query. *)
   let list_blobs ?host ?session ?since ?cursor ?limit (did : string) :
       list_blobs =
     request_json ?host ?session
@@ -227,6 +241,8 @@ module Sync = struct
            ])
     |> parse_list_blobs
 
+  (** Repos on the host via [com.atproto.sync.listRepos]. Optional
+      [cursor] / [limit] map to the lexicon query. *)
   let list_repos ?host ?session ?cursor ?limit () : list_repos =
     request_json ?host ?session
       (create_sync_endpoint "listRepos")
@@ -325,12 +341,16 @@ module Sync = struct
         | _ -> []);
     }
 
+  (** Active / status / rev for [did] via
+      [com.atproto.sync.getRepoStatus]. *)
   let get_repo_status ?host ?session (did : string) : repo_status =
     request_json ?host ?session
       (create_sync_endpoint "getRepoStatus")
       [ ("did", did) ]
     |> parse_repo_status
 
+  (** Upstream hosts via [com.atproto.sync.listHosts]. Optional
+      [cursor] / [limit] map to the lexicon query. *)
   let list_hosts ?host ?session ?cursor ?limit () : list_hosts =
     request_json ?host ?session
       (create_sync_endpoint "listHosts")
@@ -338,12 +358,17 @@ module Sync = struct
          [ ("cursor", cursor); ("limit", Option.map string_of_int limit) ])
     |> parse_list_hosts
 
+  (** Status / seq / account count for [hostname] via
+      [com.atproto.sync.getHostStatus]. *)
   let get_host_status ?host ?session (hostname : string) : host_status =
     request_json ?host ?session
       (create_sync_endpoint "getHostStatus")
       [ ("hostname", hostname) ]
     |> parse_host_status
 
+  (** Repos that have [collection] via
+      [com.atproto.sync.listReposByCollection]. Optional [cursor] /
+      [limit] map to the lexicon query. *)
   let list_repos_by_collection ?host ?session ?cursor ?limit
       (collection : string) : list_repos_by_collection =
     request_json ?host ?session
@@ -353,9 +378,12 @@ module Sync = struct
            [ ("cursor", cursor); ("limit", Option.map string_of_int limit) ])
     |> parse_list_repos_by_collection
 
+  (** JSON body for [com.atproto.sync.requestCrawl]. *)
   let request_crawl_body (hostname : string) : Yojson.Safe.t =
     `Assoc [ ("hostname", `String hostname) ]
 
+  (** Ask the host to crawl [hostname] via
+      [com.atproto.sync.requestCrawl]. *)
   let request_crawl ?host ?session (hostname : string) : string =
     let host = host_of ?host session in
     let base_url = App.create_public_base_url ~host () in
