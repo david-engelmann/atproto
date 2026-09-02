@@ -119,14 +119,13 @@ let admin_basic_password () =
 
 let admin_basic_extra () =
   let b64 =
-    Atproto.Base64url.Base64url.encode_std
-      ("admin:" ^ admin_basic_password ())
+    Atproto.Base64url.Base64url.encode_std ("admin:" ^ admin_basic_password ())
   in
   [ ("Authorization", "Basic " ^ b64) ]
 
 let is_admin_auth_required (e : Error.t) =
-  e.error = "AuthenticationRequired" || e.error = "AuthMissing"
-  || e.error = "Forbidden"
+  e.error = "AuthenticationRequired"
+  || e.error = "AuthMissing" || e.error = "Forbidden"
   || message_has e.error "authenticationrequired"
   || message_has e.error "authmissing"
   || message_has e.error "forbidden"
@@ -156,9 +155,7 @@ let admin_leftover_json json =
 (* Live-call with admin-mod.test, then TestNetwork Basic admin if the
    session JWT is not an operator token. Skip leftover hops on policy. *)
 let admin_call_get s nsid pairs =
-  let via_session =
-    Client.get_json ~session:s ~host:(pds_host ()) nsid pairs
-  in
+  let via_session = Client.get_json ~session:s ~host:(pds_host ()) nsid pairs in
   match Error.check_for_error via_session with
   | Some _ when is_admin_auth_required (Error.of_json via_session) ->
       Client.get_json ~host:(pds_host ()) ~extra:(admin_basic_extra ()) nsid
@@ -166,9 +163,7 @@ let admin_call_get s nsid pairs =
   | _ -> via_session
 
 let admin_call_post s nsid data =
-  let via_session =
-    Client.post_json ~session:s ~host:(pds_host ()) nsid data
-  in
+  let via_session = Client.post_json ~session:s ~host:(pds_host ()) nsid data in
   match Error.check_for_error via_session with
   | Some _ when is_admin_auth_required (Error.of_json via_session) ->
       Client.post_json ~host:(pds_host ()) ~extra:(admin_basic_extra ()) nsid
@@ -1110,8 +1105,7 @@ let test_leftover_admin _ =
     (admin_leftover_post admin "com.atproto.admin.sendEmail"
        (Yojson.Safe.to_string
           (Admin.send_email_body ~recipient_did:doomed.auth.did
-             ~content:"ocaml leftover admin hop" ~subject:"ocaml leftover"
-             ())));
+             ~content:"ocaml leftover admin hop" ~subject:"ocaml leftover" ())));
   ignore
     (admin_leftover_post admin "com.atproto.admin.updateAccountEmail"
        (Yojson.Safe.to_string
@@ -1133,13 +1127,13 @@ let test_leftover_admin _ =
        (Yojson.Safe.to_string
           (Admin.update_account_signing_key_body ~did:doomed.auth.did
              ~signing_key:
-               "did:key:zQ3shZc2QzApp2oymGvQbzP8eKheVshBHbU4ZYjeXqwSKEn6N"
-             ())));
+               "did:key:zQ3shZc2QzApp2oymGvQbzP8eKheVshBHbU4ZYjeXqwSKEn6N" ())));
   if doomed.username = "alice.test" then
     failwith "refusing admin deleteAccount on alice.test";
   ignore
     (admin_leftover_post admin "com.atproto.admin.deleteAccount"
-       (Yojson.Safe.to_string (Admin.delete_account_body ~did:doomed.auth.did ())))
+       (Yojson.Safe.to_string
+          (Admin.delete_account_body ~did:doomed.auth.did ())))
 
 let suite =
   "local_pds"
