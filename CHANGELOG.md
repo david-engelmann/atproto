@@ -261,6 +261,10 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `get_head` / `get_checkout` / `notify_of_update` wrap
   `getLatestCommit` / `getRepo` / `requestCrawl` (coverage-skips, not
   leftover hops)
+- [#140](https://github.com/david-engelmann/atproto/pull/140): remaining
+  function-level odoc on Germnetwork / Lexicon (`nsid_declaration`,
+  `show_*`, `bytes_to_json` / `bytes_of_json`, `message_me` /
+  `parse_declaration`, `of_json`, lookup / `to_ocaml`). Comment-only
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
