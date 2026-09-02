@@ -25,6 +25,7 @@ Error / Xrpc / HTTP, [#135](https://github.com/david-engelmann/atproto/pull/135)
 Admin, [#136](https://github.com/david-engelmann/atproto/pull/136) Server,
 [#138](https://github.com/david-engelmann/atproto/pull/138)
 Session / Moderation / Temp).
+This PR adds remaining function-level odoc on Repo XRPC wrappers.
 
 This package is **not** published to the public
 [opam-repository](https://github.com/ocaml/opam-repository). Depend on it by
@@ -244,6 +245,12 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `dereference_scope`, `add_reserved_handle`,
   `request_phone_verification`, `revoke_account_credentials`).
   Comment-only; hosted-only phone verification stays listed not faked
+- This PR: remaining function-level odoc on Repo XRPC wrappers
+  (`describe_repo` / `describe_repo_parsed`, `list_records` /
+  `list_records_parsed`, `get_record_parsed`, `put_record`,
+  `delete_record`, `apply_writes_body`, `write_op_to_json`,
+  `upload_blob`, `verify_blob_bytes`, `list_missing_blobs`,
+  `import_repo`). Comment-only
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
