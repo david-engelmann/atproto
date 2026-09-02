@@ -125,15 +125,20 @@ let admin_basic_extra () =
 
 let is_admin_auth_required (e : Error.t) =
   e.error = "AuthenticationRequired"
-  || e.error = "AuthMissing" || e.error = "Forbidden"
+  || e.error = "AuthMissing" || e.error = "Forbidden" || e.error = "BadJwtType"
+  || e.error = "InvalidToken"
   || message_has e.error "authenticationrequired"
   || message_has e.error "authmissing"
   || message_has e.error "forbidden"
+  || message_has e.error "badjwttype"
+  || message_has e.error "invalidtoken"
   || message_has e.message "authentication required"
   || message_has e.message "not authorized"
   || message_has e.message "not an admin"
   || message_has e.message "admin authentication"
   || message_has e.message "admin privileges"
+  || message_has e.message "invalid jwt type"
+  || message_has e.message "at+jwt"
 
 let is_admin_policy_invalid (e : Error.t) =
   is_policy_invalid e || is_admin_auth_required e
