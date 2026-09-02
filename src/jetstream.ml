@@ -5,6 +5,12 @@ open Websocket
     Spec: https://bsky.network/docs/jetstream/
     Lexicon: network.bsky.jetstream.subscribeEvents (xrpc.v1.json)
 
+    Live [subscribe] with [~compress:true] requests dict-zstd frames.
+    v2 sends [zstdDictionary=<id>] (the subscribeEvents opt-in). v1 sends
+    [compress=true] and [Socket-Encoding: zstd]. The dictionary is fetched
+    from [network.bsky.jetstream.getZstdDictionary]; a checked-in copy of
+    the production blob (id 20260811) is the fallback if that GET fails.
+
     Network Replay / snapshot HTTP methods are typed here but are not called
     live (public instances gate the archive; this library does not invent a
     token). *)
@@ -56,6 +62,9 @@ module Jetstream = struct
     | _ -> None
 
   exception Invalid_filter of string
+  exception Unknown_zstd_dictionary of int * int option
+  exception Zstd_decode of string
+  exception Dictionary_http of int * string
 
   let validate_filter (f : filter) : unit =
     if List.length f.collections > max_collections then
@@ -100,12 +109,19 @@ module Jetstream = struct
     | _ -> []
 
   let subscribe_url ?(host = default_host) ?(version = V2)
-      ?(filter = empty_filter) () =
+      ?(filter = empty_filter) ?(compress = false) ?zstd_dictionary_id () =
     validate_filter filter;
     let path = match version with V2 -> v2_path | V1 -> v1_path in
+    let extra =
+      match (version, compress, zstd_dictionary_id) with
+      | V2, true, Some id when id > 0 ->
+          [ ("zstdDictionary", string_of_int id) ]
+      | V1, true, _ -> [ ("compress", "true") ]
+      | _ -> []
+    in
     let qs =
       Cohttp_client.Cohttp_client.create_body_from_pairs
-        (filter_pairs ~version filter)
+        (filter_pairs ~version filter @ extra)
     in
     let base = Printf.sprintf "wss://%s%s" host path in
     if qs = "" then base else base ^ "?" ^ qs
@@ -303,6 +319,118 @@ module Jetstream = struct
   let parse_frame (body : string) : event =
     parse_event (Yojson.Safe.from_string body)
 
+  (* ---- dict-zstd (live subscribeEvents + optional .jss callback) -------- *)
+
+  let get_zstd_dictionary_nsid = "network.bsky.jetstream.getZstdDictionary"
+  let embedded_zstd_dictionary = Jetstream_zstd_dictionary.bytes
+  let max_zstd_frame = 16 * 1024 * 1024
+  let zstd_dict_magic = "\x37\xa4\x30\xec"
+  let zstd_frame_magic = "\x28\xb5\x2f\xfd"
+
+  let zstd_u32_le s i =
+    Char.code s.[i]
+    lor (Char.code s.[i + 1] lsl 8)
+    lor (Char.code s.[i + 2] lsl 16)
+    lor (Char.code s.[i + 3] lsl 24)
+
+  let zstd_dictionary_id (blob : string) : int option =
+    if String.length blob < 8 then None
+    else if String.sub blob 0 4 <> zstd_dict_magic then None
+    else Some (zstd_u32_le blob 4)
+
+  let zstd_frame_dict_id (frame : string) : int option =
+    if String.length frame < 5 then None
+    else if String.sub frame 0 4 <> zstd_frame_magic then None
+    else
+      let desc = Char.code frame.[4] in
+      let dict_flag = desc land 0x3 in
+      let single_segment = desc land 0x20 <> 0 in
+      let off = 5 + if single_segment then 0 else 1 in
+      match dict_flag with
+      | 0 -> None
+      | 1 when String.length frame > off -> Some (Char.code frame.[off])
+      | 2 when String.length frame > off + 1 ->
+          Some (Char.code frame.[off] lor (Char.code frame.[off + 1] lsl 8))
+      | 3 when String.length frame > off + 3 -> Some (zstd_u32_le frame off)
+      | _ -> None
+
+  let get_zstd_dictionary_url ?(host = default_host) ?id () =
+    let base =
+      Printf.sprintf "https://%s/xrpc/%s" host get_zstd_dictionary_nsid
+    in
+    match id with
+    | Some n when n > 0 ->
+        let qs =
+          Cohttp_client.Cohttp_client.create_body_from_pairs
+            [ ("id", string_of_int n) ]
+        in
+        base ^ "?" ^ qs
+    | _ -> base
+
+  let try_get_zstd_dictionary ?host ?id () : string =
+    let url = get_zstd_dictionary_url ?host ?id () in
+    let headers = Cohttp_client.Cohttp_client.create_headers_from_pairs [] in
+    let code, body =
+      Lwt_main.run (Cohttp_client.Cohttp_client.get_with_status url headers)
+    in
+    if code < 200 || code >= 300 then raise (Dictionary_http (code, body));
+    if zstd_dictionary_id body = None then
+      raise (Zstd_decode "getZstdDictionary response is not a zstd dictionary");
+    body
+
+  let load_zstd_dictionary ?host () : string =
+    try try_get_zstd_dictionary ?host () with _ -> embedded_zstd_dictionary
+
+  let is_unknown_zstd_dictionary body =
+    match Error.Error.of_body body with
+    | Some e -> e.error = "UnknownZstdDictionary"
+    | None -> false
+
+  let decompress_zstd ?(dictionary = embedded_zstd_dictionary) (frame : string)
+      : string =
+    (match (zstd_frame_dict_id frame, zstd_dictionary_id dictionary) with
+    | Some fid, Some did when fid <> did ->
+        raise (Unknown_zstd_dictionary (fid, Some did))
+    | _ -> ());
+    let ctx = Zstandard.Decompression_context.create () in
+    Fun.protect
+      ~finally:(fun () -> Zstandard.Decompression_context.free ctx)
+      (fun () ->
+        try
+          Zstandard.Simple_dictionary.decompress ctx
+            ~dictionary:(Zstandard.Input.from_string dictionary)
+            ~input:(Zstandard.Input.from_string frame)
+            ~output:
+              (Zstandard.Output.allocate_string
+                 ~size_limit:(Some max_zstd_frame))
+        with
+        | Unknown_zstd_dictionary _ as exn -> raise exn
+        | Zstd_decode _ as exn -> raise exn
+        | Zstandard.Error msg -> raise (Zstd_decode msg)
+        | Zstandard.Content_size_unknown ->
+            raise (Zstd_decode "zstd frame omitted decompressed size")
+        | Zstandard.Content_size_error ->
+            raise (Zstd_decode "zstd frame header is invalid")
+        | Zstandard.Not_enough_capacity n ->
+            raise
+              (Zstd_decode
+                 (Printf.sprintf "zstd frame exceeds cap (%d bytes)" n))
+        | Zstandard.Decompressed_size_exceeds_max_int n ->
+            raise
+              (Zstd_decode (Printf.sprintf "zstd frame too large (%Ld bytes)" n))
+        | exn -> raise (Zstd_decode (Printexc.to_string exn)))
+
+  let compress_zstd ?(dictionary = embedded_zstd_dictionary) (plain : string) :
+      string =
+    let ctx = Zstandard.Compression_context.create () in
+    Fun.protect
+      ~finally:(fun () -> Zstandard.Compression_context.free ctx)
+      (fun () ->
+        Zstandard.Simple_dictionary.compress ctx ~compression_level:3
+          ~dictionary:(Zstandard.Input.from_string dictionary)
+          ~input:(Zstandard.Input.from_string plain)
+          ~output:(Zstandard.Output.allocate_string ~size_limit:None))
+
   let seq_of (ev : event) : int64 option =
     match ev with
     | `Commit (c : commit) -> Some c.seq
@@ -349,23 +477,59 @@ module Jetstream = struct
     { f with cursor = Some c }
 
   let subscribe ?(host = default_host) ?(version = V2) ?(filter = empty_filter)
-      ?max_messages ?(max_reconnects = 0)
+      ?(compress = false) ?max_messages ?(max_reconnects = 0)
       ?(sleep = fun n -> Unix.sleepf (min 8.0 (2.0 ** float_of_int n))) f =
     validate_filter filter;
     let filter = ref filter in
     let seen = create_seen () in
     let received = ref 0 in
+    let dict_blob =
+      ref (if compress then Some (load_zstd_dictionary ~host ()) else None)
+    in
+    let refetched = ref false in
     let rec attempt n =
-      let url = subscribe_url ~host ~version ~filter:!filter () in
+      let dict_id =
+        match !dict_blob with None -> None | Some d -> zstd_dictionary_id d
+      in
+      let url =
+        subscribe_url ~host ~version ~filter:!filter ~compress
+          ?zstd_dictionary_id:dict_id ()
+      in
+      let extra_headers =
+        match (version, compress) with
+        | V1, true -> [ ("Socket-Encoding", "zstd") ]
+        | _ -> []
+      in
       try
-        Websocket.with_connection url (fun ws ->
+        Websocket.with_connection ~extra_headers url (fun ws ->
             let rec loop () =
               match max_messages with
               | Some m when !received >= m -> ()
               | _ -> (
                   match Websocket.recv_message ws with
-                  | Websocket.Text payload | Websocket.Binary payload ->
+                  | Websocket.Text payload ->
                       let ev = parse_frame payload in
+                      (match seq_of ev with
+                      | Some s -> filter := with_cursor !filter (Seq s)
+                      | None -> ());
+                      if not (is_duplicate seen ev) then (
+                        remember seen ev;
+                        incr received;
+                        f ev);
+                      loop ()
+                  | Websocket.Binary payload ->
+                      let body =
+                        if compress then
+                          match !dict_blob with
+                          | Some d -> decompress_zstd ~dictionary:d payload
+                          | None ->
+                              raise
+                                (Zstd_decode
+                                   "compressed binary frame without a \
+                                    dictionary")
+                        else payload
+                      in
+                      let ev = parse_frame body in
                       (match seq_of ev with
                       | Some s -> filter := with_cursor !filter (Seq s)
                       | None -> ());
@@ -378,17 +542,24 @@ module Jetstream = struct
                   | Websocket.Ping _ | Websocket.Pong _ -> loop ())
             in
             loop ())
-      with exn ->
-        if n >= max_reconnects then raise exn
-        else (
-          sleep n;
-          attempt (n + 1))
+      with
+      | Websocket.Handshake_error (_, body) as exn
+        when compress && (not !refetched) && is_unknown_zstd_dictionary body ->
+          refetched := true;
+          (try dict_blob := Some (try_get_zstd_dictionary ~host ())
+           with _ -> raise exn);
+          attempt n
+      | exn ->
+          if n >= max_reconnects then raise exn
+          else (
+            sleep n;
+            attempt (n + 1))
     in
     attempt 0
 
-  let subscribe_one ?host ?version ?filter () : event =
+  let subscribe_one ?host ?version ?filter ?(compress = false) () : event =
     let cell = ref None in
-    subscribe ?host ?version ?filter ~max_messages:1 ~max_reconnects:0
+    subscribe ?host ?version ?filter ~compress ~max_messages:1 ~max_reconnects:0
       (fun ev -> cell := Some ev);
     match !cell with
     | Some ev -> ev
@@ -699,8 +870,8 @@ module Jetstream = struct
      (condensed from bluesky-social/jetstream segment/*.go).
 
      Decode only. No archive token and no invented credentials. zstd frames
-     are accepted through an injected [decompress] callback so this library
-     does not take a compression dependency. *)
+     may be unwrapped via an injected [decompress] callback; callers can pass
+     [decompress_zstd] for the live dict-zstd dictionary. *)
   module Jss = struct
     exception Error of string
 
@@ -1074,7 +1245,8 @@ module Jetstream = struct
             }
 
     (* Sequential frame walk. Each frame is `block_len u64` + `block_len`
-       compressed bytes. Pass [decompress] to unwrap zstd (no dictionary). *)
+       compressed bytes. Pass [decompress] to unwrap zstd; [decompress_zstd]
+       is the built-in dict-zstd decoder. *)
     let walk_frames ?(decompress : (string -> string) option) (bytes : string) :
         row list =
       let h = parse_header bytes in

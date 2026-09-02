@@ -25,7 +25,8 @@
   digestif
   mirage-crypto-ec
   mirage-crypto-rng.unix
-  zarith)
+  zarith
+  zstandard)
  (preprocess
   (pps ppx_jane))
  (modules
@@ -62,6 +63,7 @@
   Http_method
   Identity
   Jetstream
+  Jetstream_zstd_dictionary
   K256
   Label
   Labeler

@@ -46,6 +46,10 @@
   mirage-crypto-ec
   mirage-crypto-rng
   zarith
+  (zstandard
+   (and
+    (>= v0.16.0)
+    (< v0.17)))
   ppx_jane
   (ounit2 :with-test)
   (ocamlformat
