@@ -330,7 +330,8 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   (`query_labels_parsed`, `query_labels_body`, `subscribe` /
   `subscribe_one`, `encode_unsigned` / `encode_signed`). Comment-only.
   Hosted-only chat / video / Tap stay listed not faked
-- This PR: remaining function-level odoc on Chat XRPC wrappers
+- [#151](https://github.com/david-engelmann/atproto/pull/151): remaining
+  function-level odoc on Chat XRPC wrappers
   (`get_convo_for_members`, `update_read`, `mute_convo` / `unmute_convo`,
   `accept_convo` / `leave_convo`, `add_reaction` / `remove_reaction`,
   `delete_message_for_self`, `get_convo_availability`, `get_log`,
