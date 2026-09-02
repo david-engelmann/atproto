@@ -16,9 +16,9 @@ module Websocket = struct
 
   exception Handshake_error of int * string
 
+  exception Subprotocol_error of string
   (** RFC 6455 §4.1: the client offered [Sec-WebSocket-Protocol] but the
       101 response omitted it or named a protocol that was not offered. *)
-  exception Subprotocol_error of string
 
   let guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 

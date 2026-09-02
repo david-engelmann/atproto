@@ -390,7 +390,8 @@ let skip_or_fail_live label = function
       OUnit2.assert_failure
         (label ^ ": 101 omitted or mismatched xrpc.v1.json echo: " ^ msg)
   | Atproto.Websocket.Websocket.Handshake_error (code, body) ->
-      skip_if true (Printf.sprintf "%s skipped: handshake %d %s" label code body)
+      skip_if true
+        (Printf.sprintf "%s skipped: handshake %d %s" label code body)
   | Failure msg as exn ->
       let needle = "Sec-WebSocket-Protocol" in
       let rec contains i =
@@ -424,9 +425,7 @@ let test_subscribe_live _ =
 let test_subscribe_one_subprotocol_live _ =
   with_alarm 20 (fun () ->
       let headers = Jetstream.subscribe_extra_headers () in
-      OUnit2.assert_equal
-        [ ("Sec-WebSocket-Protocol", "xrpc.v1.json") ]
-        headers;
+      OUnit2.assert_equal [ ("Sec-WebSocket-Protocol", "xrpc.v1.json") ] headers;
       try
         let ev = Jetstream.subscribe_one ~filter:live_post_filter () in
         assert_decoded_event
@@ -608,8 +607,7 @@ let test_subscribe_one_compress_live _ =
           OUnit2.assert_failure ("compressed frame was not JSON: " ^ msg)
       | Atproto.Websocket.Websocket.Subprotocol_error msg ->
           OUnit2.assert_failure
-            ("compressed v2 101 omitted or mismatched xrpc.v1.json echo: "
-           ^ msg)
+            ("compressed v2 101 omitted or mismatched xrpc.v1.json echo: " ^ msg)
       | Atproto.Websocket.Websocket.Handshake_error (code, body) -> (
           match Atproto.Error.Error.of_body body with
           | Some e

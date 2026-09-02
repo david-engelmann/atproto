@@ -383,7 +383,8 @@ let test_websocket_subprotocol_echo _ =
   OUnit2.assert_equal [ "xrpc.v1.json" ]
     (Websocket.offered_subprotocols
        [ ("sec-websocket-protocol", " xrpc.v1.json ") ]);
-  OUnit2.assert_equal [ "xrpc.v1.json"; "other" ]
+  OUnit2.assert_equal
+    [ "xrpc.v1.json"; "other" ]
     (Websocket.offered_subprotocols
        [ ("Sec-WebSocket-Protocol", "xrpc.v1.json, other") ]);
   Websocket.check_subprotocol_echo ~offered:[] None;
