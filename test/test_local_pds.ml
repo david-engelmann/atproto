@@ -837,7 +837,8 @@ let test_leftover_served _ =
   | Some json ->
       let info = Identity.parse_identity_info json in
       OUnit2.assert_equal ~printer:(fun x -> x) s.auth.did info.did;
-      OUnit2.assert_bool "refreshIdentity handle" (String.length info.handle > 0));
+      OUnit2.assert_bool "refreshIdentity handle"
+        (String.length info.handle > 0));
   let avail = unique_handle "avail" in
   (match
      pds_leftover_json
@@ -903,8 +904,10 @@ let test_leftover_served _ =
     | None -> (
         ignore (ensure_ok created);
         match
-          pds_post_if_served ~session:pw "com.atproto.server.revokeAppPassword"
-            (Yojson.Safe.to_string (Server.revoke_app_password_body ~name:pw_name))
+          pds_post_if_served ~session:pw
+            "com.atproto.server.revokeAppPassword"
+            (Yojson.Safe.to_string
+               (Server.revoke_app_password_body ~name:pw_name))
         with
         | None -> ()
         | Some _ ->
