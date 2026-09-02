@@ -2,6 +2,7 @@
 module Base32 = struct
   let alphabet = "abcdefghijklmnopqrstuvwxyz234567"
 
+  (** RFC 4648 base32 encode (lowercase, no padding). *)
   let encode (data : string) : string =
     let len = String.length data in
     if len = 0 then ""
@@ -39,6 +40,7 @@ module Base32 = struct
     | '=' -> -1
     | _ -> failwith ("Base32.decode: invalid character " ^ String.make 1 c)
 
+  (** RFC 4648 base32 decode (case-insensitive; skips [=] padding). *)
   let decode (s : string) : string =
     let len = String.length s in
     let buf = Buffer.create (len * 5 / 8) in
