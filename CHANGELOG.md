@@ -296,6 +296,13 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `register_push` / `unregister_push`, `list_notifications_page`).
   Comment-only; client wrappers for a hosted push service stay listed
   not faked. Hosted-only video / chat / Tap stay listed not faked
+- This PR: remaining function-level odoc on Records builders
+  (`repost`, `block`, `listblock`, `list` / `listitem`,
+  `referencelistoptout`, `starterpack`, `profile`, `status`,
+  `content_visibility_declaration`, `verification`, `threadgate` /
+  `postgate`, `generator`, `labeler_service`,
+  `notification_declaration`, `lexicon_schema`, `chat_declaration`).
+  Comment-only. Hosted-only chat / video / Tap stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
