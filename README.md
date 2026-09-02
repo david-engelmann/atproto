@@ -27,7 +27,7 @@ In a dependent `dune` stanza:
 
 `opam pin` / `opam install .` invoke `dune build -p atproto` (the same build a dependent sees) and install the public `atproto` library. That does not publish the package to opam-repository.
 
-Version notes for **0.1.0** (what shipped through [#106](https://github.com/david-engelmann/atproto/pull/106), changelog [#107](https://github.com/david-engelmann/atproto/pull/107), and the lexicon-coverage / odoc-artifact work in this tree) are in [CHANGELOG.md](CHANGELOG.md). Module HTML from `dune build @doc` is uploaded as the `odoc-html` TestSuite artifact; there is no GitHub Pages site.
+Version notes for **0.1.0** (what shipped through [#106](https://github.com/david-engelmann/atproto/pull/106), changelog [#107](https://github.com/david-engelmann/atproto/pull/107), and [#108](https://github.com/david-engelmann/atproto/pull/108)) are in [CHANGELOG.md](CHANGELOG.md). Module HTML from `dune build @doc` is uploaded as the `odoc-html` TestSuite artifact; there is no GitHub Pages site.
 
 ## Environment
 

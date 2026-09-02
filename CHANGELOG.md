@@ -4,8 +4,9 @@ Notes for the packaged **0.1.0** library. This file records what actually
 shipped through pull request [#106](https://github.com/david-engelmann/atproto/pull/106)
 (merge `79aeb75c`, 2026-09-01), changelog
 [#107](https://github.com/david-engelmann/atproto/pull/107) (merge `3a7bd82f`,
-2026-09-02), and the lexicon-coverage / compiler-bound / odoc-artifact work
-on this branch.
+2026-09-02), and
+[#108](https://github.com/david-engelmann/atproto/pull/108)
+(lexicon pin `60c4395951`, coverage gate, OCaml `< 5.0`, odoc artifact).
 
 This package is **not** published to the public
 [opam-repository](https://github.com/ocaml/opam-repository). Depend on it by
@@ -57,7 +58,7 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
 
-### Packaging and quality (#101, #106, #107)
+### Packaging and quality (#101, #106, #107, #108)
 
 - `public_name atproto`, generated `atproto.opam`, `opam lint`,
   `dune build -p atproto` / `dune runtest -p atproto`
