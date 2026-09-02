@@ -189,6 +189,7 @@ module Graph = struct
 
   (* app.bsky.graph.muteActor — optional onlyReposts / onlyQuoteposts replace
      a full mute with a scoped mute. Repeat calls replace the stored scope. *)
+
   (** JSON body for [app.bsky.graph.muteActor]. Optional [only_reposts] /
       [only_quoteposts] store a scoped mute; later calls replace the stored
       scope. *)
