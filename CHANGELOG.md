@@ -1,7 +1,7 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [__THIS_PR__](https://github.com/david-engelmann/atproto/pull/__THIS_PR__)
+shipped through [#124](https://github.com/david-engelmann/atproto/pull/124)
 (CHANGELOG through #123), including
 [#123](https://github.com/david-engelmann/atproto/pull/123)
 (live leftover TestNetwork `getListBlocks` / `getStarterPack` /
