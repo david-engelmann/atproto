@@ -101,8 +101,7 @@ let test_parse_timeline_and_schedule _ =
               [
                 `Assoc
                   [
-                    ( "$type",
-                      `String "app.bsky.actor.defs#adultContentPref" );
+                    ("$type", `String "app.bsky.actor.defs#adultContentPref");
                     ("enabled", `Bool true);
                   ];
               ] );

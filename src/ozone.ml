@@ -711,7 +711,6 @@ module Ozone = struct
 
   type timeline_item = { day : string; summary : timeline_summary list }
   type account_timeline = { timeline : timeline_item list }
-
   type account_preferences = { preferences : Yojson.Safe.t list }
 
   type scheduled_action = {
