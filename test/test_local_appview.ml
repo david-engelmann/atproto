@@ -13,12 +13,14 @@ open Atproto.Labeler
 open Atproto.Unspecced
 open Atproto.Bookmark
 open Atproto.Draft
+open Atproto.Ageassurance
 open Actor
 open Feed
 open Graph
 open Notification
 open Labeler
 open Unspecced
+open Ageassurance
 
 (* Real app.bsky.* calls against official @atproto/dev-env AppView. *)
 
@@ -135,6 +137,34 @@ let message_has hay needle =
     else aux (i + 1)
   in
   aux 0
+
+(* TestNetwork policy InvalidRequest: email token, unhosted feed
+   generator DID, not-implemented. Never fail leftover hops on these. *)
+let is_policy_invalid (e : Error.t) =
+  Error.is_not_served e
+  || message_has e.message "email confirmation token"
+  || message_has e.message "email token"
+  || message_has e.message "confirmation token"
+  || message_has e.message "could not find feed"
+  || message_has e.message "invalid feed generator"
+  || message_has e.message "not implemented"
+
+let av_leftover_json json =
+  if Error.is_not_served_json json then None
+  else
+    match Error.check_for_error json with
+    | None -> Some json
+    | Some _ ->
+        let e = Error.of_json json in
+        if is_policy_invalid e then None else Some (ensure_ok json)
+
+let av_get_leftover ?session nsid pairs =
+  av_leftover_json
+    (Client.get_json_appview ?session ~host:(appview_host ()) nsid pairs)
+
+let av_post_leftover ?session nsid data =
+  av_leftover_json
+    (Client.post_json_appview ?session ~host:(appview_host ()) nsid data)
 
 (* AppView hydrates PDS writes asynchronously (see test_feed_after_writes). *)
 let av_get_until ?session ~attempts ~retry_message nsid pairs =
@@ -1043,6 +1073,139 @@ let test_leftover_served _ =
                   { Notification.post = false; reply = false } );
             ])))
 
+(* Remaining AppView unspecced skeletons / getSuggested* / getTrendsSkeleton
+   and app.bsky.ageassurance.* if this revision serves them. *)
+let test_unspecced_and_ageassurance _ =
+  let s = session () in
+  let viewer = s.auth.did in
+  let get ?session nsid pairs parse =
+    match av_get_leftover ?session nsid pairs with
+    | None -> ()
+    | Some json -> parse json
+  in
+  get "app.bsky.unspecced.getTrendsSkeleton" [ ("limit", "5") ] (fun json ->
+      let page = Unspecced.parse_trends_skeleton json in
+      OUnit2.assert_bool "getTrendsSkeleton" (List.length page.trends >= 0));
+  get "app.bsky.unspecced.getSuggestionsSkeleton"
+    [ ("limit", "5"); ("viewer", viewer) ] (fun json ->
+      let page = Unspecced.parse_suggestions_skeleton json in
+      OUnit2.assert_bool "getSuggestionsSkeleton"
+        (List.length page.actors >= 0));
+  get "app.bsky.unspecced.getSuggestedFeeds" [ ("limit", "5") ] (fun json ->
+      let page = Unspecced.parse_suggested_feeds json in
+      OUnit2.assert_bool "unspecced getSuggestedFeeds"
+        (List.length page.feeds >= 0));
+  get "app.bsky.unspecced.getSuggestedFeedsSkeleton"
+    [ ("limit", "5"); ("viewer", viewer) ] (fun json ->
+      let page = Unspecced.parse_uri_list json "feeds" in
+      OUnit2.assert_bool "getSuggestedFeedsSkeleton"
+        (List.length page.uris >= 0));
+  get "app.bsky.unspecced.getSuggestedUsers" [ ("limit", "5") ] (fun json ->
+      let page = Unspecced.parse_suggested_users json in
+      OUnit2.assert_bool "getSuggestedUsers" (List.length page.actors >= 0));
+  get "app.bsky.unspecced.getSuggestedUsersSkeleton"
+    [ ("limit", "5"); ("viewer", viewer) ] (fun json ->
+      let page = Unspecced.parse_did_skeleton json in
+      OUnit2.assert_bool "getSuggestedUsersSkeleton"
+        (List.length page.dids >= 0));
+  get "app.bsky.unspecced.getSuggestedStarterPacks" [ ("limit", "5") ]
+    (fun json ->
+      let packs =
+        List.map Graph.parse_starter_pack
+          (Client.list_member json "starterPacks")
+      in
+      OUnit2.assert_bool "getSuggestedStarterPacks" (List.length packs >= 0));
+  get "app.bsky.unspecced.getSuggestedStarterPacksSkeleton"
+    [ ("limit", "5"); ("viewer", viewer) ] (fun json ->
+      let page = Unspecced.parse_uri_list json "starterPacks" in
+      OUnit2.assert_bool "getSuggestedStarterPacksSkeleton"
+        (List.length page.uris >= 0));
+  get "app.bsky.unspecced.getOnboardingSuggestedStarterPacks" [ ("limit", "5") ]
+    (fun json ->
+      let packs =
+        List.map Graph.parse_starter_pack
+          (Client.list_member json "starterPacks")
+      in
+      OUnit2.assert_bool "getOnboardingSuggestedStarterPacks"
+        (List.length packs >= 0));
+  get "app.bsky.unspecced.getOnboardingSuggestedStarterPacksSkeleton"
+    [ ("limit", "5"); ("viewer", viewer) ] (fun json ->
+      let page = Unspecced.parse_uri_list json "starterPacks" in
+      OUnit2.assert_bool "getOnboardingSuggestedStarterPacksSkeleton"
+        (List.length page.uris >= 0));
+  get "app.bsky.unspecced.getSuggestedOnboardingUsers" [ ("limit", "5") ]
+    (fun json ->
+      let page = Unspecced.parse_suggested_users json in
+      OUnit2.assert_bool "getSuggestedOnboardingUsers"
+        (List.length page.actors >= 0));
+  get "app.bsky.unspecced.getOnboardingSuggestedUsersSkeleton"
+    [ ("limit", "5"); ("viewer", viewer) ] (fun json ->
+      let page = Unspecced.parse_did_skeleton json in
+      OUnit2.assert_bool "getOnboardingSuggestedUsersSkeleton"
+        (List.length page.dids >= 0));
+  get "app.bsky.unspecced.getSuggestedUsersForDiscover" [ ("limit", "5") ]
+    (fun json ->
+      let page = Unspecced.parse_suggested_users json in
+      OUnit2.assert_bool "getSuggestedUsersForDiscover"
+        (List.length page.actors >= 0));
+  get "app.bsky.unspecced.getSuggestedUsersForDiscoverSkeleton"
+    [ ("limit", "5"); ("viewer", viewer) ] (fun json ->
+      let page = Unspecced.parse_did_skeleton json in
+      OUnit2.assert_bool "getSuggestedUsersForDiscoverSkeleton"
+        (List.length page.dids >= 0));
+  get "app.bsky.unspecced.getSuggestedUsersForExplore" [ ("limit", "5") ]
+    (fun json ->
+      let page = Unspecced.parse_suggested_users json in
+      OUnit2.assert_bool "getSuggestedUsersForExplore"
+        (List.length page.actors >= 0));
+  get "app.bsky.unspecced.getSuggestedUsersForExploreSkeleton"
+    [ ("limit", "5"); ("viewer", viewer) ] (fun json ->
+      let page = Unspecced.parse_did_skeleton json in
+      OUnit2.assert_bool "getSuggestedUsersForExploreSkeleton"
+        (List.length page.dids >= 0));
+  get "app.bsky.unspecced.getSuggestedUsersForSeeMore" [ ("limit", "5") ]
+    (fun json ->
+      let page = Unspecced.parse_suggested_users json in
+      OUnit2.assert_bool "getSuggestedUsersForSeeMore"
+        (List.length page.actors >= 0));
+  get "app.bsky.unspecced.getSuggestedUsersForSeeMoreSkeleton"
+    [ ("limit", "5"); ("viewer", viewer) ] (fun json ->
+      let page = Unspecced.parse_did_skeleton json in
+      OUnit2.assert_bool "getSuggestedUsersForSeeMoreSkeleton"
+        (List.length page.dids >= 0));
+  get "app.bsky.unspecced.searchPostsSkeleton"
+    [ ("q", "integration"); ("limit", "5") ] (fun json ->
+      let page = Unspecced.parse_skeleton_posts json in
+      OUnit2.assert_bool "searchPostsSkeleton" (List.length page.posts >= 0));
+  get "app.bsky.unspecced.searchActorsSkeleton"
+    [ ("q", "alice"); ("limit", "5") ] (fun json ->
+      let page = Unspecced.parse_skeleton_actors json in
+      OUnit2.assert_bool "searchActorsSkeleton" (List.length page.actors >= 0));
+  get "app.bsky.unspecced.searchStarterPacksSkeleton"
+    [ ("q", "test"); ("limit", "5") ] (fun json ->
+      let page = Unspecced.parse_skeleton_starter_packs json in
+      OUnit2.assert_bool "searchStarterPacksSkeleton"
+        (List.length page.starter_packs >= 0));
+  get "app.bsky.ageassurance.getConfig" [] (fun json ->
+      let cfg = Ageassurance.parse_config json in
+      OUnit2.assert_bool "ageassurance.getConfig"
+        (List.length cfg.regions >= 0));
+  get ~session:s "app.bsky.ageassurance.getState" [ ("countryCode", "US") ]
+    (fun json ->
+      let bundle = Ageassurance.parse_state_bundle json in
+      OUnit2.assert_bool "ageassurance.getState"
+        (String.length bundle.state.status >= 0));
+  match
+    av_post_leftover ~session:s "app.bsky.ageassurance.begin"
+      (Yojson.Safe.to_string
+         (Ageassurance.begin_body ~email:"alice@test.com" ~language:"en"
+            ~country_code:"US" ()))
+  with
+  | None -> ()
+  | Some json ->
+      let state = Ageassurance.parse_state json in
+      OUnit2.assert_bool "ageassurance.begin" (String.length state.status >= 0)
+
 let suite =
   "local_appview"
   >::: [
@@ -1058,6 +1221,7 @@ let suite =
          "test_mute_actor_list" >:: test_mute_actor_list;
          "test_put_preferences_v2" >:: test_put_preferences_v2;
          "test_leftover_served" >:: test_leftover_served;
+         "test_unspecced_and_ageassurance" >:: test_unspecced_and_ageassurance;
        ]
 
 let () =

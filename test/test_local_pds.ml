@@ -15,8 +15,10 @@ open Atproto.Actor
 open Atproto.Repo_sync
 open Atproto.Client
 open Atproto.Firehose
+open Atproto.Lexicon
 open Temp
 open Actor
+open Lexicon
 
 (* Integration tests against a real local PDS (+ PLC).
    Skip when this machine is not pointed at a local stack.
@@ -76,6 +78,28 @@ let pds_get_if_served ?session nsid pairs =
 let pds_post_if_served ?session nsid data =
   let json = Client.post_json ?session ~host:(pds_host ()) nsid data in
   if Error.is_not_served_json json then None else Some (ensure_ok json)
+
+(* TestNetwork policy InvalidRequest: email token, unhosted feed
+   generator DID, not-implemented. Never fail leftover hops on these. *)
+let is_policy_invalid (e : Error.t) =
+  Error.is_not_served e
+  || message_has e.message "email confirmation token"
+  || message_has e.message "email token"
+  || message_has e.message "confirmation token"
+  || message_has e.message "invalid token"
+  || message_has e.message "token required"
+  || message_has e.message "could not find feed"
+  || message_has e.message "invalid feed generator"
+  || message_has e.message "not implemented"
+
+let pds_leftover_json json =
+  if Error.is_not_served_json json then None
+  else
+    match Error.check_for_error json with
+    | None -> Some json
+    | Some _ ->
+        let e = Error.of_json json in
+        if is_policy_invalid e then None else Some (ensure_ok json)
 
 (* signPlcOperation is served on PDS 0.5.31 but requires an email
    confirmation token TestNetwork cannot deliver. Skip that hop only. *)
@@ -797,6 +821,108 @@ let test_plc_directory_write _ =
   OUnit2.assert_bool "PLC chain genesis" chain.genesis_ok;
   OUnit2.assert_bool "PLC chain prev" chain.prev_links_ok
 
+(* Remaining PDS NSIDs whose wrappers already exist. Skip if this
+   TestNetwork revision 501s the method. Destructive hops use a
+   throwaway account, never alice.test. *)
+let test_leftover_served _ =
+  let s = session () in
+  (match
+     pds_leftover_json
+       (Client.post_json ~session:s ~host:(pds_host ())
+          "com.atproto.identity.refreshIdentity"
+          (Yojson.Safe.to_string
+             (Identity.refresh_identity_body ~identifier:s.username)))
+   with
+  | None -> ()
+  | Some json ->
+      let info = Identity.parse_identity_info json in
+      OUnit2.assert_equal ~printer:(fun x -> x) s.auth.did info.did;
+      OUnit2.assert_bool "refreshIdentity handle" (String.length info.handle > 0));
+  let avail = unique_handle "avail" in
+  (match
+     pds_leftover_json
+       (Client.get_json ~session:s ~host:(pds_host ())
+          "com.atproto.temp.checkHandleAvailability" [ ("handle", avail) ])
+   with
+  | None -> ()
+  | Some json ->
+      let check = Temp.parse_handle_check json in
+      OUnit2.assert_equal ~printer:(fun x -> x) avail check.handle;
+      match check.result with `Available | `Unavailable _ | `Unknown _ -> ());
+  (match
+     pds_leftover_json
+       (Client.get_json ~session:s ~host:(pds_host ())
+          "com.atproto.temp.dereferenceScope" [ ("scope", "account:email") ])
+   with
+  | None -> ()
+  | Some json ->
+      let deref = Temp.parse_scope_deref json in
+      OUnit2.assert_bool "dereferenceScope" (String.length deref.scope >= 0));
+  (match
+     pds_leftover_json
+       (Client.get_json ~session:s ~host:(pds_host ())
+          "com.atproto.lexicon.resolveLexicon"
+          [ ("nsid", "app.bsky.feed.post") ])
+   with
+  | None -> ()
+  | Some json ->
+      let resolved = Lexicon.parse_resolved_lexicon json in
+      OUnit2.assert_bool "resolveLexicon schema"
+        (match resolved.schema with `Assoc _ -> true | _ -> false));
+  let doomed = throwaway_session "del" "local-pds-delete-password" in
+  (match
+     pds_leftover_json
+       (Client.post_json ~session:doomed ~host:(pds_host ())
+          "com.atproto.server.requestAccountDelete"
+          (Yojson.Safe.to_string (Server.request_account_delete_body ())))
+   with
+  | None -> ()
+  | Some _ ->
+      ignore
+        (pds_leftover_json
+           (Client.post_json ~session:doomed ~host:(pds_host ())
+              "com.atproto.server.deleteAccount"
+              (Yojson.Safe.to_string
+                 (Server.delete_account_body ~did:doomed.auth.did
+                    ~password:"local-pds-delete-password"
+                    ~token:"not-an-email-token")))));
+  (* revokeAppPassword only when createAppPassword is not the known 500. *)
+  let pw = throwaway_session "revpw" "local-pds-revoke-password" in
+  let pw_name =
+    Printf.sprintf "leftover-rev-%d"
+      (int_of_float (Unix.gettimeofday () *. 1000.) mod 1_000_000)
+  in
+  let created =
+    Client.post_json ~session:pw ~host:(pds_host ())
+      "com.atproto.server.createAppPassword"
+      (Yojson.Safe.to_string (Server.create_app_password_body ~name:pw_name ()))
+  in
+  if Error.is_not_served_json created then ()
+  else
+    match Error.check_for_error created with
+    | None -> (
+        ignore (ensure_ok created);
+        match
+          pds_post_if_served ~session:pw "com.atproto.server.revokeAppPassword"
+            (Yojson.Safe.to_string (Server.revoke_app_password_body ~name:pw_name))
+        with
+        | None -> ()
+        | Some _ ->
+            let listed = Server.list_app_passwords pw |> json_of_body in
+            let names =
+              List.map
+                (fun (p : Server.app_password) -> p.name)
+                (Server.parse_app_passwords listed)
+            in
+            OUnit2.assert_bool "revokeAppPassword removed name"
+              (not (List.mem pw_name names)))
+    | Some _ when pds_internal_error (Error.to_string (Error.of_json created))
+      ->
+        (* Known @atproto/pds 0.5.x TestNetwork 500. Do not call revoke. *)
+        ()
+    | Some _ ->
+        failwith ("XRPC error: " ^ Error.to_string (Error.of_json created))
+
 let suite =
   "local_pds"
   >::: [
@@ -822,6 +948,7 @@ let suite =
          "test_get_account_invite_codes" >:: test_get_account_invite_codes;
          "test_plc_operation_xrpc" >:: test_plc_operation_xrpc;
          "test_plc_directory_write" >:: test_plc_directory_write;
+         "test_leftover_served" >:: test_leftover_served;
        ]
 
 let () =

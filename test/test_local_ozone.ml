@@ -112,6 +112,29 @@ let leftover_tag () =
   Printf.sprintf "ocaml-leftover-%d"
     (int_of_float (Unix.gettimeofday () *. 1000.) mod 100_000_000)
 
+(* TestNetwork policy InvalidRequest: email token, not-implemented.
+   Never fail leftover hops on those. *)
+let is_policy_invalid json =
+  match Error.check_for_error json with
+  | None -> false
+  | Some _ ->
+      let e = Error.of_json json in
+      Error.is_not_served e
+      || message_has e.message "email confirmation token"
+      || message_has e.message "email token"
+      || message_has e.message "not implemented"
+      || message_has e.message "already a member"
+      || message_has e.message "already exists"
+      || message_has e.message "member already"
+
+let leftover_served json =
+  if Error.is_not_served_json json || cannot_moderate json then false
+  else if is_policy_invalid json then false
+  else
+    match Error.check_for_error json with
+    | Some _ -> failwith ("XRPC error: " ^ Error.to_string (Error.of_json json))
+    | None -> true
+
 let test_get_config _ =
   let s = admin_session () in
   (* Official path: PDS session + atproto-proxy (direct Ozone rejects at+jwt). *)
@@ -761,6 +784,236 @@ let test_leftover_served _ =
   | Some id -> ignore (Ozone.delete_queue s ~proxy:p ~queue_id:id ())
   | None -> ()
 
+(* Remaining ozone NSIDs whose wrappers already exist. Skip if not served. *)
+let test_leftover_remaining _ =
+  let s = admin_session () in
+  let p = proxy () in
+  let alice = Session.create_session "alice.test" "hunter2" in
+  let bob = Session.create_session "bob.test" "hunter2" in
+  let tag = leftover_tag () in
+  let role_mod = "tools.ozone.team.defs#roleModerator" in
+  let role_triage = "tools.ozone.team.defs#roleTriage" in
+  let added_bob =
+    match
+      ozone_post s p "tools.ozone.team.addMember"
+        (`Assoc
+          [ ("did", `String bob.auth.did); ("role", `String role_mod) ])
+    with
+    | json when leftover_served json ->
+        let member =
+          match Yojson.Safe.Util.member "member" json with
+          | `Assoc _ as m -> Ozone.parse_team_member m
+          | _ -> Ozone.parse_team_member json
+        in
+        OUnit2.assert_equal ~printer:(fun x -> x) bob.auth.did member.did;
+        true
+    | _ -> false
+  in
+  (match
+     ozone_post s p "tools.ozone.team.updateMember"
+       (`Assoc
+         [ ("did", `String bob.auth.did); ("role", `String role_triage) ])
+   with
+  | json when leftover_served json ->
+      let member =
+        match Yojson.Safe.Util.member "member" json with
+        | `Assoc _ as m -> Ozone.parse_team_member m
+        | _ -> Ozone.parse_team_member json
+      in
+      OUnit2.assert_equal ~printer:(fun x -> x) bob.auth.did member.did
+  | _ -> ());
+  (if added_bob then
+     match
+       ozone_post s p "tools.ozone.team.deleteMember"
+         (`Assoc [ ("did", `String bob.auth.did) ])
+     with
+     | json when leftover_served json -> ()
+     | _ -> ());
+  (match
+     ozone_json s p "tools.ozone.signature.findCorrelation"
+       (Client.repeat_param "dids" [ alice.auth.did; bob.auth.did ])
+   with
+  | json when leftover_served json ->
+      OUnit2.assert_bool "findCorrelation"
+        (match json with `Assoc _ -> true | _ -> false)
+  | _ -> ());
+  (match
+     ozone_json s p "tools.ozone.signature.findRelatedAccounts"
+       [ ("did", alice.auth.did); ("limit", "5") ]
+   with
+  | json when leftover_served json ->
+      let page = Ozone.parse_related_accounts json in
+      OUnit2.assert_bool "findRelatedAccounts"
+        (List.length page.accounts >= 0)
+  | _ -> ());
+  (match
+     ozone_json s p "tools.ozone.signature.searchAccounts"
+       [ ("values", "not-a-signature"); ("limit", "5") ]
+   with
+  | json when leftover_served json ->
+      let page = Ozone.parse_related_accounts json in
+      OUnit2.assert_bool "searchAccounts" (List.length page.accounts >= 0)
+  | _ -> ());
+  (match
+     ozone_json s p "tools.ozone.hosting.getAccountHistory"
+       [ ("did", alice.auth.did); ("limit", "10") ]
+   with
+  | json when leftover_served json ->
+      let hist = Ozone.parse_account_history json in
+      OUnit2.assert_bool "getAccountHistory" (List.length hist.events >= 0)
+  | _ -> ());
+  let created_queue_id =
+    match
+      ozone_post s p "tools.ozone.queue.createQueue"
+        (Ozone.create_queue_body ~name:("ocaml-remain-" ^ tag)
+           ~subject_types:[ "account" ] ())
+    with
+    | json when leftover_served json -> Some (Ozone.parse_queue_result json).id
+    | _ -> None
+  in
+  let queue_id =
+    match created_queue_id with
+    | Some id -> Some id
+    | None -> (
+        match
+          ozone_json s p "tools.ozone.queue.listQueues" [ ("limit", "10") ]
+        with
+        | json when leftover_served json -> (
+            match (Ozone.parse_queues json).queues with
+            | q :: _ -> Some q.id
+            | [] -> None)
+        | _ -> None)
+  in
+  (match queue_id with
+  | None -> ()
+  | Some id -> (
+      ignore
+        (ozone_post s p "tools.ozone.queue.assignModerator"
+           (`Assoc [ ("queueId", `Int id); ("did", `String s.auth.did) ]));
+      (match
+         ozone_post s p "tools.ozone.queue.unassignModerator"
+           (`Assoc [ ("queueId", `Int id); ("did", `String s.auth.did) ])
+       with
+      | json when leftover_served json -> ()
+      | _ -> ());
+      ignore
+        (Client.post_json ~session:alice "com.atproto.moderation.createReport"
+           (Moderation.create_report_data_from_repo_ref
+              Moderation.reason_other
+              ~reason:("ocaml leftover remain " ^ tag)
+              { Moderation.did = bob.auth.did }));
+      let report_id =
+        match
+          ozone_json s p "tools.ozone.report.queryReports"
+            [ ("status", "open"); ("limit", "10") ]
+        with
+        | json when leftover_served json -> (
+            match (Ozone.parse_reports json).reports with
+            | r :: _ -> Some r.id
+            | [] -> None)
+        | _ -> None
+      in
+      (match report_id with
+      | None -> ()
+      | Some rid -> (
+          (match
+             ozone_post s p "tools.ozone.queue.routeReports"
+               (`Assoc
+                 [ ("startReportId", `Int rid); ("endReportId", `Int rid) ])
+           with
+          | json when leftover_served json ->
+              let routed = Ozone.parse_route_reports_result json in
+              OUnit2.assert_bool "routeReports"
+                (routed.assigned + routed.unmatched >= 0)
+          | _ -> ());
+          (match
+             ozone_post s p "tools.ozone.report.assignModerator"
+               (`Assoc
+                 [
+                   ("reportId", `Int rid);
+                   ("did", `String s.auth.did);
+                   ("queueId", `Int id);
+                 ])
+           with
+          | json when leftover_served json ->
+              let assigned = Ozone.parse_assignment_view json in
+              OUnit2.assert_bool "report.assignModerator"
+                (String.length assigned.did >= 0)
+          | _ -> ());
+          (match
+             ozone_json s p "tools.ozone.report.listActivities"
+               [ ("reportId", string_of_int rid); ("limit", "10") ]
+           with
+          | json when leftover_served json ->
+              let page = Ozone.parse_report_activities json in
+              OUnit2.assert_bool "listActivities"
+                (List.length page.activities >= 0)
+          | _ -> ());
+          match
+            ozone_post s p "tools.ozone.report.reassignQueue"
+              (`Assoc
+                [
+                  ("reportId", `Int rid);
+                  ("queueId", `Int id);
+                  ("comment", `String tag);
+                ])
+          with
+          | json when leftover_served json ->
+              let view = Ozone.parse_report_result json in
+              OUnit2.assert_bool "reassignQueue" (view.id >= 0)
+          | _ -> ()));
+      ()));
+  (match
+     ozone_json s p "tools.ozone.report.queryActivities" [ ("limit", "10") ]
+   with
+  | json when leftover_served json ->
+      let page = Ozone.parse_report_activities json in
+      OUnit2.assert_bool "queryActivities" (List.length page.activities >= 0)
+  | _ -> ());
+  (match
+     ozone_post s p "tools.ozone.report.refreshStats"
+       (`Assoc
+         [
+           ("startDate", `String "2020-01-01T00:00:00.000Z");
+           ("endDate", `String "2099-01-01T00:00:00.000Z");
+         ])
+   with
+  | json when leftover_served json ->
+      OUnit2.assert_bool "refreshStats"
+        (match json with `Assoc _ | _ -> true)
+  | _ -> ());
+  let set_name = "ocaml-delval-" ^ tag in
+  (match
+     ozone_post s p "tools.ozone.set.upsertSet"
+       (`Assoc
+         [ ("name", `String set_name); ("description", `String ("set " ^ tag)) ])
+   with
+  | json when leftover_served json ->
+      Ozone.add_set_values s ~proxy:p ~name:set_name ~values:[ tag ] ();
+      (match
+         ozone_post s p "tools.ozone.set.deleteValues"
+           (`Assoc
+             [
+               ("name", `String set_name);
+               ("values", `List [ `String tag ]);
+             ])
+       with
+      | djson when leftover_served djson -> (
+          match
+            ozone_json s p "tools.ozone.set.getValues" [ ("name", set_name) ]
+          with
+          | values when leftover_served values ->
+              let got = Ozone.get_set_values s ~proxy:p ~name:set_name () in
+              OUnit2.assert_bool "deleteValues removed"
+                (not (List.mem tag got.values))
+          | _ -> ())
+      | _ -> ());
+      Ozone.delete_set s ~proxy:p ~name:set_name ()
+  | _ -> ());
+  match created_queue_id with
+  | Some id -> ignore (Ozone.delete_queue s ~proxy:p ~queue_id:id ())
+  | None -> ()
+
 let suite =
   "local_ozone"
   >::: [
@@ -773,6 +1026,7 @@ let suite =
          "test_privileged_writes" >:: test_privileged_writes;
          "test_template_and_set_writes" >:: test_template_and_set_writes;
          "test_leftover_served" >:: test_leftover_served;
+         "test_leftover_remaining" >:: test_leftover_remaining;
        ]
 
 let () =

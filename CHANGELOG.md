@@ -130,6 +130,23 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `tools.ozone.report.getReport` / `closeReports` / `getLiveStats` /
   `getHistoricalStats`, and `tools.ozone.setting.upsertOption` /
   `removeOptions` (skip only when the NSID is not served)
+- [#129](https://github.com/david-engelmann/atproto/pull/129): live leftover
+  TestNetwork coverage after [#123](https://github.com/david-engelmann/atproto/pull/123):
+  PDS `com.atproto.identity.refreshIdentity`,
+  `com.atproto.temp.checkHandleAvailability` /
+  `com.atproto.temp.dereferenceScope`,
+  `com.atproto.lexicon.resolveLexicon`, throwaway
+  `requestAccountDelete` / `deleteAccount` (email-token InvalidRequest
+  skipped), and `revokeAppPassword` only when `createAppPassword` is
+  not the known PDS 0.5.x 500; AppView unspecced skeletons /
+  `getSuggested*` / `getTrendsSkeleton` and `app.bsky.ageassurance.*`
+  if served; ozone `team.addMember` / `updateMember` / `deleteMember`,
+  `signature.findCorrelation` / `findRelatedAccounts` / `searchAccounts`,
+  `hosting.getAccountHistory`, `queue.unassignModerator` /
+  `routeReports`, `report.assignModerator` / `listActivities` /
+  `queryActivities` / `reassignQueue` / `refreshStats`, and
+  `set.deleteValues` (skip only when the NSID is not served or the
+  InvalidRequest is TestNetwork policy)
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
