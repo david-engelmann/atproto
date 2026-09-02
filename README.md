@@ -29,6 +29,26 @@ In a dependent `dune` stanza:
 
 Version notes for **0.1.0** (the packaged surface through [#113](https://github.com/david-engelmann/atproto/pull/113)) are in [CHANGELOG.md](CHANGELOG.md). Module HTML from `dune build @doc` is uploaded as the `odoc-html` TestSuite artifact on pull requests. On push to `main`, the same HTML is deployed with GitHub Actions Pages (`actions/upload-pages-artifact` + `actions/deploy-pages`) to https://david-engelmann.github.io/atproto/. GitHub Pages is enabled (Settings → Pages → Source: GitHub Actions). `dune-project` `documentation` points at that live URL.
 
+## Quick start
+
+Pin the repo, then resolve a handle and search posts. Neither call needs `ATP_AUTH`:
+
+```shell
+opam pin add atproto git+https://github.com/david-engelmann/atproto.git
+```
+
+```ocaml
+(* public AppView, no ATP_AUTH *)
+let did = (Identity.resolve_handle "jay.bsky.team").did
+let posts = Feed.search_posts ~q:"atproto" ~limit:5 ()
+```
+
+`examples/quickstart.ml` is that flow as a copy-paste executable (`dune exec -- examples/quickstart.exe`).
+
+## Docs
+
+Module HTML is at https://david-engelmann.github.io/atproto/. Build it locally with `dune build @doc` or `make doc`.
+
 ## Environment
 
 Create a `.env` (see `sample.env`) with at least:
