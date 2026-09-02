@@ -87,6 +87,7 @@ module Records = struct
        ]
       @ via_fields via)
 
+  (** Build an [app.bsky.feed.repost] record for [uri] / [cid]. *)
   let repost ~uri ~cid ~created_at ?via () : Yojson.Safe.t =
     `Assoc
       ([
@@ -106,6 +107,7 @@ module Records = struct
        ]
       @ via_fields via)
 
+  (** Build an [app.bsky.graph.block] record for [subject] (DID). *)
   let block ~subject ~created_at () : Yojson.Safe.t =
     `Assoc
       [
@@ -114,6 +116,8 @@ module Records = struct
         ("createdAt", `String created_at);
       ]
 
+  (** Build an [app.bsky.graph.listblock] record for [subject] (list
+      AT-URI). *)
   let listblock ~subject ~created_at () : Yojson.Safe.t =
     `Assoc
       [
@@ -122,6 +126,9 @@ module Records = struct
         ("createdAt", `String created_at);
       ]
 
+  (** Build an [app.bsky.graph.list] record. [name], [purpose], and
+      [created_at] are required; optional [description] /
+      [description_facets] / [avatar] / [self_labels] map to the lexicon. *)
   let list ~name ~purpose ~created_at ?description ?description_facets ?avatar
       ?self_labels () : Yojson.Safe.t =
     let fields =
@@ -145,6 +152,8 @@ module Records = struct
     in
     `Assoc fields
 
+  (** Build an [app.bsky.graph.listitem] record for [subject] (DID) on
+      [list] (AT-URI). *)
   let listitem ~subject ~list ~created_at () : Yojson.Safe.t =
     `Assoc
       [
@@ -154,8 +163,9 @@ module Records = struct
         ("createdAt", `String created_at);
       ]
 
-  (* Official app.bsky.graph.referencelistoptout — omit the author from a
-     reference list's public presentation. Key is tid. *)
+  (** Build an [app.bsky.graph.referencelistoptout] record for [subject]
+      (list AT-URI). Omits the author from that reference list's public
+      presentation. Key is tid. *)
   let referencelistoptout ~subject ~created_at () : Yojson.Safe.t =
     `Assoc
       [
@@ -164,6 +174,9 @@ module Records = struct
         ("createdAt", `String created_at);
       ]
 
+  (** Build an [app.bsky.graph.starterpack] record. [name], [list], and
+      [created_at] are required; optional [description] /
+      [description_facets] / [feeds] map to the lexicon. *)
   let starterpack ~name ~list ~created_at ?description ?description_facets
       ?feeds () : Yojson.Safe.t =
     let fields =
@@ -191,6 +204,10 @@ module Records = struct
     in
     `Assoc fields
 
+  (** Build an [app.bsky.actor.profile] record. Optional [display_name] /
+      [description] / [pronouns] / [website] / [avatar] / [banner] /
+      [self_labels] / [pinned_post] / [joined_via_starter_pack] /
+      [created_at] map to the lexicon. *)
   let profile ?display_name ?description ?pronouns ?website ?avatar ?banner
       ?self_labels ?pinned_post ?joined_via_starter_pack ?created_at () :
       Yojson.Safe.t =
@@ -222,6 +239,9 @@ module Records = struct
     in
     `Assoc fields
 
+  (** Build an [app.bsky.actor.status] record. [status] and [created_at]
+      are required; optional [embed] / [duration_minutes] map to the
+      lexicon. *)
   let status ~status ~created_at ?embed ?duration_minutes () : Yojson.Safe.t =
     let fields =
       [
@@ -237,6 +257,8 @@ module Records = struct
     in
     `Assoc fields
 
+  (** Build an [app.bsky.actor.contentVisibilityDeclaration] record.
+      [hide_from_algorithmic_recommendations] maps to the lexicon. *)
   let content_visibility_declaration ~hide_from_algorithmic_recommendations () :
       Yojson.Safe.t =
     `Assoc
@@ -246,6 +268,8 @@ module Records = struct
           `Bool hide_from_algorithmic_recommendations );
       ]
 
+  (** Build an [app.bsky.graph.verification] record for [subject] (DID)
+      with [handle] and [display_name]. *)
   let verification ~subject ~handle ~display_name ~created_at () : Yojson.Safe.t
       =
     `Assoc
@@ -285,6 +309,8 @@ module Records = struct
     | `Disable -> `Assoc [ ("$type", `String (nsid_postgate ^ "#disableRule")) ]
     | `Unknown json -> json
 
+  (** Build an [app.bsky.feed.threadgate] record for [post] (AT-URI).
+      Optional [allow] / [hidden_replies] map to the lexicon. *)
   let threadgate ~post ~created_at ?allow ?hidden_replies () : Yojson.Safe.t =
     let fields =
       [
@@ -303,6 +329,9 @@ module Records = struct
     in
     `Assoc fields
 
+  (** Build an [app.bsky.feed.postgate] record for [post] (AT-URI).
+      Optional [detached_embedding_uris] / [embedding_rules] map to the
+      lexicon. *)
   let postgate ~post ~created_at ?detached_embedding_uris ?embedding_rules () :
       Yojson.Safe.t =
     let fields =
@@ -326,6 +355,10 @@ module Records = struct
     in
     `Assoc fields
 
+  (** Build an [app.bsky.feed.generator] record. [did], [display_name],
+      and [created_at] are required; optional [description] /
+      [description_facets] / [avatar] / [accepts_interactions] /
+      [self_labels] / [content_mode] map to the lexicon. *)
   let generator ~did ~display_name ~created_at ?description ?description_facets
       ?avatar ?accepts_interactions ?self_labels ?content_mode () :
       Yojson.Safe.t =
@@ -356,6 +389,9 @@ module Records = struct
     in
     `Assoc fields
 
+  (** Build an [app.bsky.labeler.service] record. [policies] and
+      [created_at] are required; optional [self_labels] / [reason_types]
+      / [subject_types] / [subject_collections] map to the lexicon. *)
   let labeler_service ~policies ~created_at ?self_labels ?reason_types
       ?subject_types ?subject_collections () : Yojson.Safe.t =
     let fields =
@@ -383,6 +419,8 @@ module Records = struct
     in
     `Assoc fields
 
+  (** Build an [app.bsky.notification.declaration] record.
+      [allow_subscriptions] maps to the lexicon. *)
   let notification_declaration ~allow_subscriptions () : Yojson.Safe.t =
     `Assoc
       [
@@ -390,6 +428,8 @@ module Records = struct
         ("allowSubscriptions", `String allow_subscriptions);
       ]
 
+  (** Build a [com.atproto.lexicon.schema] record. [id] and [defs] are
+      required; optional [description] maps to the lexicon. *)
   let lexicon_schema ~id ~defs ?description () : Yojson.Safe.t =
     let fields =
       [
@@ -424,6 +464,8 @@ module Records = struct
       defs = json |> member "defs";
     }
 
+  (** Build a [chat.bsky.actor.declaration] record. [allow_incoming] is
+      required; optional [allow_group_invites] maps to the lexicon. *)
   let chat_declaration ~allow_incoming ?allow_group_invites () : Yojson.Safe.t =
     let fields =
       [
