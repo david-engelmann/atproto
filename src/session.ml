@@ -93,10 +93,12 @@ module Session = struct
     let bearer_header = "Bearer " ^ s.auth.token in
     ("Authorization", bearer_header)
 
+  (** [Authorization: Bearer] header pair from the session refresh JWT. *)
   let refresh_token_from_session (s : session) : string * string =
     let bearer_header = "Bearer " ^ Option.get s.auth.refresh_token in
     ("Authorization", bearer_header)
 
+  (** Raw JSON from [com.atproto.server.getSession] for [s]. *)
   let get_session_request (s : session) : string =
     let base_endpoint = Auth.get_base_endpoint in
     let get_session_endpoint = Auth.create_server_endpoint "getSession" in
