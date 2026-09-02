@@ -55,6 +55,7 @@ module Labeler = struct
   let parse_services json : services =
     { views = List.map parse_service (Client.list_member json "views") }
 
+  (** Labeler views for [dids] via [app.bsky.labeler.getServices]. *)
   let get_services ?session ?host ~dids ?(detailed = false) () : services =
     Client.get_json ?session ?host "app.bsky.labeler.getServices"
       (Client.repeat_param "dids" dids

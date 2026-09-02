@@ -70,6 +70,7 @@ module Bookmark = struct
       (Client.post_json ~session:s "app.bsky.bookmark.createBookmark"
          (Yojson.Safe.to_string (create_bookmark_body ~uri ~cid)))
 
+  (** Remove the bookmark for [uri] via [app.bsky.bookmark.deleteBookmark]. *)
   let delete_bookmark (s : Session.session) ~uri () : unit =
     ignore
       (Client.post_json ~session:s "app.bsky.bookmark.deleteBookmark"

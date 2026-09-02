@@ -14,8 +14,11 @@ module Error = struct
     in
     { error; message }
 
+  (** Parse an XRPC [error] / [message] JSON object. *)
   let of_json = parse_error_from_json
 
+  (** Parse [error] from an HTTP body, or [None] if it is not an XRPC
+      error object. *)
   let of_body (body : string) : t option =
     try
       let json = Yojson.Safe.from_string body in
@@ -24,19 +27,23 @@ module Error = struct
       | _ -> None
     with _ -> None
 
+  (** [Some error] when [json] has an [error] string field. *)
   let check_for_error json : string option =
     let open Yojson.Safe.Util in
     match json |> member "error" with `String s -> Some s | _ -> None
 
+  (** Classify [json] as [RateLimitExceeded] or a generic XRPC error. *)
   let parse_error json : error_type =
     let e = parse_error_from_json json in
     match e.error with
     | "RateLimitExceeded" -> `RateLimitExceeded e
     | _ -> `Xrpc e
 
+  (** [error] or [error: message]. *)
   let to_string (e : t) : string =
     if e.message = "" then e.error else e.error ^ ": " ^ e.message
 
+  (** True for [MethodNotImplemented] / [MethodNotFound]. *)
   let is_not_implemented (e : t) : bool =
     e.error = "MethodNotImplemented" || e.error = "MethodNotFound"
 
@@ -58,6 +65,8 @@ module Error = struct
        || contains_ci e.message "not available"
        || contains_ci e.message "unknown lexicon")
 
+  (** True when the host does not serve the NSID (not implemented or
+      flag-off). *)
   let is_not_served (e : t) : bool =
     is_not_implemented e || is_feature_disabled e
 
@@ -66,11 +75,13 @@ module Error = struct
     | Some "MethodNotImplemented" | Some "MethodNotFound" -> true
     | _ -> false
 
+  (** [is_not_served] for an XRPC JSON body. *)
   let is_not_served_json json : bool =
     match check_for_error json with
     | None -> false
     | Some _ -> is_not_served (of_json json)
 
+  (** Raise [Failure] for a classified XRPC error. *)
   let handle_error error_type =
     match error_type with
     | `RateLimitExceeded e -> failwith ("RateLimitExceeded: " ^ e.message)

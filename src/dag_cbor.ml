@@ -18,6 +18,7 @@ module Dag_cbor = struct
 
   let fail msg = raise (Decode_error msg)
 
+  (** Encode [v] as DAG-CBOR (map keys sorted by encoded CBOR bytes). *)
   let rec encode (v : value) : string =
     match v with
     | Null -> "\xF6"
@@ -237,11 +238,13 @@ module Dag_cbor = struct
     in
     (acc 0 0L, i + 8)
 
+  (** Decode a single DAG-CBOR value. Fails on trailing bytes. *)
   let decode (s : string) : value =
     let v, i = decode_from s 0 in
     if i <> String.length s then fail "trailing bytes";
     v
 
+  (** Decode concatenated DAG-CBOR values (firehose header + body). *)
   let decode_sequence (s : string) : value list =
     let rec loop i acc =
       if i >= String.length s then List.rev acc
@@ -251,12 +254,15 @@ module Dag_cbor = struct
     in
     loop 0 []
 
+  (** Unwrap a [Map]; raise [Decode_error] otherwise. *)
   let get_map (v : value) : (string * value) list =
     match v with Map m -> m | _ -> fail "expected map"
 
+  (** Optional map field [key]. *)
   let find key fields =
     try Some (List.assoc key fields) with Not_found -> None
 
+  (** Required map field [key]; raise [Decode_error] if missing. *)
   let require key fields =
     match find key fields with
     | Some v -> v
@@ -278,6 +284,7 @@ module Dag_cbor = struct
   let as_bytes = function Bytes b -> b | _ -> fail "expected bytes"
   let as_array = function Array a -> a | _ -> fail "expected array"
 
+  (** Unwrap a [Cid] (or a text CID string). *)
   let as_cid = function
     | Cid c -> c
     | Text t -> Cid.of_string t
@@ -290,8 +297,8 @@ module Dag_cbor = struct
 
   let as_cid_opt = function Null -> None | v -> Some (as_cid v)
 
-  (* IPLD JSON → DAG-CBOR. `{ "$link": cid }` and `{ "$bytes": b64 }` are
-     the official JSON encodings for CID and bytes. *)
+  (** IPLD JSON to DAG-CBOR. Official [$link] / [$bytes] objects become
+      [Cid] and [Bytes]. *)
   let rec of_yojson (json : Yojson.Safe.t) : value =
     match json with
     | `Null -> Null

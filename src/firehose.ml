@@ -80,6 +80,8 @@ module Firehose = struct
     let bare = String.lowercase_ascii bare in
     bare = "localhost" || bare = "127.0.0.1" || bare = "[::1]" || bare = "::1"
 
+  (** WebSocket URL for [com.atproto.sync.subscribeRepos]. Defaults to
+      [wss://bsky.network]; localhost uses [ws]. Optional [cursor]. *)
   let subscribe_url ?(host = default_relay_host) ?scheme ?cursor () =
     let scheme =
       match scheme with
@@ -218,6 +220,8 @@ module Firehose = struct
         | _ -> None);
     }
 
+  (** Decode a binary subscribeRepos frame into a header and [message]
+      ([#commit], [#sync], [#identity], [#account], [#info], or error). *)
   let decode_frame (bytes : string) : header * message =
     match Dag_cbor.decode_sequence bytes with
     | header_v :: body :: _ ->
@@ -257,6 +261,8 @@ module Firehose = struct
     in
     Dag_cbor.encode (Dag_cbor.Map fields)
 
+  (** Stream [com.atproto.sync.subscribeRepos] frames to [f]. Optional
+      [host], [cursor], and [max_messages]. *)
   let subscribe ?(host = default_relay_host) ?cursor ?max_messages f =
     let url = subscribe_url ~host ?cursor () in
     Websocket.with_connection url (fun ws ->
@@ -289,6 +295,8 @@ module Firehose = struct
     | None -> failwith "Firehose: commit block missing from CAR"
     | Some block -> Mst.Mst.parse_repo_commit (Dag_cbor.decode block.data)
 
+  (** Invert [c]'s MST ops and return the previous-root CID. Fails on
+      [too_big] or rebase. *)
   let invert_commit (c : commit) : Cid.t =
     if c.too_big then
       failwith "Firehose.invert_commit: tooBig (CAR is incomplete)";
@@ -318,6 +326,8 @@ module Firehose = struct
           failwith "Firehose.validate_limits: block exceeds 1,000,000 bytes")
       c.blocks.blocks
 
+  (** Check commit limits and invert MST ops against [prev_data] when
+      the CAR is complete (not [too_big] / rebase). *)
   let verify_commit (c : commit) : unit =
     validate_limits c;
     match (c.too_big, c.rebase, c.ops) with
@@ -336,6 +346,8 @@ module Firehose = struct
                    (Cid.to_string inverted) (Cid.to_string expected))
         | None -> ())
 
+  (** Check the signed commit object against [c.repo] / [c.rev] and the
+      CAR root. *)
   let verify_commit_object (c : commit) : Mst.Mst.repo_commit =
     (match Car.root c.blocks with
     | Some root when not (Cid.equal root c.commit) ->
@@ -356,9 +368,12 @@ module Firehose = struct
        ^ signed.rev);
     signed
 
+  (** Verify the commit signature with [keys] (PLC / did:key). *)
   let verify_commit_sig ~keys (c : commit) : Mst.Mst.sig_status =
     Mst.Mst.verify_commit_sig ~keys (repo_commit_of c)
 
+  (** Verify a [#sync] frame: CAR root, DID, and rev match the signed
+      commit. *)
   let verify_sync (s : sync) : Mst.Mst.repo_commit =
     let root =
       match Car.root s.blocks with
@@ -382,6 +397,8 @@ module Firehose = struct
         (Printf.sprintf "Firehose.verify_sync: rev %s != %s" signed.rev s.rev);
     signed
 
+  (** Verify [c] and apply its ops to [prev_tree]. The resulting MST
+      root must match the signed commit [data] CID. *)
   let apply_commit ~(prev_tree : Mst.Mst.tree) (c : commit) : Mst.Mst.tree =
     let signed = verify_commit_object c in
     verify_commit c;

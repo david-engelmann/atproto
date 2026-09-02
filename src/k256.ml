@@ -110,12 +110,14 @@ module K256 = struct
           let q = mul (Z.shift_right k 1) (double p) in
           if Z.testbit k 0 then add q p else q
 
+  (** Parse a 32-byte secp256k1 private scalar. *)
   let priv_of_octets (s : string) : (priv, error) result =
     if String.length s <> 32 then Error `Invalid_key
     else
       let d = z_of_be s in
       if in_scalar d then Ok { d } else Error `Invalid_key
 
+  (** Public point [d·G] for private key [k]. *)
   let pub_of_priv (k : priv) : pub =
     match mul k.d (Pt g) with
     | Pt q -> q
@@ -130,6 +132,7 @@ module K256 = struct
     let q = { x; y } in
     if on_curve q then Ok q else Error `Invalid_key
 
+  (** Parse a compressed (33-byte) or uncompressed (65-byte) public key. *)
   let pub_of_octets (s : string) : (pub, error) result =
     if String.length s = 33 && (s.[0] = '\x02' || s.[0] = '\x03') then
       decompress (z_of_be (String.sub s 1 32)) (s.[0] = '\x03')
@@ -140,6 +143,7 @@ module K256 = struct
       if on_curve q then Ok q else Error `Invalid_key
     else Error `Invalid_key
 
+  (** Encode [q] as compressed ([02]/[03]+x) or uncompressed ([04]+x+y). *)
   let pub_to_octets ?(compress = true) (q : pub) : string =
     if compress then
       let prefix = if Z.testbit q.y 0 then "\x03" else "\x02" in
@@ -157,11 +161,13 @@ module K256 = struct
     in
     loop ()
 
+  (** Fresh secp256k1 key pair. *)
   let generate () : priv * pub =
     Random.self_init ();
     let priv = { d = random_scalar () } in
     (priv, pub_of_priv priv)
 
+  (** ECDSA sign [digest] (32 bytes) as IEEE P1363 [r, s] (low-S). *)
   let sign ~(key : priv) (digest : string) : string * string =
     if String.length digest <> 32 then
       failwith "K256.sign: digest must be 32 bytes";
@@ -183,6 +189,7 @@ module K256 = struct
     Random.self_init ();
     attempt ()
 
+  (** Verify IEEE P1363 [r, s] over 32-byte [digest]. *)
   let verify ~(key : pub) (r, s) (digest : string) : bool =
     try
       if

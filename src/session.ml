@@ -62,6 +62,7 @@ module Session = struct
       did_doc;
     }
 
+  (** PDS host from [ATP_HOST] (default [bsky.social]). *)
   let atp_host_from_env : string =
     let atp_host =
       try Sys.getenv "ATP_HOST" with Not_found -> "bsky.social"
@@ -87,6 +88,7 @@ module Session = struct
     in
     { username; password; atp_host; auth = session_auth; did_doc }
 
+  (** [Authorization: Bearer] header pair from the session access JWT. *)
   let bearer_token_from_session (s : session) : string * string =
     let bearer_header = "Bearer " ^ s.auth.token in
     ("Authorization", bearer_header)
@@ -119,6 +121,8 @@ module Session = struct
   let get_session (s : session) : session_request =
     Yojson.Safe.from_string (get_session_request s) |> parse_session_request
 
+  (** Rotate JWTs via [com.atproto.server.refreshSession] using
+      [refreshJwt]. Fails if the session has no refresh token. *)
   let refresh_session (s : session) : session =
     match s.auth.refresh_token with
     | None -> failwith "Session.refresh_session: missing refreshJwt"
@@ -142,9 +146,12 @@ module Session = struct
         in
         { s with auth = session_auth; did_doc }
 
+  (** Refresh [s] when [Auth.is_token_expired]; otherwise return [s]. *)
   let refresh_session_auth (s : session) : session =
     if Auth.is_token_expired s.auth then refresh_session s else s
 
+  (** End the session via [com.atproto.server.deleteSession] (Bearer
+      [refreshJwt]). *)
   let delete_session (s : session) : string =
     let bearer_token = refresh_token_from_session s in
     let headers = Cohttp_client.create_headers_from_pairs [ bearer_token ] in

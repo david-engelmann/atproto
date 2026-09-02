@@ -11,12 +11,16 @@ module Request = struct
 
   let user_agent = "david-engelmann/atproto (OCaml SDK)"
 
+  (** Build a request record ([method_], [url], optional [headers] /
+      [body]). *)
   let create ~method_ ~url ?(headers = []) ?body () : request =
     { method_; url; headers; body }
 
+  (** GET [url]. *)
   let get url ?(headers = []) () : request =
     create ~method_:Http_method.Get ~url ~headers ()
 
+  (** POST [url] with optional [body]. *)
   let post url ?(headers = []) ?body () : request =
     create ~method_:Http_method.Post ~url ~headers ?body ()
 

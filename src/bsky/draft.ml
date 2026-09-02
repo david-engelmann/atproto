@@ -313,11 +313,13 @@ module Draft = struct
 
   let delete_draft_body ~id : Yojson.Safe.t = `Assoc [ ("id", `String id) ]
 
+  (** Private stash drafts via [app.bsky.draft.getDrafts]. *)
   let get_drafts (s : Session.session) ?limit ?cursor () : drafts_page =
     Client.get_json ~session:s "app.bsky.draft.getDrafts"
       (Client.opt_int "limit" limit @ Client.opt_pair "cursor" cursor)
     |> parse_drafts_page
 
+  (** Create a stash draft via [app.bsky.draft.createDraft]. *)
   let create_draft (s : Session.session) draft : create_result =
     Client.post_json ~session:s "app.bsky.draft.createDraft"
       (Yojson.Safe.to_string (create_draft_body draft))

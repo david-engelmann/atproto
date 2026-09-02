@@ -69,6 +69,7 @@ module Contact = struct
   let send_notification_body ~from ~to_ : Yojson.Safe.t =
     `Assoc [ ("from", `String from); ("to", `String to_) ]
 
+  (** Matched contacts via [app.bsky.contact.getMatches]. *)
   let get_matches (s : Session.session) ?limit ?cursor () : matches_page =
     Client.get_json ~session:s "app.bsky.contact.getMatches"
       (Client.opt_int "limit" limit @ Client.opt_pair "cursor" cursor)
@@ -78,6 +79,8 @@ module Contact = struct
     Client.get_json ~session:s "app.bsky.contact.getSyncStatus" []
     |> parse_sync_status_opt
 
+  (** Import phone contacts via [app.bsky.contact.importContacts]
+      ([token] from [verify_phone]). *)
   let import_contacts (s : Session.session) ~token ~contacts () : import_result
       =
     Client.post_json ~session:s "app.bsky.contact.importContacts"

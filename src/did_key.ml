@@ -18,6 +18,7 @@ module Did_key = struct
   let is_did_key (s : string) : bool =
     String.length s > 8 && String.sub s 0 8 = "did:key:"
 
+  (** Parse a [did:key:] (multibase base58btc, p256 or k256). *)
   let of_string (s : string) : t =
     if not (is_did_key s) then failwith "Did_key.of_string: not a did:key";
     let rest = String.sub s 8 (String.length s - 8) in
@@ -33,15 +34,20 @@ module Did_key = struct
     in
     { curve; public_key }
 
+  (** Encode [k] as [did:key:z…]. *)
   let to_string (k : t) : string =
     let code =
       match k.curve with P256 -> p256_code | K256 -> k256_code | Other n -> n
     in
     "did:key:z" ^ Base58.encode (Varint.encode code ^ k.public_key)
 
+  (** Wrap uncompressed P-256 public-key octets as a [did:key]. *)
   let of_p256_octets (public_key : string) : t = { curve = P256; public_key }
+
+  (** Wrap secp256k1 public-key octets as a [did:key]. *)
   let of_k256_octets (public_key : string) : t = { curve = K256; public_key }
 
+  (** P-256 public key for [k], or [None] if the curve is not p256. *)
   let p256_pub (k : t) : Mirage_crypto_ec.P256.Dsa.pub option =
     if k.curve <> P256 then None
     else
@@ -49,6 +55,7 @@ module Did_key = struct
       | Ok pub -> Some pub
       | Error _ -> None
 
+  (** secp256k1 public key for [k], or [None] if the curve is not k256. *)
   let k256_pub (k : t) : K256.pub option =
     if k.curve <> K256 then None
     else

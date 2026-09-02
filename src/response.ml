@@ -7,6 +7,7 @@ module Response = struct
     headers : (string * string) list;
   }
 
+  (** Build a response; [success] is true for HTTP 2xx. *)
   let make ~status_code ~content ?(headers = []) () : response =
     {
       success = status_code >= 200 && status_code < 300;
@@ -15,9 +16,11 @@ module Response = struct
       headers;
     }
 
+  (** [make] with [body] as bytes. *)
   let of_string ~status_code ?(headers = []) body : response =
     make ~status_code ~content:(Bytes.of_string body) ~headers ()
 
+  (** Response body as a UTF-8 string. *)
   let body_string (r : response) : string = Bytes.to_string r.content
 
   let header (r : response) name : string option =

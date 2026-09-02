@@ -1,5 +1,6 @@
 (** Unsigned LEB128 / multiformat varints used by CID, CAR, and DAG-CBOR. *)
 module Varint = struct
+  (** Unsigned LEB128 encode of non-negative [n]. *)
   let encode (n : int) : string =
     if n < 0 then invalid_arg "Varint.encode: negative";
     let buf = Buffer.create 4 in
@@ -14,6 +15,7 @@ module Varint = struct
     loop n;
     Buffer.contents buf
 
+  (** Decode a varint starting at [off]. Returns [value, next_offset]. *)
   let decode_from (s : string) (off : int) : int * int =
     let rec loop acc shift i =
       if i >= String.length s then failwith "Varint.decode: truncated";
@@ -25,5 +27,6 @@ module Varint = struct
     in
     loop 0 0 off
 
+  (** [decode_from s 0]. *)
   let decode (s : string) : int * int = decode_from s 0
 end
