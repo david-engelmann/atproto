@@ -4,6 +4,8 @@ module Error = struct
   type error = t
   type error_type = [ `RateLimitExceeded of t | `Xrpc of t ]
 
+  (** Parse XRPC [error] / [message] fields from [json]. Missing [error]
+      is ["Unknown"]; missing [message] is empty. *)
   let parse_error_from_json json : t =
     let open Yojson.Safe.Util in
     let error =
@@ -47,6 +49,7 @@ module Error = struct
   let is_not_implemented (e : t) : bool =
     e.error = "MethodNotImplemented" || e.error = "MethodNotFound"
 
+  (** Case-insensitive substring match (feature-disabled XRPC messages). *)
   let contains_ci hay needle =
     let h = String.lowercase_ascii hay and n = String.lowercase_ascii needle in
     let rec aux i =
@@ -59,6 +62,8 @@ module Error = struct
   (* Local AppView implements some NSIDs but keeps them flag-off
      (e.g. InvalidRequest: Search v2 is not enabled). A local PDS can
      also reject a record $type it has not bundled yet. *)
+  (** True when [InvalidRequest] means the NSID is flag-off ([not
+      enabled] / [not available] / [unknown lexicon]). *)
   let is_feature_disabled (e : t) : bool =
     e.error = "InvalidRequest"
     && (contains_ci e.message "not enabled"
@@ -70,6 +75,7 @@ module Error = struct
   let is_not_served (e : t) : bool =
     is_not_implemented e || is_feature_disabled e
 
+  (** True when [json] is [MethodNotImplemented] or [MethodNotFound]. *)
   let is_not_implemented_json json : bool =
     match check_for_error json with
     | Some "MethodNotImplemented" | Some "MethodNotFound" -> true

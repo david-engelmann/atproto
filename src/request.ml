@@ -9,6 +9,7 @@ module Request = struct
     body : string option;
   }
 
+  (** User-Agent sent by [Http_client] ([david-engelmann/atproto]). *)
   let user_agent = "david-engelmann/atproto (OCaml SDK)"
 
   (** Build a request record ([method_], [url], optional [headers] /
@@ -24,9 +25,11 @@ module Request = struct
   let post url ?(headers = []) ?body () : request =
     create ~method_:Http_method.Post ~url ~headers ?body ()
 
+  (** PUT [url] with optional [body]. *)
   let put url ?(headers = []) ?body () : request =
     create ~method_:Http_method.Put ~url ~headers ?body ()
 
+  (** DELETE [url]. *)
   let delete url ?(headers = []) ?body () : request =
     create ~method_:Http_method.Delete ~url ~headers ?body ()
 

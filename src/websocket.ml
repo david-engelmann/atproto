@@ -20,8 +20,10 @@ module Websocket = struct
   (** RFC 6455 §4.1: the client offered [Sec-WebSocket-Protocol] but the
       101 response omitted it or named a protocol that was not offered. *)
 
+  (** RFC 6455 magic GUID for [Sec-WebSocket-Accept]. *)
   let guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
+  (** [Sec-WebSocket-Accept] from the client key (SHA-1 + GUID). *)
   let accept_key (sec_websocket_key : string) : string =
     Base64url.encode_std ~pad:true (Hash.sha1 (sec_websocket_key ^ guid))
 
@@ -40,6 +42,7 @@ module Websocket = struct
     done;
     Bytes.to_string out
 
+  (** Encode one RFC 6455 frame. Clients mask by default. *)
   let encode_frame ?(fin = true) ?(mask = true) ~(opcode : int)
       (payload : string) : string =
     let buf = Buffer.create (String.length payload + 14) in
@@ -69,6 +72,7 @@ module Websocket = struct
 
   type decoded_frame = { fin : bool; opcode : int; payload : string }
 
+  (** Decode one frame by reading from [read_exact]. *)
   let decode_frame_header (read_exact : int -> string) : decoded_frame =
     let h = read_exact 2 in
     let b0 = Char.code h.[0] in
@@ -94,6 +98,7 @@ module Websocket = struct
     let payload = if masked then mask_payload mask_key payload else payload in
     { fin; opcode; payload }
 
+  (** Decode one frame from [bytes]; returns the frame and bytes consumed. *)
   let decode_frame_bytes (bytes : string) : decoded_frame * int =
     if String.length bytes < 2 then failwith "Websocket.decode_frame: truncated";
     let off = ref 2 in
@@ -157,15 +162,22 @@ module Websocket = struct
     in
     loop 0
 
+  (** Send [payload] as a frame (default opcode 2 / binary). *)
   let send (ws : t) ?(opcode = 2) (payload : string) : unit =
     write_all ws.transport (encode_frame ~opcode payload)
 
+  (** Send a close frame (opcode 8). *)
   let send_close (ws : t) : unit = send ws ~opcode:8 ""
+
+  (** Send a pong frame (opcode 10). *)
   let send_pong (ws : t) payload = send ws ~opcode:10 payload
 
+  (** Read one raw frame. *)
   let recv_frame (ws : t) : decoded_frame =
     decode_frame_header (fun n -> read_exact ws.transport n)
 
+  (** Read a complete message (continuation frames). Auto-replies to
+      ping. Used by firehose / Jetstream / [subscribeLabels]. *)
   let recv_message (ws : t) : message =
     let rec collect opcode acc =
       let frame = recv_frame ws in
@@ -185,6 +197,7 @@ module Websocket = struct
     in
     collect 0 ""
 
+  (** Parse [ws://] or [wss://] into host, port, and path. *)
   let parse_url (url : string) : parsed_url =
     let secure, rest =
       if String.length url >= 6 && String.sub url 0 6 = "wss://" then
@@ -208,10 +221,12 @@ module Websocket = struct
     in
     { secure; host; port; path }
 
+  (** [(host, port, path)] from a [ws://] or [wss://] URL. *)
   let parse_wss_url (url : string) : string * int * string =
     let p = parse_url url in
     (p.host, p.port, p.path)
 
+  (** Host header authority ([host] or [host:port]). *)
   let authority (p : parsed_url) : string =
     if (p.secure && p.port = 443) || ((not p.secure) && p.port = 80) then p.host
     else Printf.sprintf "%s:%d" p.host p.port
@@ -249,6 +264,8 @@ module Websocket = struct
     String.concat ""
       (List.map (fun (k, v) -> Printf.sprintf "%s: %s\r\n" k v) extra)
 
+  (** [Sec-WebSocket-Protocol] values offered in [extra] handshake
+      headers (Jetstream v2 [xrpc.v1.json]). *)
   let offered_subprotocols (extra : (string * string) list) : string list =
     List.flatten
       (List.map
@@ -260,6 +277,8 @@ module Websocket = struct
                (List.map String.trim (String.split_on_char ',' v)))
          extra)
 
+  (** RFC 6455 §4.1: if the client offered a subprotocol, the 101 must
+      echo one of them. *)
   let check_subprotocol_echo ~(offered : string list) (echoed : string option) :
       unit =
     match offered with
@@ -363,6 +382,7 @@ module Websocket = struct
        raise exn);
     { transport }
 
+  (** Send close and shut down the transport. *)
   let close (ws : t) =
     (try send_close ws with _ -> ());
     match ws.transport with
@@ -371,6 +391,7 @@ module Websocket = struct
         (try Unix.shutdown fd Unix.SHUTDOWN_ALL with _ -> ());
         try Unix.close fd with _ -> ())
 
+  (** {!connect}, run [f], then {!close}. *)
   let with_connection ?tls_verify ?(extra_headers = []) url f =
     let ws = connect ?tls_verify ~extra_headers url in
     Fun.protect ~finally:(fun () -> close ws) (fun () -> f ws)

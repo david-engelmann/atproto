@@ -9,7 +9,10 @@ open Lwt.Infix
 module Http_client = struct
   exception Error of string
 
+  (** Default request timeout (15s). *)
   let default_timeout = 15.0
+
+  (** Same User-Agent as [Request.user_agent]. *)
   let user_agent = Request.user_agent
 
   type parsed_url = {
@@ -21,6 +24,7 @@ module Http_client = struct
 
   let fail msg = raise (Error msg)
 
+  (** Parse an [https://] URL for the HTTP/2 transport. *)
   let parse_url (url : string) : parsed_url =
     let uri = Uri.of_string url in
     let scheme =
@@ -68,6 +72,7 @@ module Http_client = struct
     | Unix.ADDR_UNIX _ -> None
     | ADDR_INET (addr, port) -> Some (addr, port)
 
+  (** DNS lookup for [host]:[port] (HTTP/2 connect). *)
   let get_addr_info (host : string) (port : int) : Unix.addr_info list Lwt.t =
     Lwt_unix.getaddrinfo host (string_of_int port)
       [ Unix.AI_SOCKTYPE Unix.SOCK_STREAM ]
@@ -206,10 +211,12 @@ module Http_client = struct
   let delete url ?(headers = []) ?body ?timeout () : Response.response Lwt.t =
     request ?timeout (Request.delete url ~headers ?body ())
 
+  (** HTTP/2 PATCH [url] with optional [body]. *)
   let patch url ?(headers = []) ?body ?timeout () : Response.response Lwt.t =
     request ?timeout
       (Request.create ~method_:Http_method.Patch ~url ~headers ?body ())
 
+  (** HTTP/2 GET [https://host[:port]/]. *)
   let get_host (host : string) (port : int) : Response.response Lwt.t =
     let url =
       if port = 443 then Printf.sprintf "https://%s/" host
@@ -258,16 +265,19 @@ module Http_client = struct
     then headers
     else ("content-type", "application/json") :: headers
 
+  (** HTTP/2 PUT for XRPC [nsid] on [host] (JSON content-type default). *)
   let xrpc_put ~host ?port ~nsid ?(headers = []) ?body ?timeout () :
       Response.response Lwt.t =
     put
       (xrpc_url ~host ?port nsid ())
       ~headers:(json_headers headers) ?body ?timeout ()
 
+  (** HTTP/2 DELETE for XRPC [nsid] on [host]. *)
   let xrpc_delete ~host ?port ~nsid ?(headers = []) ?body ?timeout () :
       Response.response Lwt.t =
     delete (xrpc_url ~host ?port nsid ()) ~headers ?body ?timeout ()
 
+  (** HTTP/2 PATCH for XRPC [nsid] on [host] (JSON content-type default). *)
   let xrpc_patch ~host ?port ~nsid ?(headers = []) ?body ?timeout () :
       Response.response Lwt.t =
     patch
