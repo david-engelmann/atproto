@@ -26,6 +26,7 @@ Admin, [#136](https://github.com/david-engelmann/atproto/pull/136) Server,
 [#138](https://github.com/david-engelmann/atproto/pull/138)
 Session / Moderation / Temp).
 This PR adds remaining function-level odoc on Repo XRPC wrappers.
+This PR adds remaining function-level odoc on Oauth_scope / Syntax.
 
 This package is **not** published to the public
 [opam-repository](https://github.com/ocaml/opam-repository). Depend on it by
@@ -265,6 +266,11 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   function-level odoc on Germnetwork / Lexicon (`nsid_declaration`,
   `show_*`, `bytes_to_json` / `bytes_of_json`, `message_me` /
   `parse_declaration`, `of_json`, lookup / `to_ocaml`). Comment-only
+- This PR: remaining function-level odoc on Oauth_scope / Syntax
+  (`resource_name`, `resource_of_string`, `collections_of`,
+  `actions_of`, `lxm_of`, `aud_of`, `validate`, `to_string`,
+  `is_valid_datetime` / `is_valid_language`, `parse_nsid` /
+  `parse_did_ref`, `normalize_handle`). Comment-only
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
