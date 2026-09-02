@@ -1141,6 +1141,83 @@ let test_leftover_admin _ =
        (Yojson.Safe.to_string
           (Admin.delete_account_body ~did:doomed.auth.did ())))
 
+(* Remaining com.atproto.server NSIDs whose wrappers already exist
+   (#136) and are not already live-called. createInviteCode(s) may
+   be admin-only — reuse admin_leftover_post / admin_basic_extra if
+   the session JWT is not an operator token. Email/password token
+   hops skip InvalidToken / email-token / SMTP policy (TestNetwork
+   cannot deliver mail). Empty-body POSTs send "" not "{}" (same as
+   requestAccountDelete). Destructive hops use a throwaway account,
+   never alice.test. Does not invent SMTP or a hosted mailer. *)
+let test_leftover_server _ =
+  let admin = admin_session () in
+  let alice = session () in
+  let doomed = throwaway_session "srv" "local-server-throwaway-password" in
+  if doomed.username = "alice.test" || doomed.auth.did = alice.auth.did then
+    failwith "refusing leftover server hops on alice.test";
+  (match
+     admin_leftover_post admin "com.atproto.server.createInviteCode"
+       (Yojson.Safe.to_string
+          (Server.create_invite_code_body ~use_count:1
+             ~for_account:doomed.auth.did ()))
+   with
+  | None -> ()
+  | Some json ->
+      OUnit2.assert_bool "createInviteCode"
+        (match Yojson.Safe.Util.member "code" json with
+        | `String c -> String.length c > 0
+        | _ -> false));
+  (match
+     admin_leftover_post admin "com.atproto.server.createInviteCodes"
+       (Yojson.Safe.to_string
+          (Server.create_invite_codes_body ~code_count:1 ~use_count:1
+             ~for_accounts:[ doomed.auth.did ] ()))
+   with
+  | None -> ()
+  | Some json ->
+      OUnit2.assert_bool "createInviteCodes"
+        (match Yojson.Safe.Util.member "codes" json with
+        | `List _ -> true
+        | _ -> false));
+  (* Empty body, same as requestAccountDelete. PDS 0.5.31 rejects
+     JSON {} when none was expected. *)
+  ignore
+    (admin_leftover_json
+       (Client.post_json ~session:doomed ~host:(pds_host ())
+          "com.atproto.server.requestEmailConfirmation" ""));
+  ignore
+    (pds_leftover_json
+       (Client.post_json ~session:doomed ~host:(pds_host ())
+          "com.atproto.server.confirmEmail"
+          (Yojson.Safe.to_string
+             (Server.confirm_email_body
+                ~email:(doomed.username ^ "@test.local")
+                ~token:"not-an-email-token"))));
+  ignore
+    (pds_leftover_json
+       (Client.post_json ~session:doomed ~host:(pds_host ())
+          "com.atproto.server.updateEmail"
+          (Yojson.Safe.to_string
+             (Server.update_email_body
+                ~email:(unique_handle "srve" ^ "@test.local")
+                ~token:"not-an-email-token" ()))));
+  ignore
+    (admin_leftover_json
+       (Client.post_json ~session:doomed ~host:(pds_host ())
+          "com.atproto.server.requestPasswordReset"
+          (Yojson.Safe.to_string
+             (Server.request_password_reset_body
+                ~email:(doomed.username ^ "@test.local")))));
+  if doomed.username = "alice.test" then
+    failwith "refusing resetPassword on alice.test";
+  ignore
+    (pds_leftover_json
+       (Client.post_json ~session:doomed ~host:(pds_host ())
+          "com.atproto.server.resetPassword"
+          (Yojson.Safe.to_string
+             (Server.reset_password_body ~token:"not-an-email-token"
+                ~password:"local-server-reset-password"))))
+
 let suite =
   "local_pds"
   >::: [
@@ -1168,6 +1245,7 @@ let suite =
          "test_plc_directory_write" >:: test_plc_directory_write;
          "test_leftover_served" >:: test_leftover_served;
          "test_leftover_admin" >:: test_leftover_admin;
+         "test_leftover_server" >:: test_leftover_server;
        ]
 
 let () =
