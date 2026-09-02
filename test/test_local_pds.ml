@@ -16,6 +16,7 @@ open Atproto.Repo_sync
 open Atproto.Client
 open Atproto.Firehose
 open Atproto.Lexicon
+open Atproto.Admin
 open Temp
 open Actor
 open Lexicon
@@ -109,6 +110,77 @@ let pds_leftover_json json =
         let e = Error.of_json json in
         if is_policy_invalid e then None else Some (ensure_ok json)
 
+(* TestNetwork @atproto/dev-env 0.6.4 operator password. com.atproto.admin
+   is Basic admin:admin-pass on PDS, not a hosted /admin panel. *)
+let admin_basic_password () =
+  match Sys.getenv_opt "ATP_PDS_ADMIN_PASSWORD" with
+  | Some p when String.trim p <> "" -> String.trim p
+  | _ -> "admin-pass"
+
+let admin_basic_extra () =
+  let b64 =
+    Atproto.Base64url.Base64url.encode_std ("admin:" ^ admin_basic_password ())
+  in
+  [ ("Authorization", "Basic " ^ b64) ]
+
+let is_admin_auth_required (e : Error.t) =
+  e.error = "AuthenticationRequired"
+  || e.error = "AuthMissing" || e.error = "Forbidden" || e.error = "BadJwtType"
+  || e.error = "InvalidToken"
+  || message_has e.error "authenticationrequired"
+  || message_has e.error "authmissing"
+  || message_has e.error "forbidden"
+  || message_has e.error "badjwttype"
+  || message_has e.error "invalidtoken"
+  || message_has e.message "authentication required"
+  || message_has e.message "not authorized"
+  || message_has e.message "not an admin"
+  || message_has e.message "admin authentication"
+  || message_has e.message "admin privileges"
+  || message_has e.message "invalid jwt type"
+  || message_has e.message "at+jwt"
+
+let is_admin_policy_invalid (e : Error.t) =
+  is_policy_invalid e || is_admin_auth_required e
+  || message_has e.message "smtp"
+  || message_has e.message "email service"
+  || message_has e.message "unable to send email"
+  || message_has e.message "failed to send email"
+  || message_has e.message "mail not configured"
+
+let admin_leftover_json json =
+  if Error.is_not_served_json json then None
+  else
+    match Error.check_for_error json with
+    | None -> Some json
+    | Some _ ->
+        let e = Error.of_json json in
+        if is_admin_policy_invalid e then None else Some (ensure_ok json)
+
+(* Live-call with admin-mod.test, then TestNetwork Basic admin if the
+   session JWT is not an operator token. Skip leftover hops on policy. *)
+let admin_call_get s nsid pairs =
+  let via_session = Client.get_json ~session:s ~host:(pds_host ()) nsid pairs in
+  match Error.check_for_error via_session with
+  | Some _ when is_admin_auth_required (Error.of_json via_session) ->
+      Client.get_json ~host:(pds_host ()) ~extra:(admin_basic_extra ()) nsid
+        pairs
+  | _ -> via_session
+
+let admin_call_post s nsid data =
+  let via_session = Client.post_json ~session:s ~host:(pds_host ()) nsid data in
+  match Error.check_for_error via_session with
+  | Some _ when is_admin_auth_required (Error.of_json via_session) ->
+      Client.post_json ~host:(pds_host ()) ~extra:(admin_basic_extra ()) nsid
+        data
+  | _ -> via_session
+
+let admin_leftover_get s nsid pairs =
+  admin_leftover_json (admin_call_get s nsid pairs)
+
+let admin_leftover_post s nsid data =
+  admin_leftover_json (admin_call_post s nsid data)
+
 (* signPlcOperation is served on PDS 0.5.31 but requires an email
    confirmation token TestNetwork cannot deliver. Skip that hop only. *)
 let pds_sign_plc_if_served ?session data =
@@ -179,6 +251,15 @@ let throwaway_session prefix password =
     (Server.create_account_at ~host:(pds_host ()) ~handle ~email ~password ()
     |> ensure_ok);
   Session.create_session handle password
+
+let admin_session () =
+  skip_unless_local_pds ();
+  match Sys.getenv_opt "ATP_AUTH_OZONE" with
+  | Some auth -> (
+      match String.split_on_char ':' auth with
+      | [ u; p ] -> Session.create_session u p
+      | _ -> failwith "expected handle:password in ATP_AUTH_OZONE")
+  | None -> Session.create_session "admin-mod.test" "admin-mod-pass"
 
 let test_describe_server _ =
   skip_unless_local_pds ();
@@ -935,6 +1016,131 @@ let test_leftover_served _ =
     | Some _ ->
         failwith ("XRPC error: " ^ Error.to_string (Error.of_json created))
 
+(* Remaining com.atproto.admin NSIDs whose wrappers already exist
+   (#135). Live-call with the admin session. Skip if not served /
+   MethodNotImplemented / feature-disabled / UpstreamFailure /
+   email-token / InvalidToken. Do not fail the suite on TestNetwork
+   policy. Destructive hops use a throwaway account, never alice.test.
+   Does not fake a hosted admin panel. *)
+let test_leftover_admin _ =
+  let admin = admin_session () in
+  let alice = session () in
+  let doomed = throwaway_session "adm" "local-admin-throwaway-password" in
+  if doomed.username = "alice.test" || doomed.auth.did = alice.auth.did then
+    failwith "refusing admin leftover hops on alice.test";
+  (match
+     admin_leftover_get admin "com.atproto.admin.getSubjectStatus"
+       [ ("did", doomed.auth.did) ]
+   with
+  | None -> ()
+  | Some json ->
+      let st = Admin.parse_subject_status json in
+      (match st.subject with
+      | Admin.Repo { did } ->
+          OUnit2.assert_equal ~printer:(fun x -> x) doomed.auth.did did
+      | _ -> ());
+      OUnit2.assert_bool "getSubjectStatus"
+        (match st.original with `Assoc _ -> true | _ -> false));
+  (match
+     admin_leftover_post admin "com.atproto.admin.updateSubjectStatus"
+       (Yojson.Safe.to_string
+          (Admin.update_subject_status_body
+             ~subject:(Admin.Repo { did = doomed.auth.did })
+             ~takedown:{ Admin.applied = false; ref_ = None }
+             ()))
+   with
+  | None -> ()
+  | Some json ->
+      let st = Admin.parse_subject_status json in
+      OUnit2.assert_bool "updateSubjectStatus"
+        (match st.original with `Assoc _ -> true | _ -> false));
+  (match
+     admin_leftover_get admin "com.atproto.admin.getAccountInfo"
+       [ ("did", doomed.auth.did) ]
+   with
+  | None -> ()
+  | Some json ->
+      let info = Admin.parse_account_info json in
+      OUnit2.assert_equal ~printer:(fun x -> x) doomed.auth.did info.did;
+      OUnit2.assert_bool "getAccountInfo handle" (String.length info.handle > 0));
+  (match
+     admin_leftover_get admin "com.atproto.admin.getAccountInfos"
+       (Client.repeat_param "dids" [ doomed.auth.did; alice.auth.did ])
+   with
+  | None -> ()
+  | Some json ->
+      let infos =
+        List.map Admin.parse_account_info
+          (match Client.list_member json "infos" with
+          | [] -> Client.list_member json "accounts"
+          | xs -> xs)
+      in
+      OUnit2.assert_bool "getAccountInfos" (List.length infos >= 0));
+  (match
+     admin_leftover_get admin "com.atproto.admin.searchAccounts"
+       [ ("email", doomed.username ^ "@test.local") ]
+   with
+  | None -> ()
+  | Some json ->
+      let page = Admin.parse_accounts json in
+      OUnit2.assert_bool "searchAccounts" (List.length page.accounts >= 0));
+  ignore
+    (admin_leftover_post admin "com.atproto.admin.disableAccountInvites"
+       (Yojson.Safe.to_string
+          (Admin.disable_invites_body ~account:doomed.auth.did
+             ~note:"ocaml leftover admin" ())));
+  ignore
+    (admin_leftover_post admin "com.atproto.admin.enableAccountInvites"
+       (Yojson.Safe.to_string
+          (Admin.enable_invites_body ~account:doomed.auth.did
+             ~note:"ocaml leftover admin" ())));
+  (match
+     admin_leftover_get admin "com.atproto.admin.getInviteCodes"
+       [ ("limit", "10") ]
+   with
+  | None -> ()
+  | Some json ->
+      let codes = Admin.parse_invite_codes json in
+      OUnit2.assert_bool "getInviteCodes" (List.length codes.codes >= 0));
+  ignore
+    (admin_leftover_post admin "com.atproto.admin.disableInviteCodes"
+       (Yojson.Safe.to_string
+          (Admin.disable_invite_codes_body ~accounts:[ doomed.auth.did ] ())));
+  ignore
+    (admin_leftover_post admin "com.atproto.admin.sendEmail"
+       (Yojson.Safe.to_string
+          (Admin.send_email_body ~recipient_did:doomed.auth.did
+             ~content:"ocaml leftover admin hop" ~subject:"ocaml leftover"
+             ~sender_did:admin.auth.did ())));
+  ignore
+    (admin_leftover_post admin "com.atproto.admin.updateAccountEmail"
+       (Yojson.Safe.to_string
+          (Admin.update_account_email_body ~account:doomed.auth.did
+             ~email:(unique_handle "adme" ^ "@test.local")
+             ())));
+  ignore
+    (admin_leftover_post admin "com.atproto.admin.updateAccountHandle"
+       (Yojson.Safe.to_string
+          (Admin.update_account_handle_body ~did:doomed.auth.did
+             ~handle:(unique_handle "admh") ())));
+  ignore
+    (admin_leftover_post admin "com.atproto.admin.updateAccountPassword"
+       (Yojson.Safe.to_string
+          (Admin.update_account_password_body ~did:doomed.auth.did
+             ~password:"local-admin-updated-password" ())));
+  ignore
+    (admin_leftover_post admin "com.atproto.admin.updateAccountSigningKey"
+       (Yojson.Safe.to_string
+          (Admin.update_account_signing_key_body ~did:doomed.auth.did
+             ~signing_key:
+               "did:key:zQ3shZc2QzApp2oymGvQbzP8eKheVshBHbU4ZYjeXqwSKEn6N" ())));
+  if doomed.username = "alice.test" then
+    failwith "refusing admin deleteAccount on alice.test";
+  ignore
+    (admin_leftover_post admin "com.atproto.admin.deleteAccount"
+       (Yojson.Safe.to_string
+          (Admin.delete_account_body ~did:doomed.auth.did ())))
+
 let suite =
   "local_pds"
   >::: [
@@ -961,6 +1167,7 @@ let suite =
          "test_plc_operation_xrpc" >:: test_plc_operation_xrpc;
          "test_plc_directory_write" >:: test_plc_directory_write;
          "test_leftover_served" >:: test_leftover_served;
+         "test_leftover_admin" >:: test_leftover_admin;
        ]
 
 let () =
