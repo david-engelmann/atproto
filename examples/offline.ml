@@ -965,6 +965,15 @@ let () =
     in
     contains 0);
   assert (
+    Jetstream.subscribe_extra_headers ()
+    = [ ("Sec-WebSocket-Protocol", "xrpc.v1.json") ]);
+  assert (
+    Jetstream.subscribe_extra_headers ~compress:true ()
+    = [ ("Sec-WebSocket-Protocol", "xrpc.v1.json") ]);
+  assert (
+    Jetstream.subscribe_extra_headers ~version:Jetstream.V1 ~compress:true ()
+    = [ ("Socket-Encoding", "zstd") ]);
+  assert (
     Jetstream.zstd_dictionary_id Jetstream.embedded_zstd_dictionary
     = Some 20260811);
   let optout =

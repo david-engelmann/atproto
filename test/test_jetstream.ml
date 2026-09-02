@@ -373,32 +373,81 @@ let test_snapshot_gated_live _ =
           skip_if true (Printf.sprintf "planSnapshot HTTP %d" code)
       | exn -> skip_if true ("planSnapshot skipped: " ^ Printexc.to_string exn))
 
-let test_subscribe_live _ =
+let live_post_filter =
+  {
+    Jetstream.empty_filter with
+    collections = [ "app.bsky.feed.post" ];
+    kinds = [ Jetstream.Commit ];
+  }
+
+let assert_decoded_event label ev =
+  match ev with
+  | `Commit _ | `Identity _ | `Account _ | `Sync _ | `Info _ | `Unknown _ ->
+      OUnit2.assert_bool label true
+
+let skip_or_fail_live label = function
+  | Atproto.Websocket.Websocket.Subprotocol_error msg ->
+      OUnit2.assert_failure
+        (label ^ ": 101 omitted or mismatched xrpc.v1.json echo: " ^ msg)
+  | Atproto.Websocket.Websocket.Handshake_error (code, body) ->
+      skip_if true (Printf.sprintf "%s skipped: handshake %d %s" label code body)
+  | Failure msg as exn ->
+      let needle = "Sec-WebSocket-Protocol" in
+      let rec contains i =
+        i + String.length needle <= String.length msg
+        && (String.sub msg i (String.length needle) = needle || contains (i + 1))
+      in
+      if contains 0 then
+        OUnit2.assert_failure
+          (label ^ ": 101 omitted or mismatched xrpc.v1.json echo: " ^ msg)
+      else skip_if true (label ^ " skipped: " ^ Printexc.to_string exn)
+  | exn -> skip_if true (label ^ " skipped: " ^ Printexc.to_string exn)
+
+let with_alarm seconds f =
   let old =
     Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
   in
-  ignore (Unix.alarm 20);
+  ignore (Unix.alarm seconds);
   Fun.protect
     ~finally:(fun () ->
       ignore (Unix.alarm 0);
       Sys.set_signal Sys.sigalrm old)
-    (fun () ->
+    f
+
+let test_subscribe_live _ =
+  with_alarm 20 (fun () ->
       try
-        let ev =
-          Jetstream.subscribe_one
-            ~filter:
-              {
-                Jetstream.empty_filter with
-                collections = [ "app.bsky.feed.post" ];
-                kinds = [ Jetstream.Commit ];
-              }
-            ()
-        in
-        match ev with
-        | `Commit _ | `Identity _ | `Account _ | `Sync _ | `Info _ | `Unknown _
-          ->
-            OUnit2.assert_bool "decoded a Jetstream frame" true
-      with exn -> skip_if true ("jetstream skipped: " ^ Printexc.to_string exn))
+        let ev = Jetstream.subscribe_one ~filter:live_post_filter () in
+        assert_decoded_event "decoded a Jetstream frame" ev
+      with exn -> skip_or_fail_live "jetstream" exn)
+
+let test_subscribe_one_subprotocol_live _ =
+  with_alarm 20 (fun () ->
+      let headers = Jetstream.subscribe_extra_headers () in
+      OUnit2.assert_equal
+        [ ("Sec-WebSocket-Protocol", "xrpc.v1.json") ]
+        headers;
+      try
+        let ev = Jetstream.subscribe_one ~filter:live_post_filter () in
+        assert_decoded_event
+          "decoded a Jetstream v2 event with xrpc.v1.json negotiated" ev
+      with exn -> skip_or_fail_live "jetstream subprotocol" exn)
+
+let test_subscribe_extra_headers _ =
+  let v2 = Jetstream.subscribe_extra_headers () in
+  OUnit2.assert_equal
+    [ ("Sec-WebSocket-Protocol", Jetstream.xrpc_v1_json_subprotocol) ]
+    v2;
+  let v2_zstd = Jetstream.subscribe_extra_headers ~compress:true () in
+  OUnit2.assert_equal
+    [ ("Sec-WebSocket-Protocol", Jetstream.xrpc_v1_json_subprotocol) ]
+    v2_zstd;
+  let v1 = Jetstream.subscribe_extra_headers ~version:Jetstream.V1 () in
+  OUnit2.assert_equal [] v1;
+  let v1_zstd =
+    Jetstream.subscribe_extra_headers ~version:Jetstream.V1 ~compress:true ()
+  in
+  OUnit2.assert_equal [ ("Socket-Encoding", "zstd") ] v1_zstd
 
 let test_subscribe_url_compress _ =
   let has url needle =
@@ -557,6 +606,10 @@ let test_subscribe_one_compress_live _ =
                (match have with Some n -> string_of_int n | None -> "none"))
       | Yojson.Json_error msg ->
           OUnit2.assert_failure ("compressed frame was not JSON: " ^ msg)
+      | Atproto.Websocket.Websocket.Subprotocol_error msg ->
+          OUnit2.assert_failure
+            ("compressed v2 101 omitted or mismatched xrpc.v1.json echo: "
+           ^ msg)
       | Atproto.Websocket.Websocket.Handshake_error (code, body) -> (
           match Atproto.Error.Error.of_body body with
           | Some e
@@ -661,6 +714,9 @@ let suite =
          "test_replay_planner" >:: test_replay_planner;
          "test_snapshot_gated_live" >:: test_snapshot_gated_live;
          "test_subscribe_live" >:: test_subscribe_live;
+         "test_subscribe_one_subprotocol_live"
+         >:: test_subscribe_one_subprotocol_live;
+         "test_subscribe_extra_headers" >:: test_subscribe_extra_headers;
          "test_subscribe_url_compress" >:: test_subscribe_url_compress;
          "test_dict_zstd_roundtrip" >:: test_dict_zstd_roundtrip;
          "test_jss_walk_dict_zstd" >:: test_jss_walk_dict_zstd;

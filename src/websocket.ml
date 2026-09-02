@@ -16,6 +16,10 @@ module Websocket = struct
 
   exception Handshake_error of int * string
 
+  (** RFC 6455 §4.1: the client offered [Sec-WebSocket-Protocol] but the
+      101 response omitted it or named a protocol that was not offered. *)
+  exception Subprotocol_error of string
+
   let guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
   let accept_key (sec_websocket_key : string) : string =
@@ -245,6 +249,36 @@ module Websocket = struct
     String.concat ""
       (List.map (fun (k, v) -> Printf.sprintf "%s: %s\r\n" k v) extra)
 
+  let offered_subprotocols (extra : (string * string) list) : string list =
+    List.flatten
+      (List.map
+         (fun (k, v) ->
+           if String.lowercase_ascii k <> "sec-websocket-protocol" then []
+           else
+             List.filter
+               (fun p -> p <> "")
+               (List.map String.trim (String.split_on_char ',' v)))
+         extra)
+
+  let check_subprotocol_echo ~(offered : string list) (echoed : string option) :
+      unit =
+    match offered with
+    | [] -> ()
+    | protocols -> (
+        match echoed with
+        | None ->
+            raise
+              (Subprotocol_error
+                 "server omitted Sec-WebSocket-Protocol after client offer")
+        | Some got ->
+            let got = String.trim got in
+            if not (List.mem got protocols) then
+              raise
+                (Subprotocol_error
+                   (Printf.sprintf
+                      "Sec-WebSocket-Protocol %S was not in the client offer"
+                      got)))
+
   let connect ?(tls_verify = false) ?(extra_headers = []) (url : string) : t =
     Random.self_init ();
     let p = parse_url url in
@@ -312,6 +346,18 @@ module Websocket = struct
         if got <> expected then
           failwith "Websocket: Sec-WebSocket-Accept mismatch"
     | None -> failwith "Websocket: missing Sec-WebSocket-Accept");
+    (* RFC 6455 §4.1: only when the client offered a subprotocol. *)
+    (try
+       check_subprotocol_echo
+         ~offered:(offered_subprotocols extra_headers)
+         (header_value headers "sec-websocket-protocol")
+     with Subprotocol_error _ as exn ->
+       (try
+          match transport with
+          | Tls ssl -> Ssl.shutdown ssl
+          | Tcp fd -> Unix.close fd
+        with _ -> ());
+       raise exn);
     { transport }
 
   let close (ws : t) =
