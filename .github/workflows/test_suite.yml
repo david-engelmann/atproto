@@ -34,6 +34,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Install libzstd
+        run: sudo apt-get update && sudo apt-get install -y libzstd-dev
+
       - name: Use OCaml ${{ matrix.ocaml-compiler }}
         uses: ocaml/setup-ocaml@v3
         with:
@@ -78,6 +81,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+
+      - name: Install libzstd
+        run: sudo apt-get update && sudo apt-get install -y libzstd-dev
 
       - name: Use OCaml ${{ matrix.ocaml-compiler }}
         uses: ocaml/setup-ocaml@v3
@@ -141,6 +147,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Install libzstd
+        run: sudo apt-get update && sudo apt-get install -y libzstd-dev
+
       - name: Use OCaml ${{ matrix.ocaml-compiler }}
         uses: ocaml/setup-ocaml@v3
         with:
@@ -188,6 +197,9 @@ jobs:
 
       - name: Confirm mock accounts
         run: ./scripts/local-atproto.sh account
+
+      - name: Install libzstd
+        run: sudo apt-get update && sudo apt-get install -y libzstd-dev
 
       - name: Use OCaml 4.14.1
         uses: ocaml/setup-ocaml@v3

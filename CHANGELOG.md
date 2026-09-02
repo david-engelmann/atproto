@@ -36,7 +36,9 @@ exposes `(libraries atproto)`. That pin is not an opam-repository publish.
 - OAuth / DPoP (`Oauth`, `Oauth_scope`): PKCE S256, PAR, token, refresh,
   RFC 7009 revoke, granular scopes, official `app.bsky.auth*` /
   `chat.bsky.authFullChatClient` permission-sets
-- Jetstream v2 tail + `.jss` v1 decode (no invented archive token)
+- Jetstream v2 tail + live dict-zstd `subscribeEvents` (`getZstdDictionary`,
+  Jane Street `zstandard` v0.16) + `.jss` v1 decode (no invented archive
+  token)
 - TAP-like local repo sync helpers (`Repo_sync`) — not a hosted Tap
 - `site.standard.*` and `com.germnetwork.declaration` record builders
 
@@ -88,3 +90,5 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
 - Newly published official lexicons after bluesky-social/atproto
   `60c4395951` (APP-2933) — the coverage gate fails until the pin
   snapshot and bindings (or an explicit skip) are updated
+- Jetstream archive HTTP download still needs an operator token this
+  library does not invent (live compressed `subscribeEvents` is implemented)

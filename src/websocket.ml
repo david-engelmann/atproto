@@ -14,6 +14,8 @@ module Websocket = struct
     | Ping of string
     | Pong of string
 
+  exception Handshake_error of int * string
+
   let guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
   let accept_key (sec_websocket_key : string) : string =
@@ -281,9 +283,29 @@ module Websocket = struct
     let resp = read_handshake_response transport in
     let lines = String.split_on_char '\n' resp in
     let status = String.trim (List.hd lines) in
-    if not (String.length status >= 12 && String.sub status 9 3 = "101") then
-      failwith ("Websocket: expected 101 Switching Protocols, got " ^ status);
     let headers = List.map String.trim (List.tl lines) in
+    let status_code =
+      if String.length status >= 12 then
+        try int_of_string (String.sub status 9 3) with _ -> 0
+      else 0
+    in
+    let read_error_body () =
+      let len =
+        match header_value headers "content-length" with
+        | Some s -> ( try int_of_string s with _ -> 0)
+        | None -> 0
+      in
+      if len > 0 && len <= 16384 then read_exact transport len else ""
+    in
+    let abort code body =
+      (try
+         match transport with
+         | Tls ssl -> Ssl.shutdown ssl
+         | Tcp fd -> Unix.close fd
+       with _ -> ());
+      raise (Handshake_error (code, body))
+    in
+    if status_code <> 101 then abort status_code (read_error_body ());
     (match header_value headers "sec-websocket-accept" with
     | Some got ->
         let expected = accept_key key in

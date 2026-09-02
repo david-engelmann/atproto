@@ -953,6 +953,20 @@ let () =
          })
   in
   assert (jss_hdr.version = 1);
+  let js_url =
+    Jetstream.subscribe_url ~compress:true ~zstd_dictionary_id:20260811 ()
+  in
+  assert (
+    let needle = "zstdDictionary=20260811" in
+    let rec contains i =
+      i + String.length needle <= String.length js_url
+      && (String.sub js_url i (String.length needle) = needle
+         || contains (i + 1))
+    in
+    contains 0);
+  assert (
+    Jetstream.zstd_dictionary_id Jetstream.embedded_zstd_dictionary
+    = Some 20260811);
   let optout =
     Records.referencelistoptout
       ~subject:"at://did:plc:abc123xyz0001112223333/app.bsky.graph.list/3k"

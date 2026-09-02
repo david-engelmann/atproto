@@ -400,6 +400,179 @@ let test_subscribe_live _ =
             OUnit2.assert_bool "decoded a Jetstream frame" true
       with exn -> skip_if true ("jetstream skipped: " ^ Printexc.to_string exn))
 
+let test_subscribe_url_compress _ =
+  let has url needle =
+    let rec contains i =
+      i + String.length needle <= String.length url
+      && (String.sub url i (String.length needle) = needle || contains (i + 1))
+    in
+    contains 0
+  in
+  let v2 =
+    Jetstream.subscribe_url ~compress:true ~zstd_dictionary_id:20260811 ()
+  in
+  OUnit2.assert_bool "v2 zstdDictionary" (has v2 "zstdDictionary=20260811");
+  OUnit2.assert_bool "v2 omits v1 compress=" (not (has v2 "compress="));
+  let v1 =
+    Jetstream.subscribe_url ~host:Jetstream.v1_west_host ~version:Jetstream.V1
+      ~compress:true ()
+  in
+  OUnit2.assert_bool "v1 compress=true" (has v1 "compress=true");
+  OUnit2.assert_bool "v1 omits zstdDictionary" (not (has v1 "zstdDictionary="));
+  let plain = Jetstream.subscribe_url () in
+  OUnit2.assert_bool "default uncompressed"
+    (not (has plain "compress=" || has plain "zstdDictionary="))
+
+let test_dict_zstd_roundtrip _ =
+  OUnit2.assert_equal (Some 20260811)
+    (Jetstream.zstd_dictionary_id Jetstream.embedded_zstd_dictionary);
+  let json = Yojson.Safe.to_string v2_commit_json in
+  let frame = Jetstream.compress_zstd json in
+  OUnit2.assert_equal (Some 20260811) (Jetstream.zstd_frame_dict_id frame);
+  let got = Jetstream.decompress_zstd frame in
+  (match Jetstream.parse_frame got with
+  | `Commit c ->
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "app.bsky.feed.like" c.collection
+  | _ -> OUnit2.assert_failure "expected commit after dict-zstd roundtrip");
+  let mutated = Bytes.of_string Jetstream.embedded_zstd_dictionary in
+  Bytes.set mutated 4 '\x01';
+  Bytes.set mutated 5 '\x00';
+  Bytes.set mutated 6 '\x00';
+  Bytes.set mutated 7 '\x00';
+  let wrong = Bytes.to_string mutated in
+  OUnit2.assert_equal (Some 1) (Jetstream.zstd_dictionary_id wrong);
+  OUnit2.assert_raises
+    (Jetstream.Unknown_zstd_dictionary (20260811, Some 1))
+    (fun () -> ignore (Jetstream.decompress_zstd ~dictionary:wrong frame))
+
+let test_jss_walk_dict_zstd _ =
+  let open Jetstream.Jss in
+  let header =
+    {
+      checksum = 0L;
+      version = 1;
+      block_count = 1;
+      event_count = 1;
+      unique_did_count = 1;
+      min_seq = 1L;
+      max_seq = 1L;
+      min_witnessed_at = 1_700_000_000_000_000L;
+      max_witnessed_at = 1_700_000_000_000_001L;
+      footer_offset = 0L;
+      did_bloom_offset = 0L;
+      block_did_bloom_offset = 0L;
+      collection_index_offset = 0L;
+      block_index_offset = 0L;
+      sealed = false;
+    }
+  in
+  let encoded = encode_header header in
+  let row =
+    {
+      seq = 7L;
+      witnessed_at = 1_700_000_000_000_000L;
+      indexed_at = 0L;
+      kind = Create;
+      collection = "app.bsky.feed.post";
+      did = "did:plc:7iza6de2dwap2sbkpav7c6c6";
+      rkey = "3jzfcijpj2z2a";
+      rev = "3jzfcijpj2z2a";
+      payload = "cbor";
+    }
+  in
+  let body = encode_columnar [ row ] in
+  let zbody = Jetstream.compress_zstd body in
+  let framed =
+    let buf = Buffer.create 64 in
+    Buffer.add_string buf encoded;
+    let len = String.length zbody in
+    let len64 = Bytes.create 8 in
+    for i = 0 to 7 do
+      Bytes.set len64 i (Char.chr ((len lsr (8 * i)) land 0xff))
+    done;
+    Buffer.add_bytes buf len64;
+    Buffer.add_string buf zbody;
+    Buffer.contents buf
+  in
+  let walked = walk_frames ~decompress:Jetstream.decompress_zstd framed in
+  OUnit2.assert_equal 1 (List.length walked);
+  OUnit2.assert_equal ~printer:Int64.to_string 7L (List.hd walked).seq
+
+let test_get_zstd_dictionary_live _ =
+  let old =
+    Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
+  in
+  ignore (Unix.alarm 20);
+  Fun.protect
+    ~finally:(fun () ->
+      ignore (Unix.alarm 0);
+      Sys.set_signal Sys.sigalrm old)
+    (fun () ->
+      try
+        let blob = Jetstream.try_get_zstd_dictionary () in
+        match Jetstream.zstd_dictionary_id blob with
+        | Some id -> OUnit2.assert_bool "live dict id" (id > 0)
+        | None ->
+            OUnit2.assert_failure
+              "getZstdDictionary returned bytes that are not a zstd dictionary"
+      with exn ->
+        skip_if true ("getZstdDictionary skipped: " ^ Printexc.to_string exn))
+
+let test_subscribe_one_compress_live _ =
+  let old =
+    Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
+  in
+  ignore (Unix.alarm 20);
+  Fun.protect
+    ~finally:(fun () ->
+      ignore (Unix.alarm 0);
+      Sys.set_signal Sys.sigalrm old)
+    (fun () ->
+      (try ignore (Jetstream.try_get_zstd_dictionary ())
+       with exn ->
+         skip_if true ("getZstdDictionary skipped: " ^ Printexc.to_string exn));
+      try
+        let ev =
+          Jetstream.subscribe_one ~compress:true
+            ~filter:
+              {
+                Jetstream.empty_filter with
+                collections = [ "app.bsky.feed.post" ];
+                kinds = [ Jetstream.Commit ];
+              }
+            ()
+        in
+        match ev with
+        | `Commit _ | `Identity _ | `Account _ | `Sync _ | `Info _ | `Unknown _
+          ->
+            OUnit2.assert_bool "decoded a compressed Jetstream frame" true
+      with
+      | Jetstream.Zstd_decode msg ->
+          OUnit2.assert_failure ("dict-zstd decode failed: " ^ msg)
+      | Jetstream.Unknown_zstd_dictionary (got, have) ->
+          OUnit2.assert_failure
+            (Printf.sprintf "dict id mismatch got=%d have=%s" got
+               (match have with Some n -> string_of_int n | None -> "none"))
+      | Yojson.Json_error msg ->
+          OUnit2.assert_failure ("compressed frame was not JSON: " ^ msg)
+      | Atproto.Websocket.Websocket.Handshake_error (code, body) -> (
+          match Atproto.Error.Error.of_body body with
+          | Some e
+            when e.error = "InvalidRequest" || e.error = "UnknownZstdDictionary"
+            ->
+              OUnit2.assert_failure
+                (Printf.sprintf "compressed subscribe HTTP %d %s: %s" code
+                   e.error e.message)
+          | _ ->
+              skip_if true
+                (Printf.sprintf "jetstream compressed skipped: handshake %d %s"
+                   code body))
+      | exn ->
+          skip_if true
+            ("jetstream compressed skipped: " ^ Printexc.to_string exn))
+
 let test_jss_header_and_columnar _ =
   let open Jetstream.Jss in
   let header =
@@ -488,6 +661,11 @@ let suite =
          "test_replay_planner" >:: test_replay_planner;
          "test_snapshot_gated_live" >:: test_snapshot_gated_live;
          "test_subscribe_live" >:: test_subscribe_live;
+         "test_subscribe_url_compress" >:: test_subscribe_url_compress;
+         "test_dict_zstd_roundtrip" >:: test_dict_zstd_roundtrip;
+         "test_jss_walk_dict_zstd" >:: test_jss_walk_dict_zstd;
+         "test_get_zstd_dictionary_live" >:: test_get_zstd_dictionary_live;
+         "test_subscribe_one_compress_live" >:: test_subscribe_one_compress_live;
          "test_jss_header_and_columnar" >:: test_jss_header_and_columnar;
        ]
 
