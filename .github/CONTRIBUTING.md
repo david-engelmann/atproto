@@ -17,7 +17,8 @@ odoc HTML is a CI artifact (`odoc-html`) on pull requests. On push to
 Actions Pages. GitHub Pages is enabled (Settings → Pages → Source:
 GitHub Actions). The live site is
 https://david-engelmann.github.io/atproto/. `dune-project`
-`documentation` points at that URL.
+`documentation` points at that URL. Build odoc locally with
+`make doc`.
 
 ## Checks
 

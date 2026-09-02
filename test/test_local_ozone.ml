@@ -545,6 +545,86 @@ let test_privileged_writes _ =
             >= 0))
   | _ -> ()
 
+(* Template / set writes + cheap leftover reads. Skip if not served. *)
+let test_template_and_set_writes _ =
+  let s = admin_session () in
+  let p = proxy () in
+  let alice = Session.create_session "alice.test" "hunter2" in
+  let tag = leftover_tag () in
+  let tmpl_name = "ocaml-tmpl-" ^ tag in
+  (match
+     ozone_post s p "tools.ozone.communication.createTemplate"
+       (Ozone.create_template_body ~name:tmpl_name ~content_markdown:"hi"
+          ~subject:"welcome" ())
+   with
+  | json when served json ->
+      let created = Ozone.parse_template json in
+      OUnit2.assert_bool "createTemplate id" (String.length created.id > 0);
+      let updated =
+        Ozone.update_template s ~proxy:p ~id:created.id
+          ~content_markdown:("updated " ^ tag) ()
+      in
+      OUnit2.assert_equal created.id updated.id;
+      let typed =
+        Ozone.create_template s ~proxy:p ~name:(tmpl_name ^ "-b")
+          ~content_markdown:"typed" ~subject:"welcome" ()
+      in
+      OUnit2.assert_bool "create_template helper" (String.length typed.id > 0);
+      Ozone.delete_template s ~proxy:p ~id:created.id ();
+      Ozone.delete_template s ~proxy:p ~id:typed.id ()
+  | _ -> ());
+  let set_name = "ocaml-set-" ^ tag in
+  (match
+     ozone_post s p "tools.ozone.set.upsertSet"
+       (`Assoc
+         [ ("name", `String set_name); ("description", `String ("set " ^ tag)) ])
+   with
+  | json when served json ->
+      let created =
+        Ozone.upsert_set s ~proxy:p ~name:set_name ~description:("set " ^ tag) ()
+      in
+      OUnit2.assert_equal ~printer:(fun x -> x) set_name created.name;
+      Ozone.add_set_values s ~proxy:p ~name:set_name ~values:[ tag ] ();
+      (match
+         ozone_json s p "tools.ozone.set.getValues" [ ("name", set_name) ]
+       with
+      | values when served values ->
+          let got = Ozone.get_set_values s ~proxy:p ~name:set_name () in
+          OUnit2.assert_bool "addValues" (List.mem tag got.values)
+      | _ -> ());
+      Ozone.delete_set s ~proxy:p ~name:set_name ()
+  | _ -> ());
+  (match
+     ozone_post s p "tools.ozone.safelink.queryEvents"
+       (Ozone.query_safelink_events_body ~limit:10 ())
+   with
+  | json when served json ->
+      let events = Ozone.query_safelink_events s ~proxy:p ~limit:10 () in
+      OUnit2.assert_bool "queryEvents" (List.length events.events >= 0)
+  | _ -> ());
+  match
+    ozone_post s p "tools.ozone.moderation.scheduleAction"
+      (Ozone.schedule_action_body
+         ~action:(Ozone.takedown_action ~comment:("sched " ^ tag) ())
+         ~subjects:[ alice.auth.did ]
+         ~created_by:s.auth.did
+         ~scheduling:
+           {
+             execute_at = Some "2099-01-01T00:00:00.000Z";
+             execute_after = None;
+             execute_until = None;
+           }
+         ())
+  with
+  | json when served json ->
+      let scheduled = Ozone.parse_batch_result json in
+      OUnit2.assert_bool "scheduleAction parsed"
+        (List.length scheduled.succeeded + List.length scheduled.failed >= 0);
+      ignore
+        (Ozone.cancel_scheduled_actions s ~proxy:p ~subjects:[ alice.auth.did ]
+           ~comment:("cancel " ^ tag) ())
+  | _ -> ()
+
 let suite =
   "local_ozone"
   >::: [
@@ -555,6 +635,7 @@ let suite =
          "test_more_ozone" >:: test_more_ozone;
          "test_leftover_ozone" >:: test_leftover_ozone;
          "test_privileged_writes" >:: test_privileged_writes;
+         "test_template_and_set_writes" >:: test_template_and_set_writes;
        ]
 
 let () =
