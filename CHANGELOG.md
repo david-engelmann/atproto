@@ -305,7 +305,8 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `postgate`, `generator`, `labeler_service`,
   `notification_declaration`, `lexicon_schema`, `chat_declaration`).
   Comment-only. Hosted-only chat / video / Tap stay listed not faked
-- This PR: remaining function-level odoc on Unspecced XRPC wrappers
+- [#148](https://github.com/david-engelmann/atproto/pull/148): remaining
+  function-level odoc on Unspecced XRPC wrappers
   (`search_actors_skeleton` / `search_starter_packs_skeleton`,
   `get_config`, `get_popular_feed_generators`, `get_tagged_suggestions`,
   `get_age_assurance_state`, `init_age_assurance` /
@@ -314,6 +315,10 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `get_onboarding_*` skeletons, `get_post_thread_v2` /
   `get_post_thread_other_v2`). Comment-only. Hosted-only video / chat /
   Tap stay listed not faked
+- This PR: remaining function-level odoc on Label helpers
+  (`query_labels_parsed`, `query_labels_body`, `subscribe` /
+  `subscribe_one`, `encode_unsigned` / `encode_signed`). Comment-only.
+  Hosted-only chat / video / Tap stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 

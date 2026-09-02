@@ -193,6 +193,8 @@ module Label = struct
   let create_label_endpoint (query_name : string) : string =
     "com.atproto.label" ^ "." ^ query_name
 
+  (** Query-string pairs for [com.atproto.label.queryLabels]. Optional
+      [sources], [limit], and [cursor]. *)
   let query_labels_body ?(uri_patterns = []) ?sources ?limit ?cursor () :
       (string * string) list =
     let pairs =
@@ -228,6 +230,8 @@ module Label = struct
     in
     labels
 
+  (** Parsed [com.atproto.label.queryLabels] for [uri_patterns]. Optional
+      [sources], [limit], and [cursor]. *)
   let query_labels_parsed (s : Session.session) ~uri_patterns ?sources ?limit
       ?cursor () : query_labels =
     let bearer_token = Session.bearer_token_from_session s in
@@ -251,6 +255,8 @@ module Label = struct
 
   (* ---- signed labels (com.atproto.label.defs#label) -------------------- *)
 
+  (** DAG-CBOR encode [l] without [sig] ([com.atproto.label.defs#label]).
+      Used as the signing input. *)
   let encode_unsigned (l : label) : string =
     let fields =
       [
@@ -268,6 +274,8 @@ module Label = struct
     in
     Dag_cbor.encode (Dag_cbor.Map fields)
 
+  (** DAG-CBOR encode [l] including [sig] when present
+      ([com.atproto.label.defs#label]). *)
   let encode_signed (l : label) : string =
     match l.sig_ with
     | None -> encode_unsigned l
@@ -482,6 +490,8 @@ module Label = struct
     in
     header ^ body
 
+  (** Stream [com.atproto.label.subscribeLabels] frames to [f]. Optional
+      [host], [cursor], and [max_messages]. *)
   let subscribe ?(host = "bsky.network") ?cursor ?max_messages f =
     let url = subscribe_url ~host ?cursor () in
     Websocket.Websocket.with_connection url (fun ws ->
@@ -500,6 +510,8 @@ module Label = struct
         in
         loop 0)
 
+  (** Receive one [com.atproto.label.subscribeLabels] frame (default
+      [bsky.network]). Optional [host] and [cursor]. *)
   let subscribe_one ?host ?cursor () : header * message =
     let cell = ref None in
     subscribe ?host ?cursor ~max_messages:1 (fun frame -> cell := Some frame);
