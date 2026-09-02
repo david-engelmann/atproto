@@ -184,6 +184,8 @@ let is_ws_not_served msg =
   || message_has msg "methodnotfound"
   || message_has msg "unknown lexicon"
   || message_has msg " 501" || message_has msg " 404"
+  || message_has msg "connection" || message_has msg "tls"
+  || message_has msg "handshake" || message_has msg "eof"
 
 (* One subscribeLabels frame against local Ozone (or PDS) if the NSID is served. *)
 let test_subscribe_labels_one_frame _ =
@@ -213,10 +215,6 @@ let test_subscribe_labels_one_frame _ =
       skip_if true ("subscribeLabels not served: " ^ msg)
   | Failure msg when message_has msg "timeout" ->
       skip_if true "subscribeLabels produced no local frame"
-  | Failure msg
-    when message_has msg "connection" || message_has msg "tls"
-         || message_has msg "handshake" || message_has msg "eof" ->
-      skip_if true ("subscribeLabels not served: " ^ msg)
 
 let ozone_json s p nsid pairs =
   Client.get_json ~session:s ~extra:(Ozone.proxy_headers p) nsid pairs
