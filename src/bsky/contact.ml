@@ -50,6 +50,8 @@ module Contact = struct
         List.map Actor.parse_short_profile (Client.list_member json "matches");
     }
 
+  (** JSON body for [app.bsky.contact.importContacts]
+      ([token] from [verify_phone]). *)
   let import_contacts_body ~token ~contacts : Yojson.Safe.t =
     `Assoc
       [
@@ -57,15 +59,19 @@ module Contact = struct
         ("contacts", `List (List.map (fun p -> `String p) contacts));
       ]
 
+  (** JSON body for [app.bsky.contact.dismissMatch]. *)
   let dismiss_match_body ~subject : Yojson.Safe.t =
     `Assoc [ ("subject", `String subject) ]
 
+  (** JSON body for [app.bsky.contact.startPhoneVerification]. *)
   let start_phone_verification_body ~phone : Yojson.Safe.t =
     `Assoc [ ("phone", `String phone) ]
 
+  (** JSON body for [app.bsky.contact.verifyPhone]. *)
   let verify_phone_body ~phone ~code : Yojson.Safe.t =
     `Assoc [ ("phone", `String phone); ("code", `String code) ]
 
+  (** JSON body for [app.bsky.contact.sendNotification]. *)
   let send_notification_body ~from ~to_ : Yojson.Safe.t =
     `Assoc [ ("from", `String from); ("to", `String to_) ]
 
@@ -75,6 +81,7 @@ module Contact = struct
       (Client.opt_int "limit" limit @ Client.opt_pair "cursor" cursor)
     |> parse_matches_page
 
+  (** Contact import status via [app.bsky.contact.getSyncStatus]. *)
   let get_sync_status (s : Session.session) : sync_status_opt =
     Client.get_json ~session:s "app.bsky.contact.getSyncStatus" []
     |> parse_sync_status_opt
@@ -87,24 +94,30 @@ module Contact = struct
       (Yojson.Safe.to_string (import_contacts_body ~token ~contacts))
     |> parse_import_result
 
+  (** Dismiss match [subject] via [app.bsky.contact.dismissMatch]. *)
   let dismiss_match (s : Session.session) ~subject () : unit =
     ignore
       (Client.post_json ~session:s "app.bsky.contact.dismissMatch"
          (Yojson.Safe.to_string (dismiss_match_body ~subject)))
 
+  (** Remove stored hashes and matches via [app.bsky.contact.removeData]. *)
   let remove_data (s : Session.session) : unit =
     ignore (Client.post_json ~session:s "app.bsky.contact.removeData" "{}")
 
+  (** Start SMS verification via [app.bsky.contact.startPhoneVerification]. *)
   let start_phone_verification (s : Session.session) ~phone () : unit =
     ignore
       (Client.post_json ~session:s "app.bsky.contact.startPhoneVerification"
          (Yojson.Safe.to_string (start_phone_verification_body ~phone)))
 
+  (** Verify [phone] / [code] via [app.bsky.contact.verifyPhone]
+      (returns [token] for [import_contacts]). *)
   let verify_phone (s : Session.session) ~phone ~code () : string =
     Client.post_json ~session:s "app.bsky.contact.verifyPhone"
       (Yojson.Safe.to_string (verify_phone_body ~phone ~code))
     |> fun json -> Client.string_member json "token"
 
+  (** Contact-import notification via [app.bsky.contact.sendNotification]. *)
   let send_notification (s : Session.session) ~from ~to_ () : unit =
     ignore
       (Client.post_json ~session:s "app.bsky.contact.sendNotification"
