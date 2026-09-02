@@ -3,6 +3,8 @@
 Notes for the packaged **0.1.0** library. [#135](https://github.com/david-engelmann/atproto/pull/135)
 adds remaining function-level odoc on Admin XRPC wrappers. This file
 records what actually shipped through
+[#137](https://github.com/david-engelmann/atproto/pull/137)
+(live TestNetwork `getAccountPreferences`), including
 [#136](https://github.com/david-engelmann/atproto/pull/136)
 (remaining function-level odoc on Server XRPC wrappers), including
 [#134](https://github.com/david-engelmann/atproto/pull/134)
@@ -154,7 +156,8 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `queryActivities` / `reassignQueue` / `refreshStats`, and
   `set.deleteValues` (skip only when the NSID is not served or the
   InvalidRequest / UpstreamFailure is TestNetwork policy)
-- Live TestNetwork hop for `tools.ozone.moderation.getAccountPreferences`
+- [#137](https://github.com/david-engelmann/atproto/pull/137): live
+  TestNetwork hop for `tools.ozone.moderation.getAccountPreferences`
   (`Ozone.get_account_preferences`, required `did`). Skip when the NSID
   is not served, MethodNotImplemented, feature-disabled, or
   UpstreamFailure is TestNetwork policy. Does not fake a hosted ozone
