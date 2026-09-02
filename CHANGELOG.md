@@ -1,7 +1,8 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through this PR (live GitHub Pages URL
+shipped through [#113](https://github.com/david-engelmann/atproto/pull/113)
+(live GitHub Pages URL
 https://david-engelmann.github.io/atproto/), including
 [#112](https://github.com/david-engelmann/atproto/pull/112) (odoc HTML
 deploy to GitHub Pages on main),
@@ -98,9 +99,10 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   (`actions/upload-pages-artifact` + `actions/deploy-pages`). GitHub
   Pages is enabled (Settings → Pages → Source: GitHub Actions). Live
   site: https://david-engelmann.github.io/atproto/
-- This PR: `dune-project` `(documentation ...)` and generated
-  `atproto.opam` `doc:` point at that live URL. README / CONTRIBUTING no
-  longer say Pages is disabled. Module-level odoc on public
+- [#113](https://github.com/david-engelmann/atproto/pull/113):
+  `dune-project` `(documentation ...)` and generated `atproto.opam`
+  `doc:` point at that live URL. README / CONTRIBUTING no longer say
+  Pages is disabled. Module-level odoc on public
   `Jetstream_zstd_dictionary` (checked-in fallback blob from #109)
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
