@@ -702,7 +702,7 @@ let test_plc_operation_xrpc _ =
   let s = throwaway_session "plc" "local-pds-plc-password" in
   ignore
     (pds_post_if_served ~session:s
-       "com.atproto.identity.requestPlcOperationSignature" "{}");
+       "com.atproto.identity.requestPlcOperationSignature" "");
   let creds = Identity.get_recommended_did_credentials s in
   let json_obj = function `Assoc _ as j -> Some j | _ -> None in
   let sign_body =
