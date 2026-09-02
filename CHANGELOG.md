@@ -273,6 +273,13 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `actions_of`, `lxm_of`, `aud_of`, `validate`, `to_string`,
   `is_valid_datetime` / `is_valid_language`, `parse_nsid` /
   `parse_did_ref`, `normalize_handle`). Comment-only
+- This PR: remaining function-level odoc on Feed XRPC wrappers
+  (`get_reposted_by`, `get_feed_skeleton` / `get_feed_skeleton_parsed`,
+  `get_feed_generator` / `get_feed_generators`, `get_actor_feeds`,
+  `get_suggested_feeds`, `describe_feed_generator`, `search_posts_v2`,
+  `get_quotes`, `get_actor_likes`, `send_interactions` /
+  `send_interactions_body`). Comment-only; does not host a feed
+  generator. Hosted-only video / chat / Tap stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
