@@ -1376,6 +1376,7 @@ module Ozone = struct
 
   (* Official addRule / updateRule / removeRule take `pattern` (not
      patternType) and return tools.ozone.safelink.defs#event. *)
+
   (** JSON body for [tools.ozone.safelink.addRule]. *)
   let add_safelink_rule_body ~url ~pattern ~action ~reason ?comment ?created_by
       () : Yojson.Safe.t =
