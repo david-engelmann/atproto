@@ -62,6 +62,7 @@ module Error = struct
   (* Local AppView implements some NSIDs but keeps them flag-off
      (e.g. InvalidRequest: Search v2 is not enabled). A local PDS can
      also reject a record $type it has not bundled yet. *)
+
   (** True when [InvalidRequest] means the NSID is flag-off ([not
       enabled] / [not available] / [unknown lexicon]). *)
   let is_feature_disabled (e : t) : bool =
