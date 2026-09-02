@@ -179,6 +179,7 @@ module Client = struct
      (com.atproto.server.getServiceAuth, aud=AppView DID, lxm=NSID).
      OAuth sessions mint the same JWT with Oauth.get_service_auth (DPoP)
      and pass it here as ~bearer — Client cannot depend on Oauth. *)
+
   (** Mint [com.atproto.server.getServiceAuth] for [aud] / [lxm] using
       the session [at+jwt]. AppView and Ozone want this JWT, not the
       PDS access token. *)

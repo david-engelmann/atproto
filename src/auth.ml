@@ -168,6 +168,7 @@ module Auth = struct
 
   (* com.atproto.server.refreshSession is POST with no input lexicon.
      Authorization is Bearer refreshJwt. Do not send a JSON body. *)
+
   (** POST [com.atproto.server.refreshSession] with Bearer [refreshJwt]
       (no JSON body). *)
   let refresh_auth_token_request (_access_jwt : string) (refresh_jwt : string)

@@ -1392,6 +1392,7 @@ module Oauth = struct
   (* DPoP-bound resource request with one use_dpop_nonce retry.
      [extra] is for headers such as [atproto-proxy]; DPoP still cannot be
      proxied — the PDS rejects that combination. *)
+
   (** DPoP-bound resource request with one [use_dpop_nonce] retry. *)
   let request_with_dpop ~(http : http_request) ~priv ~pub ~url ~htm
       ~access_token ?body ?ath ?nonce ?(extra = []) () :
