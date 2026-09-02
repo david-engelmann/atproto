@@ -5,6 +5,13 @@
  (libraries atproto yojson)
  (modules offline))
 
+(executable
+ (name quickstart)
+ (flags
+  (:standard -w +33 -warn-error +33))
+ (libraries atproto)
+ (modules quickstart))
+
 (rule
  (alias runtest)
  (action
