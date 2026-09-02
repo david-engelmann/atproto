@@ -1,7 +1,9 @@
 # Changelog
 
-Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#136](https://github.com/david-engelmann/atproto/pull/136)
+Notes for the packaged **0.1.0** library. [#135](https://github.com/david-engelmann/atproto/pull/135)
+adds remaining function-level odoc on Admin XRPC wrappers. This file
+records what actually shipped through
+[#136](https://github.com/david-engelmann/atproto/pull/136)
 (remaining function-level odoc on Server XRPC wrappers), including
 [#134](https://github.com/david-engelmann/atproto/pull/134)
 (function-level odoc on remaining Error / Xrpc / Request / Response /
@@ -249,6 +251,13 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `create_invite_codes`, `request_account_delete`, `delete_account`,
   `reset_password`, `revoke_app_password`, `request_email_confirmation`,
   `request_email_update`). Comment-only
+- [#135](https://github.com/david-engelmann/atproto/pull/135): remaining
+  function-level odoc on Admin XRPC wrappers (`get_account_infos`,
+  `enable_account_invites` / `disable_account_invites`, `send_email`,
+  `get_invite_codes` / `disable_invite_codes`, `delete_account`,
+  `update_account_email` / `update_account_handle` /
+  `update_account_password` / `update_account_signing_key`).
+  Comment-only
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
