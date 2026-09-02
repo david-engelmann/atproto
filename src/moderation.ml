@@ -18,12 +18,25 @@ module Moderation = struct
     mod_tool : mod_tool option;
   }
 
+  (** [com.atproto.moderation.defs#reasonSpam] report reason. *)
   let reason_spam = "com.atproto.moderation.defs#reasonSpam"
+
+  (** [com.atproto.moderation.defs#reasonViolation] report reason. *)
   let reason_violation = "com.atproto.moderation.defs#reasonViolation"
+
+  (** [com.atproto.moderation.defs#reasonMisleading] report reason. *)
   let reason_misleading = "com.atproto.moderation.defs#reasonMisleading"
+
+  (** [com.atproto.moderation.defs#reasonSexual] report reason. *)
   let reason_sexual = "com.atproto.moderation.defs#reasonSexual"
+
+  (** [com.atproto.moderation.defs#reasonRude] report reason. *)
   let reason_rude = "com.atproto.moderation.defs#reasonRude"
+
+  (** [com.atproto.moderation.defs#reasonOther] report reason. *)
   let reason_other = "com.atproto.moderation.defs#reasonOther"
+
+  (** [com.atproto.moderation.defs#reasonAppeal] report reason. *)
   let reason_appeal = "com.atproto.moderation.defs#reasonAppeal"
 
   let parse_mod_tool json : mod_tool option =
@@ -105,12 +118,16 @@ module Moderation = struct
     | Some t -> [ ("modTool", mod_tool_json t) ]
     | None -> []
 
+  (** JSON body for [com.atproto.moderation.createReport] on a record
+      ([com.atproto.repo.strongRef]). *)
   let create_report_data_from_strong_ref (reason_type : string) ?reason
       ?mod_tool (subject : strong_ref) : string =
     let subject = create_subject_from_strong_ref subject in
     Yojson.Safe.to_string
       (`Assoc (report_fields reason_type ?reason ?mod_tool subject))
 
+  (** JSON body for [com.atproto.moderation.createReport] on an
+      account ([com.atproto.admin.defs#repoRef]). *)
   let create_report_data_from_repo_ref (reason_type : string) ?reason ?mod_tool
       (subject : repo_ref) : string =
     let subject = create_subject_from_repo_ref subject in

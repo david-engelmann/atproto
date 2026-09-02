@@ -78,10 +78,12 @@ module Temp = struct
   let parse_scope_deref json : scope_deref =
     { scope = Client.string_member json "scope"; original = json }
 
+  (** Signup-queue status via [com.atproto.temp.checkSignupQueue]. *)
   let check_signup_queue ?session ?host () : signup_queue =
     Client.get_json ?session ?host "com.atproto.temp.checkSignupQueue" []
     |> parse_signup_queue
 
+  (** Resolve [scope] via [com.atproto.temp.dereferenceScope]. *)
   let dereference_scope ?session ?host ~scope () : scope_deref =
     Client.get_json ?session ?host "com.atproto.temp.dereferenceScope"
       [ ("scope", scope) ]
@@ -100,11 +102,16 @@ module Temp = struct
      operator session and are not invented here. fetchLabels is deprecated
      in favor of Label.query_labels. *)
 
+  (** Reserve [handle] via [com.atproto.temp.addReservedHandle].
+      Privileged / hosted-PDS client; live calls need a real operator
+      session and are not invented here. *)
   let add_reserved_handle ?session ?host ~handle () : unit =
     ignore
       (Client.post_json ?session ?host "com.atproto.temp.addReservedHandle"
          (Yojson.Safe.to_string (add_reserved_handle_body ~handle ())))
 
+  (** Request SMS via [com.atproto.temp.requestPhoneVerification].
+      Hosted-only; this is a client wrapper and is not faked. *)
   let request_phone_verification ?session ?host ~phone_number () : unit =
     ignore
       (Client.post_json ?session ?host
@@ -112,6 +119,10 @@ module Temp = struct
          (Yojson.Safe.to_string
             (request_phone_verification_body ~phone_number ())))
 
+  (** Revoke sessions and passwords via
+      [com.atproto.temp.revokeAccountCredentials]. Privileged /
+      hosted-PDS client; live calls need a real operator session and
+      are not invented here. *)
   let revoke_account_credentials ?session ?host ~account () : unit =
     ignore
       (Client.post_json ?session ?host
