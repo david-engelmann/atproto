@@ -1236,6 +1236,55 @@ let test_unspecced_and_ageassurance _ =
       let state = Ageassurance.parse_state json in
       OUnit2.assert_bool "ageassurance.begin" (String.length state.status >= 0)
 
+(* Unique leftover AppView NSIDs whose wrappers exist on main and are
+   not live above. Skip if this revision 501s the method or TestNetwork
+   policy InvalidRequest (is_policy_invalid). chat.bsky.* / video.* /
+   Tap / contact.* / push register-unregister / unhosted getFeed stay
+   listed not faked. describeFeedGenerator is a feed-generator service
+   method — do not treat a skip as a hosted generator. *)
+let test_leftover_feed_notification _ =
+  let s = session () in
+  (match
+     Yojson.Safe.Util.member "feed"
+       (av_get "app.bsky.feed.getAuthorFeed"
+          [ ("actor", "alice.test"); ("limit", "1") ])
+   with
+  | `List (item :: _) -> (
+      match Yojson.Safe.Util.member "post" item with
+      | `Assoc _ as post -> (
+          match Yojson.Safe.Util.member "uri" post with
+          | `String uri when String.length uri > 0 -> (
+              match
+                av_post_leftover ~session:s "app.bsky.feed.sendInteractions"
+                  (Yojson.Safe.to_string
+                     (Feed.send_interactions_body
+                        [
+                          {
+                            item = Some uri;
+                            event = Some "app.bsky.feed.defs#interactionLike";
+                            feed_context = None;
+                            req_id = None;
+                          };
+                        ]))
+              with
+              | None -> ()
+              | Some _ -> OUnit2.assert_bool "sendInteractions" true)
+          | _ -> ())
+      | _ -> ())
+  | _ -> ());
+  (match av_get_leftover "app.bsky.feed.describeFeedGenerator" [] with
+  | None -> ()
+  | Some json ->
+      let desc = Feed.parse_describe_feed_generator json in
+      OUnit2.assert_bool "describeFeedGenerator"
+        (String.length desc.did >= 0 && List.length desc.feeds >= 0));
+  match
+    av_post_leftover ~session:s "app.bsky.notification.putPreferences"
+      (Yojson.Safe.to_string (`Assoc [ ("priority", `Bool false) ]))
+  with
+  | None -> ()
+  | Some _ -> OUnit2.assert_bool "putPreferences v1" true
+
 let suite =
   "local_appview"
   >::: [
@@ -1252,6 +1301,7 @@ let suite =
          "test_put_preferences_v2" >:: test_put_preferences_v2;
          "test_leftover_served" >:: test_leftover_served;
          "test_unspecced_and_ageassurance" >:: test_unspecced_and_ageassurance;
+         "test_leftover_feed_notification" >:: test_leftover_feed_notification;
        ]
 
 let () =
