@@ -1,7 +1,10 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#127](https://github.com/david-engelmann/atproto/pull/127)
+shipped through [#134](https://github.com/david-engelmann/atproto/pull/134)
+(function-level odoc on remaining Error / Xrpc / Request / Response /
+Http_client / Http_method / Websocket helpers), including
+[#127](https://github.com/david-engelmann/atproto/pull/127)
 (CHANGELOG through #126), including
 [#126](https://github.com/david-engelmann/atproto/pull/126)
 (function-level odoc on remaining Firehose / Oauth / Session / Auth /
@@ -233,6 +236,11 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   Hash / Varint / Error / Http_client entry points (`subscribe_url`,
   `pkce_s256`, `refresh_session`, `get_json`, `describe_server`).
   Comment-only
+- [#134](https://github.com/david-engelmann/atproto/pull/134):
+  function-level odoc on remaining Error / Xrpc / Request / Response /
+  Http_client / Http_method / Websocket helpers
+  (`parse_error_from_json`, `parse_proxy`, `parse_service_auth`,
+  `xrpc_put`, `recv_message`). Comment-only
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 

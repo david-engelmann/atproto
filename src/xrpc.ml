@@ -38,6 +38,7 @@ module Xrpc = struct
 
   type proxy = { did : string; service : string }
 
+  (** Parse [atproto-proxy] ([did#service]). *)
   let parse_proxy (value : string) : proxy =
     let v = trim value in
     match String.index_opt v '#' with
@@ -50,18 +51,22 @@ module Xrpc = struct
         if service = "" then fail "atproto-proxy service id is empty";
         { did; service }
 
+  (** Format [p] as [did#service]. *)
   let proxy_to_string (p : proxy) : string = p.did ^ "#" ^ p.service
 
   (** [atproto-proxy] header pair ([did#service]). *)
   let proxy_header (p : proxy) : string * string =
     ("atproto-proxy", proxy_to_string p)
 
+  (** Labeler proxy ([did#atproto_labeler]). *)
   let labeler_proxy (did : string) : proxy =
     { did; service = "atproto_labeler" }
 
+  (** Official chat service ([did:web:api.bsky.chat#bsky_chat]). *)
   let chat_proxy : proxy =
     { did = "did:web:api.bsky.chat"; service = "bsky_chat" }
 
+  (** Official AppView ([did:web:api.bsky.app#bsky_appview]). *)
   let appview_proxy : proxy =
     { did = "did:web:api.bsky.app"; service = "bsky_appview" }
 
@@ -79,6 +84,8 @@ module Xrpc = struct
         let redact = List.exists (fun p -> ascii_lower p = "redact") params in
         { did; redact }
 
+  (** Parse [atproto-accept-labelers] / [atproto-content-labelers]
+      ([did] or [did;redact], comma-separated; redact flags unioned). *)
   let parse_labelers (value : string) : labeler list =
     let items = split_commas value in
     let parsed = List.map parse_labeler_item items in
@@ -95,6 +102,7 @@ module Xrpc = struct
       parsed;
     List.rev_map (fun did -> { did; redact = Hashtbl.find acc did }) !order
 
+  (** Format [ls] as [did] / [did;redact] for labeler headers. *)
   let labelers_to_string (ls : labeler list) : string =
     String.concat ", "
       (List.map
@@ -127,6 +135,7 @@ module Xrpc = struct
   let int_opt s = try Some (int_of_string s) with _ -> None
   let int64_opt s = try Some (Int64.of_string s) with _ -> None
 
+  (** Parse [RateLimit-Limit] / [Remaining] / [Reset] / [Policy]. *)
   let parse_rate_limit (headers : (string * string) list) : rate_limit =
     {
       limit =
@@ -144,6 +153,7 @@ module Xrpc = struct
       policy = header_value headers "RateLimit-Policy";
     }
 
+  (** [atproto-repo-rev] header pair. *)
   let repo_rev_header (rev : string) : string * string =
     ("atproto-repo-rev", rev)
 
@@ -165,8 +175,13 @@ module Xrpc = struct
     raw : string;
   }
 
+  (** Default service-auth [kid] (["#atproto"]). *)
   let default_kid = "#atproto"
+
+  (** Default JWT [typ] (["JWT"]). *)
   let default_typ = "JWT"
+
+  (** Recommended service-auth lifetime (60s). *)
   let recommended_lifetime = 60L
 
   let split_jwt jwt =
@@ -188,6 +203,7 @@ module Xrpc = struct
   let normalize_kid kid =
     if kid = "" then default_kid else if kid.[0] = '#' then kid else "#" ^ kid
 
+  (** Parse inter-service JWT claims ([iss] / [aud] / [lxm] / [jti]). *)
   let parse_service_auth (jwt : string) : service_auth =
     let header_b64, payload_b64, _ = split_jwt jwt in
     let header = Yojson.Safe.from_string (Base64url.decode header_b64) in
@@ -232,6 +248,7 @@ module Xrpc = struct
       raw = jwt;
     }
 
+  (** JSON body for [com.atproto.server.getServiceAuth]. *)
   let service_auth_body ~aud ?lxm ?exp () : Yojson.Safe.t =
     if not (Syntax.Syntax.is_valid_did_ref aud) then
       fail "getServiceAuth aud must be a DID (optional #service fragment)";
@@ -250,9 +267,11 @@ module Xrpc = struct
     in
     `Assoc fields
 
+  (** [Authorization: Bearer] header for a service-auth JWT. *)
   let service_auth_header (jwt : string) : string * string =
     ("Authorization", "Bearer " ^ jwt)
 
+  (** Random [jti] (hex) for service-auth replay protection. *)
   let random_jti () : string =
     Lazy.force ensure_rng;
     let buf = Bytes.create 16 in
@@ -284,6 +303,7 @@ module Xrpc = struct
   let finish_jwt unsigned signature =
     unsigned ^ "." ^ Base64url.encode signature
 
+  (** Mint an ES256 service-auth JWT (P-256). *)
   let sign_service_jwt_p256 ~(priv : Mirage_crypto_ec.P256.Dsa.priv) ~iss ~aud
       ?lxm ?exp ?iat ?jti ?(kid = default_kid) ?(now = Unix.gettimeofday ()) ()
       : string =
@@ -313,6 +333,7 @@ module Xrpc = struct
     in
     finish_jwt unsigned (r ^ s)
 
+  (** Mint an ES256K service-auth JWT (secp256k1). *)
   let sign_service_jwt_k256 ~(priv : K256.K256.priv) ~iss ~aud ?lxm ?exp ?iat
       ?jti ?(kid = default_kid) ?(now = Unix.gettimeofday ()) () : string =
     if not (Syntax.Syntax.is_valid_did iss) then
@@ -338,6 +359,7 @@ module Xrpc = struct
   type sig_status =
     [ `Valid | `Invalid | `Unsupported_curve of string | `Missing ]
 
+  (** Verify the JWT signature against [keys] ([did:key] or multibase). *)
   let verify_service_sig ~(keys : string list) (jwt : string) : sig_status =
     let header_b64, payload_b64, sig_b64 = split_jwt jwt in
     if sig_b64 = "" || sig_b64 = "sig" then `Missing
@@ -394,6 +416,8 @@ module Xrpc = struct
         in
         try_keys parsed
 
+  (** True when [claims.aud] matches [expected] ([did] or [did#service]).
+      A bare DID is not a wildcard for a service fragment. *)
   let audience_matches ~(expected : string) (claims : service_auth) : bool =
     if claims.aud = expected then true
     else
@@ -406,6 +430,7 @@ module Xrpc = struct
           claims.aud_service = None
       | Some frag -> claims.aud_service = Some frag
 
+  (** True when [exp] is missing or past ([leeway] seconds, default 5). *)
   let is_expired ?(now = Unix.gettimeofday ()) ?(leeway = 5L)
       (claims : service_auth) : bool =
     match claims.exp with
@@ -414,6 +439,8 @@ module Xrpc = struct
         let now_i = Int64.of_float now in
         Int64.compare now_i (Int64.add exp leeway) > 0
 
+  (** Parse and verify a service-auth JWT (signature, optional [aud] /
+      [lxm], expiry). *)
   let verify_service_jwt ~keys ?aud ?lxm ?now ?(require_lxm = false)
       ?(require_jti = false) (jwt : string) : service_auth =
     let claims = parse_service_auth jwt in
@@ -451,9 +478,11 @@ module Xrpc = struct
     cap : int;
   }
 
+  (** Replay-protection cache for service-auth [jti] values. *)
   let create_jti_cache ?(cap = 4096) () : jti_cache =
     { seen = Hashtbl.create cap; order = Queue.create (); cap }
 
+  (** Record [claims.jti]; [true] if it was already seen. *)
   let remember_jti ?(now = Unix.gettimeofday ()) (c : jti_cache)
       (claims : service_auth) : bool =
     match claims.jti with
@@ -469,5 +498,6 @@ module Xrpc = struct
              Hashtbl.remove c.seen old);
           false)
 
+  (** True when [jti] is in [c]. *)
   let jti_seen (c : jti_cache) (jti : string) : bool = Hashtbl.mem c.seen jti
 end

@@ -23,11 +23,14 @@ module Response = struct
   (** Response body as a UTF-8 string. *)
   let body_string (r : response) : string = Bytes.to_string r.content
 
+  (** Case-insensitive header lookup ([RateLimit-*],
+      [atproto-repo-rev]). *)
   let header (r : response) name : string option =
     let lower = String.lowercase_ascii name in
     List.find_map
       (fun (k, v) -> if String.lowercase_ascii k = lower then Some v else None)
       r.headers
 
+  (** [Content-Type] header, if present. *)
   let content_type (r : response) : string option = header r "content-type"
 end
