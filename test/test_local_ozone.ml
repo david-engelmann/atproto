@@ -555,7 +555,7 @@ let test_template_and_set_writes _ =
   (match
      ozone_post s p "tools.ozone.communication.createTemplate"
        (Ozone.create_template_body ~name:tmpl_name ~content_markdown:"hi"
-          ~subject:"welcome" ())
+          ~subject:"welcome" ~created_by:s.auth.did ())
    with
   | json when served json ->
       let created = Ozone.parse_template json in
