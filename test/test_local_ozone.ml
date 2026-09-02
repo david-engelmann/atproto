@@ -800,7 +800,11 @@ let test_leftover_served _ =
   | Some id -> ignore (Ozone.delete_queue s ~proxy:p ~queue_id:id ())
   | None -> ()
 
-(* Remaining ozone NSIDs whose wrappers already exist. Skip if not served. *)
+(* Remaining ozone NSIDs whose wrappers already exist. Skip if not served.
+   Live tools.ozone.report.getAssignments / unassignModerator when a
+   report id is available. Skip if not served / MethodNotImplemented /
+   feature-disabled / UpstreamFailure (leftover_served). Do not invent
+   a hosted ozone report store. *)
 let test_leftover_remaining _ =
   let s = admin_session () in
   let p = proxy () in
@@ -951,6 +955,30 @@ let test_leftover_remaining _ =
               let assigned = Ozone.parse_assignment_view json in
               OUnit2.assert_bool "report.assignModerator"
                 (String.length assigned.did >= 0)
+          | _ -> ());
+          (match
+             ozone_json s p "tools.ozone.report.getAssignments"
+               [ ("limit", "10"); ("reportIds", string_of_int rid) ]
+           with
+          | json when leftover_served json ->
+              let page = Ozone.parse_assignments json in
+              OUnit2.assert_bool "report.getAssignments"
+                (List.length page.assignments >= 0);
+              let via_wrapper =
+                Ozone.get_report_assignments s ~proxy:p ~report_ids:[ rid ]
+                  ~limit:10 ()
+              in
+              OUnit2.assert_bool "get_report_assignments"
+                (List.length via_wrapper.assignments >= 0)
+          | _ -> ());
+          (match
+             ozone_post s p "tools.ozone.report.unassignModerator"
+               (`Assoc [ ("reportId", `Int rid) ])
+           with
+          | json when leftover_served json ->
+              let view = Ozone.parse_assignment_view json in
+              OUnit2.assert_bool "report.unassignModerator"
+                (String.length view.did >= 0)
           | _ -> ());
           (match
              ozone_json s p "tools.ozone.report.listActivities"
