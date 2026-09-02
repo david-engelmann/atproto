@@ -290,19 +290,30 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `search_starter_packs` / `search_starter_packs_v2`,
   `get_lists_with_membership` / `get_starter_packs_with_membership`,
   `get_known_followers`, `get_suggested_follows_by_actor`). Comment-only
-- This PR: remaining function-level odoc on Notification XRPC wrappers
+- [#146](https://github.com/david-engelmann/atproto/pull/146): remaining
+  function-level odoc on Notification XRPC wrappers
   (`put_preferences` / `put_preferences_v2`,
   `list_activity_subscriptions`, `put_activity_subscription`,
   `register_push` / `unregister_push`, `list_notifications_page`).
   Comment-only; client wrappers for a hosted push service stay listed
   not faked. Hosted-only video / chat / Tap stay listed not faked
-- This PR: remaining function-level odoc on Records builders
+- [#147](https://github.com/david-engelmann/atproto/pull/147): remaining
+  function-level odoc on Records builders
   (`repost`, `block`, `listblock`, `list` / `listitem`,
   `referencelistoptout`, `starterpack`, `profile`, `status`,
   `content_visibility_declaration`, `verification`, `threadgate` /
   `postgate`, `generator`, `labeler_service`,
   `notification_declaration`, `lexicon_schema`, `chat_declaration`).
   Comment-only. Hosted-only chat / video / Tap stay listed not faked
+- This PR: remaining function-level odoc on Unspecced XRPC wrappers
+  (`search_actors_skeleton` / `search_starter_packs_skeleton`,
+  `get_config`, `get_popular_feed_generators`, `get_tagged_suggestions`,
+  `get_age_assurance_state`, `init_age_assurance` /
+  `init_age_assurance_body`, `get_trends` / `get_trends_skeleton`,
+  `get_suggestions_skeleton`, `get_suggested_*` /
+  `get_onboarding_*` skeletons, `get_post_thread_v2` /
+  `get_post_thread_other_v2`). Comment-only. Hosted-only video / chat /
+  Tap stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 

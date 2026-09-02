@@ -163,6 +163,9 @@ module Unspecced = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_skeleton_posts
 
+  (** Actor search skeleton via [app.bsky.unspecced.searchActorsSkeleton].
+      Optional [viewer] / [typeahead] / [limit] / [cursor] map to the
+      lexicon query. Works without a session against public AppView. *)
   let search_actors_skeleton ?session ?host ~q ?viewer ?typeahead ?limit ?cursor
       () : skeleton_actors =
     Client.get_json ?session ?host "app.bsky.unspecced.searchActorsSkeleton"
@@ -173,6 +176,10 @@ module Unspecced = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_skeleton_actors
 
+  (** Starter pack search skeleton via
+      [app.bsky.unspecced.searchStarterPacksSkeleton]. Optional [viewer] /
+      [limit] / [cursor] map to the lexicon query. Works without a session
+      against public AppView. *)
   let search_starter_packs_skeleton ?session ?host ~q ?viewer ?limit ?cursor ()
       : skeleton_starter_packs =
     Client.get_json ?session ?host
@@ -189,10 +196,16 @@ module Unspecced = struct
       (Client.opt_pair "viewer" viewer @ Client.opt_int "limit" limit)
     |> parse_trending_topics
 
+  (** Runtime config via [app.bsky.unspecced.getConfig]. Works without a
+      session against public AppView. *)
   let get_config ?session ?host () : config =
     Client.get_json ?session ?host "app.bsky.unspecced.getConfig" []
     |> parse_config
 
+  (** Popular feed generators via
+      [app.bsky.unspecced.getPopularFeedGenerators]. Optional [query] /
+      [limit] / [cursor] map to the lexicon query. Works without a session
+      against public AppView. *)
   let get_popular_feed_generators ?session ?host ?query ?limit ?cursor () :
       generators =
     Client.get_json ?session ?host "app.bsky.unspecced.getPopularFeedGenerators"
@@ -469,14 +482,19 @@ module Unspecced = struct
   let parse_thread_other_v2 json : thread_other_v2 =
     { thread = List.map parse_thread_item (Client.list_member json "thread") }
 
+  (** Tagged suggestions via [app.bsky.unspecced.getTaggedSuggestions].
+      Works without a session against public AppView. *)
   let get_tagged_suggestions ?session ?host () : tagged_suggestions =
     Client.get_json ?session ?host "app.bsky.unspecced.getTaggedSuggestions" []
     |> parse_tagged_suggestions
 
+  (** Age-assurance state via [app.bsky.unspecced.getAgeAssuranceState]
+      (session required). *)
   let get_age_assurance_state (s : Session.session) : age_assurance_state =
     Client.get_json ~session:s "app.bsky.unspecced.getAgeAssuranceState" []
     |> parse_age_assurance_state
 
+  (** JSON body for [app.bsky.unspecced.initAgeAssurance]. *)
   let init_age_assurance_body ~email ~language ~country_code : Yojson.Safe.t =
     `Assoc
       [
@@ -485,6 +503,8 @@ module Unspecced = struct
         ("countryCode", `String country_code);
       ]
 
+  (** Start age assurance via [app.bsky.unspecced.initAgeAssurance]
+      (session required). *)
   let init_age_assurance (s : Session.session) ~email ~language ~country_code ()
       : age_assurance_state =
     Client.post_json ~session:s "app.bsky.unspecced.initAgeAssurance"
@@ -492,16 +512,25 @@ module Unspecced = struct
          (init_age_assurance_body ~email ~language ~country_code))
     |> parse_age_assurance_state
 
+  (** Trends via [app.bsky.unspecced.getTrends]. Optional [limit] maps to
+      the lexicon query. Works without a session against public AppView. *)
   let get_trends ?session ?host ?limit () : trends =
     Client.get_json ?session ?host "app.bsky.unspecced.getTrends"
       (Client.opt_int "limit" limit)
     |> parse_trends
 
+  (** Trend skeleton via [app.bsky.unspecced.getTrendsSkeleton]. Optional
+      [viewer] / [limit] map to the lexicon query. Works without a session
+      against public AppView. *)
   let get_trends_skeleton ?session ?host ?viewer ?limit () : trends_skeleton =
     Client.get_json ?session ?host "app.bsky.unspecced.getTrendsSkeleton"
       (Client.opt_pair "viewer" viewer @ Client.opt_int "limit" limit)
     |> parse_trends_skeleton
 
+  (** Suggested-actor skeleton via
+      [app.bsky.unspecced.getSuggestionsSkeleton]. Optional [viewer] /
+      [limit] / [cursor] / [relative_to_did] map to the lexicon query.
+      Works without a session against public AppView. *)
   let get_suggestions_skeleton ?session ?host ?viewer ?limit ?cursor
       ?relative_to_did () : suggestions_skeleton =
     Client.get_json ?session ?host "app.bsky.unspecced.getSuggestionsSkeleton"
@@ -511,11 +540,18 @@ module Unspecced = struct
       @ Client.opt_pair "relativeToDid" relative_to_did)
     |> parse_suggestions_skeleton
 
+  (** Suggested feeds via [app.bsky.unspecced.getSuggestedFeeds]. Optional
+      [limit] maps to the lexicon query. Works without a session against
+      public AppView. *)
   let get_suggested_feeds ?session ?host ?limit () : suggested_feeds =
     Client.get_json ?session ?host "app.bsky.unspecced.getSuggestedFeeds"
       (Client.opt_int "limit" limit)
     |> parse_suggested_feeds
 
+  (** Suggested-feed skeleton via
+      [app.bsky.unspecced.getSuggestedFeedsSkeleton]. Optional [viewer] /
+      [limit] map to the lexicon query. Works without a session against
+      public AppView. *)
   let get_suggested_feeds_skeleton ?session ?host ?viewer ?limit () :
       uri_skeleton =
     Client.get_json ?session ?host
@@ -523,11 +559,18 @@ module Unspecced = struct
       (Client.opt_pair "viewer" viewer @ Client.opt_int "limit" limit)
     |> fun json -> parse_uri_list json "feeds"
 
+  (** Suggested users via [app.bsky.unspecced.getSuggestedUsers]. Optional
+      [category] / [limit] map to the lexicon query. Works without a
+      session against public AppView. *)
   let get_suggested_users ?session ?host ?category ?limit () : suggested_users =
     Client.get_json ?session ?host "app.bsky.unspecced.getSuggestedUsers"
       (Client.opt_pair "category" category @ Client.opt_int "limit" limit)
     |> parse_suggested_users
 
+  (** Suggested-user skeleton via
+      [app.bsky.unspecced.getSuggestedUsersSkeleton]. Optional [viewer] /
+      [category] / [limit] map to the lexicon query. Works without a
+      session against public AppView. *)
   let get_suggested_users_skeleton ?session ?host ?viewer ?category ?limit () :
       did_skeleton =
     Client.get_json ?session ?host
@@ -537,6 +580,10 @@ module Unspecced = struct
       @ Client.opt_int "limit" limit)
     |> parse_did_skeleton
 
+  (** Suggested starter packs via
+      [app.bsky.unspecced.getSuggestedStarterPacks]. Optional [limit] maps
+      to the lexicon query. Works without a session against public
+      AppView. *)
   let get_suggested_starter_packs ?session ?host ?limit () :
       Graph.starter_pack list =
     Client.get_json ?session ?host "app.bsky.unspecced.getSuggestedStarterPacks"
@@ -544,6 +591,10 @@ module Unspecced = struct
     |> fun json ->
     List.map Graph.parse_starter_pack (Client.list_member json "starterPacks")
 
+  (** Suggested starter-pack skeleton via
+      [app.bsky.unspecced.getSuggestedStarterPacksSkeleton]. Optional
+      [viewer] / [limit] map to the lexicon query. Works without a session
+      against public AppView. *)
   let get_suggested_starter_packs_skeleton ?session ?host ?viewer ?limit () :
       uri_skeleton =
     Client.get_json ?session ?host
@@ -551,6 +602,10 @@ module Unspecced = struct
       (Client.opt_pair "viewer" viewer @ Client.opt_int "limit" limit)
     |> fun json -> parse_uri_list json "starterPacks"
 
+  (** Onboarding suggested starter packs via
+      [app.bsky.unspecced.getOnboardingSuggestedStarterPacks]. Optional
+      [limit] maps to the lexicon query. Works without a session against
+      public AppView. *)
   let get_onboarding_suggested_starter_packs ?session ?host ?limit () :
       Graph.starter_pack list =
     Client.get_json ?session ?host
@@ -559,6 +614,10 @@ module Unspecced = struct
     |> fun json ->
     List.map Graph.parse_starter_pack (Client.list_member json "starterPacks")
 
+  (** Onboarding suggested starter-pack skeleton via
+      [app.bsky.unspecced.getOnboardingSuggestedStarterPacksSkeleton].
+      Optional [viewer] / [limit] map to the lexicon query. Works without
+      a session against public AppView. *)
   let get_onboarding_suggested_starter_packs_skeleton ?session ?host ?viewer
       ?limit () : uri_skeleton =
     Client.get_json ?session ?host
@@ -566,6 +625,10 @@ module Unspecced = struct
       (Client.opt_pair "viewer" viewer @ Client.opt_int "limit" limit)
     |> fun json -> parse_uri_list json "starterPacks"
 
+  (** Onboarding suggested users via
+      [app.bsky.unspecced.getSuggestedOnboardingUsers]. Optional
+      [category] / [limit] map to the lexicon query. Works without a
+      session against public AppView. *)
   let get_suggested_onboarding_users ?session ?host ?category ?limit () :
       suggested_users =
     Client.get_json ?session ?host
@@ -573,6 +636,10 @@ module Unspecced = struct
       (Client.opt_pair "category" category @ Client.opt_int "limit" limit)
     |> parse_suggested_users
 
+  (** Onboarding suggested-user skeleton via
+      [app.bsky.unspecced.getOnboardingSuggestedUsersSkeleton]. Optional
+      [viewer] / [category] / [limit] map to the lexicon query. Works
+      without a session against public AppView. *)
   let get_onboarding_suggested_users_skeleton ?session ?host ?viewer ?category
       ?limit () : did_skeleton =
     Client.get_json ?session ?host
@@ -582,6 +649,10 @@ module Unspecced = struct
       @ Client.opt_int "limit" limit)
     |> parse_did_skeleton
 
+  (** Discover suggested users via
+      [app.bsky.unspecced.getSuggestedUsersForDiscover]. Optional [limit]
+      maps to the lexicon query. Works without a session against public
+      AppView. *)
   let get_suggested_users_for_discover ?session ?host ?limit () :
       suggested_users =
     Client.get_json ?session ?host
@@ -589,6 +660,10 @@ module Unspecced = struct
       (Client.opt_int "limit" limit)
     |> parse_suggested_users
 
+  (** Discover suggested-user skeleton via
+      [app.bsky.unspecced.getSuggestedUsersForDiscoverSkeleton]. Optional
+      [viewer] / [limit] map to the lexicon query. Works without a session
+      against public AppView. *)
   let get_suggested_users_for_discover_skeleton ?session ?host ?viewer ?limit ()
       : did_skeleton =
     Client.get_json ?session ?host
@@ -596,6 +671,10 @@ module Unspecced = struct
       (Client.opt_pair "viewer" viewer @ Client.opt_int "limit" limit)
     |> parse_did_skeleton
 
+  (** Explore suggested users via
+      [app.bsky.unspecced.getSuggestedUsersForExplore]. Optional
+      [category] / [limit] map to the lexicon query. Works without a
+      session against public AppView. *)
   let get_suggested_users_for_explore ?session ?host ?category ?limit () :
       suggested_users =
     Client.get_json ?session ?host
@@ -603,6 +682,10 @@ module Unspecced = struct
       (Client.opt_pair "category" category @ Client.opt_int "limit" limit)
     |> parse_suggested_users
 
+  (** Explore suggested-user skeleton via
+      [app.bsky.unspecced.getSuggestedUsersForExploreSkeleton]. Optional
+      [viewer] / [category] / [limit] map to the lexicon query. Works
+      without a session against public AppView. *)
   let get_suggested_users_for_explore_skeleton ?session ?host ?viewer ?category
       ?limit () : did_skeleton =
     Client.get_json ?session ?host
@@ -612,6 +695,10 @@ module Unspecced = struct
       @ Client.opt_int "limit" limit)
     |> parse_did_skeleton
 
+  (** See-more suggested users via
+      [app.bsky.unspecced.getSuggestedUsersForSeeMore]. Optional
+      [category] / [limit] map to the lexicon query. Works without a
+      session against public AppView. *)
   let get_suggested_users_for_see_more ?session ?host ?category ?limit () :
       suggested_users =
     Client.get_json ?session ?host
@@ -619,6 +706,10 @@ module Unspecced = struct
       (Client.opt_pair "category" category @ Client.opt_int "limit" limit)
     |> parse_suggested_users
 
+  (** See-more suggested-user skeleton via
+      [app.bsky.unspecced.getSuggestedUsersForSeeMoreSkeleton]. Optional
+      [viewer] / [category] / [limit] map to the lexicon query. Works
+      without a session against public AppView. *)
   let get_suggested_users_for_see_more_skeleton ?session ?host ?viewer ?category
       ?limit () : did_skeleton =
     Client.get_json ?session ?host
@@ -628,6 +719,9 @@ module Unspecced = struct
       @ Client.opt_int "limit" limit)
     |> parse_did_skeleton
 
+  (** Post thread (v2) via [app.bsky.unspecced.getPostThreadV2]. Optional
+      [above] / [below] / [branching_factor] / [sort] map to the lexicon
+      query. Works without a session against public AppView. *)
   let get_post_thread_v2 ?session ?host ~anchor ?above ?below ?branching_factor
       ?sort () : thread_v2 =
     Client.get_json ?session ?host "app.bsky.unspecced.getPostThreadV2"
@@ -638,6 +732,9 @@ module Unspecced = struct
       @ Client.opt_pair "sort" sort)
     |> parse_thread_v2
 
+  (** Additional thread replies (v2) via
+      [app.bsky.unspecced.getPostThreadOtherV2]. Works without a session
+      against public AppView. *)
   let get_post_thread_other_v2 ?session ?host ~anchor () : thread_other_v2 =
     Client.get_json ?session ?host "app.bsky.unspecced.getPostThreadOtherV2"
       [ ("anchor", anchor) ]
