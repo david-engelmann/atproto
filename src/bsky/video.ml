@@ -121,6 +121,7 @@ module Video = struct
 
   (* already_exists is not a hard failure — the tutorial notes the job
      may still carry a blob ref that can be embedded. *)
+
   (** True when [st] is [Completed] or already carries a blob ref. *)
   let is_completed (st : job_status) : bool =
     classify_state st.state = Completed || blob_ready st
