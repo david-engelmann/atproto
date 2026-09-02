@@ -1,8 +1,10 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. [#135](https://github.com/david-engelmann/atproto/pull/135)
-adds remaining function-level odoc on Admin XRPC wrappers. This file
-records what actually shipped through
+adds remaining function-level odoc on Admin XRPC wrappers.
+[#138](https://github.com/david-engelmann/atproto/pull/138) adds
+remaining function-level odoc on Session / Moderation / Temp helpers.
+This file records what actually shipped through
 [#137](https://github.com/david-engelmann/atproto/pull/137)
 (live TestNetwork `getAccountPreferences`), including
 [#136](https://github.com/david-engelmann/atproto/pull/136)
@@ -271,7 +273,8 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
 - This PR: function-level odoc on remaining Tid / At_uri / Dag_cbor /
   K256 / Did_key / Did_web helpers (`of_int64`, `to_string`, `as_text`,
   `low_s`, `is_did_key`, `is_web_did`). Comment-only
-- function-level odoc on remaining Session / Moderation / Temp helpers
+- [#138](https://github.com/david-engelmann/atproto/pull/138):
+  function-level odoc on remaining Session / Moderation / Temp helpers
   (`refresh_token_from_session`, `get_session_request`, reason-type
   constants, `create_report_data_from_*`, `check_signup_queue`,
   `dereference_scope`, `add_reserved_handle`,
