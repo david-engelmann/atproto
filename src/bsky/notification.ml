@@ -353,6 +353,10 @@ module Notification = struct
     |> parse_notification_page
     |> fun (p : notification_page) -> p.notifications
 
+  (** Paginated notifications via
+      [app.bsky.notification.listNotifications]. Optional [reasons] /
+      [priority] / [cursor] / [seen_at] / [limit] map to the lexicon
+      query. *)
   let list_notifications_page (s : Session.session) ?reasons ?priority ?cursor
       ?seen_at ?limit () : notification_page =
     Client.Client.get_json ~session:s "app.bsky.notification.listNotifications"
@@ -526,11 +530,14 @@ module Notification = struct
     Client.Client.get_json ~session:s "app.bsky.notification.getPreferences" []
     |> parse_preferences
 
+  (** Set [priority] via [app.bsky.notification.putPreferences]. *)
   let put_preferences (s : Session.session) ~priority () : unit =
     ignore
       (Client.Client.post_json ~session:s "app.bsky.notification.putPreferences"
          (Yojson.Safe.to_string (`Assoc [ ("priority", `Bool priority) ])))
 
+  (** Replace notification preferences via
+      [app.bsky.notification.putPreferencesV2]. *)
   let put_preferences_v2 (s : Session.session) (prefs : preferences) :
       preferences =
     Client.Client.post_json ~session:s "app.bsky.notification.putPreferencesV2"
@@ -564,6 +571,9 @@ module Notification = struct
         | _ -> []);
     }
 
+  (** Activity subscriptions via
+      [app.bsky.notification.listActivitySubscriptions]. Optional
+      [limit] / [cursor] map to the lexicon query. *)
   let list_activity_subscriptions (s : Session.session) ?limit ?cursor () :
       activity_subscription_page =
     Client.Client.get_json ~session:s
@@ -572,6 +582,8 @@ module Notification = struct
       @ Client.Client.opt_pair "cursor" cursor)
     |> parse_activity_subscription_page
 
+  (** Put an activity subscription for [subject] via
+      [app.bsky.notification.putActivitySubscription]. *)
   let put_activity_subscription (s : Session.session) ~subject
       ~(activity_subscription : activity_subscription) () :
       string * activity_subscription option =
@@ -592,6 +604,10 @@ module Notification = struct
       | `Assoc _ as a -> Some (parse_activity_subscription a)
       | _ -> None )
 
+  (** Register a push token via [app.bsky.notification.registerPush].
+      Client wrapper for a hosted push service; this library does not
+      send push or fake a live hop. Optional [age_restricted] maps to
+      the lexicon body. *)
   let register_push (s : Session.session) ~service_did ~token ~platform ~app_id
       ?age_restricted () : unit =
     let fields =
@@ -610,6 +626,9 @@ module Notification = struct
       (Client.Client.post_json ~session:s "app.bsky.notification.registerPush"
          (Yojson.Safe.to_string (`Assoc fields)))
 
+  (** Unregister a push token via [app.bsky.notification.unregisterPush].
+      Client wrapper for a hosted push service; this library does not
+      send push or fake a live hop. *)
   let unregister_push (s : Session.session) ~service_did ~token ~platform
       ~app_id () : unit =
     ignore
