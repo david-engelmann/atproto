@@ -3,9 +3,17 @@ open Base64url
 
 (** Typed builder/parser for `com.germnetwork.declaration`. *)
 module Germnetwork = struct
+  (** NSID for [com.germnetwork.declaration]. *)
   let nsid_declaration = "com.germnetwork.declaration"
+
+  (** [messageMe.showButtonTo] value: hide the Message Me button. *)
   let show_none = "none"
+
+  (** [messageMe.showButtonTo] value: show the button to accounts the
+      author follows. *)
   let show_users_i_follow = "usersIFollow"
+
+  (** [messageMe.showButtonTo] value: show the button to everyone. *)
   let show_everyone = "everyone"
 
   type message_me = { show_button_to : string; message_me_url : string }
@@ -18,14 +26,19 @@ module Germnetwork = struct
     continuity_proofs : string list;
   }
 
+  (** Encode raw bytes as a lexicon [$bytes] object (standard
+      base64url). *)
   let bytes_to_json (raw : string) : Yojson.Safe.t =
     `Assoc [ ("$bytes", `String (Base64url.encode_std raw)) ]
 
+  (** Decode a lexicon bytes object (or raw base64url string) to octets. *)
   let bytes_of_json json : string option = Label.bytes_of_json json
 
+  (** Build a [messageMe] object ([showButtonTo] / [messageMeUrl]). *)
   let message_me ~show_button_to ~message_me_url : message_me =
     { show_button_to; message_me_url }
 
+  (** JSON object for [messageMe] ([showButtonTo], [messageMeUrl]). *)
   let message_me_to_json (m : message_me) : Yojson.Safe.t =
     `Assoc
       [
@@ -33,6 +46,8 @@ module Germnetwork = struct
         ("messageMeUrl", `String m.message_me_url);
       ]
 
+  (** Parse a [messageMe] object. Missing [showButtonTo] defaults to
+      [show_none]; missing [messageMeUrl] is empty. *)
   let parse_message_me json : message_me =
     {
       show_button_to =
@@ -69,6 +84,8 @@ module Germnetwork = struct
     in
     `Assoc fields
 
+  (** Parse a [com.germnetwork.declaration] record. Missing fields
+      become empty strings / [None] / []. *)
   let parse_declaration json : declaration =
     {
       version =

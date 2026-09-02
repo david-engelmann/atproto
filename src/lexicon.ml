@@ -48,6 +48,8 @@ module Lexicon = struct
     defs : def list;
   }
 
+  (** Map a lexicon [type] string to a [primitive] ([boolean],
+      [cid-link], [bytes], ...). Unknown names become [Unknown]. *)
   let lookup_primitive prim =
     match prim with
     | "boolean" -> Boolean
@@ -61,6 +63,9 @@ module Lexicon = struct
     | "bytes" -> Bytes
     | _ -> Unknown
 
+  (** Map a lexicon definition [type] string to a [definition]
+      ([record], [query], [permission-set], ...). Unknown names become
+      [Unknown_def]. *)
   let lookup_definition def =
     match def with
     | "record" -> Record
@@ -165,6 +170,7 @@ module Lexicon = struct
       output = parse_io_schema json "output";
     }
 
+  (** Parse a Lexicon 1 document from JSON. Fails when [id] is missing. *)
   let of_json json : document =
     let open Yojson.Safe.Util in
     let lexicon = match json |> member "lexicon" with `Int n -> n | _ -> 1 in
@@ -229,6 +235,8 @@ module Lexicon = struct
         match List.assoc_opt "main" fields with Some m -> m | None -> json)
     | _ -> json
 
+  (** Parse a [permission-set] document (or its [defs.main]) into
+      [permission_set]. *)
   let parse_permission_set json : permission_set =
     let body = permission_set_body json in
     {
@@ -244,6 +252,7 @@ module Lexicon = struct
         | _ -> []);
     }
 
+  (** The [main] definition of [doc], if present. *)
   let main (doc : document) : def option =
     List.find_opt (fun d -> d.name = "main") doc.defs
 
@@ -287,6 +296,8 @@ module Lexicon = struct
     | Permission_set -> "permission-set"
     | Unknown_def s -> s
 
+  (** Emit a generated OCaml module from [doc] (id, defs, input/output
+      records). *)
   let to_ocaml (doc : document) : string =
     let buf = Buffer.create 256 in
     let modname = String.capitalize_ascii (ocaml_ident doc.id) in
@@ -341,6 +352,7 @@ module Lexicon = struct
     | (Union _ | Unknown), _ -> true
     | _ -> false
 
+  (** Validate [json] against [d]'s required fields and property types. *)
   let validate (d : def) (json : Yojson.Safe.t) : (unit, string) result =
     match json with
     | `Assoc fields ->
@@ -398,6 +410,8 @@ module Lexicon = struct
     document : document option;
   }
 
+  (** Parse [com.atproto.lexicon.resolveLexicon] output ([uri], [cid],
+      [schema], optional parsed [document]). *)
   let parse_resolved_lexicon json : resolved_lexicon =
     let schema =
       match Yojson.Safe.Util.member "schema" json with
@@ -412,6 +426,7 @@ module Lexicon = struct
       document;
     }
 
+  (** Resolve [nsid] via [com.atproto.lexicon.resolveLexicon]. *)
   let resolve_lexicon ?session ?host ~nsid () : resolved_lexicon =
     Client.Client.get_json ?session ?host "com.atproto.lexicon.resolveLexicon"
       [ ("nsid", nsid) ]
@@ -573,6 +588,7 @@ module Lexicon = struct
   let official_auth_manage_profile =
     {|{"lexicon":1,"id":"app.bsky.authManageProfile","defs":{"main":{"type":"permission-set","title":"Manage Bluesky Profile","detail":"Update profile data, as well as status and public chat visibility.","permissions":[{"type":"permission","resource":"repo","action":["create","update","delete"],"collection":["app.bsky.actor.profile","app.bsky.actor.status","app.bsky.notification.declaration"]}]}}}|}
 
+  (** Bundled official lexicon JSON strings keyed by NSID. *)
   let official_lexicons : (string * string) list =
     [
       ("app.bsky.graph.listitem", official_listitem);
@@ -639,6 +655,7 @@ module Lexicon = struct
       ("app.bsky.authManageProfile", official_auth_manage_profile);
     ]
 
+  (** Parse every bundled official lexicon document. *)
   let official_documents () : document list =
     List.map (fun (_id, body) -> of_string body) official_lexicons
 end
