@@ -48,6 +48,9 @@ module Temp = struct
       original = json;
     }
 
+  (** Check whether [handle] is available via
+      [com.atproto.temp.checkHandleAvailability]. Optional [email] /
+      [birth_date] may yield suggestions when unavailable. *)
   let check_handle_availability ?session ?host ~handle ?email ?birth_date () :
       handle_check =
     Client.get_json ?session ?host "com.atproto.temp.checkHandleAvailability"

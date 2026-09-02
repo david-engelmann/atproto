@@ -7,6 +7,8 @@ module Car = struct
   type block = { cid : Cid.t; data : string }
   type t = { roots : Cid.t list; blocks : block list }
 
+  (** Decode CARv1 bytes (header plus CID-prefixed blocks). Used by
+      [com.atproto.sync.getRepo] and firehose diffs. *)
   let parse (bytes : string) : t =
     if String.length bytes = 0 then failwith "Car.parse: empty";
     let header_len, i = Varint.decode_from bytes 0 in
@@ -41,6 +43,7 @@ module Car = struct
     in
     { roots; blocks = read_blocks i [] }
 
+  (** Encode a CARv1 (version 1 header with [roots], then blocks). *)
   let encode (car : t) : string =
     let header =
       Dag_cbor.encode

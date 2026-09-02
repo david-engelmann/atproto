@@ -45,6 +45,9 @@ module Germnetwork = struct
         | _ -> "");
     }
 
+  (** Build a [com.germnetwork.declaration] record. [current_key] is
+      encoded as lexicon bytes; optional [message_me] / [key_package] /
+      [continuity_proofs] map to the lexicon. *)
   let declaration ~version ~current_key ?message_me ?key_package
       ?(continuity_proofs = []) () : Yojson.Safe.t =
     let fields =

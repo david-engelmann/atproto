@@ -207,9 +207,9 @@ module Label = struct
     in
     pairs
 
-  (* List of AT URI patterns to match (boolean 'OR'). Each may
-   * be a prefix (ending with '*'; will match inclusive of the string leading to
-   * '*'), or a full URI *)
+  (** Query labels matching [uri_patterns] via [com.atproto.label.queryLabels].
+      Each pattern may be a full AT URI or a prefix ending in [*]. Returns
+      the raw JSON body. *)
   let query_labels (s : Session.session) (uri_patterns : string list) : string =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
@@ -385,6 +385,9 @@ module Label = struct
     let bare = String.lowercase_ascii bare in
     bare = "localhost" || bare = "127.0.0.1" || bare = "[::1]" || bare = "::1"
 
+  (** WebSocket URL for [com.atproto.label.subscribeLabels]. Default host
+      is [bsky.network]; localhost / 127.0.0.1 use [ws], otherwise [wss].
+      Optional [cursor] is a seq to resume from. *)
   let subscribe_url ?(host = "bsky.network") ?scheme ?cursor () =
     let scheme =
       match scheme with

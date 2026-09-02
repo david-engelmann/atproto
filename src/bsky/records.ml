@@ -36,6 +36,9 @@ module Records = struct
   let parse_strong_ref json : Embed.strong_ref = Embed.parse_strong_ref json
   let via_fields via = match via with Some v -> [ ("via", v) ] | None -> []
 
+  (** Build an [app.bsky.feed.post] record. [text] and [created_at] are
+      required; optional [langs] / [facets] / [embed] / [reply] / [tags]
+      / [self_labels] map to the lexicon. *)
   let post ~text ~created_at ?langs ?facets ?embed ?reply ?tags ?self_labels ()
       : Yojson.Safe.t =
     let fields =
@@ -74,6 +77,7 @@ module Records = struct
     in
     `Assoc fields
 
+  (** Build an [app.bsky.feed.like] record for [uri] / [cid]. *)
   let like ~uri ~cid ~created_at ?via () : Yojson.Safe.t =
     `Assoc
       ([
@@ -92,6 +96,7 @@ module Records = struct
        ]
       @ via_fields via)
 
+  (** Build an [app.bsky.graph.follow] record for [subject] (DID). *)
   let follow ~subject ~created_at ?via () : Yojson.Safe.t =
     `Assoc
       ([

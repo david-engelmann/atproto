@@ -41,8 +41,10 @@ module Cid = struct
     if consumed <> String.length s then failwith "Cid.of_bytes: trailing bytes";
     cid
 
+  (** Multibase base32 string ([b...]) for this CID. *)
   let to_string (c : t) : string = "b" ^ Base32.encode (to_bytes c)
 
+  (** Parse a multibase base32 CID ([b...]). Other bases fail. *)
   let of_string (s : string) : t =
     if String.length s < 2 then failwith "Cid.of_string: empty";
     match s.[0] with
@@ -69,10 +71,14 @@ module Cid = struct
   let sha256 (data : string) : string =
     Digestif.SHA256.(digest_string data |> to_raw_string)
 
+  (** CIDv1 from SHA-256 of [data]. Default codec is dag-cbor; use
+      [~codec:Raw] for blobs. *)
   let create ?(codec = Dag_cbor) (data : string) : t =
     of_digest ~codec (sha256 data)
 
   (* Blobs are raw + SHA-256; repo records / MST nodes are dag-cbor. *)
+
+  (** Blob CID: CIDv1 raw plus SHA-256 of [bytes]. *)
   let of_blob (bytes : string) : t = create ~codec:Raw bytes
 
   let verify_blob ?(expected : t option) (bytes : string) : t =

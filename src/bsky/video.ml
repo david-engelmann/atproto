@@ -149,6 +149,9 @@ module Video = struct
     Client.get_json ~session:s "app.bsky.video.getUploadLimits" []
     |> parse_upload_limits
 
+  (** XRPC URL for [app.bsky.video.uploadVideo] on the hosted video
+      service (default [video.bsky.app]). Query params are [did] and
+      [name]. Client URL helper only — this is not a local transcoder. *)
   let upload_video_url ?host ~did ~name () =
     let base = Client.nsid_url ~host:(video_host ?host ()) upload_nsid in
     let qs =
@@ -338,6 +341,10 @@ module Video = struct
       failure_reason = Client.string_opt json "failureReason";
     }
 
+  (** JSON body for [app.bsky.video.startUpload] (multipart session).
+      [size_bytes] and [mime_type] are required; optional [name] /
+      [duration_ms] / [width] / [height] map to the lexicon. Client
+      request body only. *)
   let start_upload_body ~size_bytes ~mime_type ?name ?duration_ms ?width ?height
       () : Yojson.Safe.t =
     let fields =
