@@ -36,7 +36,8 @@ module Identity = struct
     let bare = String.lowercase_ascii bare in
     bare = "localhost" || bare = "127.0.0.1" || bare = "[::1]" || bare = "::1"
 
-  (* PLC_ORIGIN, or local @atproto/dev-env :2582 when talking to a local PDS. *)
+  (** PLC directory origin: [PLC_ORIGIN], or [http://localhost:2582] on a
+      local PDS. *)
   let plc_directory ?host ?session () : string option =
     match Sys.getenv_opt "PLC_ORIGIN" with
     | Some o when String.trim o <> "" -> Some (String.trim o)
@@ -77,6 +78,7 @@ module Identity = struct
   let raise_xrpc json =
     failwith ("Identity: " ^ Error.Error.to_string (Error.Error.of_json json))
 
+  (** Host of a service endpoint URL (scheme and path stripped). *)
   let host_of_service_endpoint (url : string) : string =
     let strip prefix =
       let plen = String.length prefix in
@@ -106,6 +108,8 @@ module Identity = struct
     document : Did_plc.Did_plc.did_document option;
   }
 
+  (** Parse [resolveDid] JSON into [didDoc] and optional
+      [Did_plc.did_document]. *)
   let parse_did_resolution json : did_resolution =
     let open Yojson.Safe.Util in
     let did_doc =
@@ -146,9 +150,13 @@ module Identity = struct
       | Some _ -> raise_xrpc json
       | None -> json
 
+  (** Parsed {!resolve_did}: raw [didDoc] plus optional
+      [Did_plc.did_document]. *)
   let resolve_did_parsed ?host ?session (did : string) : did_resolution =
     resolve_did ?host ?session did |> parse_did_resolution
 
+  (** Resolve a handle or DID to [did], optional [handle], and [pds].
+      Supports did:plc, did:web, and did:key. *)
   let resolve ?host ?session (actor : string) : resolved_identity =
     let directory = plc_directory ?host ?session () in
     if String.length actor >= 4 && String.sub actor 0 4 = "did:" then
@@ -199,6 +207,7 @@ module Identity = struct
     did_doc : Yojson.Safe.t option;
   }
 
+  (** Parse [com.atproto.identity.defs#identityInfo] JSON. *)
   let parse_identity_info json : identity_info =
     let open Yojson.Safe.Util in
     {
@@ -247,6 +256,7 @@ module Identity = struct
       | Some _ -> raise_xrpc json
       | None -> parse_identity_info json
 
+  (** JSON body for [com.atproto.identity.updateHandle]. *)
   let update_handle_body (handle : string) : Yojson.Safe.t =
     `Assoc [ ("handle", `String handle) ]
 
@@ -257,6 +267,7 @@ module Identity = struct
     services : Yojson.Safe.t;
   }
 
+  (** Parse [com.atproto.identity.getRecommendedDidCredentials] output. *)
   let parse_recommended_did_credentials json : recommended_did_credentials =
     let open Yojson.Safe.Util in
     let strings field =
@@ -272,6 +283,7 @@ module Identity = struct
       services = json |> member "services";
     }
 
+  (** JSON body for [com.atproto.identity.signPlcOperation]. *)
   let sign_plc_operation_body ?token ?rotation_keys ?also_known_as
       ?verification_methods ?services () : Yojson.Safe.t =
     let str_list xs = `List (List.map (fun s -> `String s) xs) in
@@ -290,25 +302,39 @@ module Identity = struct
     in
     `Assoc fields
 
+  (** JSON body for [com.atproto.identity.submitPlcOperation]
+      ([operation] wrapper). *)
   let submit_plc_operation_body (operation : Yojson.Safe.t) : Yojson.Safe.t =
     `Assoc [ ("operation", operation) ]
 
+  (** DNS TXT name for handle verification ([_atproto.handle]). *)
   let handle_txt_name = Syntax.Syntax.handle_txt_name
+
+  (** DID from an [_atproto] TXT value ([did=did:...]). *)
   let parse_txt_did = Syntax.Syntax.parse_txt_did
+
+  (** HTTPS URL for handle verification ([/.well-known/atproto-did]). *)
   let handle_well_known_url = Syntax.Syntax.handle_well_known_url
+
+  (** DID from a [/.well-known/atproto-did] body. *)
   let parse_well_known_did = Syntax.Syntax.parse_well_known_did
 
+  (** Update the account handle via [com.atproto.identity.updateHandle]. *)
   let update_handle (s : Session.session) ~handle () : unit =
     ignore
       (Client.Client.post_json ~session:s "com.atproto.identity.updateHandle"
          (Yojson.Safe.to_string (update_handle_body handle)))
 
+  (** Recommended rotation keys and DID fields via
+      [com.atproto.identity.getRecommendedDidCredentials]. *)
   let get_recommended_did_credentials (s : Session.session) :
       recommended_did_credentials =
     Client.Client.get_json ~session:s
       "com.atproto.identity.getRecommendedDidCredentials" []
     |> parse_recommended_did_credentials
 
+  (** Sign a PLC operation via [com.atproto.identity.signPlcOperation].
+      Optional [token] comes from {!request_plc_operation_signature}. *)
   let sign_plc_operation (s : Session.session) ?token ?rotation_keys
       ?also_known_as ?verification_methods ?services () : Yojson.Safe.t =
     Client.Client.post_json ~session:s "com.atproto.identity.signPlcOperation"
@@ -316,20 +342,26 @@ module Identity = struct
          (sign_plc_operation_body ?token ?rotation_keys ?also_known_as
             ?verification_methods ?services ()))
 
+  (** Submit a signed PLC operation via
+      [com.atproto.identity.submitPlcOperation]. *)
   let submit_plc_operation (s : Session.session) ~operation () : unit =
     ignore
       (Client.Client.post_json ~session:s
          "com.atproto.identity.submitPlcOperation"
          (Yojson.Safe.to_string (submit_plc_operation_body operation)))
 
+  (** Email a PLC-operation signature token via
+      [com.atproto.identity.requestPlcOperationSignature]. *)
   let request_plc_operation_signature (s : Session.session) : unit =
     ignore
       (Client.Client.post_json ~session:s
          "com.atproto.identity.requestPlcOperationSignature" "")
 
+  (** JSON body for [com.atproto.identity.refreshIdentity]. *)
   let refresh_identity_body ~identifier : Yojson.Safe.t =
     `Assoc [ ("identifier", `String identifier) ]
 
+  (** Re-resolve [identifier] via [com.atproto.identity.refreshIdentity]. *)
   let refresh_identity ?session ?host ~identifier () : identity_info =
     Client.Client.post_json ?session ?host
       "com.atproto.identity.refreshIdentity"
