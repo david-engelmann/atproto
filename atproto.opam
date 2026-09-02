@@ -15,7 +15,7 @@ authors: ["david-engelmann <david.engelmann44@gmail.com>"]
 license: "MIT"
 tags: ["atproto" "bluesky" "xrpc" "lexicon"]
 homepage: "https://github.com/david-engelmann/atproto"
-doc: "https://github.com/david-engelmann/atproto"
+doc: "https://david-engelmann.github.io/atproto/"
 bug-reports: "https://github.com/david-engelmann/atproto/issues"
 depends: [
   "dune" {>= "2.9"}

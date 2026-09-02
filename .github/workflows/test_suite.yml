@@ -115,8 +115,9 @@ jobs:
         with:
           path: _build/default/_doc/_html
 
-  # Official GitHub Actions Pages path. Skipped on PRs so CI stays green
-  # before Pages is enabled (Settings → Pages → Source: GitHub Actions).
+  # Official GitHub Actions Pages path. Pages is enabled
+  # (Settings → Pages → Source: GitHub Actions). deploy-pages runs on
+  # push to main; pull requests keep the odoc-html artifact only.
   deploy-pages:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: lint-doc

@@ -1,8 +1,14 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#110](https://github.com/david-engelmann/atproto/pull/110)
-(Jetstream v2 `Sec-WebSocket-Protocol: xrpc.v1.json`), including
+shipped through this PR (live GitHub Pages URL
+https://david-engelmann.github.io/atproto/), including
+[#112](https://github.com/david-engelmann/atproto/pull/112) (odoc HTML
+deploy to GitHub Pages on main),
+[#111](https://github.com/david-engelmann/atproto/pull/111) (docs/repo
+cleanup),
+[#110](https://github.com/david-engelmann/atproto/pull/110)
+(Jetstream v2 `Sec-WebSocket-Protocol: xrpc.v1.json`),
 [#109](https://github.com/david-engelmann/atproto/pull/109) (live Jetstream
 dict-zstd), [#108](https://github.com/david-engelmann/atproto/pull/108)
 (lexicon pin `60c4395951`, coverage gate, OCaml `< 5.0`, odoc HTML CI
@@ -86,7 +92,16 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   (client helper / record builder / bundled permission-set / explicit
   skip); OCaml constraint `(and (>= 4.14.1) (< 5.0))` — CI tests 4.14.1
   only; TestSuite `lint-doc` runs `dune build @doc` and uploads HTML as
-  the `odoc-html` artifact (no GitHub Pages site)
+  the `odoc-html` artifact on pull requests
+- [#112](https://github.com/david-engelmann/atproto/pull/112): on push to
+  `main`, the same HTML is deployed with GitHub Actions Pages
+  (`actions/upload-pages-artifact` + `actions/deploy-pages`). GitHub
+  Pages is enabled (Settings → Pages → Source: GitHub Actions). Live
+  site: https://david-engelmann.github.io/atproto/
+- This PR: `dune-project` `(documentation ...)` and generated
+  `atproto.opam` `doc:` point at that live URL. README / CONTRIBUTING no
+  longer say Pages is disabled. Module-level odoc on public
+  `Jetstream_zstd_dictionary` (checked-in fallback blob from #109)
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
