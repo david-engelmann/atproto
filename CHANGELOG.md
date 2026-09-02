@@ -273,14 +273,16 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `actions_of`, `lxm_of`, `aud_of`, `validate`, `to_string`,
   `is_valid_datetime` / `is_valid_language`, `parse_nsid` /
   `parse_did_ref`, `normalize_handle`). Comment-only
-- This PR: remaining function-level odoc on Feed XRPC wrappers
+- [#144](https://github.com/david-engelmann/atproto/pull/144): remaining
+  function-level odoc on Feed XRPC wrappers
   (`get_reposted_by`, `get_feed_skeleton` / `get_feed_skeleton_parsed`,
   `get_feed_generator` / `get_feed_generators`, `get_actor_feeds`,
   `get_suggested_feeds`, `describe_feed_generator`, `search_posts_v2`,
   `get_quotes`, `get_actor_likes`, `send_interactions` /
   `send_interactions_body`). Comment-only; does not host a feed
   generator. Hosted-only video / chat / Tap stay listed not faked
-- This PR: remaining function-level odoc on Graph XRPC wrappers
+- [#145](https://github.com/david-engelmann/atproto/pull/145): remaining
+  function-level odoc on Graph XRPC wrappers
   (`get_followers_page` / `get_follows_page`, `mute_actor_body`,
   `get_list_mutes` / `get_list_blocks`, `mute_actor_list` /
   `unmute_actor_list`, `mute_thread` / `unmute_thread`,
@@ -288,6 +290,12 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `search_starter_packs` / `search_starter_packs_v2`,
   `get_lists_with_membership` / `get_starter_packs_with_membership`,
   `get_known_followers`, `get_suggested_follows_by_actor`). Comment-only
+- This PR: remaining function-level odoc on Notification XRPC wrappers
+  (`put_preferences` / `put_preferences_v2`,
+  `list_activity_subscriptions`, `put_activity_subscription`,
+  `register_push` / `unregister_push`, `list_notifications_page`).
+  Comment-only; client wrappers for a hosted push service stay listed
+  not faked. Hosted-only video / chat / Tap stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
