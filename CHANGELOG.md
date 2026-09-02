@@ -1,8 +1,16 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#124](https://github.com/david-engelmann/atproto/pull/124)
-(CHANGELOG through #123), including
+shipped through [#127](https://github.com/david-engelmann/atproto/pull/127)
+(CHANGELOG through #126), including
+[#126](https://github.com/david-engelmann/atproto/pull/126)
+(function-level odoc on remaining Firehose / Oauth / Session / Auth /
+Client / Server entry points),
+[#125](https://github.com/david-engelmann/atproto/pull/125)
+(function-level odoc on Label / Video / CID/CAR / PLC / Records
+entry points),
+[#124](https://github.com/david-engelmann/atproto/pull/124)
+(CHANGELOG through #123),
 [#123](https://github.com/david-engelmann/atproto/pull/123)
 (live leftover TestNetwork `getListBlocks` / `getStarterPack` /
 `getFeedGenerator` / `putActivitySubscription`, PLC
@@ -191,6 +199,19 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `layer_for_key`, `subscribe_url`, `list_convos`, `get_bookmarks`,
   `list_notifications`). Comment-only; that PR targets `main` in
   parallel
+- [#125](https://github.com/david-engelmann/atproto/pull/125):
+  function-level odoc on public Label / Video / CID / CAR / PLC /
+  Records / Admin / Embed / Facet / Temp / Site / Germnetwork /
+  Websocket / Xrpc / Oauth_scope / Syntax / Tid / At_uri / Lexicon
+  entry points (`query_labels`, `upload_video_url`, `Cid.create`,
+  `Car.parse`, `genesis_operation`, `Records.post`). Comment-only;
+  Video helpers stay client URL/body (no hosted transcoder)
+- [#126](https://github.com/david-engelmann/atproto/pull/126):
+  function-level odoc on remaining public Firehose / Oauth / Session /
+  Auth / Client / Server / Did_key / Did_web / K256 / Dag_cbor /
+  Hash / Varint / Error / Http_client entry points (`subscribe_url`,
+  `pkce_s256`, `refresh_session`, `get_json`, `describe_server`).
+  Comment-only
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
