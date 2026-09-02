@@ -711,6 +711,7 @@ module Ozone = struct
 
   type timeline_item = { day : string; summary : timeline_summary list }
   type account_timeline = { timeline : timeline_item list }
+  type account_preferences = { preferences : Yojson.Safe.t list }
 
   type scheduled_action = {
     id : string option;
@@ -784,6 +785,9 @@ module Ozone = struct
       timeline =
         List.map parse_timeline_item (Client.list_member json "timeline");
     }
+
+  let parse_account_preferences json : account_preferences =
+    { preferences = Client.list_member json "preferences" }
 
   let parse_scheduled_action json : scheduled_action =
     {
@@ -865,6 +869,16 @@ module Ozone = struct
       "tools.ozone.moderation.getAccountTimeline"
       [ ("did", did) ]
     |> parse_account_timeline
+
+  (** Private preferences for [did] via
+      [tools.ozone.moderation.getAccountPreferences]
+      (moderator or admin auth; [app.bsky.actor.defs#preferences]). *)
+  let get_account_preferences (s : Session.session) ~proxy ~did () :
+      account_preferences =
+    Client.get_json ~session:s ~extra:(proxy_headers proxy)
+      "tools.ozone.moderation.getAccountPreferences"
+      [ ("did", did) ]
+    |> parse_account_preferences
 
   (** Reporter stats for [dids] via
       [tools.ozone.moderation.getReporterStats]. *)
