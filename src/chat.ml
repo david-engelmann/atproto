@@ -570,6 +570,8 @@ module Chat = struct
     | `Assoc _ as c -> parse_convo c
     | _ -> parse_convo json
 
+  (** Conversation for [members] via [chat.bsky.convo.getConvoForMembers].
+      Hosted chat service; always sends [atproto-proxy]. *)
   let get_convo_for_members (s : Session.session) ?proxy ~members () : convo =
     Client.get_json ~session:s
       ~extra:(session_proxy_headers ?proxy s)
@@ -603,6 +605,9 @@ module Chat = struct
          (send_message_body ~convo_id ~text ?facets ?embed ?reply_to ()))
     |> parse_message
 
+  (** Mark [convo_id] read via [chat.bsky.convo.updateRead]. Optional
+      [message_id] maps to the lexicon body. Hosted chat service;
+      always sends [atproto-proxy]. *)
   let update_read (s : Session.session) ?proxy ~convo_id ?message_id () : convo
       =
     Client.post_json ~session:s
@@ -614,6 +619,8 @@ module Chat = struct
     | `Assoc _ as c -> parse_convo c
     | _ -> parse_convo json
 
+  (** Mute [convo_id] via [chat.bsky.convo.muteConvo]. Hosted chat
+      service; always sends [atproto-proxy]. *)
   let mute_convo (s : Session.session) ?proxy ~convo_id () : convo =
     Client.post_json ~session:s
       ~extra:(session_proxy_headers ?proxy s)
@@ -624,6 +631,8 @@ module Chat = struct
     | `Assoc _ as c -> parse_convo c
     | _ -> parse_convo json
 
+  (** Unmute [convo_id] via [chat.bsky.convo.unmuteConvo]. Hosted chat
+      service; always sends [atproto-proxy]. *)
   let unmute_convo (s : Session.session) ?proxy ~convo_id () : convo =
     Client.post_json ~session:s
       ~extra:(session_proxy_headers ?proxy s)
@@ -792,6 +801,8 @@ module Chat = struct
           (parse_convo_requests json).requests;
     }
 
+  (** Accept [convo_id] via [chat.bsky.convo.acceptConvo]. Hosted chat
+      service; always sends [atproto-proxy]. *)
   let accept_convo (s : Session.session) ?proxy ~convo_id () : accept_result =
     Client.post_json ~session:s
       ~extra:(session_proxy_headers ?proxy s)
@@ -799,6 +810,8 @@ module Chat = struct
       (Yojson.Safe.to_string (convo_id_body convo_id))
     |> parse_accept
 
+  (** Leave [convo_id] via [chat.bsky.convo.leaveConvo]. Hosted chat
+      service; always sends [atproto-proxy]. *)
   let leave_convo (s : Session.session) ?proxy ~convo_id () : leave_result =
     Client.post_json ~session:s
       ~extra:(session_proxy_headers ?proxy s)
@@ -806,6 +819,9 @@ module Chat = struct
       (Yojson.Safe.to_string (convo_id_body convo_id))
     |> parse_leave
 
+  (** Add reaction [value] on [message_id] via
+      [chat.bsky.convo.addReaction]. Hosted chat service; always sends
+      [atproto-proxy]. *)
   let add_reaction (s : Session.session) ?proxy ~convo_id ~message_id ~value ()
       : message =
     Client.post_json ~session:s
@@ -820,6 +836,9 @@ module Chat = struct
            ]))
     |> unwrap_message
 
+  (** Remove reaction [value] on [message_id] via
+      [chat.bsky.convo.removeReaction]. Hosted chat service; always
+      sends [atproto-proxy]. *)
   let remove_reaction (s : Session.session) ?proxy ~convo_id ~message_id ~value
       () : message =
     Client.post_json ~session:s
@@ -834,6 +853,9 @@ module Chat = struct
            ]))
     |> unwrap_message
 
+  (** Delete [message_id] for the viewer via
+      [chat.bsky.convo.deleteMessageForSelf]. Hosted chat service;
+      always sends [atproto-proxy]. *)
   let delete_message_for_self (s : Session.session) ?proxy ~convo_id ~message_id
       () : message =
     Client.post_json ~session:s
@@ -844,6 +866,9 @@ module Chat = struct
            [ ("convoId", `String convo_id); ("messageId", `String message_id) ]))
     |> unwrap_message
 
+  (** Chat availability for [members] via
+      [chat.bsky.convo.getConvoAvailability]. Hosted chat service;
+      always sends [atproto-proxy]. *)
   let get_convo_availability (s : Session.session) ?proxy ~members () :
       convo_availability =
     Client.get_json ~session:s
@@ -852,6 +877,9 @@ module Chat = struct
       (Client.repeat_param "members" members)
     |> parse_availability
 
+  (** Conversation log via [chat.bsky.convo.getLog]. Optional [cursor]
+      maps to the lexicon query. Hosted chat service; always sends
+      [atproto-proxy]. *)
   let get_log (s : Session.session) ?proxy ?cursor () : logs =
     Client.get_json ~session:s
       ~extra:(session_proxy_headers ?proxy s)
@@ -859,6 +887,9 @@ module Chat = struct
       (Client.opt_pair "cursor" cursor)
     |> parse_logs
 
+  (** Unread counts via [chat.bsky.convo.getUnreadCounts]. Optional
+      [include_group_chats] maps to the lexicon query. Hosted chat
+      service; always sends [atproto-proxy]. *)
   let get_unread_counts (s : Session.session) ?proxy ?include_group_chats () :
       unread_counts =
     Client.get_json ~session:s
@@ -867,6 +898,9 @@ module Chat = struct
       (Client.opt_bool "includeGroupChats" include_group_chats)
     |> parse_unread_counts
 
+  (** Conversation requests via [chat.bsky.convo.listConvoRequests].
+      Optional [limit] / [cursor] map to the lexicon query. Hosted
+      chat service; always sends [atproto-proxy]. *)
   let list_convo_requests (s : Session.session) ?proxy ?limit ?cursor () :
       convo_requests =
     Client.get_json ~session:s
@@ -875,6 +909,8 @@ module Chat = struct
       (Client.opt_int "limit" limit @ Client.opt_pair "cursor" cursor)
     |> parse_convo_requests
 
+  (** Send [items] via [chat.bsky.convo.sendMessageBatch]. Hosted chat
+      service; always sends [atproto-proxy]. *)
   let send_message_batch (s : Session.session) ?proxy ~items () : message list =
     let payload =
       `Assoc
@@ -899,6 +935,9 @@ module Chat = struct
       (Yojson.Safe.to_string payload)
     |> fun json -> List.map parse_message (Client.list_member json "items")
 
+  (** Mark all conversations read via [chat.bsky.convo.updateAllRead].
+      Optional [status] maps to the lexicon body. Hosted chat service;
+      always sends [atproto-proxy]. *)
   let update_all_read (s : Session.session) ?proxy ?status () : int =
     Client.post_json ~session:s
       ~extra:(session_proxy_headers ?proxy s)
@@ -916,6 +955,8 @@ module Chat = struct
   let message_input_with_facets ?facets ?embed ?reply_to text : Yojson.Safe.t =
     message_input ?facets ?embed ?reply_to text
 
+  (** Lock [convo_id] via [chat.bsky.convo.lockConvo]. Hosted chat
+      service; always sends [atproto-proxy]. *)
   let lock_convo (s : Session.session) ?proxy ~convo_id () : convo =
     Client.post_json ~session:s
       ~extra:(session_proxy_headers ?proxy s)
@@ -923,6 +964,8 @@ module Chat = struct
       (Yojson.Safe.to_string (convo_id_body convo_id))
     |> unwrap_convo
 
+  (** Unlock [convo_id] via [chat.bsky.convo.unlockConvo]. Hosted chat
+      service; always sends [atproto-proxy]. *)
   let unlock_convo (s : Session.session) ?proxy ~convo_id () : convo =
     Client.post_json ~session:s
       ~extra:(session_proxy_headers ?proxy s)
@@ -932,6 +975,8 @@ module Chat = struct
 
   type add_members_result = { convo : convo; added_members : member list }
 
+  (** Add [members] to [convo_id] via [chat.bsky.group.addMembers].
+      Hosted chat service; always sends [atproto-proxy]. *)
   let add_members (s : Session.session) ?proxy ~convo_id ~members () :
       add_members_result =
     let json =
@@ -951,6 +996,9 @@ module Chat = struct
         List.map parse_member (Client.list_member json "addedMembers");
     }
 
+  (** Remove [members] from [convo_id] via
+      [chat.bsky.group.removeMembers]. Hosted chat service; always
+      sends [atproto-proxy]. *)
   let remove_members (s : Session.session) ?proxy ~convo_id ~members () : convo
       =
     Client.post_json ~session:s
@@ -964,6 +1012,8 @@ module Chat = struct
            ]))
     |> unwrap_convo
 
+  (** Rename group [convo_id] via [chat.bsky.group.editGroup]. Hosted
+      chat service; always sends [atproto-proxy]. *)
   let edit_group (s : Session.session) ?proxy ~convo_id ~name () : convo =
     Client.post_json ~session:s
       ~extra:(session_proxy_headers ?proxy s)
@@ -1070,6 +1120,9 @@ module Chat = struct
         }
     else `Unknown json
 
+  (** Members of [convo_id] via [chat.bsky.convo.getConvoMembers]. Optional
+      [limit] / [cursor] map to the lexicon query. Hosted chat service;
+      always sends [atproto-proxy]. *)
   let get_convo_members (s : Session.session) ?proxy ~convo_id ?limit ?cursor ()
       : members_page =
     Client.get_json ~session:s
@@ -1079,6 +1132,8 @@ module Chat = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_members_page
 
+  (** Create a group named [name] via [chat.bsky.group.createGroup].
+      Hosted chat service; always sends [atproto-proxy]. *)
   let create_group (s : Session.session) ?proxy ~members ~name () : convo =
     Client.post_json ~session:s
       ~extra:(session_proxy_headers ?proxy s)
@@ -1091,6 +1146,9 @@ module Chat = struct
            ]))
     |> unwrap_convo
 
+  (** Create a join link for [convo_id] via
+      [chat.bsky.group.createJoinLink]. Hosted chat service; always
+      sends [atproto-proxy]. *)
   let create_join_link (s : Session.session) ?proxy ~convo_id ~join_rule
       ?(require_approval = false) () : join_link =
     Client.post_json ~session:s
@@ -1105,6 +1163,9 @@ module Chat = struct
            ]))
     |> unwrap_join_link
 
+  (** Edit the join link on [convo_id] via [chat.bsky.group.editJoinLink].
+      Optional [join_rule] / [require_approval] map to the lexicon body.
+      Hosted chat service; always sends [atproto-proxy]. *)
   let edit_join_link (s : Session.session) ?proxy ~convo_id ?join_rule
       ?require_approval () : join_link =
     let fields =
@@ -1124,6 +1185,9 @@ module Chat = struct
       (Yojson.Safe.to_string (`Assoc fields))
     |> unwrap_join_link
 
+  (** Enable the join link on [convo_id] via
+      [chat.bsky.group.enableJoinLink]. Hosted chat service; always
+      sends [atproto-proxy]. *)
   let enable_join_link (s : Session.session) ?proxy ~convo_id () : join_link =
     Client.post_json ~session:s
       ~extra:(session_proxy_headers ?proxy s)
@@ -1131,6 +1195,9 @@ module Chat = struct
       (Yojson.Safe.to_string (convo_id_body convo_id))
     |> unwrap_join_link
 
+  (** Disable the join link on [convo_id] via
+      [chat.bsky.group.disableJoinLink]. Hosted chat service; always
+      sends [atproto-proxy]. *)
   let disable_join_link (s : Session.session) ?proxy ~convo_id () : join_link =
     Client.post_json ~session:s
       ~extra:(session_proxy_headers ?proxy s)
@@ -1138,6 +1205,9 @@ module Chat = struct
       (Yojson.Safe.to_string (convo_id_body convo_id))
     |> unwrap_join_link
 
+  (** Join-link previews for [codes] via
+      [chat.bsky.group.getJoinLinkPreviews]. Hosted chat service; sends
+      [atproto-proxy] when a session is provided. *)
   let get_join_link_previews ?session ?proxy ?host ~codes () : join_preview list
       =
     Client.get_json ?session ?host
@@ -1150,6 +1220,9 @@ module Chat = struct
     |> fun json ->
     List.map parse_join_preview (Client.list_member json "joinLinkPreviews")
 
+  (** Join requests for [convo_id] via [chat.bsky.group.listJoinRequests].
+      Optional [limit] / [cursor] map to the lexicon query. Hosted chat
+      service; always sends [atproto-proxy]. *)
   let list_join_requests (s : Session.session) ?proxy ~convo_id ?limit ?cursor
       () : join_requests =
     Client.get_json ~session:s
@@ -1159,6 +1232,8 @@ module Chat = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_join_requests
 
+  (** Mutual groups with [subject] via [chat.bsky.group.listMutualGroups].
+      Hosted chat service; always sends [atproto-proxy]. *)
   let list_mutual_groups (s : Session.session) ?proxy ~subject ?limit ?cursor ()
       : convos =
     Client.get_json ~session:s
@@ -1168,6 +1243,9 @@ module Chat = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_convos
 
+  (** Approve [member] for [convo_id] via
+      [chat.bsky.group.approveJoinRequest]. Hosted chat service; always
+      sends [atproto-proxy]. *)
   let approve_join_request (s : Session.session) ?proxy ~convo_id ~member () :
       convo =
     Client.post_json ~session:s
@@ -1177,6 +1255,9 @@ module Chat = struct
          (`Assoc [ ("convoId", `String convo_id); ("member", `String member) ]))
     |> unwrap_convo
 
+  (** Reject [member] for [convo_id] via
+      [chat.bsky.group.rejectJoinRequest]. Hosted chat service; always
+      sends [atproto-proxy]. *)
   let reject_join_request (s : Session.session) ?proxy ~convo_id ~member () :
       unit =
     ignore
@@ -1187,6 +1268,8 @@ module Chat = struct
             (`Assoc
               [ ("convoId", `String convo_id); ("member", `String member) ])))
 
+  (** Request to join via [chat.bsky.group.requestJoin] with [code].
+      Hosted chat service; always sends [atproto-proxy]. *)
   let request_join (s : Session.session) ?proxy ~code () : request_join_result =
     let json =
       Client.post_json ~session:s
@@ -1202,6 +1285,9 @@ module Chat = struct
         | _ -> None);
     }
 
+  (** Withdraw the viewer's join request via
+      [chat.bsky.group.withdrawJoinRequest]. Hosted chat service;
+      always sends [atproto-proxy]. *)
   let withdraw_join_request (s : Session.session) ?proxy ~convo_id () : unit =
     ignore
       (Client.post_json ~session:s
@@ -1209,6 +1295,9 @@ module Chat = struct
          "chat.bsky.group.withdrawJoinRequest"
          (Yojson.Safe.to_string (convo_id_body convo_id)))
 
+  (** Mark join requests read on [convo_id] via
+      [chat.bsky.group.updateJoinRequestsRead]. Hosted chat service;
+      always sends [atproto-proxy]. *)
   let update_join_requests_read (s : Session.session) ?proxy ~convo_id () : unit
       =
     ignore
@@ -1255,6 +1344,9 @@ module Chat = struct
       original = prefs;
     }
 
+  (** Notification preferences via
+      [chat.bsky.notification.getPreferences]. Hosted chat service;
+      always sends [atproto-proxy]. *)
   let get_notification_preferences (s : Session.session) ?proxy () :
       notification_preferences =
     Client.get_json ~session:s
@@ -1262,6 +1354,9 @@ module Chat = struct
       "chat.bsky.notification.getPreferences" []
     |> parse_notification_preferences
 
+  (** Replace notification preferences via
+      [chat.bsky.notification.putPreferences]. Hosted chat service;
+      always sends [atproto-proxy]. *)
   let put_notification_preferences (s : Session.session) ?proxy ?chat
       ?chat_request () : notification_preferences =
     let fields =
@@ -1321,18 +1416,24 @@ module Chat = struct
     in
     `Assoc fields
 
+  (** Viewer chat status via [chat.bsky.actor.getStatus]. Hosted chat
+      service; always sends [atproto-proxy]. *)
   let get_actor_status (s : Session.session) ?proxy () : actor_status =
     Client.get_json ~session:s
       ~extra:(session_proxy_headers ?proxy s)
       "chat.bsky.actor.getStatus" []
     |> parse_actor_status
 
+  (** Delete the chat account via [chat.bsky.actor.deleteAccount]. Hosted
+      chat service; always sends [atproto-proxy]. *)
   let delete_account (s : Session.session) ?proxy () : unit =
     ignore
       (Client.post_json ~session:s
          ~extra:(session_proxy_headers ?proxy s)
          "chat.bsky.actor.deleteAccount" "{}")
 
+  (** Export chat account data via [chat.bsky.actor.exportAccountData].
+      Hosted chat service; always sends [atproto-proxy]. *)
   let export_account_data (s : Session.session) ?proxy () : string =
     Client.get_text ~session:s
       ~extra:(session_proxy_headers ?proxy s)
@@ -1461,6 +1562,9 @@ module Chat = struct
     in
     `Assoc fields
 
+  (** Actor metadata for [actor] via
+      [chat.bsky.moderation.getActorMetadata]. Hosted chat service;
+      always sends [atproto-proxy]. *)
   let get_actor_metadata (s : Session.session) ?proxy ~actor () : actor_metadata
       =
     Client.get_json ~session:s
@@ -1469,6 +1573,8 @@ module Chat = struct
       [ ("actor", actor) ]
     |> parse_actor_metadata
 
+  (** Operator view of [convo_id] via [chat.bsky.moderation.getConvo].
+      Hosted chat service; always sends [atproto-proxy]. *)
   let get_mod_convo (s : Session.session) ?proxy ~convo_id () : mod_convo =
     Client.get_json ~session:s
       ~extra:(session_proxy_headers ?proxy s)
@@ -1476,6 +1582,8 @@ module Chat = struct
       [ ("convoId", convo_id) ]
     |> unwrap_mod_convo
 
+  (** Operator views of [convo_ids] via [chat.bsky.moderation.getConvos].
+      Hosted chat service; always sends [atproto-proxy]. *)
   let get_mod_convos (s : Session.session) ?proxy ~convo_ids () : mod_convo list
       =
     Client.get_json ~session:s
@@ -1484,6 +1592,9 @@ module Chat = struct
       (Client.repeat_param "convoIds" convo_ids)
     |> parse_mod_convos
 
+  (** Operator members of [convo_id] via
+      [chat.bsky.moderation.getConvoMembers]. Hosted chat service;
+      always sends [atproto-proxy]. *)
   let get_mod_convo_members (s : Session.session) ?proxy ~convo_id ?limit
       ?cursor () : mod_members =
     Client.get_json ~session:s
@@ -1494,6 +1605,9 @@ module Chat = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_mod_members
 
+  (** Message context for [message_id] via
+      [chat.bsky.moderation.getMessageContext]. Hosted chat service;
+      always sends [atproto-proxy]. *)
   let get_message_context (s : Session.session) ?proxy ~message_id ?convo_id
       ?before ?after ?max_interleaved_system_messages () : message list =
     Client.get_json ~session:s
@@ -1507,6 +1621,9 @@ module Chat = struct
           max_interleaved_system_messages)
     |> fun json -> List.map parse_message (Client.list_member json "messages")
 
+  (** Update chat access for [actor] via
+      [chat.bsky.moderation.updateActorAccess]. Hosted chat service;
+      always sends [atproto-proxy]. *)
   let update_actor_access (s : Session.session) ?proxy ~actor ~allow_access ?ref
       () : unit =
     ignore
@@ -1866,6 +1983,8 @@ module Chat = struct
         failwith
           "Chat.decode_mod_event_frame: expected header and body CBOR values"
 
+  (** Operator event stream via [chat.bsky.moderation.subscribeModEvents].
+      Hosted chat service; this library does not host a chat backend. *)
   let subscribe_mod_events ?session ?proxy ?(host = default_mod_events_host)
       ?cursor ?max_messages f =
     let extra =
