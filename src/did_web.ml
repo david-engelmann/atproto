@@ -5,6 +5,7 @@ open Did_plc
 module Did_web = struct
   type did_document = Did_plc.did_document
 
+  (** True when [did] starts with [did:web:]. *)
   let is_web_did (did : string) : bool =
     String.length did > 8 && String.sub did 0 8 = "did:web:"
 
@@ -27,6 +28,7 @@ module Did_web = struct
         Printf.sprintf "https://%s/%s/did.json" (Uri.pct_decode host)
           (String.concat "/" (List.map Uri.pct_decode path))
 
+  (** Parse a DID document JSON object (same shape as [did:plc]). *)
   let parse_document = Did_plc.parse_document
 
   (** Fetch the [did:web:] document as JSON. *)

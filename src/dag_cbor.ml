@@ -123,6 +123,8 @@ module Dag_cbor = struct
       put 1 56;
       Bytes.to_string b
 
+  (** Decode one DAG-CBOR value starting at [off]. Returns
+      [value, next_offset]. *)
   let rec decode_from (s : string) (off : int) : value * int =
     if off >= String.length s then fail "truncated";
     let b = Char.code s.[off] in
@@ -268,20 +270,30 @@ module Dag_cbor = struct
     | Some v -> v
     | None -> fail ("missing field " ^ key)
 
+  (** Unwrap a [Text]; raise [Decode_error] otherwise. *)
   let as_text = function Text t -> t | _ -> fail "expected text"
 
+  (** Unwrap an [Int] or [Int64] as [int]; raise [Decode_error]
+      otherwise. *)
   let as_int = function
     | Int n -> n
     | Int64 n -> Int64.to_int n
     | _ -> fail "expected int"
 
+  (** Unwrap an [Int] or [Int64] as [int64]; raise [Decode_error]
+      otherwise. *)
   let as_int64 = function
     | Int n -> Int64.of_int n
     | Int64 n -> n
     | _ -> fail "expected int64"
 
+  (** Unwrap a [Bool]; raise [Decode_error] otherwise. *)
   let as_bool = function Bool b -> b | _ -> fail "expected bool"
+
+  (** Unwrap [Bytes]; raise [Decode_error] otherwise. *)
   let as_bytes = function Bytes b -> b | _ -> fail "expected bytes"
+
+  (** Unwrap an [Array]; raise [Decode_error] otherwise. *)
   let as_array = function Array a -> a | _ -> fail "expected array"
 
   (** Unwrap a [Cid] (or a text CID string). *)
@@ -290,11 +302,14 @@ module Dag_cbor = struct
     | Text t -> Cid.of_string t
     | _ -> fail "expected CID"
 
+  (** [None] for [Null], [Some] for [Text]; raise [Decode_error]
+      otherwise. *)
   let as_text_opt = function
     | Null -> None
     | Text t -> Some t
     | _ -> fail "expected text or null"
 
+  (** [None] for [Null], otherwise {!as_cid}. *)
   let as_cid_opt = function Null -> None | v -> Some (as_cid v)
 
   (** IPLD JSON to DAG-CBOR. Official [$link] / [$bytes] objects become

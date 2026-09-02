@@ -7,14 +7,19 @@ module Did_key = struct
   type curve = P256 | K256 | Other of int
   type t = { curve : curve; public_key : string }
 
+  (** Multicodec code for P-256 public keys ([0x1200]). *)
   let p256_code = 0x1200
+
+  (** Multicodec code for secp256k1 public keys ([0xe7]). *)
   let k256_code = 0xe7
 
+  (** Short curve name ([p256], [k256], or [0x...]). *)
   let curve_name = function
     | P256 -> "p256"
     | K256 -> "k256"
     | Other n -> Printf.sprintf "0x%x" n
 
+  (** True when [s] starts with [did:key:]. *)
   let is_did_key (s : string) : bool =
     String.length s > 8 && String.sub s 0 8 = "did:key:"
 

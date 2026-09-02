@@ -44,7 +44,10 @@ module K256 = struct
     done;
     Z.of_bits (Bytes.to_string buf)
 
+  (** 32-byte big-endian secp256k1 curve order [n]. *)
   let n_octets = be_of_z n
+
+  (** 32-byte big-endian [n/2], the low-S threshold. *)
   let n_half_octets = be_of_z n_half
 
   let sub_be a b =
@@ -61,9 +64,11 @@ module K256 = struct
     done;
     Bytes.to_string out
 
+  (** Force IEEE P1363 [s] into the low-S range ([s] or [n-s]). *)
   let low_s (s : string) : string =
     if String.compare s n_half_octets > 0 then sub_be n_octets s else s
 
+  (** True when IEEE P1363 [s] is already low-S ([s <= n/2]). *)
   let is_low_s (s : string) : bool = String.compare s n_half_octets <= 0
   let in_scalar z = Z.gt z z0 && Z.lt z n
   let ( %: ) a m = Z.(erem a m)
