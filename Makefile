@@ -21,6 +21,9 @@ clean:
 test:
 	dune runtest
 
+doc:
+	dune build @doc
+
 pds-up atproto-up:
 	./scripts/local-atproto.sh up
 
@@ -58,4 +61,4 @@ test-pds-run test-atproto-run:
 	dune exec -- test/test_local_ozone.exe; \
 	dune exec -- test/test_local_oauth.exe
 
-.PHONY: default install uninstall reinstall lint clean test pds-up pds-down pds-account pds-logs atproto-up atproto-down atproto-account atproto-logs test-pds test-atproto test-pds-run test-atproto-run
+.PHONY: default install uninstall reinstall lint clean test doc pds-up pds-down pds-account pds-logs atproto-up atproto-down atproto-account atproto-logs test-pds test-atproto test-pds-run test-atproto-run
