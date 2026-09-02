@@ -3,12 +3,25 @@ open Label
 
 (** Typed builders and parsers for official `site.standard.*` records. *)
 module Site = struct
+  (** NSID for [site.standard.document]. *)
   let nsid_document = "site.standard.document"
+
+  (** NSID for [site.standard.publication]. *)
   let nsid_publication = "site.standard.publication"
+
+  (** NSID for [site.standard.graph.recommend]. *)
   let nsid_recommend = "site.standard.graph.recommend"
+
+  (** NSID for [site.standard.graph.subscription]. *)
   let nsid_subscription = "site.standard.graph.subscription"
+
+  (** NSID for [site.standard.theme.basic]. *)
   let nsid_theme_basic = "site.standard.theme.basic"
+
+  (** NSID for [site.standard.theme.color#rgb]. *)
   let nsid_theme_color_rgb = "site.standard.theme.color#rgb"
+
+  (** NSID for [site.standard.theme.color#rgba]. *)
   let nsid_theme_color_rgba = "site.standard.theme.color#rgba"
 
   type contributor = {
@@ -82,9 +95,12 @@ module Site = struct
   let list_member json field =
     match Yojson.Safe.Util.member field json with `List xs -> xs | _ -> []
 
+  (** Build a document [contributor] ([did] / optional [display_name] /
+      [role]). *)
   let contributor ~did ?display_name ?role () : contributor =
     { did; display_name; role }
 
+  (** JSON object for [contributor] ([did], [displayName], [role]). *)
   let contributor_to_json (c : contributor) : Yojson.Safe.t =
     let fields =
       ("did", `String c.did)
@@ -103,9 +119,16 @@ module Site = struct
       role = string_opt json "role";
     }
 
+  (** Build an RGB color ([r] / [g] / [b]) for
+      [site.standard.theme.color#rgb]. *)
   let rgb ~r ~g ~b : rgb = { r; g; b }
+
+  (** Build an RGBA color ([r] / [g] / [b] / [a]) for
+      [site.standard.theme.color#rgba]. *)
   let rgba ~r ~g ~b ~a : rgba = { r; g; b; a }
 
+  (** JSON object for a theme color ([site.standard.theme.color#rgb] or
+      [#rgba]). *)
   let color_to_json (c : color) : Yojson.Safe.t =
     match c with
     | `Rgb c ->
@@ -171,9 +194,12 @@ module Site = struct
               }
         | _ -> `Unknown json)
 
+  (** Build a [site.standard.theme.basic] color set ([background] /
+      [foreground] / [accent] / [accent_foreground]). *)
   let theme ~background ~foreground ~accent ~accent_foreground : theme =
     { background; foreground; accent; accent_foreground }
 
+  (** JSON object for [site.standard.theme.basic]. *)
   let theme_to_json (t : theme) : Yojson.Safe.t =
     `Assoc
       [
@@ -193,6 +219,9 @@ module Site = struct
         parse_color (Yojson.Safe.Util.member "accentForeground" json);
     }
 
+  (** Build a [site.standard.theme.basic] record. [background],
+      [foreground], [accent], and [accent_foreground] map to the
+      lexicon. *)
   let theme_basic ~background ~foreground ~accent ~accent_foreground () :
       Yojson.Safe.t =
     theme_to_json (theme ~background ~foreground ~accent ~accent_foreground)
@@ -274,6 +303,9 @@ module Site = struct
         | j -> Some j);
     }
 
+  (** Build a [site.standard.publication] record. [url] and [name] are
+      required; optional [description] / [icon] / [self_labels] /
+      [basic_theme] / [show_in_discover] map to the lexicon. *)
   let publication ~url ~name ?description ?icon ?self_labels ?basic_theme
       ?show_in_discover () : Yojson.Safe.t =
     let fields =
@@ -322,6 +354,8 @@ module Site = struct
         | _ -> None);
     }
 
+  (** Build a [site.standard.graph.recommend] record for [document]
+      (AT-URI). [created_at] is required. *)
   let recommend ~document ~created_at () : Yojson.Safe.t =
     `Assoc
       [
@@ -336,6 +370,9 @@ module Site = struct
       created_at = string_member json "createdAt";
     }
 
+  (** Build a [site.standard.graph.subscription] record for
+      [publication] (AT-URI). Optional [created_at] maps to the
+      lexicon. *)
   let subscription ~publication ?created_at () : Yojson.Safe.t =
     let fields =
       [
