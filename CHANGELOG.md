@@ -280,6 +280,14 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `get_quotes`, `get_actor_likes`, `send_interactions` /
   `send_interactions_body`). Comment-only; does not host a feed
   generator. Hosted-only video / chat / Tap stay listed not faked
+- This PR: remaining function-level odoc on Graph XRPC wrappers
+  (`get_followers_page` / `get_follows_page`, `mute_actor_body`,
+  `get_list_mutes` / `get_list_blocks`, `mute_actor_list` /
+  `unmute_actor_list`, `mute_thread` / `unmute_thread`,
+  `get_starter_pack` / `get_starter_packs` / `get_actor_starter_packs`,
+  `search_starter_packs` / `search_starter_packs_v2`,
+  `get_lists_with_membership` / `get_starter_packs_with_membership`,
+  `get_known_followers`, `get_suggested_follows_by_actor`). Comment-only
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 

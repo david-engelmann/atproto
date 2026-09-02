@@ -124,6 +124,10 @@ module Graph = struct
     in
     followers |> convert_body_to_json |> parse_followers
 
+  (** Paginated followers of [actor] via [app.bsky.graph.getFollowers].
+      Optional [limit] / [cursor] / [sort] map to the lexicon query
+      ([sort_latest] / [sort_top]). Works without a session against public
+      AppView. *)
   let get_followers_page ?session ?host ~actor ?limit ?cursor ?sort () :
       followers =
     Client.Client.get_json ?session ?host "app.bsky.graph.getFollowers"
@@ -153,6 +157,10 @@ module Graph = struct
     in
     follows |> convert_body_to_json |> parse_follows
 
+  (** Paginated accounts [actor] follows via [app.bsky.graph.getFollows].
+      Optional [limit] / [cursor] / [sort] map to the lexicon query
+      ([sort_latest] / [sort_top]). Works without a session against public
+      AppView. *)
   let get_follows_page ?session ?host ~actor ?limit ?cursor ?sort () : follows =
     Client.Client.get_json ?session ?host "app.bsky.graph.getFollows"
       (follow_page_pairs ~actor ?limit ?cursor ?sort ())
@@ -181,6 +189,9 @@ module Graph = struct
 
   (* app.bsky.graph.muteActor — optional onlyReposts / onlyQuoteposts replace
      a full mute with a scoped mute. Repeat calls replace the stored scope. *)
+  (** JSON body for [app.bsky.graph.muteActor]. Optional [only_reposts] /
+      [only_quoteposts] store a scoped mute; later calls replace the stored
+      scope. *)
   let mute_actor_body ~actor ?only_reposts ?only_quoteposts () : Yojson.Safe.t =
     let fields =
       ("actor", `String actor)
@@ -702,38 +713,50 @@ module Graph = struct
       @ Client.Client.opt_pair "cursor" cursor)
     |> parse_lists
 
+  (** Lists the session mutes via [app.bsky.graph.getListMutes]. Optional
+      [limit] / [cursor] map to the lexicon query. *)
   let get_list_mutes (s : Session.session) ?limit ?cursor () : lists =
     Client.Client.get_json ~session:s "app.bsky.graph.getListMutes"
       (Client.Client.opt_int "limit" limit
       @ Client.Client.opt_pair "cursor" cursor)
     |> parse_lists
 
+  (** Lists the session blocks via [app.bsky.graph.getListBlocks]. Optional
+      [limit] / [cursor] map to the lexicon query. *)
   let get_list_blocks (s : Session.session) ?limit ?cursor () : lists =
     Client.Client.get_json ~session:s "app.bsky.graph.getListBlocks"
       (Client.Client.opt_int "limit" limit
       @ Client.Client.opt_pair "cursor" cursor)
     |> parse_lists
 
+  (** Mute list [list] (AT URI) via [app.bsky.graph.muteActorList]. *)
   let mute_actor_list (s : Session.session) ~list () : unit =
     ignore
       (Client.Client.post_json ~session:s "app.bsky.graph.muteActorList"
          (Yojson.Safe.to_string (`Assoc [ ("list", `String list) ])))
 
+  (** Unmute list [list] (AT URI) via [app.bsky.graph.unmuteActorList]. *)
   let unmute_actor_list (s : Session.session) ~list () : unit =
     ignore
       (Client.Client.post_json ~session:s "app.bsky.graph.unmuteActorList"
          (Yojson.Safe.to_string (`Assoc [ ("list", `String list) ])))
 
+  (** Mute the thread rooted at [root] (AT URI) via
+      [app.bsky.graph.muteThread]. *)
   let mute_thread (s : Session.session) ~root () : unit =
     ignore
       (Client.Client.post_json ~session:s "app.bsky.graph.muteThread"
          (Yojson.Safe.to_string (`Assoc [ ("root", `String root) ])))
 
+  (** Unmute the thread rooted at [root] (AT URI) via
+      [app.bsky.graph.unmuteThread]. *)
   let unmute_thread (s : Session.session) ~root () : unit =
     ignore
       (Client.Client.post_json ~session:s "app.bsky.graph.unmuteThread"
          (Yojson.Safe.to_string (`Assoc [ ("root", `String root) ])))
 
+  (** Starter pack [starter_pack] (AT URI) via [app.bsky.graph.getStarterPack].
+      Works without a session against public AppView. *)
   let get_starter_pack ?session ?host ~starter_pack () : starter_pack =
     Client.Client.get_json ?session ?host "app.bsky.graph.getStarterPack"
       [ ("starterPack", starter_pack) ]
@@ -742,12 +765,18 @@ module Graph = struct
     | `Assoc _ as sp -> parse_starter_pack sp
     | _ -> parse_starter_pack json
 
+  (** Starter packs for [uris] via [app.bsky.graph.getStarterPacks]. Works
+      without a session against public AppView. *)
   let get_starter_packs ?session ?host ~uris () : starter_pack list =
     Client.Client.get_json ?session ?host "app.bsky.graph.getStarterPacks"
       (Client.Client.repeat_param "uris" uris)
     |> parse_starter_packs
     |> fun (p : starter_packs) -> p.starter_packs
 
+  (** Starter packs created by [actor] via
+      [app.bsky.graph.getActorStarterPacks]. Optional [limit] / [cursor]
+      map to the lexicon query. Works without a session against public
+      AppView. *)
   let get_actor_starter_packs ?session ?host ~actor ?limit ?cursor () :
       starter_packs =
     Client.Client.get_json ?session ?host "app.bsky.graph.getActorStarterPacks"
@@ -755,12 +784,18 @@ module Graph = struct
       @ Client.Client.opt_pair "cursor" cursor)
     |> parse_starter_packs
 
+  (** Search starter packs for [q] via [app.bsky.graph.searchStarterPacks].
+      Optional [limit] / [cursor] map to the lexicon query. Works without a
+      session against public AppView. *)
   let search_starter_packs ?session ?host ~q ?limit ?cursor () : starter_packs =
     Client.Client.get_json ?session ?host "app.bsky.graph.searchStarterPacks"
       ((("q", q) :: Client.Client.opt_int "limit" limit)
       @ Client.Client.opt_pair "cursor" cursor)
     |> parse_starter_packs
 
+  (** Search starter packs for [q] via [app.bsky.graph.searchStarterPacksV2].
+      Optional [limit] / [cursor] map to the lexicon query. Works without a
+      session against public AppView. *)
   let search_starter_packs_v2 ?session ?host ~q ?limit ?cursor () :
       starter_packs =
     Client.Client.get_json ?session ?host "app.bsky.graph.searchStarterPacksV2"
@@ -768,6 +803,9 @@ module Graph = struct
       @ Client.Client.opt_pair "cursor" cursor)
     |> parse_starter_packs
 
+  (** [actor]'s lists plus the session's membership via
+      [app.bsky.graph.getListsWithMembership]. Optional [limit] / [cursor]
+      / [purposes] map to the lexicon query. *)
   let get_lists_with_membership (s : Session.session) ~actor ?limit ?cursor
       ?(purposes = []) () : lists_with_membership =
     Client.Client.get_json ~session:s "app.bsky.graph.getListsWithMembership"
@@ -776,6 +814,9 @@ module Graph = struct
       @ Client.Client.repeat_param "purposes" purposes)
     |> parse_lists_with_membership
 
+  (** [actor]'s starter packs plus the session's membership via
+      [app.bsky.graph.getStarterPacksWithMembership]. Optional [limit] /
+      [cursor] map to the lexicon query. *)
   let get_starter_packs_with_membership (s : Session.session) ~actor ?limit
       ?cursor () : starter_packs_with_membership =
     Client.Client.get_json ~session:s
@@ -792,6 +833,9 @@ module Graph = struct
       :: Client.Client.repeat_param "others" (Option.value others ~default:[]))
     |> parse_relationships
 
+  (** Followers of [actor] that the session also follows via
+      [app.bsky.graph.getKnownFollowers]. Optional [limit] / [cursor] map
+      to the lexicon query. *)
   let get_known_followers ?session ?host ~actor ?limit ?cursor () : followers =
     Client.Client.get_json ?session ?host "app.bsky.graph.getKnownFollowers"
       ((("actor", actor) :: Client.Client.opt_int "limit" limit)
@@ -833,6 +877,9 @@ module Graph = struct
         | _ -> None);
     }
 
+  (** Suggested follows for [actor] via
+      [app.bsky.graph.getSuggestedFollowsByActor]. Works without a session
+      against public AppView. *)
   let get_suggested_follows_by_actor ?session ?host ~actor () :
       suggested_follows =
     Client.Client.get_json ?session ?host
