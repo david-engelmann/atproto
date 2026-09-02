@@ -7,7 +7,10 @@ open Xrpc
     OAuth DPoP cannot be proxied: mint [getServiceAuth] ([aud] = Ozone DID)
     and call the Ozone host with that JWT ([emit_event_service] / …). *)
 module Ozone = struct
+  (** [atproto-proxy] for Ozone ([did#atproto_labeler]). *)
   let labeler_proxy (did : string) : Xrpc.proxy = Xrpc.labeler_proxy did
+
+  (** [atproto-proxy] header list for [proxy]. *)
   let proxy_headers proxy = [ Xrpc.proxy_header proxy ]
 
   type repo_ref = { did : string }
@@ -593,6 +596,7 @@ module Ozone = struct
     in
     `Assoc fields
 
+  (** Subject statuses via [tools.ozone.moderation.queryStatuses]. *)
   let query_statuses (s : Session.session) ~proxy ?host ?subject ?comment
       ?review_state ?limit ?cursor () : statuses =
     Client.get_json ~session:s ?host ~extra:(proxy_headers proxy)
@@ -628,9 +632,10 @@ module Ozone = struct
             ?external_id ?mod_tool ?report_action ()))
     |> parse_mod_event
 
-  (* Ozone host + PDS-minted service-auth JWT (OAuth DPoP getServiceAuth).
-     No [atproto-proxy] and no createSession at+jwt — DPoP cannot be
-     proxied, and Ozone rejects the PDS access token. *)
+  (** Emit a moderation event via [tools.ozone.moderation.emitEvent] on the
+      Ozone host with a PDS-minted service-auth JWT (OAuth DPoP
+      [getServiceAuth]). No [atproto-proxy] — DPoP cannot be proxied, and
+      Ozone rejects the PDS access token. *)
   let emit_event_service ~bearer ~host ~event ~subject ~created_by
       ?subject_blob_cids ?external_id ?mod_tool ?report_action () : mod_event =
     Client.post_json ~bearer ~host "tools.ozone.moderation.emitEvent"
@@ -639,6 +644,8 @@ module Ozone = struct
             ?external_id ?mod_tool ?report_action ()))
     |> parse_mod_event
 
+  (** Moderation events via [tools.ozone.moderation.queryEvents] on the Ozone
+      host with a service-auth JWT (no [atproto-proxy]). *)
   let query_events_service ~bearer ~host ?types ?created_by ?subject ?limit
       ?cursor () : events =
     Client.get_json ~bearer ~host "tools.ozone.moderation.queryEvents"
@@ -649,22 +656,27 @@ module Ozone = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_events
 
+  (** Ozone config via [tools.ozone.server.getConfig] on the Ozone host with
+      a service-auth JWT. *)
   let get_config_service ~bearer ~host () : server_config =
     Client.get_json ~bearer ~host "tools.ozone.server.getConfig" []
     |> parse_server_config
 
+  (** One event by [id] via [tools.ozone.moderation.getEvent]. *)
   let get_event (s : Session.session) ~proxy ~id () : mod_event =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.moderation.getEvent"
       [ ("id", string_of_int id) ]
     |> parse_mod_event
 
+  (** Repo view for [did] via [tools.ozone.moderation.getRepo]. *)
   let get_repo (s : Session.session) ~proxy ~did () : repo_view =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.moderation.getRepo"
       [ ("did", did) ]
     |> parse_repo
 
+  (** Record view for [uri] via [tools.ozone.moderation.getRecord]. *)
   let get_record (s : Session.session) ~proxy ~uri ?cid () : record_view =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.moderation.getRecord"
@@ -810,24 +822,28 @@ module Ozone = struct
       failed = List.map parse_failed_item (Client.list_member json "failed");
     }
 
+  (** Record views for [uris] via [tools.ozone.moderation.getRecords]. *)
   let get_records (s : Session.session) ~proxy ~uris () : record_view list =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.moderation.getRecords"
       (Client.repeat_param "uris" uris)
     |> fun json -> List.map parse_record (Client.list_member json "records")
 
+  (** Repo views for [dids] via [tools.ozone.moderation.getRepos]. *)
   let get_repos (s : Session.session) ~proxy ~dids () : repo_view list =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.moderation.getRepos"
       (Client.repeat_param "dids" dids)
     |> fun json -> List.map parse_repo (Client.list_member json "repos")
 
+  (** Subject views via [tools.ozone.moderation.getSubjects]. *)
   let get_subjects (s : Session.session) ~proxy ~subjects () : subjects =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.moderation.getSubjects"
       (Client.repeat_param "subjects" subjects)
     |> parse_subjects
 
+  (** Search repos via [tools.ozone.moderation.searchRepos] ([q] or [term]). *)
   let search_repos (s : Session.session) ~proxy ?q ?term ?limit ?cursor () :
       repo_view list * string option =
     let json =
@@ -841,6 +857,8 @@ module Ozone = struct
     ( List.map parse_repo (Client.list_member json "repos"),
       Client.string_opt json "cursor" )
 
+  (** Event timeline for [did] via
+      [tools.ozone.moderation.getAccountTimeline]. *)
   let get_account_timeline (s : Session.session) ~proxy ~did () :
       account_timeline =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
@@ -848,6 +866,8 @@ module Ozone = struct
       [ ("did", did) ]
     |> parse_account_timeline
 
+  (** Reporter stats for [dids] via
+      [tools.ozone.moderation.getReporterStats]. *)
   let get_reporter_stats (s : Session.session) ~proxy ~dids () : reporter_stats
       =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
@@ -896,6 +916,7 @@ module Ozone = struct
     in
     `Assoc fields
 
+  (** Schedule a future action via [tools.ozone.moderation.scheduleAction]. *)
   let schedule_action (s : Session.session) ~proxy ~action ~subjects ~created_by
       ~scheduling ?mod_tool () : batch_result =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
@@ -905,6 +926,7 @@ module Ozone = struct
             ?mod_tool ()))
     |> parse_batch_result
 
+  (** Scheduled actions via [tools.ozone.moderation.listScheduledActions]. *)
   let list_scheduled_actions (s : Session.session) ~proxy ~statuses
       ?starts_after ?ends_before ?subjects ?limit ?cursor () : scheduled_actions
       =
@@ -929,6 +951,8 @@ module Ozone = struct
       (Yojson.Safe.to_string body)
     |> parse_scheduled_actions
 
+  (** Cancel scheduled actions via
+      [tools.ozone.moderation.cancelScheduledActions]. *)
   let cancel_scheduled_actions (s : Session.session) ~proxy ~subjects ?comment
       () : batch_result =
     let fields =
@@ -972,6 +996,7 @@ module Ozone = struct
           | xs -> xs);
     }
 
+  (** Communication templates via [tools.ozone.communication.listTemplates]. *)
   let list_templates (s : Session.session) ~proxy () : templates =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.communication.listTemplates" []
@@ -988,6 +1013,7 @@ module Ozone = struct
       | Some d -> [ ("createdBy", `String d) ]
       | None -> [])
 
+  (** Create a template via [tools.ozone.communication.createTemplate]. *)
   let create_template (s : Session.session) ~proxy ~name ~content_markdown
       ?subject ?lang ?created_by () : template =
     let created_by = Option.value created_by ~default:s.auth.did in
@@ -998,6 +1024,7 @@ module Ozone = struct
             ~created_by ()))
     |> parse_template
 
+  (** Update template [id] via [tools.ozone.communication.updateTemplate]. *)
   let update_template (s : Session.session) ~proxy ~id ?name ?content_markdown
       ?subject ?disabled ?updated_by () : template =
     let updated_by = Option.value updated_by ~default:s.auth.did in
@@ -1016,6 +1043,7 @@ module Ozone = struct
       (Yojson.Safe.to_string (`Assoc fields))
     |> parse_template
 
+  (** Delete template [id] via [tools.ozone.communication.deleteTemplate]. *)
   let delete_template (s : Session.session) ~proxy ~id () : unit =
     ignore
       (Client.post_json ~session:s ~extra:(proxy_headers proxy)
@@ -1061,6 +1089,7 @@ module Ozone = struct
       cursor = Client.string_opt json "cursor";
     }
 
+  (** Sets via [tools.ozone.set.querySets]. *)
   let query_sets (s : Session.session) ~proxy ?limit ?cursor ?name_prefix
       ?sort_by ?sort_direction () : sets =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
@@ -1072,6 +1101,7 @@ module Ozone = struct
       @ Client.opt_pair "sortDirection" sort_direction)
     |> parse_sets
 
+  (** Create or update set [name] via [tools.ozone.set.upsertSet]. *)
   let upsert_set (s : Session.session) ~proxy ~name ?description () : set_view =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.set.upsertSet"
@@ -1084,6 +1114,7 @@ module Ozone = struct
            | None -> []))))
     |> parse_set_view
 
+  (** Values in set [name] via [tools.ozone.set.getValues]. *)
   let get_set_values (s : Session.session) ~proxy ~name ?limit ?cursor () :
       set_values =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
@@ -1092,6 +1123,7 @@ module Ozone = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_set_values
 
+  (** Add [values] to set [name] via [tools.ozone.set.addValues]. *)
   let add_set_values (s : Session.session) ~proxy ~name ~values () : unit =
     ignore
       (Client.post_json ~session:s ~extra:(proxy_headers proxy)
@@ -1103,6 +1135,7 @@ module Ozone = struct
                 ("values", `List (List.map (fun v -> `String v) values));
               ])))
 
+  (** Remove [values] from set [name] via [tools.ozone.set.deleteValues]. *)
   let delete_set_values (s : Session.session) ~proxy ~name ~values () : unit =
     ignore
       (Client.post_json ~session:s ~extra:(proxy_headers proxy)
@@ -1114,6 +1147,7 @@ module Ozone = struct
                 ("values", `List (List.map (fun v -> `String v) values));
               ])))
 
+  (** Delete set [name] via [tools.ozone.set.deleteSet]. *)
   let delete_set (s : Session.session) ~proxy ~name () : unit =
     ignore
       (Client.post_json ~session:s ~extra:(proxy_headers proxy)
@@ -1148,6 +1182,7 @@ module Ozone = struct
           | xs -> xs);
     }
 
+  (** Settings via [tools.ozone.setting.listOptions]. *)
   let list_options (s : Session.session) ~proxy ?prefix ?scope ?limit ?cursor ()
       : setting_options =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
@@ -1158,6 +1193,7 @@ module Ozone = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_setting_options
 
+  (** Create or update setting [key] via [tools.ozone.setting.upsertOption]. *)
   let upsert_option (s : Session.session) ~proxy ~key ~scope ~value ?description
       () : setting_option =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
@@ -1171,6 +1207,7 @@ module Ozone = struct
            | None -> [])))
     |> parse_setting_option
 
+  (** Remove setting [keys] via [tools.ozone.setting.removeOptions]. *)
   let remove_options (s : Session.session) ~proxy ~keys ~scope () : unit =
     ignore
       (Client.post_json ~session:s ~extra:(proxy_headers proxy)
@@ -1205,6 +1242,7 @@ module Ozone = struct
       members = List.map parse_team_member (Client.list_member json "members");
     }
 
+  (** Team members via [tools.ozone.team.listMembers]. *)
   let list_members (s : Session.session) ~proxy ?q ?disabled ?(roles = [])
       ?limit ?cursor () : team_members =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
@@ -1216,6 +1254,7 @@ module Ozone = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_team_members
 
+  (** Add team member [did] via [tools.ozone.team.addMember]. *)
   let add_member (s : Session.session) ~proxy ~did ~role () : team_member =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.team.addMember"
@@ -1223,6 +1262,7 @@ module Ozone = struct
          (`Assoc [ ("did", `String did); ("role", `String role) ]))
     |> parse_team_member
 
+  (** Update team member [did] via [tools.ozone.team.updateMember]. *)
   let update_member (s : Session.session) ~proxy ~did ?role ?disabled () :
       team_member =
     let fields =
@@ -1235,6 +1275,7 @@ module Ozone = struct
       (Yojson.Safe.to_string (`Assoc fields))
     |> parse_team_member
 
+  (** Remove team member [did] via [tools.ozone.team.deleteMember]. *)
   let delete_member (s : Session.session) ~proxy ~did () : unit =
     ignore
       (Client.post_json ~session:s ~extra:(proxy_headers proxy)
@@ -1276,6 +1317,7 @@ module Ozone = struct
           | xs -> xs);
     }
 
+  (** URL rules via [tools.ozone.safelink.queryRules]. *)
   let query_safelink_rules (s : Session.session) ~proxy ?cursor ?limit
       ?(urls = []) ?pattern_type ?(actions = []) ?reason ?created_by
       ?sort_direction () : url_rules =
@@ -1379,6 +1421,7 @@ module Ozone = struct
       events = List.map parse_safelink_event (Client.list_member json "events");
     }
 
+  (** Add a URL rule via [tools.ozone.safelink.addRule]. *)
   let add_safelink_rule (s : Session.session) ~proxy ~url ~pattern ~action
       ~reason ?comment ?created_by () : safelink_event =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
@@ -1388,6 +1431,7 @@ module Ozone = struct
             ?created_by ()))
     |> parse_safelink_event
 
+  (** Update a URL rule via [tools.ozone.safelink.updateRule]. *)
   let update_safelink_rule (s : Session.session) ~proxy ~url ~pattern ~action
       ~reason ?comment ?created_by () : safelink_event =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
@@ -1397,6 +1441,7 @@ module Ozone = struct
             ?created_by ()))
     |> parse_safelink_event
 
+  (** Remove a URL rule via [tools.ozone.safelink.removeRule]. *)
   let remove_safelink_rule (s : Session.session) ~proxy ~url ~pattern ?comment
       ?created_by () : safelink_event =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
@@ -1421,6 +1466,7 @@ module Ozone = struct
       | Some d -> [ ("sortDirection", `String d) ]
       | None -> [])
 
+  (** Safelink events via [tools.ozone.safelink.queryEvents]. *)
   let query_safelink_events (s : Session.session) ~proxy ?cursor ?limit
       ?(urls = []) ?pattern_type ?sort_direction () : safelink_events =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
@@ -1456,11 +1502,15 @@ module Ozone = struct
           | xs -> xs);
     }
 
+  (** Signature correlation for [dids] via
+      [tools.ozone.signature.findCorrelation]. *)
   let find_correlation (s : Session.session) ~proxy ~dids () : Yojson.Safe.t =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.signature.findCorrelation"
       (Client.repeat_param "dids" dids)
 
+  (** Related accounts for [did] via
+      [tools.ozone.signature.findRelatedAccounts]. *)
   let find_related_accounts (s : Session.session) ~proxy ~did ?limit ?cursor ()
       : related_accounts =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
@@ -1469,6 +1519,8 @@ module Ozone = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_related_accounts
 
+  (** Accounts matching signature [values] via
+      [tools.ozone.signature.searchAccounts]. *)
   let search_accounts_by_signature (s : Session.session) ~proxy ?(values = [])
       ?limit ?cursor () : related_accounts =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
@@ -1586,6 +1638,7 @@ module Ozone = struct
       | Some r -> [ ("revokeReason", `String r) ]
       | None -> []))
 
+  (** Verifications via [tools.ozone.verification.listVerifications]. *)
   let list_verifications (s : Session.session) ~proxy ?cursor ?limit
       ?(issuers = []) ?(subjects = []) () : verifications =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
@@ -1596,6 +1649,7 @@ module Ozone = struct
       @ Client.repeat_param "subjects" subjects)
     |> parse_verifications
 
+  (** Grant verifications via [tools.ozone.verification.grantVerifications]. *)
   let grant_verifications (s : Session.session) ~proxy ~verifications () :
       grant_verifications_result =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
@@ -1603,6 +1657,8 @@ module Ozone = struct
       (Yojson.Safe.to_string (grant_verifications_body ~verifications ()))
     |> parse_grant_verifications
 
+  (** Revoke verification [uris] via
+      [tools.ozone.verification.revokeVerifications]. *)
   let revoke_verifications (s : Session.session) ~proxy ~uris ?revoke_reason ()
       : revoke_verifications_result =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
@@ -1637,6 +1693,7 @@ module Ozone = struct
         List.map parse_account_history_event (Client.list_member json "events");
     }
 
+  (** Hosting history for [did] via [tools.ozone.hosting.getAccountHistory]. *)
   let get_account_history (s : Session.session) ~proxy ~did ?events ?cursor
       ?limit () : account_history =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
@@ -1829,6 +1886,7 @@ module Ozone = struct
       (("queueId", `Int queue_id)
       :: opt_json_int "migrateToQueueId" migrate_to_queue_id)
 
+  (** Moderation queues via [tools.ozone.queue.listQueues]. *)
   let list_queues (s : Session.session) ~proxy ?enabled ?subject_type
       ?collection ?(report_types = []) ?limit ?cursor () : queues =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
@@ -1841,6 +1899,7 @@ module Ozone = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_queues
 
+  (** Create a queue via [tools.ozone.queue.createQueue]. *)
   let create_queue (s : Session.session) ~proxy ~name ?subject_types ?collection
       ?report_types ?description ?recommended_policies () : queue_view =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
@@ -1850,6 +1909,7 @@ module Ozone = struct
             ?description ?recommended_policies ()))
     |> parse_queue_result
 
+  (** Update queue [queue_id] via [tools.ozone.queue.updateQueue]. *)
   let update_queue (s : Session.session) ~proxy ~queue_id ?name ?enabled
       ?description ?recommended_policies () : queue_view =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
@@ -1859,6 +1919,7 @@ module Ozone = struct
             ?recommended_policies ()))
     |> parse_queue_result
 
+  (** Delete queue [queue_id] via [tools.ozone.queue.deleteQueue]. *)
   let delete_queue (s : Session.session) ~proxy ~queue_id ?migrate_to_queue_id
       () : delete_queue_result =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
@@ -1867,6 +1928,7 @@ module Ozone = struct
          (delete_queue_body ~queue_id ?migrate_to_queue_id ()))
     |> parse_delete_queue_result
 
+  (** Assign [did] to [queue_id] via [tools.ozone.queue.assignModerator]. *)
   let assign_queue_moderator (s : Session.session) ~proxy ~queue_id ~did () :
       assignment_view =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
@@ -1875,6 +1937,8 @@ module Ozone = struct
          (`Assoc [ ("queueId", `Int queue_id); ("did", `String did) ]))
     |> parse_assignment_view
 
+  (** Unassign [did] from [queue_id] via
+      [tools.ozone.queue.unassignModerator]. *)
   let unassign_queue_moderator (s : Session.session) ~proxy ~queue_id ~did () :
       unit =
     ignore
@@ -1883,6 +1947,7 @@ module Ozone = struct
          (Yojson.Safe.to_string
             (`Assoc [ ("queueId", `Int queue_id); ("did", `String did) ])))
 
+  (** Queue assignments via [tools.ozone.queue.getAssignments]. *)
   let get_queue_assignments (s : Session.session) ~proxy ?only_active
       ?(queue_ids = []) ?(dids = []) ?limit ?cursor () : assignments =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
@@ -1894,6 +1959,7 @@ module Ozone = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_assignments
 
+  (** Route a report-id range via [tools.ozone.queue.routeReports]. *)
   let route_reports (s : Session.session) ~proxy ~start_report_id ~end_report_id
       () : route_reports_result =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
@@ -2136,6 +2202,7 @@ module Ozone = struct
       @ opt_json_str "publicNote" public_note
       @ opt_json_bool "isAutomated" is_automated)
 
+  (** Reports via [tools.ozone.report.queryReports] ([status] required). *)
   let query_reports (s : Session.session) ~proxy ~status ?queue_id
       ?(report_types = []) ?subject ?did ?subject_type ?(collections = [])
       ?reported_after ?reported_before ?is_muted ?assigned_to ?sort_field
@@ -2158,17 +2225,20 @@ module Ozone = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_reports
 
+  (** Report [id] via [tools.ozone.report.getReport]. *)
   let get_report (s : Session.session) ~proxy ~id () : report_view =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.report.getReport"
       [ ("id", string_of_int id) ]
     |> parse_report_result
 
+  (** Latest report via [tools.ozone.report.getLatestReport]. *)
   let get_latest_report (s : Session.session) ~proxy () : report_view =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.report.getLatestReport" []
     |> parse_report_result
 
+  (** Assign a moderator via [tools.ozone.report.assignModerator]. *)
   let assign_report_moderator (s : Session.session) ~proxy ~report_id ?queue_id
       ?did ?is_permanent () : assignment_view =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
@@ -2180,6 +2250,7 @@ module Ozone = struct
            @ opt_json_bool "isPermanent" is_permanent)))
     |> parse_assignment_view
 
+  (** Unassign the moderator via [tools.ozone.report.unassignModerator]. *)
   let unassign_report_moderator (s : Session.session) ~proxy ~report_id () :
       assignment_view =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
@@ -2187,6 +2258,7 @@ module Ozone = struct
       (Yojson.Safe.to_string (`Assoc [ ("reportId", `Int report_id) ]))
     |> parse_assignment_view
 
+  (** Report assignments via [tools.ozone.report.getAssignments]. *)
   let get_report_assignments (s : Session.session) ~proxy ?only_active
       ?(report_ids = []) ?(dids = []) ?limit ?cursor () : assignments =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
@@ -2198,6 +2270,7 @@ module Ozone = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_assignments
 
+  (** Record activity via [tools.ozone.report.createActivity]. *)
   let create_activity (s : Session.session) ~proxy ~activity ?report_id
       ?event_id ?internal_note ?public_note ?is_automated () :
       report_activity_view =
@@ -2208,6 +2281,7 @@ module Ozone = struct
             ?public_note ?is_automated ()))
     |> parse_activity_result
 
+  (** Activities for [report_id] via [tools.ozone.report.listActivities]. *)
   let list_activities (s : Session.session) ~proxy ~report_id ?limit ?cursor ()
       : report_activities =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
@@ -2216,6 +2290,7 @@ module Ozone = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_report_activities
 
+  (** Activities via [tools.ozone.report.queryActivities]. *)
   let query_activities (s : Session.session) ~proxy ?(activity_types = [])
       ?created_after ?created_before ?sort_direction ?limit ?cursor () :
       report_activities =
@@ -2229,6 +2304,7 @@ module Ozone = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_report_activities
 
+  (** Move [report_id] to [queue_id] via [tools.ozone.report.reassignQueue]. *)
   let reassign_queue (s : Session.session) ~proxy ~report_id ~queue_id ?comment
       () : report_view =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
@@ -2240,6 +2316,7 @@ module Ozone = struct
            :: opt_json_str "comment" comment)))
     |> parse_report_result
 
+  (** Recompute stats via [tools.ozone.report.refreshStats]. *)
   let refresh_stats (s : Session.session) ~proxy ~start_date ~end_date
       ?queue_ids () : unit =
     ignore
@@ -2254,6 +2331,7 @@ module Ozone = struct
               | Some xs -> [ ("queueIds", json_ints xs) ]
               | None -> [])))))
 
+  (** Close reports for [subject] via [tools.ozone.report.closeReports]. *)
   let close_reports (s : Session.session) ~proxy ~subject ?(report_types = [])
       ?internal_note ?is_automated () : close_reports_result =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
@@ -2269,6 +2347,7 @@ module Ozone = struct
            @ opt_json_bool "isAutomated" is_automated)))
     |> parse_close_reports_result
 
+  (** Live report stats via [tools.ozone.report.getLiveStats]. *)
   let get_live_stats (s : Session.session) ~proxy ?queue_id ?moderator_did
       ?(report_types = []) () : report_stats =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
@@ -2278,6 +2357,7 @@ module Ozone = struct
       @ Client.repeat_param "reportTypes" report_types)
     |> parse_live_stats
 
+  (** Historical report stats via [tools.ozone.report.getHistoricalStats]. *)
   let get_historical_stats (s : Session.session) ~proxy ?queue_id ?moderator_did
       ?(report_types = []) ?start_date ?end_date ?limit ?cursor () :
       historical_stats =

@@ -53,6 +53,8 @@ module Repo_sync = struct
     collections = []
     || List.exists (fun c -> path = c || starts_with path (c ^ "/")) collections
 
+  (** Split [collection/rkey] on the first [/]; no slash yields [path] and
+      [""]. *)
   let split_path path =
     match String.index_opt path '/' with
     | None -> (path, "")
@@ -60,6 +62,8 @@ module Repo_sync = struct
         ( String.sub path 0 i,
           String.sub path (i + 1) (String.length path - i - 1) )
 
+  (** Open a repo CAR: verify commit CID, rev TID, and MST (full tree when
+      [complete]). *)
   let open_car ?(complete = true) (car : Car.t) : snapshot =
     let commit_cid =
       match Car.root car with Some c -> c | None -> fail "CAR has no root"
@@ -98,9 +102,11 @@ module Repo_sync = struct
       tree;
     }
 
+  (** [open_car] on CARv1 [bytes]. *)
   let open_car_bytes ?complete (bytes : string) : snapshot =
     open_car ?complete (Car.parse bytes)
 
+  (** Re-verify the MST; optional [keys] check the commit signature. *)
   let verify_snapshot ?(keys : string list option) (snap : snapshot) : unit =
     Mst.verify_tree
       ~get_block:(Mst.store_get (Mst.store_of_car snap.car))
@@ -114,8 +120,10 @@ module Repo_sync = struct
         | `Invalid -> fail "commit signature is invalid"
         | `Unsupported_curve c -> fail ("commit uses unsupported curve " ^ c))
 
+  (** All record paths and CIDs in [snap]'s MST. *)
   let walk (snap : snapshot) : (string * Cid.t) list = Mst.walk snap.tree
 
+  (** Record bytes for [cid] in [car]; verifies the CID. *)
   let record_block (car : Car.t) (cid : Cid.t) : string =
     match Car.find_block car cid with
     | None -> fail ("record block missing " ^ Cid.to_string cid)
@@ -123,6 +131,7 @@ module Repo_sync = struct
         ignore (Cid.verify_block ~expected:cid ~codec:cid.codec b.data);
         b.data
 
+  (** Partial getRecord proof CAR: return path CID and record bytes. *)
   let verify_record_proof ~(car : Car.t) ~(path : string) : Cid.t * string =
     if not (Syntax.Syntax.is_valid_repo_path path) then
       fail ("invalid repo path " ^ path);
@@ -133,6 +142,7 @@ module Repo_sync = struct
     | None -> fail ("record path not in MST: " ^ path)
     | Some cid -> (cid, record_block car cid)
 
+  (** Commit block plus MST blocks in streamable pre-order. *)
   let preorder_blocks (snap : snapshot) : Car.block list =
     let commit_block =
       match Car.find_block snap.car snap.commit_cid with
@@ -147,11 +157,13 @@ module Repo_sync = struct
     in
     commit_block :: Mst.preorder_blocks snap.tree
 
+  (** True when [snap.car] blocks follow MST pre-order. *)
   let is_preorder (snap : snapshot) : bool =
     Car.follows_order
       ~expected:(List.map (fun (b : Car.block) -> b.cid) (preorder_blocks snap))
       (Car.block_cids snap.car)
 
+  (** Full repo CAR (commit root, pre-order blocks, first-occurrence only). *)
   let export_car (snap : snapshot) : Car.t =
     let seen = Hashtbl.create 16 in
     let blocks =
@@ -166,8 +178,10 @@ module Repo_sync = struct
     in
     { Car.roots = [ snap.commit_cid ]; blocks }
 
+  (** CARv1 bytes of [export_car snap]. *)
   let export_car_bytes (snap : snapshot) : string = Car.encode (export_car snap)
 
+  (** Partial CAR for [collections] (commit plus MST range proofs). *)
   let export_subset (snap : snapshot) ~(collections : string list) : Car.t =
     if collections = [] then export_car snap
     else
@@ -197,13 +211,14 @@ module Repo_sync = struct
             expected;
       }
 
+  (** CARv1 bytes of [export_subset]. *)
   let export_subset_bytes snap ~collections =
     Car.encode (export_subset snap ~collections)
 
   exception Not_preorder of string
 
-  (* Walk records by consuming blocks in streamable pre-order. Omitted child
-     CIDs (subset proofs) are skipped; an out-of-order present block fails. *)
+  (** Walk records by consuming blocks in streamable pre-order. Omitted child
+      CIDs (subset proofs) are skipped; an out-of-order present block fails. *)
   let stream_walk (car : Car.t) : (string * Cid.t) list =
     let by_cid = Hashtbl.create (List.length car.blocks) in
     List.iter
@@ -269,12 +284,15 @@ module Repo_sync = struct
     in
     walk_node commit.data
 
+  (** Walk records: streamable pre-order, or [Mst.walk_available] if
+      shuffled. *)
   let walk_car (car : Car.t) : (string * Cid.t) list =
     try stream_walk car
     with Not_preorder _ ->
       let snap = open_car ~complete:false car in
       Mst.walk_available snap.tree
 
+  (** Check collection range proofs and record blocks in a subset CAR. *)
   let verify_subset ~(collections : string list) (car : Car.t) : snapshot =
     let snap = open_car ~complete:false car in
     let store = Mst.store_of_car car in
@@ -295,6 +313,7 @@ module Repo_sync = struct
       collections;
     snap
 
+  (** In-memory TAP account for [did] (starts [Desynchronized]). *)
   let create_account ?(collections = []) ~did () : account =
     if not (Syntax.Syntax.is_valid_did did) then fail ("invalid did " ^ did);
     {
@@ -372,6 +391,7 @@ module Repo_sync = struct
       !deletes;
     List.rev !events
 
+  (** Check firehose commit DID/rev against the signed object. *)
   let verify_commit_object (c : Firehose.commit) : Mst.repo_commit =
     let signed = Firehose.repo_commit_of c in
     if c.repo <> signed.did then
@@ -380,6 +400,7 @@ module Repo_sync = struct
       fail (Printf.sprintf "commit.rev %s != rev %s" signed.rev c.rev);
     signed
 
+  (** Verify the firehose commit signature with PLC / did:key [keys]. *)
   let verify_commit_sig ~keys (c : Firehose.commit) : unit =
     let signed = Firehose.repo_commit_of c in
     match Mst.verify_commit_sig ~keys signed with
@@ -389,6 +410,7 @@ module Repo_sync = struct
     | `Unsupported_curve curve ->
         fail ("firehose commit uses unsupported curve " ^ curve)
 
+  (** Apply [c]'s ops to [prev] and check the resulting MST root. *)
   let apply_commit_tree (prev : snapshot) (c : Firehose.commit) : snapshot =
     if prev.did <> c.repo then
       fail
@@ -417,6 +439,7 @@ module Repo_sync = struct
       tree;
     }
 
+  (** Apply a live [#commit] to [acct], or queue / desync as needed. *)
   let process_commit ?keys ?(live = true) (acct : account) (c : Firehose.commit)
       : record_change list =
     if c.repo <> acct.did then
@@ -447,6 +470,7 @@ module Repo_sync = struct
               acct.commit <- Some c.commit;
               events)
 
+  (** Handle a [#sync] frame: desync unless [acct] already matches [s.rev]. *)
   let process_sync (acct : account) (s : Firehose.sync) : record_change list =
     if s.did <> acct.did then
       fail (Printf.sprintf "sync did %s != account %s" s.did acct.did);
@@ -456,6 +480,7 @@ module Repo_sync = struct
     | _ -> acct.status <- Desynchronized);
     []
 
+  (** Dispatch a firehose [msg] ([#commit] / [#sync]; others ignored). *)
   let process_message ?keys (acct : account) (msg : Firehose.message) :
       record_change list =
     match msg with
@@ -463,6 +488,7 @@ module Repo_sync = struct
     | `Sync s -> process_sync acct s
     | `Identity _ | `Account _ | `Info _ | `Error _ | `Unknown _ -> []
 
+  (** Backfill [acct] from a full repo CAR, then replay queued commits. *)
   let resync_from_car ?keys ?(live = false) (acct : account) (car : Car.t) :
       record_change list =
     acct.status <- In_progress;
@@ -484,18 +510,22 @@ module Repo_sync = struct
     in
     events @ rest
 
+  (** Full repo snapshot via [com.atproto.sync.getRepo]. *)
   let fetch_repo ?host ?session (did : string) : snapshot =
     open_car_bytes (Sync.get_repo ?host ?session did)
 
+  (** Subset CAR for [collections] from a fetched repo. *)
   let fetch_repo_subset ?host ?session ~did ~collections () : Car.t =
     let snap = fetch_repo ?host ?session did in
     export_subset snap ~collections
 
+  (** getRecord proof via [com.atproto.sync.getRecord]; verify path. *)
   let fetch_record_proof ?host ?session ?commit ~did ~collection ~rkey () :
       Cid.t * string =
     let car = Sync.get_record_car ?host ?session ?commit did collection rkey in
     verify_record_proof ~car ~path:(Sync.record_path ~collection ~rkey)
 
+  (** Fetch the repo and [resync_from_car] into [acct]. *)
   let backfill ?host ?session ?keys (acct : account) : record_change list =
     let snap = fetch_repo ?host ?session acct.did in
     resync_from_car ?keys ~live:false acct snap.car
@@ -503,7 +533,7 @@ module Repo_sync = struct
   type commit_signer =
     did:string -> data:Cid.t -> rev:string -> ?prev:Cid.t -> unit -> string
 
-  (* Offline signed repo: JSON records → DAG-CBOR → MST → commit → CAR. *)
+  (** Offline signed repo: JSON records → DAG-CBOR → MST → commit → CAR. *)
   let write_signed_repo ~did ~rev ?prev ~(sign : commit_signer)
       ~(records : (string * Yojson.Safe.t) list) () : snapshot =
     List.iter
