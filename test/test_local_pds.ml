@@ -82,11 +82,14 @@ let pds_post_if_served ?session nsid data =
 (* TestNetwork policy InvalidRequest: email token, unhosted feed
    generator DID, not-implemented. Never fail leftover hops on these. *)
 let is_policy_invalid (e : Error.t) =
-  Error.is_not_served e
+  Error.is_not_served e || e.error = "InvalidToken"
+  || message_has e.error "invalidtoken"
   || message_has e.message "email confirmation token"
   || message_has e.message "email token"
   || message_has e.message "confirmation token"
   || message_has e.message "invalid token"
+  || message_has e.message "token is invalid"
+  || message_has e.error "token is invalid"
   || message_has e.message "token required"
   || message_has e.message "could not find feed"
   || message_has e.message "invalid feed generator"

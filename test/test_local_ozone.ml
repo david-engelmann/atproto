@@ -119,9 +119,13 @@ let is_policy_invalid json =
   | None -> false
   | Some _ ->
       let e = Error.of_json json in
-      Error.is_not_served e
+      Error.is_not_served e || e.error = "InvalidToken"
+      || message_has e.error "invalidtoken"
       || message_has e.message "email confirmation token"
       || message_has e.message "email token"
+      || message_has e.message "invalid token"
+      || message_has e.message "token is invalid"
+      || message_has e.error "token is invalid"
       || message_has e.message "not implemented"
       || message_has e.message "already a member"
       || message_has e.message "already exists"
