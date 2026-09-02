@@ -1,0 +1,16 @@
+# Version updates for GitHub Actions used by TestSuite and lexicon-pin.
+# docker/dev-env has compose.yaml (postgres/redis pinned to official
+# @atproto/dev-env) but no Dockerfiles; npm there is the pinned
+# @atproto/dev-env 0.6.4 TestNetwork and is left alone.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: main
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      github-actions:
+        patterns:
+          - "*"

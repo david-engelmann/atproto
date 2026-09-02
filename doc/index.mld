@@ -1,0 +1,76 @@
+{0 AT Protocol for OCaml}
+
+{!Atproto} is a typed client and protocol library for the
+{{:https://atproto.com}AT Protocol}: XRPC, lexicons, identity, repo
+sync, AppView, Ozone, and a chat client. The public surface tracks
+official lexicons at bluesky-social/atproto
+{{:https://github.com/bluesky-social/atproto/commit/60c439595101fbcbe612463e6f23200590c5daaf}[60c4395951]}.
+What remains is product-level and hosted-only — not a missing protocol
+core.
+
+This package does not host a PDS, an OSS chat backend, a video
+transcoder, or a Tap service. It is a library you pin and call.
+
+{1 Install}
+
+Not published to the public opam-repository. Pin the GitHub repository
+(OCaml [>= 4.14.1] and [< 5.0]; CI tests 4.14.1):
+
+{[
+opam pin add atproto git+https://github.com/david-engelmann/atproto.git
+]}
+
+Then depend on [(libraries atproto)] from dune. [opam pin] builds
+[dune build -p atproto]; it is not an opam-repository release.
+
+{1 These pages}
+
+HTML from [dune build @doc] is published at
+{{:https://david-engelmann.github.io/atproto/}https://david-engelmann.github.io/atproto/}.
+Pull requests also upload the same tree as the [odoc-html] TestSuite
+artifact.
+
+{1 Public modules}
+
+{ul
+{- {b Auth / Session.} {!Atproto.Auth} and {!Atproto.Session} create
+   and inspect [com.atproto.server] sessions ([ATP_AUTH], [ATP_HOST],
+   JWT claims, [getSession]).}
+{- {b XRPC.} {!Atproto.Xrpc} is the header layer: [atproto-proxy],
+   accept-labelers, rate limits, and service-auth JWT mint/verify.}
+{- {b Identity / PLC.} {!Atproto.Identity} resolves handles and DIDs.
+   {!Atproto.Did_plc}, {!Atproto.Did_web}, and {!Atproto.Did_key} cover
+   the PLC directory, [did:web], and [did:key] (p256 / k256).}
+{- {b MST / CID / CAR.} {!Atproto.Mst} is the Merkle Search Tree.
+   {!Atproto.Cid}, {!Atproto.Car}, and {!Atproto.Dag_cbor} read and
+   write CIDv1, CARv1, and DAG-CBOR. {!Atproto.Repo_sync} is
+   library-shaped TAP-like backfill — not a hosted Tap.}
+{- {b Firehose / Jetstream.} {!Atproto.Firehose} decodes
+   [subscribeRepos] ([#commit] / [#sync] / [#identity] / [#account]).
+   {!Atproto.Jetstream} is the JSON tail (v2 [xrpc.v1.json], live
+   dict-zstd). Archive HTTP still needs an operator token this library
+   does not invent.}
+{- {b OAuth / DPoP.} {!Atproto.Oauth} and {!Atproto.Oauth_scope} are
+   PKCE S256, DPoP ES256, PAR, token/refresh/revoke, and granular
+   scopes. Local TestNetwork can run the loopback login; a public
+   HTTPS client-metadata document and production browser login are
+   application-level.}
+{- {b AppView.} {!Atproto.Actor}, {!Atproto.Feed}, {!Atproto.Graph},
+   {!Atproto.Bookmark}, {!Atproto.Notification}, {!Atproto.Labeler},
+   {!Atproto.Unspecced}, and {!Atproto.Video} speak [app.bsky.*].
+   Video is a client for the hosted upload service — no transcoder.}
+{- {b Ozone.} {!Atproto.Ozone} is the [tools.ozone.*] moderation
+   client (events, subjects, team, queue, report). Password sessions
+   proxy through the PDS; OAuth mints [getServiceAuth] and calls the
+   Ozone host (DPoP cannot be proxied).}
+{- {b Chat client.} {!Atproto.Chat} is [chat.bsky.*] with
+   [atproto-proxy] ([did:web:api.bsky.chat#bsky_chat], the session
+   [#bsky_chat] service, or [ATP_CHAT_DID]). There is no official OSS
+   chat backend in [@atproto/dev-env] 0.6.4.}}
+
+Related protocol pieces live beside that map: {!Atproto.Repo} and
+{!Atproto.Records} for writes, {!Atproto.Server} and {!Atproto.Sync}
+for account/repo HTTP, {!Atproto.Label} for [queryLabels],
+{!Atproto.Lexicon} for lexicon-1 parse/validate/codegen, and
+{!Atproto.Http_client} for HTTP/2 XRPC that keeps status and
+rate-limit headers.

@@ -1,0 +1,72 @@
+# Fail when bluesky-social/atproto lexicons/ moved past the SHA in
+# lexicons/official-nsids.json. Does not bump the pin.
+name: Lexicon pin drift
+
+on:
+  pull_request:
+  schedule:
+    # 13:30 UTC weekdays (9:30 AM ET)
+    - cron: "30 13 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lexicon-pin:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Compare official lexicons against the pin
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          pin="$(jq -r '.sha' lexicons/official-nsids.json)"
+          if [[ ! "$pin" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
+            echo "Invalid pin SHA in lexicons/official-nsids.json: ${pin}"
+            exit 1
+          fi
+
+          head="$(gh api repos/bluesky-social/atproto --jq .default_branch)"
+          compare="$(gh api "repos/bluesky-social/atproto/compare/${pin}...${head}")"
+
+          ahead="$(jq -r '.ahead_by // 0' <<<"$compare")"
+          truncated="$(jq -r '.truncated // false' <<<"$compare")"
+          lexicon_files="$(
+            jq -r '
+              [.files[]? | select(.filename | startswith("lexicons/")) | .filename]
+              | unique
+              | .[]
+            ' <<<"$compare"
+          )"
+
+          if [[ "$truncated" == "true" ]]; then
+            echo "Compare API result is truncated; fetching trees to diff lexicons/."
+            workdir="$(mktemp -d)"
+            git init -q "$workdir"
+            git -C "$workdir" remote add origin https://github.com/bluesky-social/atproto.git
+            git -C "$workdir" fetch --depth=1 origin "${pin}:refs/heads/pin"
+            git -C "$workdir" fetch --depth=1 origin "${head}:refs/heads/official"
+            lexicon_files="$(
+              git -C "$workdir" diff --name-only pin official -- lexicons/ || true
+            )"
+          fi
+
+          echo "Official pin: ${pin}"
+          echo "Official ${head} is ${ahead} commit(s) ahead of the pin."
+
+          if [[ -z "${lexicon_files}" ]]; then
+            echo "No lexicons/ path changes since the pin. Pin is current."
+            exit 0
+          fi
+
+          echo "Official lexicons/ moved since pin ${pin}."
+          echo "Changed lexicon paths:"
+          printf '%s\n' "$lexicon_files"
+          echo
+          echo "This job does not bump the pin. Update lexicons/official-nsids.json"
+          echo "and the client bindings (or an explicit coverage skip) in a follow-up."
+          exit 1
