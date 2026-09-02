@@ -1,38 +1,24 @@
 ---
 name: Bug report
-about: Create a report to help us improve
-title: ''
-labels: ''
-assignees: ''
-
+about: Something in the OCaml client or protocol helpers is wrong
+title: ""
+labels: ""
+assignees: ""
 ---
 
 **Describe the bug**
-A clear and concise description of what the bug is.
+A clear and concise description of what went wrong.
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+**To reproduce**
+Steps, a short OCaml snippet, or the XRPC NSID that failed.
 
 **Expected behavior**
-A clear and concise description of what you expected to happen.
+What you expected instead.
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
-
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
-
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+**Environment**
+- OCaml version (package requires `>= 4.14.1` and `< 5.0`; CI tests 4.14.1):
+- Install method (`opam pin add atproto git+https://github.com/david-engelmann/atproto.git` or a local clone):
+- `ATP_HOST` / `ATP_SCHEME` (if the call is live; leave blank for a pure library bug):
 
 **Additional context**
-Add any other context about the problem here.
+Logs, response JSON, or a link to the odoc page (https://david-engelmann.github.io/atproto/).

@@ -1,17 +1,23 @@
-Your Environment
-----------------
-<!-- Include details of your environment. -->
+---
+name: Install
+about: Pin, opam, or dune build problems
+title: ""
+labels: ""
+---
 
-*   Operating System:
-*   OCaml Version:
-*   Package Version:
+**What failed**
+`opam pin`, `opam install . --deps-only`, or `dune build -p atproto`.
 
+**Environment**
+- OCaml version (must be `>= 4.14.1` and `< 5.0`; CI is 4.14.1):
+- opam version / switch:
+- OS:
 
+**Command and output**
+Paste the command and the error.
 
-How to reproduce the behaviour
-------------------------------
-<!-- Before submitting an issue, make sure to check the docs and closed issues
-and FAQ to see if any of the solutions work for you. -->
+This package is not on the public opam-repository. The supported install is:
 
-<!-- Include a code example or the steps that led to the problem. Please try to
-be as specific as possible. -->
+```shell
+opam pin add atproto git+https://github.com/david-engelmann/atproto.git
+```
