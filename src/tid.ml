@@ -95,6 +95,7 @@ module Tid = struct
 
   (* Sync spec: reject commit revs corresponding to a future timestamp
      beyond a short clock-drift window (default 5 minutes). *)
+
   (** Default clock-skew window for {!is_future} (5 minutes, in microseconds). *)
   let default_clock_skew_us = 300_000_000L
 

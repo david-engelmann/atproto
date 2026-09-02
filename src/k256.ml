@@ -70,6 +70,7 @@ module K256 = struct
 
   (** True when IEEE P1363 [s] is already low-S ([s <= n/2]). *)
   let is_low_s (s : string) : bool = String.compare s n_half_octets <= 0
+
   let in_scalar z = Z.gt z z0 && Z.lt z n
   let ( %: ) a m = Z.(erem a m)
   let ( +: ) a b = Z.(a + b) %: p
