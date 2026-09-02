@@ -27,7 +27,7 @@ In a dependent `dune` stanza:
 
 `opam pin` / `opam install .` invoke `dune build -p atproto` (the same build a dependent sees) and install the public `atproto` library. That does not publish the package to opam-repository.
 
-Version notes for **0.1.0** (what shipped through [#106](https://github.com/david-engelmann/atproto/pull/106), changelog [#107](https://github.com/david-engelmann/atproto/pull/107), [#108](https://github.com/david-engelmann/atproto/pull/108), [#109](https://github.com/david-engelmann/atproto/pull/109) live dict-zstd, and [#110](https://github.com/david-engelmann/atproto/pull/110) v2 `xrpc.v1.json` subprotocol negotiation) are in [CHANGELOG.md](CHANGELOG.md). Module HTML from `dune build @doc` is uploaded as the `odoc-html` TestSuite artifact; there is no GitHub Pages site.
+Version notes for **0.1.0** (the packaged surface through [#110](https://github.com/david-engelmann/atproto/pull/110)) are in [CHANGELOG.md](CHANGELOG.md). Module HTML from `dune build @doc` is uploaded as the `odoc-html` TestSuite artifact; there is no GitHub Pages site.
 
 ## Environment
 
@@ -166,31 +166,17 @@ Pinned `@atproto/dev-env@0.6.4` `TestNetwork.create()` does **not** start a `cha
 
 ## Remaining gaps
 
-These are product-level, not missing protocol cores:
+These are product-level, not missing protocol cores.
 
-- Official lexicons are pinned at bluesky-social/atproto [`60c4395951`](https://github.com/bluesky-social/atproto/commit/60c439595101fbcbe612463e6f23200590c5daaf) (APP-2933). `lexicons/official-nsids.json` is the compact NSID snapshot (`query` / `procedure` / `subscription` / `record` / `permission-set`); `scripts/gen-official-nsids.py` rebuilds it against a SHA. TestSuite `test_lexicon_coverage` fails if that pin grows and a public client NSID is missing a helper, record builder, bundled permission-set, or an explicit one-line skip. Hosted-only *servers* (no OSS chat backend, no video transcoder, no Tap host) are not skip reasons.
-- Hosting a **public HTTPS client-metadata document** and completing a **production browser login** against a remote PDS. Local TestNetwork serves a loopback metadata document and runs discovery + PAR + DPoP + authorize GET + `~api/sign-in` / `~api/consent` (real `csrf-token` / `dev-id` / `ses-id` cookies) through token exchange, DPoP `getSession`, DPoP `getServiceAuth`, authed AppView `getTimeline` / `listNotifications` (service-auth JWT, not the DPoP token), Ozone privileged `emitEvent` as `admin-mod.test` (`getServiceAuth` + `Ozone.emit_event_service` on `:2587`; DPoP + `atproto-proxy` is rejected), refresh, and RFC 7009 revoke in CI (`test/test_local_oauth.ml`). The local authorize GET is still an HTML SPA (no `code` on the first navigation); the code is minted by the sign-in/consent APIs, not by faking a browser document.
-- A hosted Tap service or hosted video transcoder (client request/response types, video byte-upload + job poll, TAP-like repo sync helpers, and proxy headers are implemented). Local TestNetwork Ozone privileged writes use OAuth DPoP `getServiceAuth` + `Ozone.emit_event_service` as `admin-mod.test` (not a production operator session). A **local PDS + PLC** stack is included for `com.atproto.*` integration tests; it is not a public host.
-- Jetstream Network Replay / HTTP snapshot **download** against Bluesky's gated archive (planner, `listSegments` types, cutover cursor, Range resume, skippable unauthenticated HTTP, and `.jss` v1 decode are implemented; live compressed `subscribeEvents` dict-zstd and v2 `xrpc.v1.json` subprotocol negotiation are implemented). A live archive download still needs an operator token this library does not invent.
-- Permissioned data / spaces / LtHash (no stable public spec to implement yet)
-- Official `com.atproto.sync.getRepo` **lexicon** still has no `collection` parameter (client-side subset export from a full CAR is implemented; servers that reject unknown query params are unchanged)
+**What 0.1.0 covers.** The packaged client through [#110](https://github.com/david-engelmann/atproto/pull/110): XRPC, official lexicon pin `60c4395951` with a coverage gate, repo sync, identity, AppView, Ozone, chat client, live local OAuth/DPoP, and Jetstream v2 (`xrpc.v1.json` + dict-zstd). Pin this GitHub repo; it is **not** on opam-repository. See [CHANGELOG.md](CHANGELOG.md).
 
-#70–#90 covered protocol core, AppView/chat/ozone/temp, Jetstream, video, OAuth scopes, thread v2 / drafts / contacts, remaining preference kinds, ozone queue/report, `site.standard.*`, leftover admin, HTTP/2, server email/activate, leftover official field parsers, and the official `@atproto/dev-env` local network in CI.
-
-This stack fills leftover *library* holes after #90–#109: live local OAuth through token (loopback client-metadata + AS discovery + PAR/DPoP + authorize GET + `~api/sign-in`/`consent` with real cookies + token / DPoP `getSession` / DPoP `getServiceAuth` / AppView `getTimeline` / Ozone `emitEvent` via service-auth / refresh / RFC 7009 revoke), official `app.bsky.graph.referencelistoptout`, OAuth PAR `prompt=create` / RFC 7638 `dpop_jkt`, typed official permission-set lexicons (`include:app.bsky.auth*`), `Client.post_json_h2`, DAG-CBOR IPLD JSON (`$link`/`$bytes`), offline `Repo_sync.write_signed_repo`, unused opens as errors, public module odoc (HTML as a CI artifact, not GitHub Pages), official lexicon pin `60c4395` with a coverage gate, OCaml `< 5.0`, live Jetstream dict-zstd + v2 `xrpc.v1.json` subprotocol negotiation, and more local PDS/AppView/Ozone XRPC the stack actually serves. Chat still has no OSS server in TestNetwork; skippable live `chat.bsky.*` tests keep `atproto-proxy`. This package is **not** on opam-repository.
-
-Production admin/ozone operator sessions are not invented here. Local TestNetwork `admin-mod.test` completes OAuth DPoP and writes through `getServiceAuth` (DPoP + `atproto-proxy` is rejected).
-
-Still leftover vs current lexicons (not invented here):
-
-- Deprecated `com.atproto.temp.fetchLabels` (use `Label.query_labels` / `subscribeLabels`; coverage skip)
-- Deprecated `com.atproto.sync.getCheckout` / `getHead` / `notifyOfUpdate` (use `getRepo` / `getLatestCommit` / `requestCrawl`; coverage skips)
-- `internal.bsky.actor.getProfiles` (service-to-service AppView query, not a public client surface; coverage skip)
-- Internal `debug` fields and deprecated `entities` / `isFallback`
-- Privileged Ozone operator view fields (clients exist; production operator session not invented; local admin-mod OAuth DPoP `getServiceAuth` is)
-- `com.atproto.server.createAppPassword` 500 on this `@atproto/pds` 0.5.x TestNetwork build (library request matches the official lexicon; the local suite asserts the isolated 500)
-
-Open PR `#69` (`de-sync-types`) is superseded by this work: it still targeted the removed `getCheckout` API and left CAR/CBOR unfinished.
+- Official lexicons are pinned at bluesky-social/atproto [`60c4395951`](https://github.com/bluesky-social/atproto/commit/60c439595101fbcbe612463e6f23200590c5daaf) (APP-2933). `lexicons/official-nsids.json` is the compact NSID snapshot (`query` / `procedure` / `subscription` / `record` / `permission-set`); `scripts/gen-official-nsids.py` rebuilds it against a SHA. TestSuite `test_lexicon_coverage` fails if that pin grows and a public client NSID is missing a helper, record builder, bundled permission-set, or an explicit one-line skip. Hosted-only *servers* (no OSS chat backend, no video transcoder, no Tap host) are not skip reasons. Five deprecated/internal NSIDs are skipped in `lexicons/coverage-skips.json`: `com.atproto.temp.fetchLabels`, `com.atproto.sync.getCheckout`, `com.atproto.sync.getHead`, `com.atproto.sync.notifyOfUpdate`, and `internal.bsky.actor.getProfiles`.
+- Hosting a **public HTTPS client-metadata document** and completing a **production browser login** against a remote PDS. Local TestNetwork already runs loopback metadata + PAR + DPoP through token, AppView service-auth, and Ozone privileged writes as `admin-mod.test`.
+- A hosted **Tap** service or hosted **video transcoder** (client types and TAP-like repo sync helpers are implemented). TestNetwork is a local PDS + AppView + Ozone stack, not a public host.
+- No official **OSS chat** backend in `@atproto/dev-env` 0.6.4 TestNetwork. `chat.bsky.*` clients still send `atproto-proxy`.
+- Jetstream archive HTTP **download** still needs an operator token this library does not invent (live dict-zstd `subscribeEvents` and v2 `xrpc.v1.json` are implemented).
+- Permissioned data / spaces / LtHash (no stable public spec yet)
+- This package is **not** on opam-repository
 
 ## Sample usage
 
@@ -255,7 +241,7 @@ let start =
 let _header, msg = Firehose.subscribe_one ()
 
 (* Jetstream v2 JSON tail — URL only here; subscribe_one talks to the public WS
-   and offers Sec-WebSocket-Protocol: xrpc.v1.json *)
+   and offers Sec-WebSocket-Protocol: xrpc.v1.json (RFC 6455 §4.1 echo) *)
 let _js =
   Jetstream.subscribe_url
     ~filter:
@@ -266,6 +252,10 @@ let _js =
       }
     ()
 let _headers = Jetstream.subscribe_extra_headers ()
+(* v2 dict-zstd: query zstdDictionary=<id>; header stays xrpc.v1.json *)
+let _js_zstd =
+  Jetstream.subscribe_url ~compress:true ~zstd_dictionary_id:20260811 ()
+let _headers_zstd = Jetstream.subscribe_extra_headers ~compress:true ()
 
 (* TAP-like local indexer: backfill a CAR, then apply firehose ops *)
 let acct =
