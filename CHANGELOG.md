@@ -154,6 +154,11 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `queryActivities` / `reassignQueue` / `refreshStats`, and
   `set.deleteValues` (skip only when the NSID is not served or the
   InvalidRequest / UpstreamFailure is TestNetwork policy)
+- Live TestNetwork hop for `tools.ozone.moderation.getAccountPreferences`
+  (`Ozone.get_account_preferences`, required `did`). Skip when the NSID
+  is not served, MethodNotImplemented, feature-disabled, or
+  UpstreamFailure is TestNetwork policy. Does not fake a hosted ozone
+  preference store
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
