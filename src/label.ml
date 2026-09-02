@@ -378,9 +378,21 @@ module Label = struct
     | `Error of string * string option
     | `Unknown of string * Dag_cbor.value ]
 
-  let subscribe_url ?(host = "bsky.network") ?cursor () =
+  let host_uses_cleartext (host : string) : bool =
+    let bare =
+      match String.split_on_char ':' host with h :: _ -> h | [] -> host
+    in
+    let bare = String.lowercase_ascii bare in
+    bare = "localhost" || bare = "127.0.0.1" || bare = "[::1]" || bare = "::1"
+
+  let subscribe_url ?(host = "bsky.network") ?scheme ?cursor () =
+    let scheme =
+      match scheme with
+      | Some s -> s
+      | None -> if host_uses_cleartext host then "ws" else "wss"
+    in
     let base =
-      Printf.sprintf "wss://%s/xrpc/com.atproto.label.subscribeLabels" host
+      Printf.sprintf "%s://%s/xrpc/com.atproto.label.subscribeLabels" scheme host
     in
     match cursor with
     | None -> base

@@ -1076,4 +1076,10 @@ let () =
   assert (
     Firehose.subscribe_url ()
     = "wss://bsky.network/xrpc/com.atproto.sync.subscribeRepos");
+  assert (
+    Label.subscribe_url ~host:"localhost:2583" ()
+    = "ws://localhost:2583/xrpc/com.atproto.label.subscribeLabels");
+  assert (
+    Label.subscribe_url ()
+    = "wss://bsky.network/xrpc/com.atproto.label.subscribeLabels");
   print_endline "examples/offline: public API typechecks and fixtures pass"

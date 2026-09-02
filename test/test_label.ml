@@ -113,7 +113,23 @@ let test_subscribe_url _ =
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "wss://mod.example.com/xrpc/com.atproto.label.subscribeLabels?cursor=0"
-    (Label.subscribe_url ~host:"mod.example.com" ~cursor:0L ())
+    (Label.subscribe_url ~host:"mod.example.com" ~cursor:0L ());
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "wss://bsky.network/xrpc/com.atproto.label.subscribeLabels"
+    (Label.subscribe_url ());
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "ws://localhost:2583/xrpc/com.atproto.label.subscribeLabels"
+    (Label.subscribe_url ~host:"localhost:2583" ());
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "ws://127.0.0.1:2587/xrpc/com.atproto.label.subscribeLabels?cursor=0"
+    (Label.subscribe_url ~host:"127.0.0.1:2587" ~cursor:0L ());
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "wss://localhost:2583/xrpc/com.atproto.label.subscribeLabels"
+    (Label.subscribe_url ~host:"localhost:2583" ~scheme:"wss" ())
 
 let test_subscribe_one_live _ =
   let old =

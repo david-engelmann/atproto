@@ -103,7 +103,10 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `dune-project` `(documentation ...)` and generated `atproto.opam`
   `doc:` point at that live URL. README / CONTRIBUTING no longer say
   Pages is disabled. Module-level odoc on public
-  `Jetstream_zstd_dictionary` (checked-in fallback blob from #109)
+  `Jetstream_zstd_dictionary` (checked-in fallback blob from #109).
+  `Label.subscribe_url` uses `ws://` for localhost / `127.0.0.1` / `::1`
+  (same as `Firehose.subscribe_url`) so a local PDS/Ozone
+  `subscribeLabels` is not forced onto `wss://`
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
