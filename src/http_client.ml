@@ -181,6 +181,7 @@ module Http_client = struct
             exchange ~host:parsed.host ~port:parsed.port req parsed socket)
           (fun () -> close_socket socket)
 
+  (** Send [req] over HTTP/2 TLS (HTTPS + ALPN [h2]). *)
   let request ?(timeout = default_timeout) (req : Request.request) :
       Response.response Lwt.t =
     Lwt.catch
@@ -189,9 +190,11 @@ module Http_client = struct
         | Lwt_unix.Timeout -> Lwt.fail (Error "HTTP/2 request timed out")
         | exn -> Lwt.fail exn)
 
+  (** HTTP/2 GET [url]. *)
   let get url ?(headers = []) ?timeout () : Response.response Lwt.t =
     request ?timeout (Request.get url ~headers ())
 
+  (** HTTP/2 POST [url] with optional [body]. *)
   let post url ?(headers = []) ?body ?timeout () : Response.response Lwt.t =
     request ?timeout (Request.post url ~headers ?body ())
 
@@ -217,6 +220,7 @@ module Http_client = struct
     ^ "="
     ^ Uri.pct_encode ~component:`Query_value v
 
+  (** [https://host/xrpc/nsid] with optional query pairs. *)
   let xrpc_url ~host ?(port = 443) nsid ?(query = []) () : string =
     let base =
       if port = 443 then Printf.sprintf "https://%s/xrpc/%s" host nsid
@@ -226,10 +230,12 @@ module Http_client = struct
     | [] -> base
     | qs -> base ^ "?" ^ String.concat "&" (List.map encode_query_pair qs)
 
+  (** HTTP/2 GET for XRPC [nsid] on [host]. *)
   let xrpc_get ~host ?port ~nsid ?(query = []) ?(headers = []) ?timeout () :
       Response.response Lwt.t =
     get (xrpc_url ~host ?port nsid ~query ()) ~headers ?timeout ()
 
+  (** HTTP/2 POST for XRPC [nsid] on [host] (JSON content-type default). *)
   let xrpc_post ~host ?port ~nsid ?(headers = []) ?body ?timeout () :
       Response.response Lwt.t =
     let hdrs =
@@ -266,5 +272,6 @@ module Http_client = struct
       (xrpc_url ~host ?port nsid ())
       ~headers:(json_headers headers) ?body ?timeout ()
 
+  (** [Lwt_main.run t] — block on an HTTP/2 request. *)
   let run (t : 'a Lwt.t) : 'a = Lwt_main.run t
 end
