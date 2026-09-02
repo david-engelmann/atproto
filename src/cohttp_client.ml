@@ -3,6 +3,7 @@ open Cohttp_lwt_unix
 
 (** Cohttp Lwt helpers shared by session, identity, and XRPC clients. *)
 module Cohttp_client = struct
+  (** GET [url] and return the response body (prints status/headers). *)
   let get_body url =
     let open Lwt.Infix in
     Cohttp_lwt_unix.Client.get (Uri.of_string url) >>= fun (resp, body) ->
@@ -13,6 +14,7 @@ module Cohttp_client = struct
     Printf.printf "Body of length: %d\n" (String.length body);
     body
 
+  (** GET [http://host:port] via [get_body]. *)
   let get_host (host : string) (port : int) : string Lwt.t =
     let url = Printf.sprintf "http://%s:%d" host port in
     get_body url
@@ -27,6 +29,7 @@ module Cohttp_client = struct
         let h = add_pair_to_header h hd in
         add_pairs_to_header h res
 
+  (** Percent-encode [k=v] pairs as a query string. *)
   let pairs_to_query_string params =
     let kv_to_string (k, v) = Uri.pct_encode k ^ "=" ^ Uri.pct_encode v in
     String.concat "&" (List.map kv_to_string params)
@@ -40,6 +43,7 @@ module Cohttp_client = struct
     String.concat "&" (List.map kv_to_string params)
   *)
 
+  (** JSON object whose values are string arrays (for POST bodies). *)
   let create_body_from_pairs_with_array_value pairs =
     `Assoc
       (List.map
@@ -48,6 +52,7 @@ module Cohttp_client = struct
          pairs)
     |> Yojson.to_string
 
+  (** Cohttp [Header.t] from [setting, value] pairs. *)
   let create_headers_from_pairs (header_settings : (string * string) list) =
     match header_settings with
     | [] -> Header.init ()
@@ -56,14 +61,17 @@ module Cohttp_client = struct
         let headers = add_pair_to_header headers hd in
         add_pairs_to_header headers res
 
+  (** Query string from [k, v] pairs; empty list is [""]. *)
   let create_body_from_pairs (data : (string * string) list) =
     match data with [] -> "" | _ -> pairs_to_query_string data
 
+  (** Add each [key=value] query parameter to [url]. *)
   let add_query_params_to_url url key values =
     List.fold_left
       (fun url value -> Uri.add_query_param' url (key, value))
       url values
 
+  (** [key=v1&key=v2&...] without percent-encoding. *)
   let add_query_params key values =
     List.map (fun value -> key ^ "=" ^ value) values |> String.concat "&"
 
@@ -74,9 +82,11 @@ module Cohttp_client = struct
     | _ -> pairs_with_array_value_to_query_string data
   *)
 
+  (** [Content-Type: application/json] header pair. *)
   let application_json_setting_tuple : string * string =
     ("Content-Type", "application/json")
 
+  (** POST JSON [data] to [url]. *)
   let post_data (url : string) data =
     let open Lwt.Infix in
     let headers =
@@ -92,6 +102,7 @@ module Cohttp_client = struct
     (*Printf.printf "Body of length: %d\n" (String.length body);*)
     body
 
+  (** POST [data] to [url] with [headers]. *)
   let post_data_with_headers (url : string) data headers =
     let open Lwt.Infix in
     let body = Cohttp_lwt.Body.of_string data in
@@ -104,6 +115,7 @@ module Cohttp_client = struct
     (*Printf.printf "Body of length: %d\n" (String.length body);*)
     body
 
+  (** GET [url?body] with [headers]; return the body string. *)
   let get_request_with_body_and_headers (url : string) body headers =
     let open Lwt.Infix in
     let url_with_body = url ^ "?" ^ body in
@@ -116,6 +128,7 @@ module Cohttp_client = struct
     (*Printf.printf "Body of length: %d\n" (String.length body);*)
     body
 
+  (** GET [url?body] with [headers]; concatenate the body as bytes. *)
   let get_bytes_request_with_body_and_headers (url : string) body headers =
     let open Lwt.Infix in
     let url_with_body = url ^ "?" ^ body in
@@ -124,6 +137,7 @@ module Cohttp_client = struct
     body |> Cohttp_lwt.Body.to_stream |> Lwt_stream.to_list >|= fun blob_list ->
     String.concat "" blob_list
 
+  (** GET [url] with [headers]; return the body string. *)
   let get_request_with_headers (url : string) headers =
     let open Lwt.Infix in
     Cohttp_lwt_unix.Client.get ~headers (Uri.of_string url) >>= fun (_, body) ->
@@ -134,6 +148,7 @@ module Cohttp_client = struct
     (*Printf.printf "Body of length: %d\n" (String.length body);*)
     body
 
+  (** GET [url] with [headers]; return [(status, body)]. *)
   let get_with_status (url : string) headers : (int * string) Lwt.t =
     let open Lwt.Infix in
     Cohttp_lwt_unix.Client.get ~headers (Uri.of_string url)
@@ -141,6 +156,7 @@ module Cohttp_client = struct
     let code = resp |> Response.status |> Code.code_of_status in
     body |> Cohttp_lwt.Body.to_string >|= fun body -> (code, body)
 
+  (** POST [data] to [url] with [headers]; return [(status, body)]. *)
   let post_with_status (url : string) data headers : (int * string) Lwt.t =
     let open Lwt.Infix in
     let body = Cohttp_lwt.Body.of_string data in
@@ -149,6 +165,7 @@ module Cohttp_client = struct
     let code = resp |> Response.status |> Code.code_of_status in
     body |> Cohttp_lwt.Body.to_string >|= fun body -> (code, body)
 
+  (** POST to [url] with [headers] and no body; return the body string. *)
   let post_request_with_headers (url : string) headers =
     let open Lwt.Infix in
     Cohttp_lwt_unix.Client.post ~headers (Uri.of_string url)
@@ -160,6 +177,7 @@ module Cohttp_client = struct
     (*Printf.printf "Body of length: %d\n" (String.length body);*)
     body
 
+  (** GET [url?body] and return the [Content-Type] header. *)
   let get_content_type_with_body_headers (url : string) body headers =
     let open Lwt.Infix in
     let url_with_body = url ^ "?" ^ body in
@@ -169,9 +187,9 @@ module Cohttp_client = struct
     | Some ct -> Lwt.return ct
     | None -> Lwt.return "No content-type found"
 
-  (* Status + all response headers (including repeated Set-Cookie) + body.
-     Used by live OAuth (DPoP-Nonce, CSRF cookies) where XRPC helpers drop
-     headers. Does not follow redirects. *)
+  (** Status, all response headers (including repeated [Set-Cookie]), and
+      body. Used by live OAuth ([DPoP-Nonce], CSRF cookies) where XRPC
+      helpers drop headers. Does not follow redirects. *)
   let request_full (meth : Code.meth) (url : string) ?(body = "")
       (header_settings : (string * string) list) :
       (int * (string * string) list * string) Lwt.t =

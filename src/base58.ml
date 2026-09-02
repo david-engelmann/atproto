@@ -2,6 +2,7 @@
 module Base58 = struct
   let alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
+  (** Encode raw bytes as base58btc (Bitcoin alphabet, no checksum). *)
   let encode (data : string) : string =
     let len = String.length data in
     if len = 0 then ""
@@ -39,6 +40,7 @@ module Base58 = struct
     | Some i -> i
     | None -> failwith ("Base58.decode: invalid character " ^ String.make 1 c)
 
+  (** Decode a base58btc string to raw bytes. *)
   let decode (s : string) : string =
     let len = String.length s in
     if len = 0 then ""

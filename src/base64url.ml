@@ -38,7 +38,10 @@ module Base64url = struct
       in
       loop 0 0 0 ""
 
+  (** Encode [data] as unpadded base64url. [~pad:true] adds [=]. *)
   let encode ?(pad = false) data = encode_with url_alphabet ~pad data
+
+  (** Encode [data] as standard base64. Pads by default. *)
   let encode_std ?(pad = true) data = encode_with std_alphabet ~pad data
 
   let value_of alphabet c =
@@ -76,9 +79,11 @@ module Base64url = struct
     loop 0 0 0;
     Buffer.contents buf
 
+  (** Decode unpadded or padded base64url; falls back to standard base64. *)
   let decode s =
     try decode_with url_alphabet s
     with Failure _ -> decode_with std_alphabet s
 
+  (** Decode standard base64, ignoring padding. *)
   let decode_std s = decode_with std_alphabet s
 end
