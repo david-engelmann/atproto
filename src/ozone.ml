@@ -971,19 +971,24 @@ module Ozone = struct
       "tools.ozone.communication.listTemplates" []
     |> parse_templates
 
-  let create_template_body ~name ~content_markdown ?subject ?lang () :
-      Yojson.Safe.t =
+  let create_template_body ~name ~content_markdown ?subject ?lang ?created_by ()
+      : Yojson.Safe.t =
     `Assoc
       ([ ("name", `String name); ("contentMarkdown", `String content_markdown) ]
       @ (match subject with Some s -> [ ("subject", `String s) ] | None -> [])
-      @ match lang with Some s -> [ ("lang", `String s) ] | None -> [])
+      @ (match lang with Some s -> [ ("lang", `String s) ] | None -> [])
+      @
+      match created_by with
+      | Some d -> [ ("createdBy", `String d) ]
+      | None -> [])
 
   let create_template (s : Session.session) ~proxy ~name ~content_markdown
-      ?subject ?lang () : template =
+      ?subject ?lang ?created_by () : template =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.communication.createTemplate"
       (Yojson.Safe.to_string
-         (create_template_body ~name ~content_markdown ?subject ?lang ()))
+         (create_template_body ~name ~content_markdown ?subject ?lang
+            ?created_by ()))
     |> parse_template
 
   let update_template (s : Session.session) ~proxy ~id ?name ?content_markdown

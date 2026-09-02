@@ -555,7 +555,7 @@ let test_template_and_set_writes _ =
   (match
      ozone_post s p "tools.ozone.communication.createTemplate"
        (Ozone.create_template_body ~name:tmpl_name ~content_markdown:"hi"
-          ~subject:"welcome" ())
+          ~subject:"welcome" ~created_by:s.auth.did ())
    with
   | json when served json ->
       let created = Ozone.parse_template json in
@@ -567,7 +567,7 @@ let test_template_and_set_writes _ =
       OUnit2.assert_equal created.id updated.id;
       let typed =
         Ozone.create_template s ~proxy:p ~name:(tmpl_name ^ "-b")
-          ~content_markdown:"typed" ~subject:"welcome" ()
+          ~content_markdown:"typed" ~subject:"welcome" ~created_by:s.auth.did ()
       in
       OUnit2.assert_bool "create_template helper" (String.length typed.id > 0);
       Ozone.delete_template s ~proxy:p ~id:created.id ();

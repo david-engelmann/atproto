@@ -399,13 +399,17 @@ let test_operator_namespace_parsers _ =
     |> Yojson.Safe.Util.to_string);
   let body =
     Ozone.create_template_body ~name:"Hello" ~content_markdown:"hi"
-      ~subject:"welcome" ()
+      ~subject:"welcome" ~created_by:"did:plc:mod000111222333444555666" ()
   in
   let open Yojson.Safe.Util in
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "Hello"
-    (body |> member "name" |> to_string)
+    (body |> member "name" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:mod000111222333444555666"
+    (body |> member "createdBy" |> to_string)
 
 let test_parse_queue_and_report _ =
   let queues =
