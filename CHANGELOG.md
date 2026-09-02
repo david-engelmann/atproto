@@ -1,33 +1,16 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#138](https://github.com/david-engelmann/atproto/pull/138):
+shipped through [#151](https://github.com/david-engelmann/atproto/pull/151):
 official lexicon pin `5c154f9c` and `Ozone.get_account_preferences`
 ([#132](https://github.com/david-engelmann/atproto/pull/132)), live leftover
 TestNetwork NSIDs ([#129](https://github.com/david-engelmann/atproto/pull/129))
 plus live `getAccountPreferences`
-([#137](https://github.com/david-engelmann/atproto/pull/137)), and remaining
-function-level odoc ([#122](https://github.com/david-engelmann/atproto/pull/122)
-Graph / Ozone / Repo / Sync / MST / Jetstream / Chat / Bookmark /
-Notification, [#125](https://github.com/david-engelmann/atproto/pull/125)
-Label / Video / CID/CAR / PLC / Records,
-[#126](https://github.com/david-engelmann/atproto/pull/126)
-Firehose / Oauth / Session / Auth / Client / Server,
-[#128](https://github.com/david-engelmann/atproto/pull/128)
-remaining Ozone / Repo_sync,
-[#130](https://github.com/david-engelmann/atproto/pull/130) Identity,
-[#131](https://github.com/david-engelmann/atproto/pull/131)
-User / Cohttp / Base32/58/64url,
-[#133](https://github.com/david-engelmann/atproto/pull/133)
-Tid / At_uri / Dag_cbor / K256 / Did,
-[#134](https://github.com/david-engelmann/atproto/pull/134)
-Error / Xrpc / HTTP, [#135](https://github.com/david-engelmann/atproto/pull/135)
-Admin, [#136](https://github.com/david-engelmann/atproto/pull/136) Server,
-[#138](https://github.com/david-engelmann/atproto/pull/138)
-Session / Moderation / Temp).
-This PR adds remaining function-level odoc on Repo XRPC wrappers.
-[#143](https://github.com/david-engelmann/atproto/pull/143) adds remaining
-function-level odoc on Oauth_scope / Syntax.
+([#137](https://github.com/david-engelmann/atproto/pull/137)), live leftover
+TestNetwork hops for remaining `com.atproto.admin` NSIDs
+([#150](https://github.com/david-engelmann/atproto/pull/150)), and remaining
+function-level odoc through
+[#151](https://github.com/david-engelmann/atproto/pull/151).
 
 This package is **not** published to the public
 [opam-repository](https://github.com/ocaml/opam-repository). Depend on it by
@@ -133,8 +116,9 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   is not served, MethodNotImplemented, feature-disabled, or
   UpstreamFailure is TestNetwork policy. Does not fake a hosted ozone
   preference store
-- This PR: live leftover TestNetwork hops for remaining
-  `com.atproto.admin` NSIDs (`getSubjectStatus` / `updateSubjectStatus`,
+- [#150](https://github.com/david-engelmann/atproto/pull/150): live leftover
+  TestNetwork hops for remaining `com.atproto.admin` NSIDs
+  (`getSubjectStatus` / `updateSubjectStatus`,
   `getAccountInfo` / `getAccountInfos` / `searchAccounts`,
   `enableAccountInvites` / `disableAccountInvites` / `getInviteCodes` /
   `disableInviteCodes`, `sendEmail`, `updateAccountEmail` /
@@ -247,7 +231,8 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `update_account_email` / `update_account_handle` /
   `update_account_password` / `update_account_signing_key`).
   Comment-only
-- This PR: function-level odoc on remaining Tid / At_uri / Dag_cbor /
+- [#133](https://github.com/david-engelmann/atproto/pull/133):
+  function-level odoc on remaining Tid / At_uri / Dag_cbor /
   K256 / Did_key / Did_web helpers (`of_int64`, `to_string`, `as_text`,
   `low_s`, `is_did_key`, `is_web_did`). Comment-only
 - [#138](https://github.com/david-engelmann/atproto/pull/138):
@@ -257,7 +242,8 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `dereference_scope`, `add_reserved_handle`,
   `request_phone_verification`, `revoke_account_credentials`).
   Comment-only; hosted-only phone verification stays listed not faked
-- This PR: remaining function-level odoc on Repo XRPC wrappers
+- [#141](https://github.com/david-engelmann/atproto/pull/141): remaining
+  function-level odoc on Repo XRPC wrappers
   (`describe_repo` / `describe_repo_parsed`, `list_records` /
   `list_records_parsed`, `get_record_parsed`, `put_record`,
   `delete_record`, `apply_writes_body`, `write_op_to_json`,
