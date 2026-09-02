@@ -1056,6 +1056,9 @@ module Feed = struct
       @ Client.Client.opt_pair "cursor" cursor)
     |> parse_generators
 
+  (** Paginated author feed ([app.bsky.feed.getAuthorFeed]). Works without a
+      session against public AppView. [filter] uses the lexicon knownValues
+      ([filter_posts_no_replies], ...). *)
   let get_author_feed_page ?session ?host ~actor ?limit ?cursor ?filter
       ?include_pins () : timeline =
     Client.Client.get_json ?session ?host "app.bsky.feed.getAuthorFeed"
@@ -1083,6 +1086,8 @@ module Feed = struct
       []
     |> parse_describe_feed_generator
 
+  (** Search posts ([app.bsky.feed.searchPosts]). Works without a session
+      against public AppView. *)
   let search_posts ?session ?host ~q ?sort ?since ?until ?mentions ?author ?lang
       ?domain ?url ?limit ?cursor () : search_posts =
     Client.Client.get_json ?session ?host "app.bsky.feed.searchPosts"

@@ -26,6 +26,8 @@ module Request = struct
   let delete url ?(headers = []) ?body () : request =
     create ~method_:Http_method.Delete ~url ~headers ?body ()
 
+  (**/**)
+
   let sample_request_with_body : request =
     {
       method_ = Http_method.Get;
@@ -44,4 +46,6 @@ module Request = struct
 
   let test_get : Http_method.http_method = Http_method.Get
   let test_post : Http_method.http_method = Http_method.Post
+
+  (**/**)
 end

@@ -395,6 +395,8 @@ module Firehose = struct
            (Cid.to_string signed.data));
     tree
 
+  (** Receive one [com.atproto.sync.subscribeRepos] frame from the relay
+      (default [bsky.network]). Optional [host] and [cursor]. *)
   let subscribe_one ?host ?cursor () : header * message =
     let cell = ref None in
     subscribe ?host ?cursor ~max_messages:1 (fun frame -> cell := Some frame);
