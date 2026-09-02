@@ -8,8 +8,9 @@ shipped through pull request [#106](https://github.com/david-engelmann/atproto/p
 [#108](https://github.com/david-engelmann/atproto/pull/108)
 (lexicon pin `60c4395951`, coverage gate, OCaml `< 5.0`, odoc artifact),
 [#109](https://github.com/david-engelmann/atproto/pull/109)
-(live Jetstream dict-zstd `subscribeEvents`), and Jetstream v2
-`xrpc.v1.json` WebSocket subprotocol negotiation.
+(live Jetstream dict-zstd `subscribeEvents`), and
+[#110](https://github.com/david-engelmann/atproto/pull/110)
+(Jetstream v2 `xrpc.v1.json` WebSocket subprotocol negotiation).
 
 This package is **not** published to the public
 [opam-repository](https://github.com/ocaml/opam-repository). Depend on it by
