@@ -108,6 +108,33 @@ jobs:
           path: _build/default/_doc/_html
           if-no-files-found: warn
 
+      # PRs keep the odoc-html artifact above. Pages deploy is main-only.
+      - name: Upload Pages artifact
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _build/default/_doc/_html
+
+  # Official GitHub Actions Pages path. Skipped on PRs so CI stays green
+  # before Pages is enabled (Settings → Pages → Source: GitHub Actions).
+  deploy-pages:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: lint-doc
+    runs-on: ubuntu-22.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
+
   lint-fmt:
     strategy:
       fail-fast: false

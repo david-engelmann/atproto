@@ -12,12 +12,18 @@ pinning the GitHub repository.
   `dune build -p atproto` and `dune runtest -p atproto`.
 
 Do not hand-edit `atproto.opam`; it is generated from `dune-project`.
-Documentation URL in `dune-project` is this GitHub repo (there is no
-GitHub Pages site).
+odoc HTML is a CI artifact (`odoc-html`) on pull requests. On push to
+`main`, TestSuite deploys `_build/default/_doc/_html` with GitHub
+Actions Pages. GitHub Pages is not enabled yet (API enable returned
+403); turn it on once under Settings → Pages → Source: GitHub
+Actions. Until then, `dune-project` `documentation` stays this GitHub
+repo (do not point `doc:` at a 404 Pages URL).
 
 ## Checks
 
 CI jobs: `build`, `lint-doc`, `lint-fmt`, `lint-opam`, `local-pds`.
+On push to `main`, `deploy-pages` publishes odoc HTML after Pages is
+enabled.
 
 ```shell
 opam install . --deps-only --with-test

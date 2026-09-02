@@ -27,7 +27,7 @@ In a dependent `dune` stanza:
 
 `opam pin` / `opam install .` invoke `dune build -p atproto` (the same build a dependent sees) and install the public `atproto` library. That does not publish the package to opam-repository.
 
-Version notes for **0.1.0** (the packaged surface through [#110](https://github.com/david-engelmann/atproto/pull/110)) are in [CHANGELOG.md](CHANGELOG.md). Module HTML from `dune build @doc` is uploaded as the `odoc-html` TestSuite artifact; there is no GitHub Pages site.
+Version notes for **0.1.0** (the packaged surface through [#110](https://github.com/david-engelmann/atproto/pull/110)) are in [CHANGELOG.md](CHANGELOG.md). Module HTML from `dune build @doc` is uploaded as the `odoc-html` TestSuite artifact on pull requests. On push to `main`, the same HTML is deployed with GitHub Actions Pages (`actions/upload-pages-artifact` + `actions/deploy-pages`). GitHub Pages is not enabled on this repository yet (`POST /repos/david-engelmann/atproto/pages` with `build_type=workflow` returned 403). Enable it once under Settings → Pages → Source: GitHub Actions; after that the site is https://david-engelmann.github.io/atproto/. Until then, `dune-project` `documentation` still points at this GitHub repo.
 
 ## Environment
 
