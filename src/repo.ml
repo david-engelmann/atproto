@@ -150,11 +150,15 @@ module Repo = struct
       results = (match json |> member "results" with `List xs -> xs | _ -> []);
     }
 
+  (** Parsed [com.atproto.repo.describeRepo] (handle, DID, collections).
+      Works without a session. *)
   let describe_repo_parsed ?session ?host ~repo () : repo_description =
     Client.Client.get_json ?session ?host "com.atproto.repo.describeRepo"
       [ ("repo", repo) ]
     |> parse_repo_description
 
+  (** Parsed [com.atproto.repo.getRecord] ([uri], optional [cid], [value]).
+      Works without a session. *)
   let get_record_parsed ?session ?host ~repo ~collection ~rkey ?cid () :
       record_get =
     Client.Client.get_json ?session ?host "com.atproto.repo.getRecord"
@@ -162,6 +166,8 @@ module Repo = struct
       @ Client.Client.opt_pair "cid" cid)
     |> parse_record_get
 
+  (** Parsed [com.atproto.repo.listRecords]. Optional [limit] / [cursor] /
+      [reverse] map to the lexicon query. Works without a session. *)
   let list_records_parsed ?session ?host ~repo ~collection ?limit ?cursor
       ?reverse () : listed_records =
     Client.Client.get_json ?session ?host "com.atproto.repo.listRecords"
@@ -174,6 +180,7 @@ module Repo = struct
   let create_repo_endpoint (query_name : string) : string =
     "com.atproto.repo" ^ "." ^ query_name
 
+  (** Raw JSON from [com.atproto.repo.describeRepo] for [repo]. *)
   let describe_repo (s : Session.session) (repo : string) : string =
     let bearer_token = Session.bearer_token_from_session s in
     let application_json = Cohttp_client.application_json_setting_tuple in
@@ -221,6 +228,8 @@ module Repo = struct
     in
     record
 
+  (** List records via [com.atproto.repo.listRecords]. Returns the raw JSON
+      body. *)
   let list_records (s : Session.session) (repo : string) (collection : string)
       (limit : int) (reverse : bool) : string =
     let bearer_token = Session.bearer_token_from_session s in
@@ -284,6 +293,9 @@ module Repo = struct
     in
     created_record
 
+  (** Put a record via [com.atproto.repo.putRecord]. [record] is a JSON
+      object string; optional [rkey], [swap_record], and [swap_commit] map
+      to the lexicon inputs. *)
   let put_record (s : Session.session) (repo : string) (collection : string)
       ?rkey ?(validate = true) ?swap_record ?swap_commit (record : string) :
       string =
@@ -321,6 +333,8 @@ module Repo = struct
     in
     puted_record
 
+  (** Delete a record via [com.atproto.repo.deleteRecord]. Optional
+      [swap_record] / [swap_commit] map to the lexicon inputs. *)
   let delete_record (s : Session.session) (repo : string) (collection : string)
       ?swap_record ?swap_commit (rkey : string) : string =
     let bearer_token = Session.bearer_token_from_session s in
@@ -362,6 +376,8 @@ module Repo = struct
     | Update of { collection : string; rkey : string; value : Yojson.Safe.t }
     | Delete of { collection : string; rkey : string }
 
+  (** JSON for one [com.atproto.repo.applyWrites] create / update / delete
+      op. *)
   let write_op_to_json = function
     | Create { collection; rkey; value } ->
         `Assoc
@@ -387,6 +403,7 @@ module Repo = struct
             ("rkey", `String rkey);
           ]
 
+  (** JSON body for [com.atproto.repo.applyWrites]. *)
   let apply_writes_body ~repo ~writes ?(validate = true) ?swap_commit () :
       Yojson.Safe.t =
     let fields =
@@ -428,6 +445,8 @@ module Repo = struct
     original : Yojson.Safe.t;
   }
 
+  (** Blob CID for [bytes] (CIDv1 raw + SHA-256). Optional [expected]
+      must match. *)
   let verify_blob_bytes ?expected (bytes : string) : Cid.Cid.t =
     Cid.Cid.verify_blob ?expected bytes
 
@@ -453,6 +472,8 @@ module Repo = struct
     App.create_endpoint_url (App.create_base_url s)
       (create_repo_endpoint "uploadBlob")
 
+  (** Upload bytes via [com.atproto.repo.uploadBlob]. Optional
+      [content_type] defaults to [application/octet-stream]. *)
   let upload_blob (s : Session.session)
       ?(content_type = "application/octet-stream") (bytes : string) : blob_ref =
     let bearer_token = Session.bearer_token_from_session s in
@@ -492,6 +513,8 @@ module Repo = struct
         | _ -> []);
     }
 
+  (** Missing blobs via [com.atproto.repo.listMissingBlobs]. Optional
+      [cursor] / [limit] map to the lexicon query. *)
   let list_missing_blobs (s : Session.session) ?cursor ?limit () :
       list_missing_blobs =
     let bearer_token = Session.bearer_token_from_session s in
@@ -518,6 +541,7 @@ module Repo = struct
     App.create_endpoint_url (App.create_base_url s)
       (create_repo_endpoint "importRepo")
 
+  (** Import a CAR via [com.atproto.repo.importRepo]. *)
   let import_repo (s : Session.session) (car_bytes : string) : string =
     let bearer_token = Session.bearer_token_from_session s in
     let headers =
