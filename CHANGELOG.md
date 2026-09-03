@@ -1,7 +1,7 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#182](https://github.com/david-engelmann/atproto/pull/182):
+shipped through [#184](https://github.com/david-engelmann/atproto/pull/184):
 official lexicon pin `f0d4877a` and `Ozone.get_account_preferences`
 ([#132](https://github.com/david-engelmann/atproto/pull/132)), live leftover
 TestNetwork NSIDs ([#129](https://github.com/david-engelmann/atproto/pull/129))
@@ -50,10 +50,15 @@ through [#179](https://github.com/david-engelmann/atproto/pull/179)
 lexicon pin `f0d4877a` for actor interests `updatedAt`
 (`Actor.interests_pref` = `{ tags; updated_at : string option }`;
 `6af3edf1`)
-([#181](https://github.com/david-engelmann/atproto/pull/181)), and
+([#181](https://github.com/david-engelmann/atproto/pull/181)),
 merge-when-green ignoring lexicon-pin drift (`84040dc0`; pin drift is
 advisory and must not deadlock docs-only or full-mode merges)
-([#182](https://github.com/david-engelmann/atproto/pull/182)).
+([#182](https://github.com/david-engelmann/atproto/pull/182)), notes
+through [#182](https://github.com/david-engelmann/atproto/pull/182)
+([#183](https://github.com/david-engelmann/atproto/pull/183), `7fd95c86`),
+and live leftover AppView / PDS `getPreferences` / `putPreferences`
+hops that assert `interestsPref.updatedAt` when present
+([#184](https://github.com/david-engelmann/atproto/pull/184)).
 
 This package is **not** published to the public
 [opam-repository](https://github.com/ocaml/opam-repository). Depend on it by
@@ -201,6 +206,14 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `initAgeAssurance`. Skip when not served or TestNetwork policy.
   Distinct from the dedicated `app.bsky.ageassurance.*` hops. No hosted
   verifier faked
+- [#184](https://github.com/david-engelmann/atproto/pull/184): live leftover
+  TestNetwork hops for AppView and PDS
+  `app.bsky.actor.getPreferences` / `putPreferences` that assert
+  `interestsPref.updatedAt` when the served JSON includes it (pin
+  `f0d4877a`). Skip if not served or TestNetwork policy. Parse +
+  offline coverage shipped in
+  [#181](https://github.com/david-engelmann/atproto/pull/181). Does
+  not fake hosted chat / video / Tap / phone / contacts / push
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -484,6 +497,17 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   lexicon-pin drift in merge-when-green (`84040dc0`). Pin drift is
   advisory; a failing lexicon-pin check must not deadlock docs-only
   or full-mode merges
+- [#183](https://github.com/david-engelmann/atproto/pull/183): Point
+  CHANGELOG and remaining-gaps through #182 (`7fd95c86`). Docs-only
+  notes hygiene
+- [#184](https://github.com/david-engelmann/atproto/pull/184): live leftover
+  TestNetwork hops for AppView and PDS
+  `app.bsky.actor.getPreferences` / `putPreferences` that assert
+  `interestsPref.updatedAt` when the served JSON includes it. Skip if
+  not served or TestNetwork policy. Parse + `examples/offline.ml`
+  coverage shipped in [#181](https://github.com/david-engelmann/atproto/pull/181).
+  Hosted-only chat / video / Tap / phone / contacts / push stay listed
+  not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
