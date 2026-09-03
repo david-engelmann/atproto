@@ -1238,7 +1238,8 @@ let test_leftover_temp _ =
     failwith "refusing addReservedHandle on alice.test";
   ignore
     (admin_leftover_post admin "com.atproto.temp.addReservedHandle"
-       (Yojson.Safe.to_string (Temp.add_reserved_handle_body ~handle:reserved ())));
+       (Yojson.Safe.to_string
+          (Temp.add_reserved_handle_body ~handle:reserved ())));
   let doomed = throwaway_session "rvk" "local-temp-revoke-password" in
   if doomed.username = "alice.test" || doomed.auth.did = alice.auth.did then
     failwith "refusing leftover temp hops on alice.test";
