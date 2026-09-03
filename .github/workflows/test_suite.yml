@@ -92,9 +92,15 @@ jobs:
               exit 1
               ;;
           esac
-          for m in tid syntax oauth; do
-            if [ ! -f "${installed}/${m}.cmi" ]; then
-              echo "missing ${m}.cmi under ${installed} (install/export incomplete)" >&2
+          # Wrapped library: atproto.cmi plus atproto__Tid.cmi, not tid.cmi.
+          if [ ! -f "${installed}/atproto.cmi" ]; then
+            echo "missing wrapper atproto.cmi under ${installed}" >&2
+            ls -la "${installed}" >&2
+            exit 1
+          fi
+          for m in Tid Syntax Oauth; do
+            if [ ! -f "${installed}/atproto__${m}.cmi" ]; then
+              echo "missing atproto__${m}.cmi under ${installed} (wrap/export incomplete)" >&2
               ls -la "${installed}" >&2
               exit 1
             fi
