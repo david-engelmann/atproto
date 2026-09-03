@@ -42,6 +42,10 @@ MST / CID / CAR
 
 {!modules: Atproto.Mst Atproto.Cid Atproto.Car Atproto.Dag_cbor Atproto.Repo_sync}
 
+TID / AT URI / syntax
+
+{!modules: Atproto.Tid Atproto.At_uri Atproto.Syntax}
+
 Firehose / Jetstream
 
 {!modules: Atproto.Firehose Atproto.Jetstream}
@@ -52,11 +56,15 @@ OAuth / DPoP
 
 AppView
 
-{!modules: Atproto.Actor Atproto.Feed Atproto.Graph Atproto.Bookmark Atproto.Notification Atproto.Labeler Atproto.Unspecced Atproto.Video Atproto.Draft Atproto.Contact Atproto.Ageassurance Atproto.Site}
+{!modules: Atproto.Actor Atproto.Feed Atproto.Graph Atproto.Bookmark Atproto.Notification Atproto.Labeler Atproto.Unspecced Atproto.Video Atproto.Draft Atproto.Contact Atproto.Ageassurance Atproto.Site Atproto.Embed Atproto.Facet}
 
 Ozone
 
 {!modules: Atproto.Ozone}
+
+Admin / temp / moderation
+
+{!modules: Atproto.Admin Atproto.Temp Atproto.Moderation}
 
 Chat client
 
