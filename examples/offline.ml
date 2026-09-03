@@ -840,6 +840,37 @@ let () =
    with
   | `Repo_ref r -> assert (r.did <> "")
   | _ -> assert false);
+  (match
+     Ozone.parse_account_preferences
+       (`Assoc
+         [
+           ( "preferences",
+             `List
+               [
+                 `Assoc
+                   [
+                     ("$type", `String "app.bsky.actor.defs#adultContentPref");
+                     ("enabled", `Bool true);
+                   ];
+                 `Assoc
+                   [
+                     ("$type", `String "app.bsky.actor.defs#interestsPref");
+                     ("tags", `List [ `String "ocaml" ]);
+                     ("updatedAt", `String "2026-09-03T18:02:59.000Z");
+                   ];
+               ] );
+         ])
+   with
+  | {
+   preferences =
+     [
+       { kind = `Adult_content { enabled = true }; _ };
+       { kind = `Interests { tags = [ "ocaml" ]; updated_at = Some _ }; _ };
+     ];
+   _;
+  } ->
+      ()
+  | _ -> assert false);
   let lex_docs = Lexicon.official_documents () in
   assert (List.length lex_docs >= 5);
   assert (

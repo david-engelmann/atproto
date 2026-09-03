@@ -1,6 +1,7 @@
 open Session
 open Client
 open Xrpc
+open Actor
 
 (** tools.ozone.* — Ozone moderation client.
     Password [at+jwt] sessions send [atproto-proxy] through the PDS.
@@ -720,7 +721,10 @@ module Ozone = struct
 
   type timeline_item = { day : string; summary : timeline_summary list }
   type account_timeline = { timeline : timeline_item list }
-  type account_preferences = { preferences : Yojson.Safe.t list }
+
+  (** [tools.ozone.moderation.getAccountPreferences] output —
+      [app.bsky.actor.defs#preferences] via [Actor.preference]. *)
+  type account_preferences = { preferences : Actor.preference list }
 
   type scheduled_action = {
     id : string option;
@@ -796,7 +800,10 @@ module Ozone = struct
     }
 
   let parse_account_preferences json : account_preferences =
-    { preferences = Client.list_member json "preferences" }
+    {
+      preferences =
+        List.map Actor.parse_preference (Client.list_member json "preferences");
+    }
 
   let parse_scheduled_action json : scheduled_action =
     {
@@ -881,7 +888,8 @@ module Ozone = struct
 
   (** Private preferences for [did] via
       [tools.ozone.moderation.getAccountPreferences]
-      (moderator or admin auth; [app.bsky.actor.defs#preferences]). *)
+      (moderator or admin auth). Same [app.bsky.actor.defs#preferences]
+      union as [Actor.parse_preferences]. *)
   let get_account_preferences (s : Session.session) ~proxy ~did () :
       account_preferences =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)

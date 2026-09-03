@@ -5,6 +5,7 @@ open Atproto.Label
 open Atproto.Client
 open Atproto.Error
 open Atproto.Moderation
+open Atproto.Actor
 open Ozone
 open Label
 
@@ -1055,6 +1056,41 @@ let test_leftover_remaining _ =
         (Ozone.delete_queue_body ~queue_id:id ())
   | None -> ()
 
+(* Pin f0d4877a optional interestsPref.updatedAt. Assert the parser only
+   when the served JSON includes the field. TestNetwork 0.6.4 may strip
+   it; that is not a fail. *)
+let leftover_assert_interests_updated_at_when_present
+    (prefs : Ozone.account_preferences) =
+  List.iter
+    (fun (p : Actor.preference) ->
+      match p.kind with
+      | `Interests i -> (
+          match Yojson.Safe.Util.member "updatedAt" p.original with
+          | `String ts ->
+              OUnit2.assert_equal
+                ~printer:(function Some s -> s | None -> "<none>")
+                (Some ts) i.updated_at
+          | _ -> ())
+      | _ -> ())
+    prefs.preferences
+
+let leftover_assert_typed_account_preferences
+    (prefs : Ozone.account_preferences) =
+  OUnit2.assert_bool "getAccountPreferences"
+    (List.length prefs.preferences >= 0);
+  List.iter
+    (fun (p : Actor.preference) ->
+      OUnit2.assert_bool "typed preference $type" (String.length p.type_ >= 0);
+      match p.kind with
+      | `Adult_content _ | `Content_label _ | `Saved_feeds _ | `Saved_feeds_v2 _
+      | `Personal_details _ | `Declared_age _ | `Feed_view _ | `Thread_view _
+      | `Interests _ | `Muted_words _ | `Hidden_posts _ | `Bsky_app_state _
+      | `Labelers _ | `Post_interaction _ | `Verification _ | `Live_event _
+      | `Other ->
+          ())
+    prefs.preferences;
+  leftover_assert_interests_updated_at_when_present prefs
+
 (* Live tools.ozone.moderation.getAccountPreferences. Skip if not
    served / MethodNotImplemented / feature-disabled / UpstreamFailure
    (leftover_served). Do not invent a hosted ozone preference store. *)
@@ -1072,8 +1108,7 @@ let test_get_account_preferences _ =
       let prefs =
         Ozone.get_account_preferences s ~proxy:p ~did:alice.auth.did ()
       in
-      OUnit2.assert_bool "getAccountPreferences"
-        (List.length prefs.preferences >= 0)
+      leftover_assert_typed_account_preferences prefs
   | _ -> ()
 
 let suite =
