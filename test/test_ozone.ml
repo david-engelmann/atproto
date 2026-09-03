@@ -104,15 +104,27 @@ let test_parse_timeline_and_schedule _ =
                     ("$type", `String "app.bsky.actor.defs#adultContentPref");
                     ("enabled", `Bool true);
                   ];
+                `Assoc
+                  [
+                    ("$type", `String "app.bsky.actor.defs#interestsPref");
+                    ("tags", `List [ `String "ocaml" ]);
+                    ("updatedAt", `String "2026-09-03T18:02:59.000Z");
+                  ];
               ] );
         ])
   in
-  OUnit2.assert_equal 1 (List.length prefs.preferences);
-  let open Yojson.Safe.Util in
+  OUnit2.assert_equal 2 (List.length prefs.preferences);
   OUnit2.assert_equal
     ~printer:(fun x -> x)
-    "app.bsky.actor.defs#adultContentPref"
-    (List.hd prefs.preferences |> member "$type" |> to_string);
+    "app.bsky.actor.defs#adultContentPref" (List.hd prefs.preferences).type_;
+  (match (List.hd prefs.preferences).kind with
+  | `Adult_content a -> OUnit2.assert_equal true a.enabled
+  | _ -> OUnit2.assert_failure "expected adultContentPref");
+  (match (List.nth prefs.preferences 1).kind with
+  | `Interests i ->
+      OUnit2.assert_equal [ "ocaml" ] i.tags;
+      OUnit2.assert_equal (Some "2026-09-03T18:02:59.000Z") i.updated_at
+  | _ -> OUnit2.assert_failure "expected interestsPref");
   let result =
     Ozone.parse_batch_result
       (`Assoc

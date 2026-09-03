@@ -1,7 +1,11 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#185](https://github.com/david-engelmann/atproto/pull/185):
+shipped through [#186](https://github.com/david-engelmann/atproto/pull/186):
+typed `Ozone.get_account_preferences` via `Actor.preferences` (same
+16-variant `app.bsky.actor.defs#preferences` union, including
+`interestsPref.updatedAt`) on top of
+[#185](https://github.com/david-engelmann/atproto/pull/185):
 typed Actor `putPreferences` encoding
 (`preference_kind_to_json` / `preference_to_json` /
 `preferences_to_json` / `put_preferences_typed`, including optional
@@ -229,6 +233,16 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   tests only; live leftover hops stay in
   [#184](https://github.com/david-engelmann/atproto/pull/184). No
   hosted chat / video / Tap / phone / contacts / push faked
+- [#186](https://github.com/david-engelmann/atproto/pull/186): typed
+  `Ozone.get_account_preferences` / `parse_account_preferences`.
+  `account_preferences.preferences` is `Actor.preference list` (not
+  `Yojson.Safe.t list`); each item is the same 16-variant union
+  `Actor.parse_preference` already handles, including `Interests`
+  `updated_at`. Live TestNetwork hop asserts typed kinds when present
+  and `interestsPref.updatedAt` when the served JSON includes it.
+  Compile-breaking type change; no backwards-compat. Does not fold
+  leftover `emitEvent` fields or add `emit_event_typed`. No hosted
+  chat / video / Tap / phone / contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -534,6 +548,13 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   parse→encode→parse. Live leftover hops stay in
   [#184](https://github.com/david-engelmann/atproto/pull/184). No
   hosted services faked
+- [#186](https://github.com/david-engelmann/atproto/pull/186): typed
+  `Ozone.get_account_preferences` via `Actor.parse_preference`.
+  `account_preferences` is `{ preferences : Actor.preference list }`.
+  Unit + live leftover hop assert typed kinds (and
+  `interestsPref.updatedAt` when present). Compile-breaking; no
+  `emit_event_typed`. Hosted-only chat / video / Tap / phone /
+  contacts / push stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
