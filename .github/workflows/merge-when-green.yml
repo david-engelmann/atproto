@@ -1,0 +1,63 @@
+# Squash-merge green PRs targeting main (same-repo or Dependabot).
+# Does not use `gh pr merge --auto`: Allow auto-merge is off, and
+# --auto without required status checks would merge pending PRs.
+# This workflow merges only after it verifies checks itself.
+#
+# Wake-ups are chosen so we cannot loop and never run PR-head YAML:
+# - workflow_run of TestSuite (this workflow is not named TestSuite)
+# - check_run of lint-fmt / lint-doc only (this job is not those names)
+# - pull_request_target ready/opened/reopened (workflow file from main)
+name: Merge when green
+
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review]
+    branches: [main]
+  workflow_run:
+    workflows: [TestSuite]
+    types: [completed]
+  check_run:
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+  statuses: read
+
+concurrency:
+  group: merge-when-green
+  cancel-in-progress: false
+
+jobs:
+  merge-when-green:
+    name: Merge when green
+    runs-on: ubuntu-22.04
+    if: >
+      (github.event_name == 'pull_request_target'
+        && github.event.pull_request.draft == false)
+      || (github.event_name == 'workflow_run'
+        && github.event.workflow_run.conclusion == 'success')
+      || (github.event_name == 'check_run'
+        && github.event.check_run.conclusion == 'success'
+        && (startsWith(github.event.check_run.name, 'lint-fmt')
+            || startsWith(github.event.check_run.name, 'lint-doc')))
+    steps:
+      # Always the default-branch copy of the script, never PR head.
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Self-test merge script
+        run: bash .github/scripts/merge-when-green.sh --self-test
+
+      - name: Merge green PRs targeting main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          WORKFLOW_HEAD_SHA: ${{ github.event.workflow_run.head_sha || '' }}
+          WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion || '' }}
+        run: bash .github/scripts/merge-when-green.sh
