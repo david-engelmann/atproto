@@ -1218,6 +1218,38 @@ let test_leftover_server _ =
              (Server.reset_password_body ~token:"not-an-email-token"
                 ~password:"local-server-reset-password"))))
 
+(* Remaining com.atproto.temp operator NSIDs whose wrappers already
+   exist and are not already live-called. checkHandleAvailability /
+   dereferenceScope / checkSignupQueue are already hopped;
+   fetchLabels is a coverage-skip. Reuse admin_leftover_post /
+   admin_basic_extra / is_admin_policy_invalid (session JWT may not
+   be an operator token). Skip if not served / MethodNotImplemented /
+   InvalidToken / policy. addReservedHandle uses a unique throwaway
+   handle prefix, never alice.test. revokeAccountCredentials is
+   destructive and uses a throwaway account only, never alice.test.
+   requestPhoneVerification stays listed (no hosted phone in
+   TestNetwork) and is not faked. Does not invent an operator panel.
+   PDS 0.5.x TestNetwork may 501 these; skip is correct. *)
+let test_leftover_temp _ =
+  let admin = admin_session () in
+  let alice = session () in
+  let reserved = unique_handle "rsvh" in
+  if reserved = "alice.test" then
+    failwith "refusing addReservedHandle on alice.test";
+  ignore
+    (admin_leftover_post admin "com.atproto.temp.addReservedHandle"
+       (Yojson.Safe.to_string
+          (Temp.add_reserved_handle_body ~handle:reserved ())));
+  let doomed = throwaway_session "rvk" "local-temp-revoke-password" in
+  if doomed.username = "alice.test" || doomed.auth.did = alice.auth.did then
+    failwith "refusing leftover temp hops on alice.test";
+  if doomed.username = "alice.test" then
+    failwith "refusing revokeAccountCredentials on alice.test";
+  ignore
+    (admin_leftover_post admin "com.atproto.temp.revokeAccountCredentials"
+       (Yojson.Safe.to_string
+          (Temp.revoke_account_credentials_body ~account:doomed.auth.did ())))
+
 let suite =
   "local_pds"
   >::: [
@@ -1246,6 +1278,7 @@ let suite =
          "test_leftover_served" >:: test_leftover_served;
          "test_leftover_admin" >:: test_leftover_admin;
          "test_leftover_server" >:: test_leftover_server;
+         "test_leftover_temp" >:: test_leftover_temp;
        ]
 
 let () =
