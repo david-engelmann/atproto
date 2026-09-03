@@ -160,9 +160,10 @@ let test_emit_and_query _ =
   let p = proxy () in
   let alice = Session.create_session "alice.test" "hunter2" in
   let ev =
-    Ozone.emit_event s ~proxy:p
-      ~event:(Ozone.comment_event "ocaml local ozone integration")
-      ~subject:(Ozone.repo_ref alice.auth.did)
+    Ozone.emit_event_typed s ~proxy:p
+      ~event:
+        (`Comment { comment = "ocaml local ozone integration"; sticky = None })
+      ~subject:(`Repo_ref { did = alice.auth.did })
       ~created_by:s.auth.did ()
   in
   no_xrpc_error ev.original;

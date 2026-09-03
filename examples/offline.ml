@@ -85,7 +85,36 @@ let () =
     match Yojson.Safe.Util.member "createdBy" ozone_ev with
     | `String "did:plc:mod000111222333444555666" -> true
     | _ -> false);
+  let ozone_typed =
+    Ozone.emit_event_typed_body
+      ~event:(`Comment { comment = "typed emit"; sticky = None })
+      ~subject:(`Repo_ref { did = "did:plc:abc123xyz0001112223333" })
+      ~created_by:"did:plc:mod000111222333444555666" ()
+  in
+  assert (
+    match
+      Yojson.Safe.Util.member "event" ozone_typed
+      |> Yojson.Safe.Util.member "$type"
+    with
+    | `String "tools.ozone.moderation.defs#modEventComment" -> true
+    | _ -> false);
+  let _ =
+    Ozone.event_to_json
+      (`Acknowledge { comment = None; acknowledge_account_subjects = None })
+  in
+  let _ =
+    Ozone.subject_to_json
+      (`Strong_ref
+        {
+          uri =
+            "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3jzfcijpj2z2a";
+          cid = "bafyreicid";
+        })
+  in
+  let _ = Ozone.mod_tool_to_json { name = "automod"; meta = None } in
   ignore Ozone.emit_event_service;
+  ignore Ozone.emit_event_service_typed;
+  ignore Ozone.emit_event_typed;
   ignore Ozone.query_events_service;
   ignore Ozone.get_config_service;
   ignore Oauth.xrpc_post_dpop;

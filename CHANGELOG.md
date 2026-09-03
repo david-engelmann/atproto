@@ -1,7 +1,10 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#186](https://github.com/david-engelmann/atproto/pull/186):
+shipped through typed `Ozone.emit_event` encoding
+(`event_to_json` / `subject_to_json` / `mod_tool_to_json` /
+`emit_event_typed` / `emit_event_service_typed`) on top of
+[#186](https://github.com/david-engelmann/atproto/pull/186):
 typed `Ozone.get_account_preferences` via `Actor.preferences` (same
 16-variant `app.bsky.actor.defs#preferences` union, including
 `interestsPref.updatedAt`) on top of
@@ -243,6 +246,19 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   Compile-breaking type change; no backwards-compat. Does not fold
   leftover `emitEvent` fields or add `emit_event_typed`. No hosted
   chat / video / Tap / phone / contacts / push faked
+- Typed `Ozone.emit_event` encoding: `event_to_json` /
+  `subject_to_json` / `mod_tool_to_json` plus
+  `emit_event_typed` / `emit_event_typed_body` /
+  `emit_event_service_typed`. Serializes the parsed event/subject
+  unions with camelCase lexicon fields (`modEventComment` /
+  `modEventAcknowledge` / `modEventTakedown` / `repoRef` /
+  `strongRef`, and the rest of the existing parse union). `Unknown`
+  reuses `.original`. Raw Yojson `emit_event` / `emit_event_body` /
+  `emit_event_service` stay unchanged. Does not fold leftover unused
+  lexicon fields (`severityLevel` / `strikeCount` / `targetServices` /
+  `isReporterMuted`). Live TestNetwork hop uses the typed path when
+  Ozone is served; skip-if-not-served stays. No hosted chat / video /
+  Tap / phone / contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -555,6 +571,16 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `interestsPref.updatedAt` when present). Compile-breaking; no
   `emit_event_typed`. Hosted-only chat / video / Tap / phone /
   contacts / push stay listed not faked
+- Typed `Ozone.emit_event` encoding (`event_to_json` /
+  `subject_to_json` / `mod_tool_to_json` / `emit_event_typed` /
+  `emit_event_typed_body` / `emit_event_service_typed`). Encodes the
+  parsed event/subject unions; `Unknown` reuses `.original`. Existing
+  raw Yojson `emit_event` call sites stay valid. Unit tests for
+  comment / acknowledge / takedown and repo_ref / strong_ref plus
+  parse→encode→parse. Live leftover hop uses the typed Session path
+  when served. Does not invent leftover unused emitEvent fields.
+  Hosted-only chat / video / Tap / phone / contacts / push stay
+  listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 

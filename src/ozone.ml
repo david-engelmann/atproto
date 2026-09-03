@@ -606,6 +606,170 @@ module Ozone = struct
     in
     `Assoc fields
 
+  let opt_event_string k = function Some s -> [ (k, `String s) ] | None -> []
+  let opt_event_bool k = function Some b -> [ (k, `Bool b) ] | None -> []
+  let opt_event_int k = function Some n -> [ (k, `Int n) ] | None -> []
+  let event_strings xs = `List (List.map (fun s -> `String s) xs)
+
+  let event_object name fields : Yojson.Safe.t =
+    `Assoc
+      (("$type", `String ("tools.ozone.moderation.defs#" ^ name)) :: fields)
+
+  (** Encode a parsed [mod_tool] ([name] / optional [meta]). *)
+  let mod_tool_to_json (t : mod_tool) : Yojson.Safe.t =
+    `Assoc
+      (("name", `String t.name)
+      :: match t.meta with Some m -> [ ("meta", m) ] | None -> [])
+
+  (** Encode a parsed [subject] union. [`Unknown] reuses the original JSON. *)
+  let subject_to_json (s : subject) : Yojson.Safe.t =
+    match s with
+    | `Repo_ref r -> repo_ref r.did
+    | `Strong_ref r -> strong_ref ~uri:r.uri ~cid:r.cid
+    | `Message_ref r ->
+        `Assoc
+          [
+            ("$type", `String "chat.bsky.convo.defs#messageRef");
+            ("did", `String r.did);
+            ("convoId", `String r.convo_id);
+            ("messageId", `String r.message_id);
+          ]
+    | `Convo_ref r ->
+        `Assoc
+          [
+            ("$type", `String "chat.bsky.convo.defs#convoRef");
+            ("did", `String r.did);
+            ("convoId", `String r.convo_id);
+          ]
+    | `Unknown json -> json
+
+  (** Encode a parsed [event] union with camelCase lexicon fields.
+      [`Unknown] reuses [.original]. Does not invent leftover unused
+      fields ([severityLevel] / [strikeCount] / [targetServices] /
+      [isReporterMuted]). *)
+  let event_to_json (e : event) : Yojson.Safe.t =
+    match e with
+    | `Unknown u -> u.original
+    | `Comment c ->
+        event_object "modEventComment"
+          (("comment", `String c.comment) :: opt_event_bool "sticky" c.sticky)
+    | `Acknowledge a ->
+        event_object "modEventAcknowledge"
+          (opt_event_string "comment" a.comment
+          @ opt_event_bool "acknowledgeAccountSubjects"
+              a.acknowledge_account_subjects)
+    | `Takedown t ->
+        event_object "modEventTakedown"
+          (opt_event_string "comment" t.comment
+          @ opt_event_int "durationInHours" t.duration_in_hours
+          @ opt_event_bool "acknowledgeAccountSubjects"
+              t.acknowledge_account_subjects
+          @
+          match t.policies with
+          | [] -> []
+          | xs -> [ ("policies", event_strings xs) ])
+    | `Reverse_takedown c ->
+        event_object "modEventReverseTakedown"
+          (opt_event_string "comment" c.comment)
+    | `Report r ->
+        event_object "modEventReport"
+          (("reportType", `String r.report_type)
+          :: opt_event_string "comment" r.comment)
+    | `Label l ->
+        event_object "modEventLabel"
+          (("createLabelVals", event_strings l.create_label_vals)
+          :: ("negateLabelVals", event_strings l.negate_label_vals)
+          :: opt_event_string "comment" l.comment
+          @ opt_event_int "durationInHours" l.duration_in_hours)
+    | `Escalate c ->
+        event_object "modEventEscalate" (opt_event_string "comment" c.comment)
+    | `Mute m ->
+        event_object "modEventMute"
+          (opt_event_string "comment" m.comment
+          @ opt_event_int "durationInHours" m.duration_in_hours)
+    | `Unmute c ->
+        event_object "modEventUnmute" (opt_event_string "comment" c.comment)
+    | `Mute_reporter m ->
+        event_object "modEventMuteReporter"
+          (opt_event_string "comment" m.comment
+          @ opt_event_int "durationInHours" m.duration_in_hours)
+    | `Unmute_reporter c ->
+        event_object "modEventUnmuteReporter"
+          (opt_event_string "comment" c.comment)
+    | `Email mail ->
+        event_object "modEventEmail"
+          (("subjectLine", `String mail.subject_line)
+          :: opt_event_string "content" mail.content
+          @ opt_event_string "comment" mail.comment)
+    | `Tag t ->
+        event_object "modEventTag"
+          (("add", event_strings t.add)
+          :: ("remove", event_strings t.remove)
+          :: opt_event_string "comment" t.comment)
+    | `Resolve_appeal c ->
+        event_object "modEventResolveAppeal"
+          (opt_event_string "comment" c.comment)
+    | `Priority_score p ->
+        event_object "modEventPriorityScore"
+          (("score", `Int p.score) :: opt_event_string "comment" p.comment)
+    | `Divert d ->
+        event_object "modEventDivert" (opt_event_string "comment" d.comment)
+    | `Account a ->
+        event_object "accountEvent"
+          (("active", `Bool a.active)
+          :: ("timestamp", `String a.timestamp)
+          :: opt_event_string "comment" a.comment
+          @ opt_event_string "status" a.status)
+    | `Identity i ->
+        event_object "identityEvent"
+          (("timestamp", `String i.timestamp)
+          :: opt_event_string "comment" i.comment
+          @ opt_event_string "handle" i.handle
+          @ opt_event_string "pdsHost" i.pds_host
+          @ opt_event_bool "tombstone" i.tombstone)
+    | `Record r ->
+        event_object "recordEvent"
+          (("op", `String r.op)
+          :: ("timestamp", `String r.timestamp)
+          :: opt_event_string "comment" r.comment
+          @ opt_event_string "cid" r.cid)
+    | `Age_assurance a ->
+        event_object "ageAssuranceEvent"
+          (("createdAt", `String a.created_at)
+          :: ("attemptId", `String a.attempt_id)
+          :: ("status", `String a.status)
+          :: opt_event_string "countryCode" a.country_code
+          @ opt_event_string "regionCode" a.region_code
+          @ opt_event_string "initIp" a.init_ip
+          @ opt_event_string "initUa" a.init_ua
+          @ opt_event_string "completeIp" a.complete_ip
+          @ opt_event_string "completeUa" a.complete_ua)
+    | `Age_assurance_override a ->
+        event_object "ageAssuranceOverrideEvent"
+          [ ("comment", `String a.comment); ("status", `String a.status) ]
+    | `Age_assurance_purge a ->
+        event_object "ageAssurancePurgeEvent" [ ("comment", `String a.comment) ]
+    | `Revoke_account_credentials a ->
+        event_object "revokeAccountCredentialsEvent"
+          [ ("comment", `String a.comment) ]
+    | `Schedule_takedown s ->
+        event_object "scheduleTakedownEvent"
+          (opt_event_string "comment" s.comment
+          @ opt_event_string "executeAt" s.execute_at
+          @ opt_event_string "executeAfter" s.execute_after
+          @ opt_event_string "executeUntil" s.execute_until)
+    | `Cancel_scheduled_takedown c ->
+        event_object "cancelScheduledTakedownEvent"
+          (opt_event_string "comment" c.comment)
+
+  (** Typed body for [tools.ozone.moderation.emitEvent] (same extras as
+      [emit_event_body]; [event] / [subject] are the parsed unions). *)
+  let emit_event_typed_body ~event ~subject ~created_by ?subject_blob_cids
+      ?external_id ?mod_tool ?report_action () : Yojson.Safe.t =
+    emit_event_body ~event:(event_to_json event)
+      ~subject:(subject_to_json subject) ~created_by ?subject_blob_cids
+      ?external_id ?mod_tool ?report_action ()
+
   (** Subject statuses via [tools.ozone.moderation.queryStatuses]. *)
   let query_statuses (s : Session.session) ~proxy ?host ?subject ?comment
       ?review_state ?limit ?cursor () : statuses =
@@ -642,6 +806,16 @@ module Ozone = struct
             ?external_id ?mod_tool ?report_action ()))
     |> parse_mod_event
 
+  (** Emit a typed moderation event via [tools.ozone.moderation.emitEvent].
+      Password [at+jwt] sessions send [atproto-proxy] through the PDS.
+      [event] / [subject] are the parsed unions. *)
+  let emit_event_typed (s : Session.session) ~proxy ?host ~event ~subject
+      ~created_by ?subject_blob_cids ?external_id ?mod_tool ?report_action () :
+      mod_event =
+    emit_event s ~proxy ?host ~event:(event_to_json event)
+      ~subject:(subject_to_json subject) ~created_by ?subject_blob_cids
+      ?external_id ?mod_tool ?report_action ()
+
   (** Emit a moderation event via [tools.ozone.moderation.emitEvent] on the
       Ozone host with a PDS-minted service-auth JWT (OAuth DPoP
       [getServiceAuth]). No [atproto-proxy] — DPoP cannot be proxied, and
@@ -653,6 +827,13 @@ module Ozone = struct
          (emit_event_body ~event ~subject ~created_by ?subject_blob_cids
             ?external_id ?mod_tool ?report_action ()))
     |> parse_mod_event
+
+  (** Typed [emit_event_service]: [event] / [subject] are the parsed unions. *)
+  let emit_event_service_typed ~bearer ~host ~event ~subject ~created_by
+      ?subject_blob_cids ?external_id ?mod_tool ?report_action () : mod_event =
+    emit_event_service ~bearer ~host ~event:(event_to_json event)
+      ~subject:(subject_to_json subject) ~created_by ?subject_blob_cids
+      ?external_id ?mod_tool ?report_action ()
 
   (** Moderation events via [tools.ozone.moderation.queryEvents] on the Ozone
       host with a service-auth JWT (no [atproto-proxy]). *)
