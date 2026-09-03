@@ -1238,11 +1238,11 @@ let test_unspecced_and_ageassurance _ =
           (Unspecced.init_age_assurance_body ~email:"alice@test.com"
              ~language:"en" ~country_code:"US"))
    with
-   | None -> ()
-   | Some json ->
-       let state = Unspecced.parse_age_assurance_state json in
-       OUnit2.assert_bool "unspecced.initAgeAssurance"
-         (String.length state.status >= 0));
+  | None -> ()
+  | Some json ->
+      let state = Unspecced.parse_age_assurance_state json in
+      OUnit2.assert_bool "unspecced.initAgeAssurance"
+        (String.length state.status >= 0));
   get "app.bsky.ageassurance.getConfig" [] (fun json ->
       let cfg = Ageassurance.parse_config json in
       OUnit2.assert_bool "ageassurance.getConfig" (List.length cfg.regions >= 0));
