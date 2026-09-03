@@ -68,9 +68,7 @@ let json_has_field name json =
   | _ -> false
 
 let json_type json =
-  match Yojson.Safe.Util.member "$type" json with
-  | `String s -> s
-  | _ -> ""
+  match Yojson.Safe.Util.member "$type" json with `String s -> s | _ -> ""
 
 let test_event_and_subject_to_json _ =
   let open Yojson.Safe.Util in
@@ -93,10 +91,7 @@ let test_event_and_subject_to_json _ =
   let ack =
     Ozone.event_to_json
       (`Acknowledge
-        {
-          comment = Some "seen";
-          acknowledge_account_subjects = Some true;
-        })
+        { comment = Some "seen"; acknowledge_account_subjects = Some true })
   in
   OUnit2.assert_equal
     ~printer:(fun x -> x)
@@ -129,8 +124,7 @@ let test_event_and_subject_to_json _ =
   OUnit2.assert_bool "leftover targetServices not invented"
     (not (json_has_field "targetServices" takedown));
   let repo =
-    Ozone.subject_to_json
-      (`Repo_ref { did = "did:plc:abc123xyz0001112223333" })
+    Ozone.subject_to_json (`Repo_ref { did = "did:plc:abc123xyz0001112223333" })
   in
   OUnit2.assert_equal
     ~printer:(fun x -> x)
@@ -158,7 +152,9 @@ let test_event_and_subject_to_json _ =
   let tool =
     Ozone.mod_tool_to_json { name = "automod"; meta = Some (`Assoc []) }
   in
-  OUnit2.assert_equal ~printer:(fun x -> x) "automod"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "automod"
     (tool |> member "name" |> to_string)
 
 let test_emit_event_typed_body_roundtrip _ =
@@ -237,7 +233,8 @@ let test_emit_event_typed_body_roundtrip _ =
         "did:plc:abc123xyz0001112223333" r.did
   | _ -> OUnit2.assert_failure "expected repoRef after encode");
   (match
-     Ozone.parse_subject (Ozone.subject_to_json (Ozone.parse_subject strong_src))
+     Ozone.parse_subject
+       (Ozone.subject_to_json (Ozone.parse_subject strong_src))
    with
   | `Strong_ref r ->
       OUnit2.assert_equal ~printer:(fun x -> x) "bafyreicid" r.cid
@@ -249,8 +246,7 @@ let test_emit_event_typed_body_roundtrip _ =
         ("extra", `String "keep");
       ]
   in
-  OUnit2.assert_equal unknown
-    (Ozone.event_to_json (Ozone.parse_event unknown));
+  OUnit2.assert_equal unknown (Ozone.event_to_json (Ozone.parse_event unknown));
   let body =
     Ozone.emit_event_typed_body
       ~event:(`Comment { comment = "typed"; sticky = None })

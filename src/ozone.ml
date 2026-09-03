@@ -612,14 +612,13 @@ module Ozone = struct
   let event_strings xs = `List (List.map (fun s -> `String s) xs)
 
   let event_object name fields : Yojson.Safe.t =
-    `Assoc
-      (("$type", `String ("tools.ozone.moderation.defs#" ^ name)) :: fields)
+    `Assoc (("$type", `String ("tools.ozone.moderation.defs#" ^ name)) :: fields)
 
   (** Encode a parsed [mod_tool] ([name] / optional [meta]). *)
   let mod_tool_to_json (t : mod_tool) : Yojson.Safe.t =
     `Assoc
       (("name", `String t.name)
-      :: match t.meta with Some m -> [ ("meta", m) ] | None -> [])
+      :: (match t.meta with Some m -> [ ("meta", m) ] | None -> []))
 
   (** Encode a parsed [subject] union. [`Unknown] reuses the original JSON. *)
   let subject_to_json (s : subject) : Yojson.Safe.t =
@@ -678,8 +677,8 @@ module Ozone = struct
     | `Label l ->
         event_object "modEventLabel"
           (("createLabelVals", event_strings l.create_label_vals)
-          :: ("negateLabelVals", event_strings l.negate_label_vals)
-          :: opt_event_string "comment" l.comment
+           :: ("negateLabelVals", event_strings l.negate_label_vals)
+           :: opt_event_string "comment" l.comment
           @ opt_event_int "durationInHours" l.duration_in_hours)
     | `Escalate c ->
         event_object "modEventEscalate" (opt_event_string "comment" c.comment)
@@ -699,7 +698,7 @@ module Ozone = struct
     | `Email mail ->
         event_object "modEventEmail"
           (("subjectLine", `String mail.subject_line)
-          :: opt_event_string "content" mail.content
+           :: opt_event_string "content" mail.content
           @ opt_event_string "comment" mail.comment)
     | `Tag t ->
         event_object "modEventTag"
@@ -717,28 +716,28 @@ module Ozone = struct
     | `Account a ->
         event_object "accountEvent"
           (("active", `Bool a.active)
-          :: ("timestamp", `String a.timestamp)
-          :: opt_event_string "comment" a.comment
+           :: ("timestamp", `String a.timestamp)
+           :: opt_event_string "comment" a.comment
           @ opt_event_string "status" a.status)
     | `Identity i ->
         event_object "identityEvent"
           (("timestamp", `String i.timestamp)
-          :: opt_event_string "comment" i.comment
+           :: opt_event_string "comment" i.comment
           @ opt_event_string "handle" i.handle
           @ opt_event_string "pdsHost" i.pds_host
           @ opt_event_bool "tombstone" i.tombstone)
     | `Record r ->
         event_object "recordEvent"
           (("op", `String r.op)
-          :: ("timestamp", `String r.timestamp)
-          :: opt_event_string "comment" r.comment
+           :: ("timestamp", `String r.timestamp)
+           :: opt_event_string "comment" r.comment
           @ opt_event_string "cid" r.cid)
     | `Age_assurance a ->
         event_object "ageAssuranceEvent"
           (("createdAt", `String a.created_at)
-          :: ("attemptId", `String a.attempt_id)
-          :: ("status", `String a.status)
-          :: opt_event_string "countryCode" a.country_code
+           :: ("attemptId", `String a.attempt_id)
+           :: ("status", `String a.status)
+           :: opt_event_string "countryCode" a.country_code
           @ opt_event_string "regionCode" a.region_code
           @ opt_event_string "initIp" a.init_ip
           @ opt_event_string "initUa" a.init_ua
