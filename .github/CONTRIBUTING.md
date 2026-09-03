@@ -38,6 +38,8 @@ branch is deleted. Docs-only diffs (`CHANGELOG` / `README` / `doc/**` /
 `.github/scripts/**`, workflow YAML, and other `.github` files wait for
 full TestSuite. Other PRs wait for TestSuite `build`, `local-pds`,
 and `lint-*`. Forks, drafts, and failing checks are never merged.
+`lexicon-pin` drift does not block merge-when-green; pin bumps are
+separate PRs.
 Stacked PRs that are only behind `main` get an update-branch after a
 merge. This does not publish to opam-repository or create a release
 tag. "Allow auto-merge" in repo settings is optional — the workflow
