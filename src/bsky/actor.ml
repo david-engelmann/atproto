@@ -648,7 +648,7 @@ module Actor = struct
   }
 
   type thread_view_pref = { sort : string option }
-  type interests_pref = { tags : string list }
+  type interests_pref = { tags : string list; updated_at : string option }
 
   type muted_word = {
     id : string option;
@@ -824,7 +824,11 @@ module Actor = struct
     else if ends_with "threadViewPref" type_ then
       `Thread_view { sort = Client.Client.string_opt json "sort" }
     else if ends_with "interestsPref" type_ then
-      `Interests { tags = string_list json "tags" }
+      `Interests
+        {
+          tags = string_list json "tags";
+          updated_at = Client.Client.string_opt json "updatedAt";
+        }
     else if ends_with "mutedWordsPref" type_ then
       `Muted_words
         {

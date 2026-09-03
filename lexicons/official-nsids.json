@@ -1,6 +1,6 @@
 {
   "source": "https://github.com/bluesky-social/atproto",
-  "sha": "5c154f9c5173e7823a5353eab92207508a7dea99",
+  "sha": "f0d4877a03dc8ede0d3e9a36d5b72ada63b5d2e0",
   "main_types": [
     "query",
     "procedure",

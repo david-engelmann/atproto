@@ -729,10 +729,23 @@ let () =
                      ("$type", `String "app.bsky.actor.defs#mutedWordsPref");
                      ("items", `List []);
                    ];
+                 `Assoc
+                   [
+                     ("$type", `String "app.bsky.actor.defs#interestsPref");
+                     ("tags", `List [ `String "ocaml" ]);
+                     ("updatedAt", `String "2026-09-03T18:02:59.000Z");
+                   ];
                ] );
          ])
    with
-  | { preferences = [ { kind = `Muted_words _; _ } ]; _ } -> ()
+  | {
+   preferences =
+     [
+       { kind = `Muted_words _; _ };
+       { kind = `Interests { tags = [ "ocaml" ]; updated_at = Some _ }; _ };
+     ];
+   _ } ->
+      ()
   | _ -> assert false);
   assert (String.length (Chat.subscribe_mod_events_url ()) > 20);
   assert (
