@@ -1,7 +1,7 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#177](https://github.com/david-engelmann/atproto/pull/177):
+shipped through [#179](https://github.com/david-engelmann/atproto/pull/179):
 official lexicon pin `5c154f9c` and `Ozone.get_account_preferences`
 ([#132](https://github.com/david-engelmann/atproto/pull/132)), live leftover
 TestNetwork NSIDs ([#129](https://github.com/david-engelmann/atproto/pull/129))
@@ -35,9 +35,16 @@ dict-zstd (Ubuntu/Debian `libzstd-dev`, Homebrew `zstd`)
 ([#175](https://github.com/david-engelmann/atproto/pull/175)), Error on
 the odoc landing map plus libzstd install notes in odoc / the install
 issue template ([#176](https://github.com/david-engelmann/atproto/pull/176)),
-and remaining function-level odoc on `Client.get_json_h2` /
+remaining function-level odoc on `Client.get_json_h2` /
 `Client.post_json_h2` plus `Feed.filter_posts_*`
-([#177](https://github.com/david-engelmann/atproto/pull/177)).
+([#177](https://github.com/david-engelmann/atproto/pull/177)), notes through
+[#177](https://github.com/david-engelmann/atproto/pull/177)
+([#178](https://github.com/david-engelmann/atproto/pull/178), `586b4877`),
+and merge-when-green squash automation (`95b6eb57`; workflow + script +
+CONTRIBUTING; docs-only allowlist excludes `.github/scripts` and
+workflows; green non-draft same-repo/Dependabot PRs to `main` may
+auto-squash-merge, see CONTRIBUTING)
+([#179](https://github.com/david-engelmann/atproto/pull/179)).
 
 This package is **not** published to the public
 [opam-repository](https://github.com/ocaml/opam-repository). Depend on it by
@@ -447,6 +454,14 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `Client.post_json_h2` (`Http_client` HTTP/2 TLS; hosts with an
   explicit port stay on Cohttp) plus one-line odoc on
   `Feed.filter_posts_*` `getAuthorFeed` knownValues. Comment-only
+- [#178](https://github.com/david-engelmann/atproto/pull/178): Point
+  CHANGELOG and remaining-gaps through #177 (`586b4877`). Docs-only
+  notes hygiene
+- [#179](https://github.com/david-engelmann/atproto/pull/179): Add
+  merge-when-green squash automation (`95b6eb57`; workflow + script +
+  CONTRIBUTING). Docs-only allowlist excludes `.github/scripts` and
+  workflows. Green non-draft same-repo/Dependabot PRs to `main` may
+  auto-squash-merge (see CONTRIBUTING)
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
