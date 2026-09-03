@@ -22,16 +22,21 @@ is_dependabot_login() {
   esac
 }
 
-# Workflow YAML is code: a docs-only PR must not touch it.
+# Docs-only under .github/ is markdown / issue templates / PR template /
+# CODEOWNERS / SECURITY / dependabot.yml only. scripts/**, workflow YAML,
+# and other shell/config are code (full TestSuite).
 is_docs_only_file() {
   local f="${1:-}"
   [[ -z "$f" ]] && return 1
   case "$f" in
-    .github/workflows | .github/workflows/*) return 1 ;;
-  esac
-  case "$f" in
     CHANGELOG | CHANGELOG.md | README | README.md) return 0 ;;
-    doc | doc/* | .github | .github/* | *.md) return 0 ;;
+    doc | doc/*) return 0 ;;
+    *.md) return 0 ;;
+    .github/ISSUE_TEMPLATE | .github/ISSUE_TEMPLATE/*) return 0 ;;
+    .github/PULL_REQUEST_TEMPLATE.md) return 0 ;;
+    .github/CODEOWNERS) return 0 ;;
+    .github/SECURITY.md) return 0 ;;
+    .github/dependabot.yml) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -273,21 +278,32 @@ run_self_test() {
   expect_docs README.md yes
   expect_docs doc/index.mld yes
   expect_docs .github/CONTRIBUTING.md yes
+  expect_docs .github/SECURITY.md yes
+  expect_docs .github/PULL_REQUEST_TEMPLATE.md yes
+  expect_docs .github/ISSUE_TEMPLATE/bug_report.md yes
+  expect_docs .github/ISSUE_TEMPLATE/config.yml yes
+  expect_docs .github/CODEOWNERS yes
   expect_docs .github/dependabot.yml yes
   expect_docs doc/notes.md yes
   expect_docs leftover.md yes
+  expect_docs .github/scripts/foo.sh no
+  expect_docs .github/scripts/merge-when-green.sh no
+  expect_docs .github/workflows/x.yml no
   expect_docs .github/workflows/test_suite.yml no
   expect_docs .github/workflows/merge-when-green.yml no
+  expect_docs .github/FUNDING.yml no
   expect_docs src/lib/atproto.ml no
   expect_docs atproto.opam no
   expect_docs Makefile no
 
-  printf '%s\n' 'CHANGELOG.md' 'README.md' 'doc/index.mld' | is_docs_only_file_list \
+  printf '%s\n' 'CHANGELOG.md' 'README.md' 'doc/index.mld' '.github/CONTRIBUTING.md' | is_docs_only_file_list \
     || { log "FAIL: markdown+doc list should be docs-only"; fail=1; }
   printf '%s\n' 'CHANGELOG.md' 'src/x.ml' | is_docs_only_file_list \
     && { log "FAIL: mixed list should not be docs-only"; fail=1; }
-  printf '%s\n' '.github/workflows/test_suite.yml' | is_docs_only_file_list \
+  printf '%s\n' '.github/workflows/x.yml' | is_docs_only_file_list \
     && { log "FAIL: workflow YAML should not be docs-only"; fail=1; }
+  printf '%s\n' '.github/scripts/foo.sh' | is_docs_only_file_list \
+    && { log "FAIL: .github/scripts must not be docs-only"; fail=1; }
   : | is_docs_only_file_list \
     && { log "FAIL: empty list should not be docs-only"; fail=1; }
 
