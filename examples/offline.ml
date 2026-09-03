@@ -701,7 +701,7 @@ let () =
     | `String "US" -> true
     | _ -> false);
   let aa_cfg = Ageassurance.parse_config (`Assoc [ ("regions", `List []) ]) in
-  assert (List.length aa_cfg.regions >= 0);
+  assert (aa_cfg.regions = []);
   let ua_init =
     Unspecced.init_age_assurance_body ~email:"alice@test.com" ~language:"en"
       ~country_code:"US"
@@ -711,7 +711,8 @@ let () =
     | `String "US" -> true
     | _ -> false);
   let ua_aa =
-    Unspecced.parse_age_assurance_state (`Assoc [ ("status", `String "unknown") ])
+    Unspecced.parse_age_assurance_state
+      (`Assoc [ ("status", `String "unknown") ])
   in
   assert (String.length ua_aa.status >= 0);
   let contact_status = Contact.parse_sync_status_opt (`Assoc []) in
