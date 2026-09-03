@@ -1,7 +1,7 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#162](https://github.com/david-engelmann/atproto/pull/162):
+shipped through [#166](https://github.com/david-engelmann/atproto/pull/166):
 official lexicon pin `5c154f9c` and `Ozone.get_account_preferences`
 ([#132](https://github.com/david-engelmann/atproto/pull/132)), live leftover
 TestNetwork NSIDs ([#129](https://github.com/david-engelmann/atproto/pull/129))
@@ -11,10 +11,13 @@ TestNetwork hops for remaining `com.atproto.admin` NSIDs
 ([#150](https://github.com/david-engelmann/atproto/pull/150)), leftover
 `com.atproto.server` / AppView / ozone report hops
 ([#152](https://github.com/david-engelmann/atproto/pull/152)–[#154](https://github.com/david-engelmann/atproto/pull/154)),
-remaining function-level odoc through
-[#161](https://github.com/david-engelmann/atproto/pull/161), and leftover
-`com.atproto.temp` operator hops
-([#162](https://github.com/david-engelmann/atproto/pull/162)).
+leftover `com.atproto.temp` operator hops
+([#162](https://github.com/david-engelmann/atproto/pull/162)), live leftover
+AppView `getFeedSkeleton`
+([#163](https://github.com/david-engelmann/atproto/pull/163)), odoc landing
+leftover modules ([#165](https://github.com/david-engelmann/atproto/pull/165)),
+and remaining function-level odoc through
+[#166](https://github.com/david-engelmann/atproto/pull/166).
 
 This package is **not** published to the public
 [opam-repository](https://github.com/ocaml/opam-repository). Depend on it by
@@ -153,6 +156,10 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   (`addReservedHandle` / `revokeAccountCredentials`). Skip when
   not served or TestNetwork policy. Throwaway account, never
   `alice.test`. `requestPhoneVerification` stays listed not faked
+- [#163](https://github.com/david-engelmann/atproto/pull/163): live leftover
+  TestNetwork hop for AppView `app.bsky.feed.getFeedSkeleton` only
+  against our leftover generator when `is_online`. Skip unhosted
+  generator / not served. Policy-skip, not fake
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -377,6 +384,14 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
 - [#161](https://github.com/david-engelmann/atproto/pull/161): remaining
   function-level odoc on public Ageassurance helpers
   (`begin_body`, `get_config`). Comment-only
+- [#165](https://github.com/david-engelmann/atproto/pull/165): odoc landing
+  map in `doc/index.mld` adds Draft / Contact / Ageassurance / Site
+  to AppView `{!modules:}` and Germnetwork beside the other public
+  modules
+- [#166](https://github.com/david-engelmann/atproto/pull/166): remaining
+  function-level odoc on public `Embed.get_embed_external_view`
+  (`app.bsky.embed.getEmbedExternalView`). Comment-only; skips
+  `parse_embed_external_view`
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
