@@ -8,11 +8,20 @@ open Embed
 
 (** [app.bsky.feed] — timeline, threads, author feed, search, and generators. *)
 module Feed = struct
-  (* Official app.bsky.feed.getAuthorFeed `filter` knownValues. *)
+  (** [app.bsky.feed.getAuthorFeed] [filter] knownValue [posts_with_replies]. *)
   let filter_posts_with_replies = "posts_with_replies"
+
+  (** [app.bsky.feed.getAuthorFeed] [filter] knownValue [posts_no_replies]. *)
   let filter_posts_no_replies = "posts_no_replies"
+
+  (** [app.bsky.feed.getAuthorFeed] [filter] knownValue [posts_with_media]. *)
   let filter_posts_with_media = "posts_with_media"
+
+  (** [app.bsky.feed.getAuthorFeed] [filter] knownValue
+      [posts_and_author_threads]. *)
   let filter_posts_and_author_threads = "posts_and_author_threads"
+
+  (** [app.bsky.feed.getAuthorFeed] [filter] knownValue [posts_with_video]. *)
   let filter_posts_with_video = "posts_with_video"
 
   (* Authors feed comes with either "post" "post"+"reply" or "post"+"reason"
