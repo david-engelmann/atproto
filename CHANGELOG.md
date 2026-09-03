@@ -1,7 +1,8 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through typed `Ozone.emit_event` encoding
+shipped through [#187](https://github.com/david-engelmann/atproto/pull/187):
+typed `Ozone.emit_event` encoding
 (`event_to_json` / `subject_to_json` / `mod_tool_to_json` /
 `emit_event_typed` / `emit_event_service_typed`) on top of
 [#186](https://github.com/david-engelmann/atproto/pull/186):
@@ -246,7 +247,8 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   Compile-breaking type change; no backwards-compat. Does not fold
   leftover `emitEvent` fields or add `emit_event_typed`. No hosted
   chat / video / Tap / phone / contacts / push faked
-- Typed `Ozone.emit_event` encoding: `event_to_json` /
+- [#187](https://github.com/david-engelmann/atproto/pull/187): typed
+  `Ozone.emit_event` encoding: `event_to_json` /
   `subject_to_json` / `mod_tool_to_json` plus
   `emit_event_typed` / `emit_event_typed_body` /
   `emit_event_service_typed`. Serializes the parsed event/subject
@@ -571,7 +573,8 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `interestsPref.updatedAt` when present). Compile-breaking; no
   `emit_event_typed`. Hosted-only chat / video / Tap / phone /
   contacts / push stay listed not faked
-- Typed `Ozone.emit_event` encoding (`event_to_json` /
+- [#187](https://github.com/david-engelmann/atproto/pull/187): typed
+  `Ozone.emit_event` encoding (`event_to_json` /
   `subject_to_json` / `mod_tool_to_json` / `emit_event_typed` /
   `emit_event_typed_body` / `emit_event_service_typed`). Encodes the
   parsed event/subject unions; `Unknown` reuses `.original`. Existing
