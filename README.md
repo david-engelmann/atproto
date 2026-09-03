@@ -19,6 +19,8 @@ opam install . --deps-only --with-test
 dune build -p atproto
 ```
 
+Jetstream dict-zstd requires Jane Street `zstandard`, which needs system libzstd (Ubuntu/Debian `libzstd-dev`, macOS Homebrew `zstd`) before `opam pin` / `opam install . --deps-only`.
+
 In a dependent `dune` stanza:
 
 ```lisp
