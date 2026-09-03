@@ -1092,8 +1092,10 @@ let test_leftover_served _ =
                   { Notification.post = false; reply = false } );
             ])))
 
-(* Remaining AppView unspecced skeletons / getSuggested* / getTrendsSkeleton
-   and app.bsky.ageassurance.* if this revision serves them. *)
+(* Remaining AppView unspecced skeletons / getSuggested* / getTrendsSkeleton,
+   leftover unspecced getAgeAssuranceState / initAgeAssurance (not the
+   dedicated app.bsky.ageassurance.* twins already hopped below), and
+   app.bsky.ageassurance.* if this revision serves them. *)
 let test_unspecced_and_ageassurance _ =
   let s = session () in
   let viewer = s.auth.did in
@@ -1226,6 +1228,21 @@ let test_unspecced_and_ageassurance _ =
       let page = Unspecced.parse_skeleton_starter_packs json in
       OUnit2.assert_bool "searchStarterPacksSkeleton"
         (List.length page.starter_packs >= 0));
+  get ~session:s "app.bsky.unspecced.getAgeAssuranceState" [] (fun json ->
+      let state = Unspecced.parse_age_assurance_state json in
+      OUnit2.assert_bool "unspecced.getAgeAssuranceState"
+        (String.length state.status >= 0));
+  (match
+     av_post_leftover ~session:s "app.bsky.unspecced.initAgeAssurance"
+       (Yojson.Safe.to_string
+          (Unspecced.init_age_assurance_body ~email:"alice@test.com"
+             ~language:"en" ~country_code:"US"))
+   with
+   | None -> ()
+   | Some json ->
+       let state = Unspecced.parse_age_assurance_state json in
+       OUnit2.assert_bool "unspecced.initAgeAssurance"
+         (String.length state.status >= 0));
   get "app.bsky.ageassurance.getConfig" [] (fun json ->
       let cfg = Ageassurance.parse_config json in
       OUnit2.assert_bool "ageassurance.getConfig" (List.length cfg.regions >= 0));
