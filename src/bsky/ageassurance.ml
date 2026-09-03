@@ -130,6 +130,7 @@ module Ageassurance = struct
       original = json;
     }
 
+  (** JSON body for [app.bsky.ageassurance.begin]. *)
   let begin_body ~email ~language ~country_code ?region_code () : Yojson.Safe.t
       =
     let fields =
@@ -145,6 +146,8 @@ module Ageassurance = struct
     in
     `Assoc fields
 
+  (** Age-assurance config via [app.bsky.ageassurance.getConfig]. Works
+      without a session against public AppView. *)
   let get_config ?session ?host () : config =
     Client.get_json ?session ?host "app.bsky.ageassurance.getConfig" []
     |> parse_config
