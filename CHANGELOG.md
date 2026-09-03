@@ -1,16 +1,20 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#151](https://github.com/david-engelmann/atproto/pull/151):
+shipped through [#162](https://github.com/david-engelmann/atproto/pull/162):
 official lexicon pin `5c154f9c` and `Ozone.get_account_preferences`
 ([#132](https://github.com/david-engelmann/atproto/pull/132)), live leftover
 TestNetwork NSIDs ([#129](https://github.com/david-engelmann/atproto/pull/129))
 plus live `getAccountPreferences`
 ([#137](https://github.com/david-engelmann/atproto/pull/137)), live leftover
 TestNetwork hops for remaining `com.atproto.admin` NSIDs
-([#150](https://github.com/david-engelmann/atproto/pull/150)), and remaining
-function-level odoc through
-[#151](https://github.com/david-engelmann/atproto/pull/151).
+([#150](https://github.com/david-engelmann/atproto/pull/150)), leftover
+`com.atproto.server` / AppView / ozone report hops
+([#152](https://github.com/david-engelmann/atproto/pull/152)–[#154](https://github.com/david-engelmann/atproto/pull/154)),
+remaining function-level odoc through
+[#161](https://github.com/david-engelmann/atproto/pull/161), and leftover
+`com.atproto.temp` operator hops
+([#162](https://github.com/david-engelmann/atproto/pull/162)).
 
 This package is **not** published to the public
 [opam-repository](https://github.com/ocaml/opam-repository). Depend on it by
@@ -127,6 +131,28 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `alice.test`). Skip when not served, MethodNotImplemented,
   feature-disabled, UpstreamFailure, email-token, or InvalidToken is
   TestNetwork policy. Does not fake a hosted admin panel
+- [#152](https://github.com/david-engelmann/atproto/pull/152): live leftover
+  TestNetwork hops for remaining `com.atproto.server` NSIDs
+  (`createInviteCode` / `createInviteCodes`,
+  `requestEmailConfirmation`, `confirmEmail`, `updateEmail`,
+  `requestPasswordReset` / `resetPassword`). Skip when not served
+  or TestNetwork policy (email-token / InvalidToken / SMTP).
+  Throwaway account, never `alice.test`. Does not invent SMTP
+- [#153](https://github.com/david-engelmann/atproto/pull/153): live leftover
+  TestNetwork hops for AppView `app.bsky.feed.sendInteractions`,
+  `describeFeedGenerator`, and notification `putPreferences` v1.
+  Skip when the NSID is not served or TestNetwork policy. Hosted
+  chat / video / Tap / push / contacts stay listed not faked
+- [#154](https://github.com/david-engelmann/atproto/pull/154): live leftover
+  TestNetwork hops for `tools.ozone.report.getAssignments` /
+  `unassignModerator` (not the `queue.*` twins). Skip when not
+  served or TestNetwork policy. Does not fake a hosted ozone
+  report store
+- [#162](https://github.com/david-engelmann/atproto/pull/162): live leftover
+  TestNetwork hops for remaining `com.atproto.temp` operator NSIDs
+  (`addReservedHandle` / `revokeAccountCredentials`). Skip when
+  not served or TestNetwork policy. Throwaway account, never
+  `alice.test`. `requestPhoneVerification` stays listed not faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -328,6 +354,29 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `put_notification_preferences`, `get_actor_status`, `delete_account`,
   `export_account_data`, moderation views / `subscribe_mod_events`).
   Comment-only. Hosted-only chat / video / Tap stay listed not faked
+- [#156](https://github.com/david-engelmann/atproto/pull/156): remaining
+  function-level odoc on Contact XRPC wrappers
+  (`get_sync_status`, `dismiss_match`, `remove_data`,
+  `start_phone_verification`, `verify_phone`, `send_notification`,
+  and matching `*_body` helpers). Comment-only; client only.
+  Phone / contacts stay listed not faked
+- [#157](https://github.com/david-engelmann/atproto/pull/157): remaining
+  function-level odoc on public Video helpers. Comment-only;
+  Video stays client-only (no hosted transcoder)
+- [#158](https://github.com/david-engelmann/atproto/pull/158): remaining
+  function-level odoc on Site record builders (public Site NSIDs,
+  nested builders, and `*_to_json` helpers). Comment-only
+- [#159](https://github.com/david-engelmann/atproto/pull/159): remaining
+  function-level odoc on public Draft helpers
+  (`update_draft` / `delete_draft` plus `draft_json`,
+  `draft_post_json`, embed-json, and `*_draft_body` builders).
+  Comment-only
+- [#160](https://github.com/david-engelmann/atproto/pull/160): remaining
+  function-level odoc on Ozone constructors. Comment-only;
+  skips `parse_*` internals and already-documented XRPC wrappers
+- [#161](https://github.com/david-engelmann/atproto/pull/161): remaining
+  function-level odoc on public Ageassurance helpers
+  (`begin_body`, `get_config`). Comment-only
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
