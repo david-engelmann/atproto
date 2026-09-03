@@ -240,6 +240,49 @@ let test_parse_preferences _ =
   | `Live_event e -> OUnit2.assert_equal [ "live-1" ] e.hidden_feed_ids
   | _ -> OUnit2.assert_failure "expected liveEventPreferences"
 
+let test_parse_interests_pref_updated_at _ =
+  let with_ts =
+    Actor.parse_preferences
+      (`Assoc
+        [
+          ( "preferences",
+            `List
+              [
+                `Assoc
+                  [
+                    ("$type", `String "app.bsky.actor.defs#interestsPref");
+                    ("tags", `List [ `String "foo" ]);
+                    ("updatedAt", `String "2026-09-03T18:02:59.000Z");
+                  ];
+              ] );
+        ])
+  in
+  (match (List.hd with_ts.preferences).kind with
+  | `Interests i ->
+      OUnit2.assert_equal [ "foo" ] i.tags;
+      OUnit2.assert_equal (Some "2026-09-03T18:02:59.000Z") i.updated_at
+  | _ -> OUnit2.assert_failure "expected interestsPref with updatedAt");
+  let without_ts =
+    Actor.parse_preferences
+      (`Assoc
+        [
+          ( "preferences",
+            `List
+              [
+                `Assoc
+                  [
+                    ("$type", `String "app.bsky.actor.defs#interestsPref");
+                    ("tags", `List [ `String "bar" ]);
+                  ];
+              ] );
+        ])
+  in
+  match (List.hd without_ts.preferences).kind with
+  | `Interests i ->
+      OUnit2.assert_equal [ "bar" ] i.tags;
+      OUnit2.assert_equal None i.updated_at
+  | _ -> OUnit2.assert_failure "expected interestsPref without updatedAt"
+
 let test_parse_profile_and_scoped_mute_viewer _ =
   let json =
     `Assoc
@@ -403,6 +446,8 @@ let suite =
          "test_search_actors" >:: test_search_actors;
          "test_search_actors_typeahead" >:: test_search_actors_typeahead;
          "test_parse_preferences" >:: test_parse_preferences;
+         "test_parse_interests_pref_updated_at"
+         >:: test_parse_interests_pref_updated_at;
          "test_parse_profile_and_scoped_mute_viewer"
          >:: test_parse_profile_and_scoped_mute_viewer;
          "test_get_preferences_auth_skipped"

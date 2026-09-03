@@ -7,8 +7,8 @@ lexicon JSON bodies.
 
 Usage:
   scripts/gen-official-nsids.py
-  scripts/gen-official-nsids.py 5c154f9c51
-  scripts/gen-official-nsids.py 5c154f9c51 /path/to/atproto/lexicons
+  scripts/gen-official-nsids.py f0d4877a03
+  scripts/gen-official-nsids.py f0d4877a03 /path/to/atproto/lexicons
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ import tempfile
 import urllib.request
 from pathlib import Path
 
-DEFAULT_SHA = "5c154f9c5173e7823a5353eab92207508a7dea99"
+DEFAULT_SHA = "f0d4877a03dc8ede0d3e9a36d5b72ada63b5d2e0"
 MAIN_TYPES = ("query", "procedure", "subscription", "record", "permission-set")
 TARBALL_URL = "https://codeload.github.com/bluesky-social/atproto/tar.gz/{sha}"
 

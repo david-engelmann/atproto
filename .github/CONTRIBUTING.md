@@ -60,7 +60,7 @@ opam lint atproto.opam
 ## Lexicon coverage
 
 Official lexicons are pinned at bluesky-social/atproto
-[`5c154f9c51`](https://github.com/bluesky-social/atproto/commit/5c154f9c5173e7823a5353eab92207508a7dea99).
+[`f0d4877a03`](https://github.com/bluesky-social/atproto/commit/f0d4877a03dc8ede0d3e9a36d5b72ada63b5d2e0).
 `scripts/gen-official-nsids.py` rebuilds
 `lexicons/official-nsids.json` against a SHA. TestSuite
 `test_lexicon_coverage` fails if a public client NSID is missing a helper,
