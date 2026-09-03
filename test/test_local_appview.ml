@@ -1047,20 +1047,20 @@ let test_leftover_served _ =
      TestNetwork services. Unhosted generator DID is already skip-policy
      (av_get_until_or_skip / is_policy_invalid). *)
   (match generator_info with
-  | Some info when info.is_online ->
+  | Some info when info.is_online -> (
       (match av_get_feed_if_hosted generated.uri with
       | None -> ()
       | Some json ->
           let page = Feed.parse_timeline json in
           OUnit2.assert_bool "getFeed" (List.length page.feed >= 0));
-      (match
-         av_get_leftover "app.bsky.feed.getFeedSkeleton"
-           [ ("feed", generated.uri); ("limit", "5") ]
-       with
-       | None -> ()
-       | Some json ->
-           let page = Feed.parse_feed_skeleton json in
-           OUnit2.assert_bool "getFeedSkeleton" (List.length page.feed >= 0))
+      match
+        av_get_leftover "app.bsky.feed.getFeedSkeleton"
+          [ ("feed", generated.uri); ("limit", "5") ]
+      with
+      | None -> ()
+      | Some json ->
+          let page = Feed.parse_feed_skeleton json in
+          OUnit2.assert_bool "getFeedSkeleton" (List.length page.feed >= 0))
   | _ -> ());
   let bob = bob_session () in
   (match
