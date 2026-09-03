@@ -1,7 +1,7 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#168](https://github.com/david-engelmann/atproto/pull/168):
+shipped through [#172](https://github.com/david-engelmann/atproto/pull/172):
 official lexicon pin `5c154f9c` and `Ozone.get_account_preferences`
 ([#132](https://github.com/david-engelmann/atproto/pull/132)), live leftover
 TestNetwork NSIDs ([#129](https://github.com/david-engelmann/atproto/pull/129))
@@ -18,8 +18,14 @@ AppView `getFeedSkeleton`
 unspecced age-assurance
 ([#168](https://github.com/david-engelmann/atproto/pull/168)), odoc landing
 leftover modules ([#165](https://github.com/david-engelmann/atproto/pull/165)),
-and remaining function-level odoc through
-[#166](https://github.com/david-engelmann/atproto/pull/166).
+remaining function-level odoc through
+[#166](https://github.com/david-engelmann/atproto/pull/166), odoc landing
+leftover public protocol modules
+([#170](https://github.com/david-engelmann/atproto/pull/170)), compiled-only
+`examples/offline.ml` constructor/parser coverage
+([#171](https://github.com/david-engelmann/atproto/pull/171)), and
+installed-package consumer smoke
+([#172](https://github.com/david-engelmann/atproto/pull/172)).
 
 This package is **not** published to the public
 [opam-repository](https://github.com/ocaml/opam-repository). Depend on it by
@@ -399,6 +405,18 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   function-level odoc on public `Embed.get_embed_external_view`
   (`app.bsky.embed.getEmbedExternalView`). Comment-only; skips
   `parse_embed_external_view`
+- [#170](https://github.com/david-engelmann/atproto/pull/170): odoc landing
+  leftover public protocol modules (Admin / Temp / Moderation, Embed /
+  Facet on AppView, Tid / At_uri / Syntax). Docs-only; skips codec /
+  HTTP internals
+- [#171](https://github.com/david-engelmann/atproto/pull/171): compiled-only
+  `examples/offline.ml` typechecks for leftover Ageassurance /
+  Unspecced constructors and parsers (`begin_body`, `parse_config`,
+  `init_age_assurance_body`, `parse_age_assurance_state`). No live hops
+- [#172](https://github.com/david-engelmann/atproto/pull/172): CI installs
+  the local generated opam package after the source-tree build, then
+  builds and runs an isolated downstream Dune consumer under
+  `RUNNER_TEMP`. Not an opam-repository publish
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
