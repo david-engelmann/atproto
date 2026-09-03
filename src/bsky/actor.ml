@@ -896,18 +896,9 @@ module Actor = struct
     }
 
   let json_strings xs = `List (List.map (fun s -> `String s) xs)
-
-  let opt_json_string k = function
-    | Some s -> [ (k, `String s) ]
-    | None -> []
-
-  let opt_json_bool k = function
-    | Some b -> [ (k, `Bool b) ]
-    | None -> []
-
-  let opt_json_int k = function
-    | Some n -> [ (k, `Int n) ]
-    | None -> []
+  let opt_json_string k = function Some s -> [ (k, `String s) ] | None -> []
+  let opt_json_bool k = function Some b -> [ (k, `Bool b) ] | None -> []
+  let opt_json_int k = function Some n -> [ (k, `Int n) ] | None -> []
 
   let saved_feed_to_json (f : saved_feed) : Yojson.Safe.t =
     `Assoc
@@ -965,9 +956,7 @@ module Actor = struct
     | `Adult_content p -> typed [ ("enabled", `Bool p.enabled) ]
     | `Content_label p ->
         typed
-          ([
-             ("label", `String p.label); ("visibility", `String p.visibility);
-           ]
+          ([ ("label", `String p.label); ("visibility", `String p.visibility) ]
           @ opt_json_string "labelerDid" p.labeler_did)
     | `Saved_feeds_v2 p ->
         typed [ ("items", `List (List.map saved_feed_to_json p.items)) ]
@@ -987,8 +976,7 @@ module Actor = struct
         typed
           ([ ("feed", `String p.feed) ]
           @ opt_json_bool "hideReplies" p.hide_replies
-          @ opt_json_bool "hideRepliesByUnfollowed"
-              p.hide_replies_by_unfollowed
+          @ opt_json_bool "hideRepliesByUnfollowed" p.hide_replies_by_unfollowed
           @ opt_json_int "hideRepliesByLikeCount" p.hide_replies_by_like_count
           @ opt_json_bool "hideReposts" p.hide_reposts
           @ opt_json_bool "hideQuotePosts" p.hide_quote_posts)
@@ -1028,13 +1016,14 @@ module Actor = struct
                    `List (List.map threadgate_rule_to_json rs) );
                ]
            | None -> [])
-          @ (match p.postgate_embedding_rules with
-            | Some rs ->
-                [
-                  ( "postgateEmbeddingRules",
-                    `List (List.map postgate_rule_to_json rs) );
-                ]
-            | None -> []))
+          @
+          match p.postgate_embedding_rules with
+          | Some rs ->
+              [
+                ( "postgateEmbeddingRules",
+                  `List (List.map postgate_rule_to_json rs) );
+              ]
+          | None -> [])
     | `Verification p -> typed [ ("hideBadges", `Bool p.hide_badges) ]
     | `Live_event p ->
         typed

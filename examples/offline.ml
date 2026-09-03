@@ -751,10 +751,7 @@ let () =
   let interests_json =
     Actor.preference_kind_to_json ~type_:"app.bsky.actor.defs#interestsPref"
       (`Interests
-         {
-           tags = [ "ocaml" ];
-           updated_at = Some "2026-09-03T18:02:59.000Z";
-         })
+        { tags = [ "ocaml" ]; updated_at = Some "2026-09-03T18:02:59.000Z" })
   in
   assert (
     match Yojson.Safe.Util.member "updatedAt" interests_json with
@@ -767,8 +764,7 @@ let () =
           [
             {
               type_ = "app.bsky.actor.defs#interestsPref";
-              kind =
-                `Interests { tags = [ "ocaml" ]; updated_at = None };
+              kind = `Interests { tags = [ "ocaml" ]; updated_at = None };
               original = `Null;
             };
           ];

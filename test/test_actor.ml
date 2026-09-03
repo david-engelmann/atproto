@@ -293,7 +293,7 @@ let test_encode_interests_pref_updated_at _ =
   let with_ts =
     Actor.preference_kind_to_json ~type_
       (`Interests
-         { tags = [ "foo" ]; updated_at = Some "2026-09-03T18:02:59.000Z" })
+        { tags = [ "foo" ]; updated_at = Some "2026-09-03T18:02:59.000Z" })
   in
   OUnit2.assert_equal
     ~printer:(fun x -> x)
@@ -379,16 +379,10 @@ let test_preference_to_json_other_uses_original _ =
   in
   let encoded =
     Actor.preference_to_json
-      {
-        type_ = "app.bsky.actor.defs#futurePref";
-        kind = `Other;
-        original;
-      }
+      { type_ = "app.bsky.actor.defs#futurePref"; kind = `Other; original }
   in
   OUnit2.assert_equal original encoded;
-  let body =
-    Actor.put_preferences_typed_body { preferences = [] }
-  in
+  let body = Actor.put_preferences_typed_body { preferences = [] } in
   (match body with
   | `Assoc [ ("preferences", `List []) ] -> ()
   | _ -> OUnit2.assert_failure "expected empty typed putPreferences body");
