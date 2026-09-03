@@ -526,12 +526,14 @@ module Ozone = struct
       original = json;
     }
 
+  (** [com.atproto.admin.defs#repoRef] subject ([did]). *)
   let repo_ref did : Yojson.Safe.t =
     `Assoc
       [
         ("$type", `String "com.atproto.admin.defs#repoRef"); ("did", `String did);
       ]
 
+  (** [com.atproto.repo.strongRef] subject ([uri] / [cid]). *)
   let strong_ref ~uri ~cid : Yojson.Safe.t =
     `Assoc
       [
@@ -540,6 +542,8 @@ module Ozone = struct
         ("cid", `String cid);
       ]
 
+  (** [tools.ozone.moderation.emitEvent#reportAction] payload ([ids] /
+      [types] / [all] / [note]). *)
   let report_action ?ids ?(types = []) ?all ?note () : Yojson.Safe.t =
     `Assoc
       ((match ids with
@@ -551,6 +555,7 @@ module Ozone = struct
       @ (match all with Some b -> [ ("all", `Bool b) ] | None -> [])
       @ match note with Some n -> [ ("note", `String n) ] | None -> [])
 
+  (** JSON body for [tools.ozone.moderation.emitEvent]. *)
   let emit_event_body ~event ~subject ~created_by ?subject_blob_cids
       ?external_id ?mod_tool ?report_action () : Yojson.Safe.t =
     let fields =
@@ -570,6 +575,8 @@ module Ozone = struct
     in
     `Assoc fields
 
+  (** [tools.ozone.moderation.defs#modEventComment] event. Optional
+      [sticky]. *)
   let comment_event ?(sticky = false) comment : Yojson.Safe.t =
     `Assoc
       [
@@ -578,6 +585,7 @@ module Ozone = struct
         ("sticky", `Bool sticky);
       ]
 
+  (** [tools.ozone.moderation.defs#modEventAcknowledge] event. *)
   let acknowledge_event ?comment () : Yojson.Safe.t =
     let fields =
       [ ("$type", `String "tools.ozone.moderation.defs#modEventAcknowledge") ]
@@ -585,6 +593,7 @@ module Ozone = struct
     in
     `Assoc fields
 
+  (** [tools.ozone.moderation.defs#modEventTakedown] event. *)
   let takedown_event ?comment ?(acknowledge_account_subjects = false) () :
       Yojson.Safe.t =
     let fields =
@@ -902,6 +911,7 @@ module Ozone = struct
       | Some s -> [ ("executeUntil", `String s) ]
       | None -> [])
 
+  (** [tools.ozone.moderation.scheduleAction#takedown] action. *)
   let takedown_action ?comment ?duration_in_hours
       ?(acknowledge_account_subjects = false) () : Yojson.Safe.t =
     let fields =
@@ -917,6 +927,7 @@ module Ozone = struct
     in
     `Assoc fields
 
+  (** JSON body for [tools.ozone.moderation.scheduleAction]. *)
   let schedule_action_body ~action ~subjects ~created_by ~scheduling ?mod_tool
       () : Yojson.Safe.t =
     let fields =
@@ -1016,6 +1027,7 @@ module Ozone = struct
       "tools.ozone.communication.listTemplates" []
     |> parse_templates
 
+  (** JSON body for [tools.ozone.communication.createTemplate]. *)
   let create_template_body ~name ~content_markdown ?subject ?lang ?created_by ()
       : Yojson.Safe.t =
     `Assoc
@@ -1364,6 +1376,8 @@ module Ozone = struct
 
   (* Official addRule / updateRule / removeRule take `pattern` (not
      patternType) and return tools.ozone.safelink.defs#event. *)
+
+  (** JSON body for [tools.ozone.safelink.addRule]. *)
   let add_safelink_rule_body ~url ~pattern ~action ~reason ?comment ?created_by
       () : Yojson.Safe.t =
     `Assoc
@@ -1378,10 +1392,12 @@ module Ozone = struct
       | Some d -> [ ("createdBy", `String d) ]
       | None -> [])
 
+  (** JSON body for [tools.ozone.safelink.updateRule]. *)
   let update_safelink_rule_body ~url ~pattern ~action ~reason ?comment
       ?created_by () : Yojson.Safe.t =
     add_safelink_rule_body ~url ~pattern ~action ~reason ?comment ?created_by ()
 
+  (** JSON body for [tools.ozone.safelink.removeRule]. *)
   let remove_safelink_rule_body ~url ~pattern ?comment ?created_by () :
       Yojson.Safe.t =
     `Assoc
@@ -1464,6 +1480,7 @@ module Ozone = struct
          (remove_safelink_rule_body ~url ~pattern ?comment ?created_by ()))
     |> parse_safelink_event
 
+  (** JSON body for [tools.ozone.safelink.queryEvents]. *)
   let query_safelink_events_body ?cursor ?limit ?(urls = []) ?pattern_type
       ?sort_direction () : Yojson.Safe.t =
     `Assoc
@@ -1630,6 +1647,8 @@ module Ozone = struct
           (Client.list_member json "failedRevocations");
     }
 
+  (** [tools.ozone.verification.grantVerifications#verificationInput]
+      item ([subject] / [handle] / [display_name]). *)
   let verification_input ~subject ~handle ~display_name ?created_at () :
       Yojson.Safe.t =
     `Assoc
@@ -1641,9 +1660,11 @@ module Ozone = struct
       | Some t -> [ ("createdAt", `String t) ]
       | None -> []))
 
+  (** JSON body for [tools.ozone.verification.grantVerifications]. *)
   let grant_verifications_body ~verifications () : Yojson.Safe.t =
     `Assoc [ ("verifications", `List verifications) ]
 
+  (** JSON body for [tools.ozone.verification.revokeVerifications]. *)
   let revoke_verifications_body ~uris ?revoke_reason () : Yojson.Safe.t =
     `Assoc
       (("uris", `List (List.map (fun u -> `String u) uris))
@@ -1865,6 +1886,7 @@ module Ozone = struct
       unmatched = Client.int_member json "unmatched";
     }
 
+  (** JSON body for [tools.ozone.queue.createQueue]. *)
   let create_queue_body ~name ?(subject_types = []) ?collection
       ?(report_types = []) ?description ?(recommended_policies = []) () :
       Yojson.Safe.t =
@@ -1884,6 +1906,7 @@ module Ozone = struct
       | [] -> []
       | xs -> [ ("recommendedPolicies", json_strings xs) ])
 
+  (** JSON body for [tools.ozone.queue.updateQueue]. *)
   let update_queue_body ~queue_id ?name ?enabled ?description
       ?recommended_policies () : Yojson.Safe.t =
     `Assoc
@@ -1895,6 +1918,7 @@ module Ozone = struct
       | Some xs -> [ ("recommendedPolicies", json_strings xs) ]
       | None -> [])
 
+  (** JSON body for [tools.ozone.queue.deleteQueue]. *)
   let delete_queue_body ~queue_id ?migrate_to_queue_id () : Yojson.Safe.t =
     `Assoc
       (("queueId", `Int queue_id)
@@ -2058,10 +2082,19 @@ module Ozone = struct
   type historical_stats = { cursor : string option; stats : report_stats list }
   type close_reports_result = { closed_count : int; report_ids : int list }
 
+  (** Prefix [name] as [tools.ozone.report.defs#name]. *)
   let report_reason name = "tools.ozone.report.defs#" ^ name
+
+  (** [tools.ozone.report.defs#reasonAppeal] report reason. *)
   let reason_appeal = report_reason "reasonAppeal"
+
+  (** [tools.ozone.report.defs#reasonOther] report reason. *)
   let reason_other = report_reason "reasonOther"
+
+  (** [tools.ozone.report.defs#reasonViolenceThreats] report reason. *)
   let reason_violence_threats = report_reason "reasonViolenceThreats"
+
+  (** [tools.ozone.report.defs#reasonMisleadingSpam] report reason. *)
   let reason_misleading_spam = report_reason "reasonMisleadingSpam"
 
   let parse_report_activity json : report_activity =
@@ -2190,23 +2223,30 @@ module Ozone = struct
       (("$type", `String ("tools.ozone.report.defs#" ^ kind))
       :: opt_json_str "previousStatus" previous_status)
 
+  (** [tools.ozone.report.defs#queueActivity] activity. *)
   let queue_activity ?previous_status () =
     activity_json "queueActivity" ?previous_status ()
 
+  (** [tools.ozone.report.defs#assignmentActivity] activity. *)
   let assignment_activity ?previous_status () =
     activity_json "assignmentActivity" ?previous_status ()
 
+  (** [tools.ozone.report.defs#escalationActivity] activity. *)
   let escalation_activity ?previous_status () =
     activity_json "escalationActivity" ?previous_status ()
 
+  (** [tools.ozone.report.defs#closeActivity] activity. *)
   let close_activity ?previous_status () =
     activity_json "closeActivity" ?previous_status ()
 
+  (** [tools.ozone.report.defs#reopenActivity] activity. *)
   let reopen_activity ?previous_status () =
     activity_json "reopenActivity" ?previous_status ()
 
+  (** [tools.ozone.report.defs#noteActivity] activity. *)
   let note_activity () = activity_json "noteActivity" ()
 
+  (** JSON body for [tools.ozone.report.createActivity]. *)
   let create_activity_body ~activity ?report_id ?event_id ?internal_note
       ?public_note ?is_automated () : Yojson.Safe.t =
     `Assoc
