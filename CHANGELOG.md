@@ -1,7 +1,7 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#172](https://github.com/david-engelmann/atproto/pull/172):
+shipped through [#174](https://github.com/david-engelmann/atproto/pull/174):
 official lexicon pin `5c154f9c` and `Ozone.get_account_preferences`
 ([#132](https://github.com/david-engelmann/atproto/pull/132)), live leftover
 TestNetwork NSIDs ([#129](https://github.com/david-engelmann/atproto/pull/129))
@@ -23,16 +23,21 @@ remaining function-level odoc through
 leftover public protocol modules
 ([#170](https://github.com/david-engelmann/atproto/pull/170)), compiled-only
 `examples/offline.ml` constructor/parser coverage
-([#171](https://github.com/david-engelmann/atproto/pull/171)), and
+([#171](https://github.com/david-engelmann/atproto/pull/171)),
 installed-package consumer smoke
-([#172](https://github.com/david-engelmann/atproto/pull/172)).
+([#172](https://github.com/david-engelmann/atproto/pull/172)), notes through
+[#172](https://github.com/david-engelmann/atproto/pull/172)
+([#173](https://github.com/david-engelmann/atproto/pull/173)), and documented
+libzstd system dependency for Jane Street `zstandard` / Jetstream
+dict-zstd (Ubuntu/Debian `libzstd-dev`, Homebrew `zstd`)
+([#174](https://github.com/david-engelmann/atproto/pull/174)).
 
 This package is **not** published to the public
 [opam-repository](https://github.com/ocaml/opam-repository). Depend on it by
 pinning the GitHub repository (see the README). Requires OCaml `>= 4.14.1`
 and `< 5.0`.
 
-## 0.1.0 — 2026-09-02
+## 0.1.0 — 2026-09-03
 
 First installable opam package (`dune-project` / `atproto.opam` version
 `0.1.0`, OCaml `>= 4.14.1` and `< 5.0`). `opam pin add atproto git+https://github.com/david-engelmann/atproto.git`
@@ -417,6 +422,12 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   the local generated opam package after the source-tree build, then
   builds and runs an isolated downstream Dune consumer under
   `RUNNER_TEMP`. Not an opam-repository publish
+- [#173](https://github.com/david-engelmann/atproto/pull/173): Point
+  CHANGELOG and remaining-gaps through #172. Docs-only notes hygiene
+- [#174](https://github.com/david-engelmann/atproto/pull/174): Document
+  libzstd system dependency for installs (README +
+  `.github/CONTRIBUTING.md`). Jane Street `zstandard` / Jetstream
+  dict-zstd; Ubuntu/Debian `libzstd-dev`, Homebrew `zstd`
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
