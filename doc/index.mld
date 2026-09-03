@@ -32,7 +32,7 @@ Auth / Session
 
 XRPC
 
-{!modules: Atproto.Xrpc}
+{!modules: Atproto.Xrpc Atproto.Error}
 
 Identity / PLC
 
