@@ -744,7 +744,8 @@ let () =
        { kind = `Muted_words _; _ };
        { kind = `Interests { tags = [ "ocaml" ]; updated_at = Some _ }; _ };
      ];
-   _ } ->
+   _;
+  } ->
       ()
   | _ -> assert false);
   assert (String.length (Chat.subscribe_mod_events_url ()) > 20);

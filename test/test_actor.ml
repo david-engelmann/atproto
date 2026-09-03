@@ -244,18 +244,18 @@ let test_parse_interests_pref_updated_at _ =
   let with_ts =
     Actor.parse_preferences
       (`Assoc
-         [
-           ( "preferences",
-             `List
-               [
-                 `Assoc
-                   [
-                     ("$type", `String "app.bsky.actor.defs#interestsPref");
-                     ("tags", `List [ `String "foo" ]);
-                     ("updatedAt", `String "2026-09-03T18:02:59.000Z");
-                   ];
-               ] );
-         ])
+        [
+          ( "preferences",
+            `List
+              [
+                `Assoc
+                  [
+                    ("$type", `String "app.bsky.actor.defs#interestsPref");
+                    ("tags", `List [ `String "foo" ]);
+                    ("updatedAt", `String "2026-09-03T18:02:59.000Z");
+                  ];
+              ] );
+        ])
   in
   (match (List.hd with_ts.preferences).kind with
   | `Interests i ->
@@ -265,17 +265,17 @@ let test_parse_interests_pref_updated_at _ =
   let without_ts =
     Actor.parse_preferences
       (`Assoc
-         [
-           ( "preferences",
-             `List
-               [
-                 `Assoc
-                   [
-                     ("$type", `String "app.bsky.actor.defs#interestsPref");
-                     ("tags", `List [ `String "bar" ]);
-                   ];
-               ] );
-         ])
+        [
+          ( "preferences",
+            `List
+              [
+                `Assoc
+                  [
+                    ("$type", `String "app.bsky.actor.defs#interestsPref");
+                    ("tags", `List [ `String "bar" ]);
+                  ];
+              ] );
+        ])
   in
   match (List.hd without_ts.preferences).kind with
   | `Interests i ->
