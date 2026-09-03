@@ -2,7 +2,7 @@
 
 Notes for the packaged **0.1.0** library. This file records what actually
 shipped through [#179](https://github.com/david-engelmann/atproto/pull/179):
-official lexicon pin `5c154f9c` and `Ozone.get_account_preferences`
+official lexicon pin `f0d4877a` and `Ozone.get_account_preferences`
 ([#132](https://github.com/david-engelmann/atproto/pull/132)), live leftover
 TestNetwork NSIDs ([#129](https://github.com/david-engelmann/atproto/pull/129))
 plus live `getAccountPreferences`
@@ -462,6 +462,12 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   CONTRIBUTING). Docs-only allowlist excludes `.github/scripts` and
   workflows. Green non-draft same-repo/Dependabot PRs to `main` may
   auto-squash-merge (see CONTRIBUTING)
+- [#181](https://github.com/david-engelmann/atproto/pull/181): official
+  lexicon pin bluesky-social/atproto `f0d4877a` (the commit that added
+  `updatedAt` on `app.bsky.actor.defs#interestsPref`, upstream
+  [#5481](https://github.com/bluesky-social/atproto/pull/5481)).
+  `Actor.interests_pref` now carries optional `updated_at`. No new
+  NSIDs; hosted-only chat / video / Tap stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
@@ -473,7 +479,7 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
 - Hosted Tap service or video transcoder
 - Official OSS chat backend (TestNetwork does not start one)
 - Newly published official lexicons after bluesky-social/atproto
-  `5c154f9c` — the coverage gate fails until the pin
+  `f0d4877a` — the coverage gate fails until the pin
   snapshot and bindings (or an explicit skip) are updated
 - Jetstream archive HTTP download still needs an operator token this
   library does not invent (live compressed `subscribeEvents` and
