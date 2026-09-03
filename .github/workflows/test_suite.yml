@@ -76,6 +76,7 @@ jobs:
       - name: Downstream installed-package smoke test
         run: |
           set -euo pipefail
+          switch="$(opam var switch)"
           prefix="$(opam var prefix)"
           installed="${prefix}/lib/atproto"
           workspace="${GITHUB_WORKSPACE}"
@@ -116,8 +117,8 @@ jobs:
               ;;
           esac
           cd "${smoke}"
-          opam exec -- dune build
-          opam exec -- dune exec -- ./main.exe
+          opam exec --switch="${switch}" -- dune build
+          opam exec --switch="${switch}" -- dune exec -- ./main.exe
 
   lint-doc:
     strategy:
