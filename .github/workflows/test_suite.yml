@@ -78,14 +78,17 @@ jobs:
           set -euo pipefail
           prefix="$(opam var prefix)"
           installed="${prefix}/lib/atproto"
+          workspace="${GITHUB_WORKSPACE}"
+          echo "opam prefix: ${prefix}"
+          echo "installed atproto: ${installed}"
           if [ ! -d "${installed}" ]; then
             echo "expected installed library at ${installed}" >&2
             exit 1
           fi
-          workspace="${GITHUB_WORKSPACE}"
+          # setup-ocaml uses ${GITHUB_WORKSPACE}/_opam; reject dune _build only.
           case "${installed}" in
-            "${workspace}"*)
-              echo "atproto resolved inside the source tree: ${installed}" >&2
+            */_build/*|"${workspace}/_build"*)
+              echo "atproto resolved from dune _build, not opam install: ${installed}" >&2
               exit 1
               ;;
           esac

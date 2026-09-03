@@ -1,4 +1,5 @@
 ; Copied to ${RUNNER_TEMP} by TestSuite; must not join this workspace.
+
 (data_only_dirs consumer-smoke)
 
 (tests
