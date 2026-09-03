@@ -67,6 +67,49 @@ jobs:
           path: dune_runtest.log
           if-no-files-found: warn
 
+      # Install from generated atproto.opam (not _build/default/src), then
+      # compile a separate Dune project that cannot see the source tree.
+      # Does not publish to opam-repository and does not create a release/tag.
+      - name: Install local atproto package
+        run: opam install . --yes
+
+      - name: Downstream installed-package smoke test
+        run: |
+          set -euo pipefail
+          prefix="$(opam var prefix)"
+          installed="${prefix}/lib/atproto"
+          if [ ! -d "${installed}" ]; then
+            echo "expected installed library at ${installed}" >&2
+            exit 1
+          fi
+          workspace="${GITHUB_WORKSPACE}"
+          case "${installed}" in
+            "${workspace}"*)
+              echo "atproto resolved inside the source tree: ${installed}" >&2
+              exit 1
+              ;;
+          esac
+          for m in tid syntax oauth; do
+            if [ ! -f "${installed}/${m}.cmi" ]; then
+              echo "missing ${m}.cmi under ${installed} (install/export incomplete)" >&2
+              ls -la "${installed}" >&2
+              exit 1
+            fi
+          done
+          smoke="${RUNNER_TEMP}/atproto-consumer-smoke"
+          rm -rf "${smoke}"
+          mkdir -p "${smoke}"
+          cp -R test/consumer-smoke/. "${smoke}/"
+          case "${smoke}" in
+            "${workspace}"*)
+              echo "smoke directory is inside the source tree: ${smoke}" >&2
+              exit 1
+              ;;
+          esac
+          cd "${smoke}"
+          opam exec -- dune build
+          opam exec -- dune exec -- ./main.exe
+
   lint-doc:
     strategy:
       fail-fast: false
