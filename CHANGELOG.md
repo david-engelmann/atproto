@@ -1,7 +1,8 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through typed Actor `putPreferences` encoding
+shipped through [#185](https://github.com/david-engelmann/atproto/pull/185):
+typed Actor `putPreferences` encoding
 (`preference_kind_to_json` / `preference_to_json` /
 `preferences_to_json` / `put_preferences_typed`, including optional
 `interestsPref.updatedAt`) on top of
@@ -218,7 +219,8 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   offline coverage shipped in
   [#181](https://github.com/david-engelmann/atproto/pull/181). Does
   not fake hosted chat / video / Tap / phone / contacts / push
-- Typed Actor `putPreferences` encoding: `preference_kind_to_json` /
+- [#185](https://github.com/david-engelmann/atproto/pull/185): typed
+  Actor `putPreferences` encoding: `preference_kind_to_json` /
   `preference_to_json` / `preferences_to_json` plus
   `put_preferences_typed` / `put_preferences_typed_body`. Serializes
   `preference_kind` including `Interests` with optional camelCase
@@ -521,7 +523,8 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   coverage shipped in [#181](https://github.com/david-engelmann/atproto/pull/181).
   Hosted-only chat / video / Tap / phone / contacts / push stay listed
   not faked
-- Typed Actor `putPreferences` encoding
+- [#185](https://github.com/david-engelmann/atproto/pull/185): typed
+  Actor `putPreferences` encoding
   (`preference_kind_to_json` / `preference_to_json` /
   `preferences_to_json` / `put_preferences_typed` /
   `put_preferences_typed_body`). `interestsPref` writes optional
