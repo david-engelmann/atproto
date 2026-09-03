@@ -454,7 +454,6 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `Client.post_json_h2` (`Http_client` HTTP/2 TLS; hosts with an
   explicit port stay on Cohttp) plus one-line odoc on
   `Feed.filter_posts_*` `getAuthorFeed` knownValues. Comment-only
-<<<<<<< HEAD
 - [#178](https://github.com/david-engelmann/atproto/pull/178): Point
   CHANGELOG and remaining-gaps through #177 (`586b4877`). Docs-only
   notes hygiene
@@ -463,15 +462,10 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   CONTRIBUTING). Docs-only allowlist excludes `.github/scripts` and
   workflows. Green non-draft same-repo/Dependabot PRs to `main` may
   auto-squash-merge (see CONTRIBUTING)
-- Official lexicon pin bluesky-social/atproto `f0d4877a` (the commit
-  that added `updatedAt` on `app.bsky.actor.defs#interestsPref`,
-  upstream [#5481](https://github.com/bluesky-social/atproto/pull/5481)).
-=======
 - [#181](https://github.com/david-engelmann/atproto/pull/181): official
   lexicon pin bluesky-social/atproto `f0d4877a` (the commit that added
   `updatedAt` on `app.bsky.actor.defs#interestsPref`, upstream
   [#5481](https://github.com/bluesky-social/atproto/pull/5481)).
->>>>>>> dbcf1f6 (Note #181 in CHANGELOG for the lexicon pin bump)
   `Actor.interests_pref` now carries optional `updated_at`. No new
   NSIDs; hosted-only chat / video / Tap stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
