@@ -748,6 +748,40 @@ let () =
   } ->
       ()
   | _ -> assert false);
+  let interests_json =
+    Actor.preference_kind_to_json ~type_:"app.bsky.actor.defs#interestsPref"
+      (`Interests
+        { tags = [ "ocaml" ]; updated_at = Some "2026-09-03T18:02:59.000Z" })
+  in
+  assert (
+    match Yojson.Safe.Util.member "updatedAt" interests_json with
+    | `String "2026-09-03T18:02:59.000Z" -> true
+    | _ -> false);
+  let encoded_prefs =
+    Actor.preferences_to_json
+      {
+        preferences =
+          [
+            {
+              type_ = "app.bsky.actor.defs#interestsPref";
+              kind = `Interests { tags = [ "ocaml" ]; updated_at = None };
+              original = `Null;
+            };
+          ];
+      }
+  in
+  (match Actor.parse_preferences encoded_prefs with
+  | {
+   preferences =
+     [ { kind = `Interests { tags = [ "ocaml" ]; updated_at = None }; _ } ];
+   _;
+  } ->
+      ()
+  | _ -> assert false);
+  let _typed_body =
+    Actor.put_preferences_typed_body (Actor.parse_preferences encoded_prefs)
+  in
+  let _raw_body = Actor.put_preferences_body [ interests_json ] in
   assert (String.length (Chat.subscribe_mod_events_url ()) > 20);
   assert (
     Xrpc.proxy_to_string (Chat.effective_proxy ())

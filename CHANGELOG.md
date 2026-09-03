@@ -1,7 +1,12 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#184](https://github.com/david-engelmann/atproto/pull/184):
+shipped through [#185](https://github.com/david-engelmann/atproto/pull/185):
+typed Actor `putPreferences` encoding
+(`preference_kind_to_json` / `preference_to_json` /
+`preferences_to_json` / `put_preferences_typed`, including optional
+`interestsPref.updatedAt`) on top of
+[#184](https://github.com/david-engelmann/atproto/pull/184):
 official lexicon pin `f0d4877a` and `Ozone.get_account_preferences`
 ([#132](https://github.com/david-engelmann/atproto/pull/132)), live leftover
 TestNetwork NSIDs ([#129](https://github.com/david-engelmann/atproto/pull/129))
@@ -214,6 +219,16 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   offline coverage shipped in
   [#181](https://github.com/david-engelmann/atproto/pull/181). Does
   not fake hosted chat / video / Tap / phone / contacts / push
+- [#185](https://github.com/david-engelmann/atproto/pull/185): typed
+  Actor `putPreferences` encoding: `preference_kind_to_json` /
+  `preference_to_json` / `preferences_to_json` plus
+  `put_preferences_typed` / `put_preferences_typed_body`. Serializes
+  `preference_kind` including `Interests` with optional camelCase
+  `updatedAt`. `Other` / unknown reuse `.original`. Raw Yojson
+  `put_preferences` / `put_preferences_body` stay unchanged. Unit
+  tests only; live leftover hops stay in
+  [#184](https://github.com/david-engelmann/atproto/pull/184). No
+  hosted chat / video / Tap / phone / contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -508,6 +523,17 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   coverage shipped in [#181](https://github.com/david-engelmann/atproto/pull/181).
   Hosted-only chat / video / Tap / phone / contacts / push stay listed
   not faked
+- [#185](https://github.com/david-engelmann/atproto/pull/185): typed
+  Actor `putPreferences` encoding
+  (`preference_kind_to_json` / `preference_to_json` /
+  `preferences_to_json` / `put_preferences_typed` /
+  `put_preferences_typed_body`). `interestsPref` writes optional
+  `updatedAt` from `interests_pref.updated_at`. `Other` reuses
+  `.original`. Existing raw Yojson `put_preferences` call sites stay
+  valid. Unit tests for encode with/without `updated_at` and
+  parse→encode→parse. Live leftover hops stay in
+  [#184](https://github.com/david-engelmann/atproto/pull/184). No
+  hosted services faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
