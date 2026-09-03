@@ -1076,8 +1076,7 @@ let leftover_assert_interests_updated_at_when_present
 
 let leftover_assert_typed_account_preferences
     (prefs : Ozone.account_preferences) =
-  OUnit2.assert_bool "getAccountPreferences"
-    (List.length prefs.preferences >= 0);
+  OUnit2.assert_bool "getAccountPreferences" (List.length prefs.preferences >= 0);
   List.iter
     (fun (p : Actor.preference) ->
       OUnit2.assert_bool "typed preference $type" (String.length p.type_ >= 0);

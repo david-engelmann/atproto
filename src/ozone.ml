@@ -721,9 +721,6 @@ module Ozone = struct
 
   type timeline_item = { day : string; summary : timeline_summary list }
   type account_timeline = { timeline : timeline_item list }
-
-  (** [tools.ozone.moderation.getAccountPreferences] output —
-      [app.bsky.actor.defs#preferences] via [Actor.preference]. *)
   type account_preferences = { preferences : Actor.preference list }
 
   type scheduled_action = {
