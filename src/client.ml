@@ -150,8 +150,10 @@ module Client = struct
         | None -> []))
     @ extra
 
-  (* HTTPS-only HTTP/2 GET that keeps status + response headers. Hosts with
-     an explicit port (local stacks) stay on Cohttp. *)
+  (** XRPC GET [nsid] with query [pairs] via [Http_client] HTTP/2 TLS.
+      For public HTTPS XRPC that needs status/response headers. Auth
+      from [session] or [bearer]; optional [host] and extra headers.
+      Hosts with an explicit port (local stacks) stay on Cohttp. *)
   let get_json_h2 ?session ?host ?bearer ?(extra = []) nsid pairs =
     let host = host_of ?session ?host () in
     if String.contains host ':' then
@@ -162,7 +164,10 @@ module Client = struct
       let resp = Http_client.run (Http_client.get url ~headers ()) in
       json_of_body (Response.body_string resp)
 
-  (* Symmetric HTTP/2 POST. Local :port hosts stay on Cohttp. *)
+  (** XRPC POST [nsid] with JSON [data] via [Http_client] HTTP/2 TLS.
+      For public HTTPS XRPC that needs status/response headers. Auth
+      from [session] or [bearer]; optional [host] and extra headers.
+      Hosts with an explicit port (local stacks) stay on Cohttp. *)
   let post_json_h2 ?session ?host ?bearer ?(extra = []) nsid data =
     let host = host_of ?session ?host () in
     if String.contains host ':' then
