@@ -895,17 +895,190 @@ module Actor = struct
           | _ -> []);
     }
 
+  let json_strings xs = `List (List.map (fun s -> `String s) xs)
+
+  let opt_json_string k = function
+    | Some s -> [ (k, `String s) ]
+    | None -> []
+
+  let opt_json_bool k = function
+    | Some b -> [ (k, `Bool b) ]
+    | None -> []
+
+  let opt_json_int k = function
+    | Some n -> [ (k, `Int n) ]
+    | None -> []
+
+  let saved_feed_to_json (f : saved_feed) : Yojson.Safe.t =
+    `Assoc
+      [
+        ("id", `String f.id);
+        ("type", `String f.type_);
+        ("value", `String f.value);
+        ("pinned", `Bool f.pinned);
+      ]
+
+  let muted_word_to_json (w : muted_word) : Yojson.Safe.t =
+    `Assoc
+      ([ ("value", `String w.value); ("targets", json_strings w.targets) ]
+      @ opt_json_string "id" w.id
+      @ opt_json_string "actorTarget" w.actor_target
+      @ opt_json_string "expiresAt" w.expires_at)
+
+  let nux_to_json (n : nux) : Yojson.Safe.t =
+    `Assoc
+      ([ ("id", `String n.id); ("completed", `Bool n.completed) ]
+      @ opt_json_string "data" n.data
+      @ opt_json_string "expiresAt" n.expires_at)
+
+  let threadgate_rule_to_json (r : threadgate_rule) : Yojson.Safe.t =
+    match r with
+    | `Mention ->
+        `Assoc [ ("$type", `String "app.bsky.feed.threadgate#mentionRule") ]
+    | `Follower ->
+        `Assoc [ ("$type", `String "app.bsky.feed.threadgate#followerRule") ]
+    | `Following ->
+        `Assoc [ ("$type", `String "app.bsky.feed.threadgate#followingRule") ]
+    | `List list ->
+        `Assoc
+          [
+            ("$type", `String "app.bsky.feed.threadgate#listRule");
+            ("list", `String list);
+          ]
+    | `Unknown json -> json
+
+  let postgate_rule_to_json (r : postgate_rule) : Yojson.Safe.t =
+    match r with
+    | `Disable ->
+        `Assoc [ ("$type", `String "app.bsky.feed.postgate#disableRule") ]
+    | `Unknown json -> json
+
+  (** Encode one [preference_kind] as a preference object (camelCase fields,
+      including optional [updatedAt] on interests). [type_] is written as
+      [$type]. [`Other] reuses [original] when it is an object. *)
+  let preference_kind_to_json ~type_ ?(original = `Null)
+      (kind : preference_kind) : Yojson.Safe.t =
+    let typed fields = `Assoc (("$type", `String type_) :: fields) in
+    match kind with
+    | `Other -> (
+        match original with `Assoc _ as json -> json | _ -> typed [])
+    | `Adult_content p -> typed [ ("enabled", `Bool p.enabled) ]
+    | `Content_label p ->
+        typed
+          ([
+             ("label", `String p.label); ("visibility", `String p.visibility);
+           ]
+          @ opt_json_string "labelerDid" p.labeler_did)
+    | `Saved_feeds_v2 p ->
+        typed [ ("items", `List (List.map saved_feed_to_json p.items)) ]
+    | `Saved_feeds p ->
+        typed
+          ([
+             ("pinned", json_strings p.pinned); ("saved", json_strings p.saved);
+           ]
+          @ opt_json_int "timelineIndex" p.timeline_index)
+    | `Personal_details p -> typed (opt_json_string "birthDate" p.birth_date)
+    | `Declared_age p ->
+        typed
+          (opt_json_bool "isOverAge13" p.is_over_age_13
+          @ opt_json_bool "isOverAge16" p.is_over_age_16
+          @ opt_json_bool "isOverAge18" p.is_over_age_18)
+    | `Feed_view p ->
+        typed
+          ([ ("feed", `String p.feed) ]
+          @ opt_json_bool "hideReplies" p.hide_replies
+          @ opt_json_bool "hideRepliesByUnfollowed"
+              p.hide_replies_by_unfollowed
+          @ opt_json_int "hideRepliesByLikeCount" p.hide_replies_by_like_count
+          @ opt_json_bool "hideReposts" p.hide_reposts
+          @ opt_json_bool "hideQuotePosts" p.hide_quote_posts)
+    | `Thread_view p -> typed (opt_json_string "sort" p.sort)
+    | `Interests p ->
+        typed
+          ([ ("tags", json_strings p.tags) ]
+          @ opt_json_string "updatedAt" p.updated_at)
+    | `Muted_words p ->
+        typed [ ("items", `List (List.map muted_word_to_json p.items)) ]
+    | `Hidden_posts p -> typed [ ("items", json_strings p.items) ]
+    | `Bsky_app_state p ->
+        typed
+          ((match p.active_progress_guide with
+           | Some g ->
+               [ ("activeProgressGuide", `Assoc [ ("guide", `String g) ]) ]
+           | None -> [])
+          @ opt_json_bool "isBetaUser" p.is_beta_user
+          @ [ ("queuedNudges", json_strings p.queued_nudges) ]
+          @ [ ("nuxs", `List (List.map nux_to_json p.nuxs)) ])
+    | `Labelers p ->
+        typed
+          [
+            ( "labelers",
+              `List
+                (List.map
+                   (fun (item : labeler_pref_item) ->
+                     `Assoc [ ("did", `String item.did) ])
+                   p.labelers) );
+          ]
+    | `Post_interaction p ->
+        typed
+          ((match p.threadgate_allow_rules with
+           | Some rs ->
+               [
+                 ( "threadgateAllowRules",
+                   `List (List.map threadgate_rule_to_json rs) );
+               ]
+           | None -> [])
+          @ (match p.postgate_embedding_rules with
+            | Some rs ->
+                [
+                  ( "postgateEmbeddingRules",
+                    `List (List.map postgate_rule_to_json rs) );
+                ]
+            | None -> []))
+    | `Verification p -> typed [ ("hideBadges", `Bool p.hide_badges) ]
+    | `Live_event p ->
+        typed
+          [
+            ("hiddenFeedIds", json_strings p.hidden_feed_ids);
+            ("hideAllFeeds", `Bool p.hide_all_feeds);
+          ]
+
+  (** Encode a parsed [preference]. [`Other] / unknown kinds reuse
+      [.original]. *)
+  let preference_to_json (p : preference) : Yojson.Safe.t =
+    preference_kind_to_json ~type_:p.type_ ~original:p.original p.kind
+
+  (** Encode [{ preferences }] for [app.bsky.actor.putPreferences]. *)
+  let preferences_to_json (prefs : preferences) : Yojson.Safe.t =
+    `Assoc
+      [ ("preferences", `List (List.map preference_to_json prefs.preferences)) ]
+
+  (** Raw Yojson list body for [app.bsky.actor.putPreferences]. Existing
+      call sites that hand-build preference objects stay valid. *)
   let put_preferences_body preferences : Yojson.Safe.t =
     `Assoc [ ("preferences", `List preferences) ]
+
+  (** Typed body for [app.bsky.actor.putPreferences] (same JSON as
+      [preferences_to_json]). *)
+  let put_preferences_typed_body (prefs : preferences) : Yojson.Safe.t =
+    preferences_to_json prefs
 
   (** The session's stored preferences ([app.bsky.actor.getPreferences]). *)
   let get_preferences (s : Session.session) : preferences =
     Client.Client.get_json ~session:s "app.bsky.actor.getPreferences" []
     |> parse_preferences
 
-  (** Replace stored preferences via [app.bsky.actor.putPreferences]. *)
+  (** Replace stored preferences via [app.bsky.actor.putPreferences].
+      [preferences] is a raw Yojson list of preference objects. *)
   let put_preferences (s : Session.session) preferences : unit =
     ignore
       (Client.Client.post_json ~session:s "app.bsky.actor.putPreferences"
          (Yojson.Safe.to_string (put_preferences_body preferences)))
+
+  (** Replace stored preferences from typed [preferences]
+      ([app.bsky.actor.putPreferences]). [`Other] items reuse [.original]. *)
+  let put_preferences_typed (s : Session.session) (prefs : preferences) : unit =
+    ignore
+      (Client.Client.post_json ~session:s "app.bsky.actor.putPreferences"
+         (Yojson.Safe.to_string (put_preferences_typed_body prefs)))
 end

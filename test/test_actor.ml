@@ -283,6 +283,121 @@ let test_parse_interests_pref_updated_at _ =
       OUnit2.assert_equal None i.updated_at
   | _ -> OUnit2.assert_failure "expected interestsPref without updatedAt"
 
+let json_has_field name json =
+  match json with
+  | `Assoc fields -> List.exists (fun (k, _) -> k = name) fields
+  | _ -> false
+
+let test_encode_interests_pref_updated_at _ =
+  let type_ = "app.bsky.actor.defs#interestsPref" in
+  let with_ts =
+    Actor.preference_kind_to_json ~type_
+      (`Interests
+         { tags = [ "foo" ]; updated_at = Some "2026-09-03T18:02:59.000Z" })
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    type_
+    (match Yojson.Safe.Util.member "$type" with_ts with
+    | `String s -> s
+    | _ -> "");
+  (match Yojson.Safe.Util.member "tags" with_ts with
+  | `List [ `String "foo" ] -> ()
+  | _ -> OUnit2.assert_failure "expected tags [foo]");
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "2026-09-03T18:02:59.000Z"
+    (match Yojson.Safe.Util.member "updatedAt" with_ts with
+    | `String s -> s
+    | _ -> "");
+  let without_ts =
+    Actor.preference_kind_to_json ~type_
+      (`Interests { tags = [ "bar" ]; updated_at = None })
+  in
+  (match Yojson.Safe.Util.member "tags" without_ts with
+  | `List [ `String "bar" ] -> ()
+  | _ -> OUnit2.assert_failure "expected tags [bar]");
+  OUnit2.assert_bool "updatedAt omitted when None"
+    (not (json_has_field "updatedAt" without_ts))
+
+let test_roundtrip_interests_pref _ =
+  let json =
+    `Assoc
+      [
+        ( "preferences",
+          `List
+            [
+              `Assoc
+                [
+                  ("$type", `String "app.bsky.actor.defs#interestsPref");
+                  ("tags", `List [ `String "ocaml"; `String "atproto" ]);
+                  ("updatedAt", `String "2026-09-03T18:02:59.000Z");
+                ];
+            ] );
+      ]
+  in
+  let parsed = Actor.parse_preferences json in
+  let encoded = Actor.preferences_to_json parsed in
+  let reparsed = Actor.parse_preferences encoded in
+  OUnit2.assert_equal 1 (List.length reparsed.preferences);
+  (match (List.hd reparsed.preferences).kind with
+  | `Interests i ->
+      OUnit2.assert_equal [ "ocaml"; "atproto" ] i.tags;
+      OUnit2.assert_equal (Some "2026-09-03T18:02:59.000Z") i.updated_at
+  | _ -> OUnit2.assert_failure "expected interestsPref after encode");
+  let without =
+    Actor.parse_preferences
+      (`Assoc
+        [
+          ( "preferences",
+            `List
+              [
+                `Assoc
+                  [
+                    ("$type", `String "app.bsky.actor.defs#interestsPref");
+                    ("tags", `List [ `String "bar" ]);
+                  ];
+              ] );
+        ])
+  in
+  let reparsed_without =
+    Actor.parse_preferences (Actor.preferences_to_json without)
+  in
+  match (List.hd reparsed_without.preferences).kind with
+  | `Interests i ->
+      OUnit2.assert_equal [ "bar" ] i.tags;
+      OUnit2.assert_equal None i.updated_at
+  | _ -> OUnit2.assert_failure "expected interestsPref without updatedAt"
+
+let test_preference_to_json_other_uses_original _ =
+  let original =
+    `Assoc
+      [
+        ("$type", `String "app.bsky.actor.defs#futurePref");
+        ("extra", `String "keep");
+      ]
+  in
+  let encoded =
+    Actor.preference_to_json
+      {
+        type_ = "app.bsky.actor.defs#futurePref";
+        kind = `Other;
+        original;
+      }
+  in
+  OUnit2.assert_equal original encoded;
+  let body =
+    Actor.put_preferences_typed_body { preferences = [] }
+  in
+  (match body with
+  | `Assoc [ ("preferences", `List []) ] -> ()
+  | _ -> OUnit2.assert_failure "expected empty typed putPreferences body");
+  let raw = Actor.put_preferences_body [ original ] in
+  match raw with
+  | `Assoc [ ("preferences", `List [ item ]) ] ->
+      OUnit2.assert_equal original item
+  | _ -> OUnit2.assert_failure "expected raw put_preferences_body unchanged"
+
 let test_parse_profile_and_scoped_mute_viewer _ =
   let json =
     `Assoc
@@ -448,6 +563,11 @@ let suite =
          "test_parse_preferences" >:: test_parse_preferences;
          "test_parse_interests_pref_updated_at"
          >:: test_parse_interests_pref_updated_at;
+         "test_encode_interests_pref_updated_at"
+         >:: test_encode_interests_pref_updated_at;
+         "test_roundtrip_interests_pref" >:: test_roundtrip_interests_pref;
+         "test_preference_to_json_other_uses_original"
+         >:: test_preference_to_json_other_uses_original;
          "test_parse_profile_and_scoped_mute_viewer"
          >:: test_parse_profile_and_scoped_mute_viewer;
          "test_get_preferences_auth_skipped"
