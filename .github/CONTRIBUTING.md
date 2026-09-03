@@ -28,6 +28,21 @@ https://david-engelmann.github.io/atproto/. `dune-project`
 CI jobs: `build`, `lint-doc`, `lint-fmt`, `lint-opam`, `local-pds`.
 On push to `main`, `deploy-pages` publishes odoc HTML to
 https://david-engelmann.github.io/atproto/.
+
+Open, non-draft pull requests that target `main` from this repository
+(or Dependabot) may be **squash-merged automatically** by
+`.github/workflows/merge-when-green.yml` once CI is green; the head
+branch is deleted. Docs-only diffs (`CHANGELOG` / `README` / `doc/**` /
+`.github/**` except workflows / `*.md`) merge after `lint-fmt` and
+`lint-doc` succeed. Other PRs wait for TestSuite `build`, `local-pds`,
+and `lint-*`. Forks, drafts, and failing checks are never merged.
+Stacked PRs that are only behind `main` get an update-branch after a
+merge. This does not publish to opam-repository or create a release
+tag. "Allow auto-merge" in repo settings is optional — the workflow
+merges on green itself. Branch protection that requires a human review
+will block the Actions token; merge those PRs manually or do not
+require a review for this automation.
+
 CI installs Ubuntu `libzstd-dev` before every OCaml job; install
 that or Homebrew `zstd` before the commands below.
 
