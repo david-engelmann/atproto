@@ -1,7 +1,7 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#179](https://github.com/david-engelmann/atproto/pull/179):
+shipped through [#182](https://github.com/david-engelmann/atproto/pull/182):
 official lexicon pin `f0d4877a` and `Ozone.get_account_preferences`
 ([#132](https://github.com/david-engelmann/atproto/pull/132)), live leftover
 TestNetwork NSIDs ([#129](https://github.com/david-engelmann/atproto/pull/129))
@@ -40,11 +40,20 @@ remaining function-level odoc on `Client.get_json_h2` /
 ([#177](https://github.com/david-engelmann/atproto/pull/177)), notes through
 [#177](https://github.com/david-engelmann/atproto/pull/177)
 ([#178](https://github.com/david-engelmann/atproto/pull/178), `586b4877`),
-and merge-when-green squash automation (`95b6eb57`; workflow + script +
+merge-when-green squash automation (`95b6eb57`; workflow + script +
 CONTRIBUTING; docs-only allowlist excludes `.github/scripts` and
 workflows; green non-draft same-repo/Dependabot PRs to `main` may
 auto-squash-merge, see CONTRIBUTING)
-([#179](https://github.com/david-engelmann/atproto/pull/179)).
+([#179](https://github.com/david-engelmann/atproto/pull/179)), notes
+through [#179](https://github.com/david-engelmann/atproto/pull/179)
+([#180](https://github.com/david-engelmann/atproto/pull/180), `82d8b543`),
+lexicon pin `f0d4877a` for actor interests `updatedAt`
+(`Actor.interests_pref` = `{ tags; updated_at : string option }`;
+`6af3edf1`)
+([#181](https://github.com/david-engelmann/atproto/pull/181)), and
+merge-when-green ignoring lexicon-pin drift (`84040dc0`; pin drift is
+advisory and must not deadlock docs-only or full-mode merges)
+([#182](https://github.com/david-engelmann/atproto/pull/182)).
 
 This package is **not** published to the public
 [opam-repository](https://github.com/ocaml/opam-repository). Depend on it by
@@ -462,12 +471,19 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   CONTRIBUTING). Docs-only allowlist excludes `.github/scripts` and
   workflows. Green non-draft same-repo/Dependabot PRs to `main` may
   auto-squash-merge (see CONTRIBUTING)
+- [#180](https://github.com/david-engelmann/atproto/pull/180): Point
+  CHANGELOG and remaining-gaps through #179 (`82d8b543`). Docs-only
+  notes hygiene
 - [#181](https://github.com/david-engelmann/atproto/pull/181): official
   lexicon pin bluesky-social/atproto `f0d4877a` (the commit that added
   `updatedAt` on `app.bsky.actor.defs#interestsPref`, upstream
   [#5481](https://github.com/bluesky-social/atproto/pull/5481)).
-  `Actor.interests_pref` now carries optional `updated_at`. No new
-  NSIDs; hosted-only chat / video / Tap stay listed not faked
+  `Actor.interests_pref` = `{ tags; updated_at : string option }`. No
+  new NSIDs; hosted-only chat / video / Tap stay listed not faked
+- [#182](https://github.com/david-engelmann/atproto/pull/182): Ignore
+  lexicon-pin drift in merge-when-green (`84040dc0`). Pin drift is
+  advisory; a failing lexicon-pin check must not deadlock docs-only
+  or full-mode merges
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
