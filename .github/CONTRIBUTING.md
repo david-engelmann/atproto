@@ -8,6 +8,9 @@ pinning the GitHub repository.
 
 - OCaml **4.14.x only** (`>= 4.14.1` and `< 5.0`). CI tests **4.14.1**.
 - ocamlformat **0.25.1** (see `.ocamlformat`). `lint-fmt` must stay green.
+- System libzstd (Jane Street `zstandard` / Jetstream dict-zstd):
+  Ubuntu/Debian `libzstd-dev`, macOS Homebrew `zstd` (headers ship
+  with the formula). Required, not optional.
 - Package-style build (what `opam install` / a dependent sees):
   `dune build -p atproto` and `dune runtest -p atproto`.
 
@@ -25,6 +28,8 @@ https://david-engelmann.github.io/atproto/. `dune-project`
 CI jobs: `build`, `lint-doc`, `lint-fmt`, `lint-opam`, `local-pds`.
 On push to `main`, `deploy-pages` publishes odoc HTML to
 https://david-engelmann.github.io/atproto/.
+CI installs Ubuntu `libzstd-dev` before every OCaml job; install
+that or Homebrew `zstd` before the commands below.
 
 ```shell
 opam install . --deps-only --with-test
