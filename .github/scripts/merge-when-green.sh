@@ -56,16 +56,23 @@ is_docs_only_file_list() {
 
 # Reads gh `pr checks --json name,state,bucket,workflow` from stdin.
 # $1 = docs|full|testsuite
-# docs: lint-fmt + lint-doc pass; any fail blocks; other pending is ok.
+# docs: lint-fmt + lint-doc pass; any other non-ignored fail blocks;
+# other pending is ok.
 # full / testsuite: every TestSuite job prefix has a pass; those jobs
-# are not pending/fail. Other workflows (lexicon-pin, this job) ignored
-# so we do not deadlock waiting for a check we do not wake on.
+# are not pending/fail. This job and lexicon-pin / "Lexicon pin drift"
+# are ignored in both modes (advisory; pin bumps are separate PRs) so
+# we do not deadlock waiting for a check we do not wake on.
 checks_are_green() {
   local mode="$1"
   jq -e --arg mode "$mode" --arg self "$SELF_WORKFLOW_NAME" \
+    --arg pin_name "lexicon-pin" --arg pin_workflow "Lexicon pin drift" \
     --argjson prefixes "$(printf '%s\n' "${TESTSUITE_PREFIXES[@]}" | jq -R . | jq -s .)" '
     def ignored:
-      (.workflow // "") == $self or (.name // "") == $self;
+      (.workflow // "") == $self
+      or (.name // "") == $self
+      or (.name // "") == $pin_name
+      or ((.name // "") | startswith($pin_name + " "))
+      or (.workflow // "") == $pin_workflow;
     def is_testsuite:
       .name as $n | any($prefixes[]; $n == . or ($n | startswith(. + " ")));
     def is_lint_min:
@@ -312,6 +319,7 @@ run_self_test() {
   eligible_source true outsider && { log "FAIL: other forks should not be eligible"; fail=1; }
 
   local docs_pending_build full_green missing_build failing_fmt
+  local docs_failing_pin full_failing_pin failing_fmt_and_pin
   docs_pending_build='[
     {"name":"lint-fmt (ubuntu-22.04, 4.14.1)","state":"SUCCESS","bucket":"pass","workflow":"TestSuite"},
     {"name":"lint-doc (ubuntu-22.04, 4.14.1)","state":"SUCCESS","bucket":"pass","workflow":"TestSuite"},
@@ -337,6 +345,24 @@ run_self_test() {
     {"name":"lint-fmt (ubuntu-22.04, 4.14.1)","state":"FAILURE","bucket":"fail","workflow":"TestSuite"},
     {"name":"lint-doc (ubuntu-22.04, 4.14.1)","state":"SUCCESS","bucket":"pass","workflow":"TestSuite"}
   ]'
+  docs_failing_pin='[
+    {"name":"lint-fmt (ubuntu-22.04, 4.14.1)","state":"SUCCESS","bucket":"pass","workflow":"TestSuite"},
+    {"name":"lint-doc (ubuntu-22.04, 4.14.1)","state":"SUCCESS","bucket":"pass","workflow":"TestSuite"},
+    {"name":"lexicon-pin","state":"FAILURE","bucket":"fail","workflow":"Lexicon pin drift"}
+  ]'
+  full_failing_pin='[
+    {"name":"lint-fmt (ubuntu-22.04, 4.14.1)","state":"SUCCESS","bucket":"pass","workflow":"TestSuite"},
+    {"name":"lint-doc (ubuntu-22.04, 4.14.1)","state":"SUCCESS","bucket":"pass","workflow":"TestSuite"},
+    {"name":"lint-opam (ubuntu-22.04, 4.14.1)","state":"SUCCESS","bucket":"pass","workflow":"TestSuite"},
+    {"name":"build (ubuntu-22.04, 4.14.1)","state":"SUCCESS","bucket":"pass","workflow":"TestSuite"},
+    {"name":"local-pds","state":"SUCCESS","bucket":"pass","workflow":"TestSuite"},
+    {"name":"lexicon-pin","state":"FAILURE","bucket":"fail","workflow":"Lexicon pin drift"}
+  ]'
+  failing_fmt_and_pin='[
+    {"name":"lint-fmt (ubuntu-22.04, 4.14.1)","state":"FAILURE","bucket":"fail","workflow":"TestSuite"},
+    {"name":"lint-doc (ubuntu-22.04, 4.14.1)","state":"SUCCESS","bucket":"pass","workflow":"TestSuite"},
+    {"name":"lexicon-pin","state":"FAILURE","bucket":"fail","workflow":"Lexicon pin drift"}
+  ]'
 
   printf '%s\n' "$docs_pending_build" | checks_are_green docs \
     || { log "FAIL: docs-only should pass with pending build"; fail=1; }
@@ -348,6 +374,12 @@ run_self_test() {
     && { log "FAIL: missing build should not pass full mode"; fail=1; }
   printf '%s\n' "$failing_fmt" | checks_are_green docs \
     && { log "FAIL: failing lint-fmt should block docs mode"; fail=1; }
+  printf '%s\n' "$docs_failing_pin" | checks_are_green docs \
+    || { log "FAIL: failing lexicon-pin should not block docs-green"; fail=1; }
+  printf '%s\n' "$full_failing_pin" | checks_are_green full \
+    || { log "FAIL: failing lexicon-pin should not block full-green"; fail=1; }
+  printf '%s\n' "$failing_fmt_and_pin" | checks_are_green docs \
+    && { log "FAIL: failing lint-fmt should still block docs with failing lexicon-pin"; fail=1; }
   printf '%s\n' '[]' | checks_are_green docs \
     && { log "FAIL: empty checks should not pass"; fail=1; }
 
