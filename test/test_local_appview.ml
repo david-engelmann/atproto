@@ -1042,15 +1042,25 @@ let test_leftover_served _ =
         OUnit2.assert_equal ~printer:(fun x -> x) generated.uri info.view.uri;
         Some info
   in
-  (* getFeed only against OUR generator, and only if AppView marked it
-     online. Suggested feeds are not live TestNetwork services. *)
+  (* getFeed / getFeedSkeleton only against OUR leftover generator, and
+     only if AppView marked it online. Suggested feeds are not live
+     TestNetwork services. Unhosted generator DID is already skip-policy
+     (av_get_until_or_skip / is_policy_invalid). *)
   (match generator_info with
-  | Some info when info.is_online -> (
-      match av_get_feed_if_hosted generated.uri with
+  | Some info when info.is_online ->
+      (match av_get_feed_if_hosted generated.uri with
       | None -> ()
       | Some json ->
           let page = Feed.parse_timeline json in
-          OUnit2.assert_bool "getFeed" (List.length page.feed >= 0))
+          OUnit2.assert_bool "getFeed" (List.length page.feed >= 0));
+      (match
+         av_get_leftover "app.bsky.feed.getFeedSkeleton"
+           [ ("feed", generated.uri); ("limit", "5") ]
+       with
+       | None -> ()
+       | Some json ->
+           let page = Feed.parse_feed_skeleton json in
+           OUnit2.assert_bool "getFeedSkeleton" (List.length page.feed >= 0))
   | _ -> ());
   let bob = bob_session () in
   (match
@@ -1239,9 +1249,10 @@ let test_unspecced_and_ageassurance _ =
 (* Unique leftover AppView NSIDs whose wrappers exist on main and are
    not live above. Skip if this revision 501s the method or TestNetwork
    policy InvalidRequest (is_policy_invalid). chat.bsky.* / video.* /
-   Tap / contact.* / push register-unregister / unhosted getFeed stay
-   listed not faked. describeFeedGenerator is a feed-generator service
-   method — do not treat a skip as a hosted generator. *)
+   Tap / contact.* / push register-unregister / unhosted getFeed /
+   getFeedSkeleton stay listed not faked. describeFeedGenerator is a
+   feed-generator service method — do not treat a skip as a hosted
+   generator. *)
 let test_leftover_feed_notification _ =
   let s = session () in
   (match
