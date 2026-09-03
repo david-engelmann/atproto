@@ -190,6 +190,8 @@ module Draft = struct
   let caption_json (c : caption) : Yojson.Safe.t =
     `Assoc [ ("lang", `String c.lang); ("content", `String c.content) ]
 
+  (** Build an [app.bsky.draft.defs#draftEmbedImage] object ([localRef] plus
+      optional [alt]). *)
   let embed_image_json (i : embed_image) : Yojson.Safe.t =
     let fields =
       ("localRef", local_ref_json i.local_ref)
@@ -197,6 +199,8 @@ module Draft = struct
     in
     `Assoc fields
 
+  (** Build an [app.bsky.draft.defs#draftEmbedVideo] object ([localRef] plus
+      optional [alt] / [captions]). *)
   let embed_video_json (v : embed_video) : Yojson.Safe.t =
     let fields =
       [ ("localRef", local_ref_json v.local_ref) ]
@@ -230,6 +234,8 @@ module Draft = struct
         `Assoc [ ("$type", `String "app.bsky.feed.postgate#disableRule") ]
     | `Unknown j -> j
 
+  (** Build an [app.bsky.draft.defs#draftPost] object ([text] plus optional
+      embed-image / gallery / video / external / record fields). *)
   let draft_post_json (p : draft_post) : Yojson.Safe.t =
     let fields =
       [ ("text", `String p.text) ]
@@ -279,6 +285,9 @@ module Draft = struct
     in
     `Assoc fields
 
+  (** Build an [app.bsky.draft.defs#draft] object. [posts] is required;
+      optional [device_id] / [device_name] / [langs] /
+      [postgate_embedding_rules] / [threadgate_allow] map to the lexicon. *)
   let draft_json ?(device_id : string option) ?(device_name : string option)
       ?(langs = []) ?(postgate_embedding_rules = []) ?(threadgate_allow = [])
       ~posts () : Yojson.Safe.t =
@@ -306,11 +315,14 @@ module Draft = struct
     in
     `Assoc fields
 
+  (** JSON body for [app.bsky.draft.createDraft]. *)
   let create_draft_body draft : Yojson.Safe.t = `Assoc [ ("draft", draft) ]
 
+  (** JSON body for [app.bsky.draft.updateDraft]. [id] is the draft TID. *)
   let update_draft_body ~id draft : Yojson.Safe.t =
     `Assoc [ ("draft", `Assoc [ ("id", `String id); ("draft", draft) ]) ]
 
+  (** JSON body for [app.bsky.draft.deleteDraft]. [id] is the draft TID. *)
   let delete_draft_body ~id : Yojson.Safe.t = `Assoc [ ("id", `String id) ]
 
   (** Private stash drafts via [app.bsky.draft.getDrafts]. *)
@@ -325,11 +337,13 @@ module Draft = struct
       (Yojson.Safe.to_string (create_draft_body draft))
     |> fun json -> { id = Client.string_member json "id" }
 
+  (** Update a stash draft via [app.bsky.draft.updateDraft]. *)
   let update_draft (s : Session.session) ~id draft : unit =
     ignore
       (Client.post_json ~session:s "app.bsky.draft.updateDraft"
          (Yojson.Safe.to_string (update_draft_body ~id draft)))
 
+  (** Delete a stash draft via [app.bsky.draft.deleteDraft]. *)
   let delete_draft (s : Session.session) ~id () : unit =
     ignore
       (Client.post_json ~session:s "app.bsky.draft.deleteDraft"
