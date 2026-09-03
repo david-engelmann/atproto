@@ -181,6 +181,23 @@ let admin_leftover_get s nsid pairs =
 let admin_leftover_post s nsid data =
   admin_leftover_json (admin_call_post s nsid data)
 
+(* Pin f0d4877a optional interestsPref.updatedAt. Assert the parser only
+   when the served JSON includes the field. *)
+let leftover_assert_interests_updated_at_when_present
+    (prefs : Actor.preferences) =
+  List.iter
+    (fun (p : Actor.preference) ->
+      match p.kind with
+      | `Interests i -> (
+          match Yojson.Safe.Util.member "updatedAt" p.original with
+          | `String ts ->
+              OUnit2.assert_equal
+                ~printer:(function Some s -> s | None -> "<none>")
+                (Some ts) i.updated_at
+          | _ -> ())
+      | _ -> ())
+    prefs.preferences
+
 (* signPlcOperation is served on PDS 0.5.31 but requires an email
    confirmation token TestNetwork cannot deliver. Skip that hop only. *)
 let pds_sign_plc_if_served ?session data =
@@ -678,7 +695,8 @@ let test_other_pds_xrpc _ =
     ];
   let prefs = Actor.get_preferences s in
   OUnit2.assert_bool "putPreferences round-trip"
-    (List.length prefs.preferences >= 0)
+    (List.length prefs.preferences >= 0);
+  leftover_assert_interests_updated_at_when_present prefs
 
 let test_referencelistoptout_and_import _ =
   let s = session () in
@@ -1250,6 +1268,56 @@ let test_leftover_temp _ =
        (Yojson.Safe.to_string
           (Temp.revoke_account_credentials_body ~account:doomed.auth.did ())))
 
+(* Live leftover: PDS app.bsky.actor.putPreferences / getPreferences with
+   interestsPref.updatedAt (pin f0d4877a). Skip if not served or
+   TestNetwork policy. Assert parsed updated_at only when the response
+   JSON has updatedAt. requestPhoneVerification stays listed not faked. *)
+let test_leftover_interests_updated_at _ =
+  let s = session () in
+  let updated = "2026-09-03T18:02:59.000Z" in
+  let wrote =
+    match
+      pds_leftover_json
+        (Client.post_json ~session:s ~host:(pds_host ())
+           "app.bsky.actor.putPreferences"
+           (Yojson.Safe.to_string
+              (`Assoc
+                [
+                  ( "preferences",
+                    `List
+                      [
+                        `Assoc
+                          [
+                            ( "$type",
+                              `String "app.bsky.actor.defs#interestsPref" );
+                            ("tags", `List [ `String "ocaml" ]);
+                            ("updatedAt", `String updated);
+                          ];
+                      ] );
+                ])))
+    with
+    | None -> false
+    | Some _ -> true
+  in
+  match
+    pds_leftover_json
+      (Client.get_json ~session:s ~host:(pds_host ())
+         "app.bsky.actor.getPreferences" [])
+  with
+  | None -> ()
+  | Some json ->
+      let prefs = Actor.parse_preferences json in
+      OUnit2.assert_bool "leftover getPreferences"
+        (List.length prefs.preferences >= 0);
+      if wrote then
+        List.iter
+          (fun (p : Actor.preference) ->
+            match p.kind with
+            | `Interests i -> OUnit2.assert_equal [ "ocaml" ] i.tags
+            | _ -> ())
+          prefs.preferences;
+      leftover_assert_interests_updated_at_when_present prefs
+
 let suite =
   "local_pds"
   >::: [
@@ -1279,6 +1347,8 @@ let suite =
          "test_leftover_admin" >:: test_leftover_admin;
          "test_leftover_server" >:: test_leftover_server;
          "test_leftover_temp" >:: test_leftover_temp;
+         "test_leftover_interests_updated_at"
+         >:: test_leftover_interests_updated_at;
        ]
 
 let () =

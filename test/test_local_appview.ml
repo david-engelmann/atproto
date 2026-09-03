@@ -175,6 +175,23 @@ let av_post_leftover ?session nsid data =
   av_leftover_json
     (Client.post_json_appview ?session ~host:(appview_host ()) nsid data)
 
+(* Pin f0d4877a optional interestsPref.updatedAt. Assert the parser only
+   when the served JSON includes the field. TestNetwork 0.6.4 may strip
+   it; that is not a fail. *)
+let assert_interests_updated_at_when_present (prefs : Actor.preferences) =
+  List.iter
+    (fun (p : Actor.preference) ->
+      match p.kind with
+      | `Interests i -> (
+          match Yojson.Safe.Util.member "updatedAt" p.original with
+          | `String ts ->
+              OUnit2.assert_equal
+                ~printer:(function Some s -> s | None -> "<none>")
+                (Some ts) i.updated_at
+          | _ -> ())
+      | _ -> ())
+    prefs.preferences
+
 (* AppView hydrates PDS writes asynchronously (see test_feed_after_writes). *)
 let av_get_until ?session ~attempts ~retry_message nsid pairs =
   let rec go n =
@@ -424,7 +441,8 @@ let test_more_appview _ =
   | None -> ()
   | Some json ->
       let prefs = Actor.parse_preferences json in
-      OUnit2.assert_bool "getPreferences" (List.length prefs.preferences >= 0));
+      OUnit2.assert_bool "getPreferences" (List.length prefs.preferences >= 0);
+      assert_interests_updated_at_when_present prefs);
   (match
      av_get_if_served ~session:s "app.bsky.notification.getUnreadCount" []
    with
@@ -1313,6 +1331,50 @@ let test_leftover_feed_notification _ =
   | None -> ()
   | Some _ -> OUnit2.assert_bool "putPreferences v1" true
 
+(* Live leftover: app.bsky.actor.getPreferences / putPreferences with
+   interestsPref.updatedAt (pin f0d4877a / upstream #5481). Skip if not
+   served or TestNetwork policy. Assert parsed updated_at only when the
+   response JSON has updatedAt. Hosted-only chat / video / Tap / phone /
+   contacts / push stay listed not faked. *)
+let test_leftover_interests_updated_at _ =
+  let s = session () in
+  let updated = "2026-09-03T18:02:59.000Z" in
+  let wrote =
+    match
+      av_post_leftover ~session:s "app.bsky.actor.putPreferences"
+        (Yojson.Safe.to_string
+           (`Assoc
+             [
+               ( "preferences",
+                 `List
+                   [
+                     `Assoc
+                       [
+                         ("$type", `String "app.bsky.actor.defs#interestsPref");
+                         ("tags", `List [ `String "ocaml" ]);
+                         ("updatedAt", `String updated);
+                       ];
+                   ] );
+             ]))
+    with
+    | None -> false
+    | Some _ -> true
+  in
+  match av_get_leftover ~session:s "app.bsky.actor.getPreferences" [] with
+  | None -> ()
+  | Some json ->
+      let prefs = Actor.parse_preferences json in
+      OUnit2.assert_bool "leftover getPreferences"
+        (List.length prefs.preferences >= 0);
+      if wrote then
+        List.iter
+          (fun (p : Actor.preference) ->
+            match p.kind with
+            | `Interests i -> OUnit2.assert_equal [ "ocaml" ] i.tags
+            | _ -> ())
+          prefs.preferences;
+      assert_interests_updated_at_when_present prefs
+
 let suite =
   "local_appview"
   >::: [
@@ -1330,6 +1392,8 @@ let suite =
          "test_leftover_served" >:: test_leftover_served;
          "test_unspecced_and_ageassurance" >:: test_unspecced_and_ageassurance;
          "test_leftover_feed_notification" >:: test_leftover_feed_notification;
+         "test_leftover_interests_updated_at"
+         >:: test_leftover_interests_updated_at;
        ]
 
 let () =
