@@ -17,6 +17,9 @@ Not on the public opam-repository. Pin the GitHub repo (OCaml
 opam pin add atproto git+https://github.com/david-engelmann/atproto.git
 ]}
 
+Jetstream dict-zstd needs Jane Street [zstandard] / system
+libzstd (Ubuntu/Debian [libzstd-dev], macOS Homebrew [zstd]).
+
 Then [(libraries atproto)] in dune.
 
 {1 Documentation}
@@ -32,7 +35,7 @@ Auth / Session
 
 XRPC
 
-{!modules: Atproto.Xrpc}
+{!modules: Atproto.Xrpc Atproto.Error}
 
 Identity / PLC
 
