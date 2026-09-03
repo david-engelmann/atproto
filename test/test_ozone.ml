@@ -62,6 +62,216 @@ let test_takedown_event _ =
     "tools.ozone.moderation.defs#modEventTakedown"
     (ev |> member "$type" |> to_string)
 
+let json_has_field name json =
+  match json with
+  | `Assoc fields -> List.exists (fun (k, _) -> k = name) fields
+  | _ -> false
+
+let json_type json =
+  match Yojson.Safe.Util.member "$type" json with `String s -> s | _ -> ""
+
+let test_event_and_subject_to_json _ =
+  let open Yojson.Safe.Util in
+  let comment_json =
+    Ozone.event_to_json (`Comment { comment = "note"; sticky = Some true })
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "tools.ozone.moderation.defs#modEventComment" (json_type comment_json);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "note"
+    (comment_json |> member "comment" |> to_string);
+  OUnit2.assert_equal true (comment_json |> member "sticky" |> to_bool);
+  let comment_plain =
+    Ozone.event_to_json (`Comment { comment = "plain"; sticky = None })
+  in
+  OUnit2.assert_bool "sticky omitted when None"
+    (not (json_has_field "sticky" comment_plain));
+  let ack =
+    Ozone.event_to_json
+      (`Acknowledge
+        { comment = Some "seen"; acknowledge_account_subjects = Some true })
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "tools.ozone.moderation.defs#modEventAcknowledge" (json_type ack);
+  OUnit2.assert_equal true
+    (ack |> member "acknowledgeAccountSubjects" |> to_bool);
+  let takedown =
+    Ozone.event_to_json
+      (`Takedown
+        {
+          comment = Some "spam";
+          duration_in_hours = None;
+          acknowledge_account_subjects = Some false;
+          policies = [ "spam" ];
+        })
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "tools.ozone.moderation.defs#modEventTakedown" (json_type takedown);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "spam"
+    (takedown |> member "comment" |> to_string);
+  OUnit2.assert_bool "durationInHours omitted when None"
+    (not (json_has_field "durationInHours" takedown));
+  OUnit2.assert_bool "leftover severityLevel not invented"
+    (not (json_has_field "severityLevel" takedown));
+  OUnit2.assert_bool "leftover strikeCount not invented"
+    (not (json_has_field "strikeCount" takedown));
+  OUnit2.assert_bool "leftover targetServices not invented"
+    (not (json_has_field "targetServices" takedown));
+  let repo =
+    Ozone.subject_to_json (`Repo_ref { did = "did:plc:abc123xyz0001112223333" })
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "com.atproto.admin.defs#repoRef" (json_type repo);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:abc123xyz0001112223333"
+    (repo |> member "did" |> to_string);
+  let strong =
+    Ozone.subject_to_json
+      (`Strong_ref
+        {
+          uri =
+            "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3jzfcijpj2z2a";
+          cid = "bafyreicid";
+        })
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "com.atproto.repo.strongRef" (json_type strong);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "bafyreicid"
+    (strong |> member "cid" |> to_string);
+  let tool =
+    Ozone.mod_tool_to_json { name = "automod"; meta = Some (`Assoc []) }
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "automod"
+    (tool |> member "name" |> to_string)
+
+let test_emit_event_typed_body_roundtrip _ =
+  let open Yojson.Safe.Util in
+  let comment_src =
+    `Assoc
+      [
+        ("$type", `String "tools.ozone.moderation.defs#modEventComment");
+        ("comment", `String "roundtrip");
+        ("sticky", `Bool true);
+      ]
+  in
+  let ack_src =
+    `Assoc
+      [
+        ("$type", `String "tools.ozone.moderation.defs#modEventAcknowledge");
+        ("comment", `String "ack");
+      ]
+  in
+  let takedown_src =
+    `Assoc
+      [
+        ("$type", `String "tools.ozone.moderation.defs#modEventTakedown");
+        ("comment", `String "spam");
+        ("acknowledgeAccountSubjects", `Bool true);
+        ("policies", `List [ `String "spam" ]);
+      ]
+  in
+  let repo_src =
+    `Assoc
+      [
+        ("$type", `String "com.atproto.admin.defs#repoRef");
+        ("did", `String "did:plc:abc123xyz0001112223333");
+      ]
+  in
+  let strong_src =
+    `Assoc
+      [
+        ("$type", `String "com.atproto.repo.strongRef");
+        ( "uri",
+          `String
+            "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3jzfcijpj2z2a"
+        );
+        ("cid", `String "bafyreicid");
+      ]
+  in
+  (match
+     Ozone.parse_event (Ozone.event_to_json (Ozone.parse_event comment_src))
+   with
+  | `Comment c ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "roundtrip" c.comment;
+      OUnit2.assert_equal (Some true) c.sticky
+  | _ -> OUnit2.assert_failure "expected comment after encode");
+  (match
+     Ozone.parse_event (Ozone.event_to_json (Ozone.parse_event ack_src))
+   with
+  | `Acknowledge a ->
+      OUnit2.assert_equal (Some "ack") a.comment;
+      OUnit2.assert_equal None a.acknowledge_account_subjects
+  | _ -> OUnit2.assert_failure "expected acknowledge after encode");
+  (match
+     Ozone.parse_event (Ozone.event_to_json (Ozone.parse_event takedown_src))
+   with
+  | `Takedown t ->
+      OUnit2.assert_equal (Some "spam") t.comment;
+      OUnit2.assert_equal (Some true) t.acknowledge_account_subjects;
+      OUnit2.assert_equal [ "spam" ] t.policies;
+      OUnit2.assert_equal None t.duration_in_hours
+  | _ -> OUnit2.assert_failure "expected takedown after encode");
+  (match
+     Ozone.parse_subject (Ozone.subject_to_json (Ozone.parse_subject repo_src))
+   with
+  | `Repo_ref r ->
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "did:plc:abc123xyz0001112223333" r.did
+  | _ -> OUnit2.assert_failure "expected repoRef after encode");
+  (match
+     Ozone.parse_subject
+       (Ozone.subject_to_json (Ozone.parse_subject strong_src))
+   with
+  | `Strong_ref r ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "bafyreicid" r.cid
+  | _ -> OUnit2.assert_failure "expected strongRef after encode");
+  let unknown =
+    `Assoc
+      [
+        ("$type", `String "tools.ozone.moderation.defs#futureEvent");
+        ("extra", `String "keep");
+      ]
+  in
+  OUnit2.assert_equal unknown (Ozone.event_to_json (Ozone.parse_event unknown));
+  let body =
+    Ozone.emit_event_typed_body
+      ~event:(`Comment { comment = "typed"; sticky = None })
+      ~subject:(`Repo_ref { did = "did:plc:abc123xyz0001112223333" })
+      ~created_by:"did:plc:mod000111222333444555666" ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "tools.ozone.moderation.defs#modEventComment"
+    (body |> member "event" |> member "$type" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:abc123xyz0001112223333"
+    (body |> member "subject" |> member "did" |> to_string);
+  let raw =
+    Ozone.emit_event_body
+      ~event:(Ozone.comment_event "raw")
+      ~subject:(Ozone.repo_ref "did:plc:abc123xyz0001112223333")
+      ~created_by:"did:plc:mod000111222333444555666" ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "raw"
+    (raw |> member "event" |> member "comment" |> to_string)
+
 let test_parse_timeline_and_schedule _ =
   let timeline =
     Ozone.parse_account_timeline
@@ -763,6 +973,7 @@ let test_service_auth_helpers_exist _ =
   (* OAuth DPoP cannot be proxied; these talk to the Ozone host with a
      PDS-minted service-auth Bearer. Live coverage is test_live_oauth_ozone. *)
   ignore Ozone.emit_event_service;
+  ignore Ozone.emit_event_service_typed;
   ignore Ozone.query_events_service;
   ignore Ozone.get_config_service;
   OUnit2.assert_bool "ozone host env"
@@ -787,6 +998,9 @@ let suite =
          "test_parse_statuses" >:: test_parse_statuses;
          "test_emit_event_body" >:: test_emit_event_body;
          "test_takedown_event" >:: test_takedown_event;
+         "test_event_and_subject_to_json" >:: test_event_and_subject_to_json;
+         "test_emit_event_typed_body_roundtrip"
+         >:: test_emit_event_typed_body_roundtrip;
          "test_parse_timeline_and_schedule" >:: test_parse_timeline_and_schedule;
          "test_parse_typed_event_and_subject"
          >:: test_parse_typed_event_and_subject;
