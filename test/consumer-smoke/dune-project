@@ -1,0 +1,2 @@
+(lang dune 2.9)
+(name atproto_consumer_smoke)

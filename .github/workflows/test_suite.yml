@@ -67,6 +67,59 @@ jobs:
           path: dune_runtest.log
           if-no-files-found: warn
 
+      # Install from generated atproto.opam (not _build/default/src), then
+      # compile a separate Dune project that cannot see the source tree.
+      # Does not publish to opam-repository and does not create a release/tag.
+      - name: Install local atproto package
+        run: opam install . --yes
+
+      - name: Downstream installed-package smoke test
+        run: |
+          set -euo pipefail
+          switch="$(opam var switch)"
+          prefix="$(opam var prefix)"
+          installed="${prefix}/lib/atproto"
+          workspace="${GITHUB_WORKSPACE}"
+          echo "opam prefix: ${prefix}"
+          echo "installed atproto: ${installed}"
+          if [ ! -d "${installed}" ]; then
+            echo "expected installed library at ${installed}" >&2
+            exit 1
+          fi
+          # setup-ocaml uses ${GITHUB_WORKSPACE}/_opam; reject dune _build only.
+          case "${installed}" in
+            */_build/*|"${workspace}/_build"*)
+              echo "atproto resolved from dune _build, not opam install: ${installed}" >&2
+              exit 1
+              ;;
+          esac
+          # Wrapped library: atproto.cmi plus atproto__Tid.cmi, not tid.cmi.
+          if [ ! -f "${installed}/atproto.cmi" ]; then
+            echo "missing wrapper atproto.cmi under ${installed}" >&2
+            ls -la "${installed}" >&2
+            exit 1
+          fi
+          for m in Tid Syntax Oauth; do
+            if [ ! -f "${installed}/atproto__${m}.cmi" ]; then
+              echo "missing atproto__${m}.cmi under ${installed} (wrap/export incomplete)" >&2
+              ls -la "${installed}" >&2
+              exit 1
+            fi
+          done
+          smoke="${RUNNER_TEMP}/atproto-consumer-smoke"
+          rm -rf "${smoke}"
+          mkdir -p "${smoke}"
+          cp -R test/consumer-smoke/. "${smoke}/"
+          case "${smoke}" in
+            "${workspace}"*)
+              echo "smoke directory is inside the source tree: ${smoke}" >&2
+              exit 1
+              ;;
+          esac
+          cd "${smoke}"
+          opam exec --switch="${switch}" -- dune build
+          opam exec --switch="${switch}" -- dune exec -- ./main.exe
+
   lint-doc:
     strategy:
       fail-fast: false
