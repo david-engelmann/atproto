@@ -1,5 +1,2 @@
-; Isolated downstream consumer used by TestSuite.
-; Copied out of the source tree before `dune build` so it can only
-; see the installed `atproto` package, not `src/`.
 (lang dune 2.9)
 (name atproto_consumer_smoke)
