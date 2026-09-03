@@ -1100,6 +1100,8 @@ module Embed = struct
         | _ -> []);
     }
 
+  (** External embed view via [app.bsky.embed.getEmbedExternalView]. GET hop
+      for [url] plus [uris]. *)
   let get_embed_external_view ?session ?host ~url ~uris () : embed_external_view
       =
     Client.Client.get_json ?session ?host "app.bsky.embed.getEmbedExternalView"
