@@ -1,7 +1,7 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#166](https://github.com/david-engelmann/atproto/pull/166):
+shipped through [#168](https://github.com/david-engelmann/atproto/pull/168):
 official lexicon pin `5c154f9c` and `Ozone.get_account_preferences`
 ([#132](https://github.com/david-engelmann/atproto/pull/132)), live leftover
 TestNetwork NSIDs ([#129](https://github.com/david-engelmann/atproto/pull/129))
@@ -14,7 +14,9 @@ TestNetwork hops for remaining `com.atproto.admin` NSIDs
 leftover `com.atproto.temp` operator hops
 ([#162](https://github.com/david-engelmann/atproto/pull/162)), live leftover
 AppView `getFeedSkeleton`
-([#163](https://github.com/david-engelmann/atproto/pull/163)), odoc landing
+([#163](https://github.com/david-engelmann/atproto/pull/163)), live leftover
+unspecced age-assurance
+([#168](https://github.com/david-engelmann/atproto/pull/168)), odoc landing
 leftover modules ([#165](https://github.com/david-engelmann/atproto/pull/165)),
 and remaining function-level odoc through
 [#166](https://github.com/david-engelmann/atproto/pull/166).
@@ -160,6 +162,11 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   TestNetwork hop for AppView `app.bsky.feed.getFeedSkeleton` only
   against our leftover generator when `is_online`. Skip unhosted
   generator / not served. Policy-skip, not fake
+- [#168](https://github.com/david-engelmann/atproto/pull/168): live leftover
+  TestNetwork hops for AppView `app.bsky.unspecced.getAgeAssuranceState` /
+  `initAgeAssurance`. Skip when not served or TestNetwork policy.
+  Distinct from the dedicated `app.bsky.ageassurance.*` hops. No hosted
+  verifier faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
