@@ -52,7 +52,7 @@ OAuth / DPoP
 
 AppView
 
-{!modules: Atproto.Actor Atproto.Feed Atproto.Graph Atproto.Bookmark Atproto.Notification Atproto.Labeler Atproto.Unspecced Atproto.Video}
+{!modules: Atproto.Actor Atproto.Feed Atproto.Graph Atproto.Bookmark Atproto.Notification Atproto.Labeler Atproto.Unspecced Atproto.Video Atproto.Draft Atproto.Contact Atproto.Ageassurance Atproto.Site}
 
 Ozone
 
@@ -63,5 +63,5 @@ Chat client
 {!modules: Atproto.Chat}
 
 Also {!Atproto.Repo}, {!Atproto.Records}, {!Atproto.Server},
-{!Atproto.Sync}, {!Atproto.Label}, {!Atproto.Lexicon}, and
-{!Atproto.Http_client}.
+{!Atproto.Sync}, {!Atproto.Label}, {!Atproto.Lexicon},
+{!Atproto.Http_client}, and {!Atproto.Germnetwork}.
