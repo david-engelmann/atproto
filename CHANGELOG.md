@@ -1,7 +1,7 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#174](https://github.com/david-engelmann/atproto/pull/174):
+shipped through [#177](https://github.com/david-engelmann/atproto/pull/177):
 official lexicon pin `5c154f9c` and `Ozone.get_account_preferences`
 ([#132](https://github.com/david-engelmann/atproto/pull/132)), live leftover
 TestNetwork NSIDs ([#129](https://github.com/david-engelmann/atproto/pull/129))
@@ -27,10 +27,17 @@ leftover public protocol modules
 installed-package consumer smoke
 ([#172](https://github.com/david-engelmann/atproto/pull/172)), notes through
 [#172](https://github.com/david-engelmann/atproto/pull/172)
-([#173](https://github.com/david-engelmann/atproto/pull/173)), and documented
+([#173](https://github.com/david-engelmann/atproto/pull/173)), documented
 libzstd system dependency for Jane Street `zstandard` / Jetstream
 dict-zstd (Ubuntu/Debian `libzstd-dev`, Homebrew `zstd`)
-([#174](https://github.com/david-engelmann/atproto/pull/174)).
+([#174](https://github.com/david-engelmann/atproto/pull/174)), notes through
+[#174](https://github.com/david-engelmann/atproto/pull/174)
+([#175](https://github.com/david-engelmann/atproto/pull/175)), Error on
+the odoc landing map plus libzstd install notes in odoc / the install
+issue template ([#176](https://github.com/david-engelmann/atproto/pull/176)),
+and remaining function-level odoc on `Client.get_json_h2` /
+`Client.post_json_h2` plus `Feed.filter_posts_*`
+([#177](https://github.com/david-engelmann/atproto/pull/177)).
 
 This package is **not** published to the public
 [opam-repository](https://github.com/ocaml/opam-repository). Depend on it by
@@ -428,6 +435,18 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   libzstd system dependency for installs (README +
   `.github/CONTRIBUTING.md`). Jane Street `zstandard` / Jetstream
   dict-zstd; Ubuntu/Debian `libzstd-dev`, Homebrew `zstd`
+- [#175](https://github.com/david-engelmann/atproto/pull/175): Point
+  CHANGELOG and remaining-gaps through #174. Docs-only notes hygiene
+- [#176](https://github.com/david-engelmann/atproto/pull/176): Add Error
+  to the odoc landing map and libzstd install notes (`doc/index.mld`
+  `{1 Install}` plus `.github/ISSUE_TEMPLATE/03-install.md`). Jane Street
+  `zstandard` / Jetstream dict-zstd; Ubuntu/Debian `libzstd-dev`,
+  Homebrew `zstd`
+- [#177](https://github.com/david-engelmann/atproto/pull/177): remaining
+  function-level odoc on public `Client.get_json_h2` /
+  `Client.post_json_h2` (`Http_client` HTTP/2 TLS; hosts with an
+  explicit port stay on Cohttp) plus one-line odoc on
+  `Feed.filter_posts_*` `getAuthorFeed` knownValues. Comment-only
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
