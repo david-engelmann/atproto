@@ -1,7 +1,13 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#188](https://github.com/david-engelmann/atproto/pull/188):
+shipped through [#189](https://github.com/david-engelmann/atproto/pull/189):
+Xrpc `x-atproto-bsky-topics` helpers
+(`topics_to_string` / `topics_header` / `legacy_topics_header` /
+`topics_headers` / `parse_topics` / `topics_from_headers`; current
+header `x-atproto-bsky-topics`, deprecated `x-bsky-topics`; no lexicon
+pin bump) on top of
+[#188](https://github.com/david-engelmann/atproto/pull/188):
 OAuth live Ozone hop uses `emit_event_service_typed` on top of
 [#187](https://github.com/david-engelmann/atproto/pull/187):
 typed `Ozone.emit_event` encoding
@@ -272,6 +278,18 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `emit_event_typed` on `test_local_ozone.ml`). Skip-if-not-served /
   `classify_ozone` unchanged. Raw Yojson `emit_event_service` stays.
   Does not invent hosted chat / video / Tap / phone / contacts / push
+- [#189](https://github.com/david-engelmann/atproto/pull/189): Xrpc
+  helpers for Bluesky topics headers, same shape as
+  `accept_labelers_header`. `topics_to_string` comma-joins topic
+  strings (upstream array join). `topics_header` builds
+  (`x-atproto-bsky-topics`, value); `legacy_topics_header` builds
+  deprecated (`x-bsky-topics`, value); `topics_headers` returns the
+  current pair and optionally the legacy pair for
+  `Client.get_json ~extra`. `parse_topics` / `topics_from_headers`
+  read comma-separated values and prefer the current header over
+  legacy. Mirrors bluesky-social/atproto #5448 (`80d391a2`) client
+  header names; does not bump the lexicon pin (`f0d4877a`). No
+  hosted chat / video / Tap / phone / contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert

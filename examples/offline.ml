@@ -982,6 +982,16 @@ let () =
   assert (describe.did = "did:web:bsky.social");
   let proxy = Xrpc.parse_proxy "did:web:api.bsky.chat#bsky_chat" in
   assert (proxy.service = "bsky_chat");
+  let topics_h, topics_v = Xrpc.topics_header [ "news"; "sports" ] in
+  assert (topics_h = Xrpc.topics_header_name);
+  assert (topics_v = "news,sports");
+  let topics_extra = Xrpc.topics_headers ~legacy:true [ "news"; "sports" ] in
+  assert (List.length topics_extra = 2);
+  assert (Xrpc.parse_topics topics_v = [ "news"; "sports" ]);
+  let legacy_h, legacy_v = Xrpc.legacy_topics_header [ "news" ] in
+  assert (legacy_h = Xrpc.legacy_topics_header_name);
+  assert (legacy_v = "news");
+  assert (Xrpc.topics_from_headers topics_extra = [ "news"; "sports" ]);
   let scopes = Oauth_scope.parse "atproto repo:app.bsky.feed.post" in
   Oauth_scope.require_atproto scopes;
   let ev =

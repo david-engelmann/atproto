@@ -53,6 +53,40 @@ let test_labelers _ =
   OUnit2.assert_equal "atproto-accept-labelers" h;
   OUnit2.assert_equal ~printer:(fun x -> x) "did:web:mod.example.com;redact" v
 
+let test_topics _ =
+  let h, v = Xrpc.topics_header [ "news"; "sports" ] in
+  OUnit2.assert_equal "x-atproto-bsky-topics" h;
+  OUnit2.assert_equal ~printer:(fun x -> x) Xrpc.topics_header_name h;
+  OUnit2.assert_equal ~printer:(fun x -> x) "news,sports" v;
+  OUnit2.assert_equal ~printer:(fun x -> x) "news,sports"
+    (Xrpc.topics_to_string [ "news"; "sports" ]);
+  let lh, lv = Xrpc.legacy_topics_header [ "news"; "sports" ] in
+  OUnit2.assert_equal "x-bsky-topics" lh;
+  OUnit2.assert_equal ~printer:(fun x -> x) Xrpc.legacy_topics_header_name lh;
+  OUnit2.assert_equal ~printer:(fun x -> x) "news,sports" lv;
+  OUnit2.assert_equal
+    [ ("x-atproto-bsky-topics", "news,sports") ]
+    (Xrpc.topics_headers [ "news"; "sports" ]);
+  OUnit2.assert_equal
+    [
+      ("x-atproto-bsky-topics", "news,sports");
+      ("x-bsky-topics", "news,sports");
+    ]
+    (Xrpc.topics_headers ~legacy:true [ "news"; "sports" ]);
+  OUnit2.assert_equal [ "news"; "sports"; "tech" ]
+    (Xrpc.parse_topics "news, sports, ,tech");
+  let _, trimmed = Xrpc.topics_header [ " news "; ""; "sports" ] in
+  OUnit2.assert_equal ~printer:(fun x -> x) "news,sports" trimmed;
+  OUnit2.assert_equal [ "news"; "sports" ]
+    (Xrpc.topics_from_headers
+       [
+         ("X-Bsky-Topics", "legacy-only");
+         ("x-atproto-bsky-topics", "news,sports");
+       ]);
+  OUnit2.assert_equal [ "legacy" ]
+    (Xrpc.topics_from_headers [ ("x-bsky-topics", "legacy") ]);
+  OUnit2.assert_equal [] (Xrpc.topics_from_headers [ ("accept", "*/*") ])
+
 let test_rate_limit _ =
   let rl =
     Xrpc.parse_rate_limit
@@ -255,6 +289,7 @@ let suite =
   >::: [
          "test_proxy" >:: test_proxy;
          "test_labelers" >:: test_labelers;
+         "test_topics" >:: test_topics;
          "test_rate_limit" >:: test_rate_limit;
          "test_repo_rev" >:: test_repo_rev;
          "test_service_auth_jwt" >:: test_service_auth_jwt;
