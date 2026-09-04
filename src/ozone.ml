@@ -2457,7 +2457,8 @@ module Ozone = struct
       [create_activity_body]; [activity] is the parsed union). *)
   let create_activity_typed_body ~activity ?report_id ?event_id ?internal_note
       ?public_note ?is_automated () : Yojson.Safe.t =
-    create_activity_body ~activity:(report_activity_to_json activity)
+    create_activity_body
+      ~activity:(report_activity_to_json activity)
       ?report_id ?event_id ?internal_note ?public_note ?is_automated ()
 
   (** Reports via [tools.ozone.report.queryReports] ([status] required). *)
@@ -2544,7 +2545,8 @@ module Ozone = struct
   let create_activity_typed (s : Session.session) ~proxy ~activity ?report_id
       ?event_id ?internal_note ?public_note ?is_automated () :
       report_activity_view =
-    create_activity s ~proxy ~activity:(report_activity_to_json activity)
+    create_activity s ~proxy
+      ~activity:(report_activity_to_json activity)
       ?report_id ?event_id ?internal_note ?public_note ?is_automated ()
 
   (** Activities for [report_id] via [tools.ozone.report.listActivities]. *)
