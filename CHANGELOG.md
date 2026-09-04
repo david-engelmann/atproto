@@ -1,7 +1,11 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#192](https://github.com/david-engelmann/atproto/pull/192):
+shipped through [#193](https://github.com/david-engelmann/atproto/pull/193):
+Repo `delete_record_body` + parsed `apply_writes`
+(`delete_record_body` / `apply_writes_parsed`; string `delete_record` /
+`apply_writes` unchanged) on top of
+[#192](https://github.com/david-engelmann/atproto/pull/192):
 Repo create/put Yojson record helpers
 (`create_record_json` / `put_record_json` / `create_record_body` /
 `put_record_body`; string `create_record` / `put_record` unchanged) on top of
@@ -334,6 +338,16 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   share the body builders. Does not invent leftover unused lexicon
   fields. No lexicon pin bump. No hosted chat / video / Tap / phone /
   contacts / push faked
+- [#193](https://github.com/david-engelmann/atproto/pull/193): Repo
+  `delete_record_body` plus `apply_writes_parsed`. The body builder
+  uses the same lexicon field names as string `delete_record`
+  (`repo` / `collection` / `rkey` / optional `swapRecord` /
+  `swapCommit`) and shares `post_repo_write`. `apply_writes_parsed`
+  calls `apply_writes` then `parse_apply_writes_result` (existing
+  `apply_writes_result`: optional `commit` / `results`). String
+  `delete_record` / `apply_writes` stay unchanged. Does not invent
+  leftover unused lexicon fields. No lexicon pin bump. No hosted chat /
+  video / Tap / phone / contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -679,6 +693,14 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   unchanged and share the body builders. Does not invent leftover
   unused createRecord / putRecord fields. Hosted-only chat / video /
   Tap / phone / contacts / push stay listed not faked
+- [#193](https://github.com/david-engelmann/atproto/pull/193): Repo
+  `delete_record_body` plus `apply_writes_parsed`. String
+  `delete_record` shares the body builder via `post_repo_write`.
+  `apply_writes_parsed` calls `apply_writes` then
+  `parse_apply_writes_result`. Raw-string `apply_writes` unchanged.
+  Does not invent leftover unused deleteRecord / applyWrites fields.
+  Hosted-only chat / video / Tap / phone / contacts / push stay
+  listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 

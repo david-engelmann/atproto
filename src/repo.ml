@@ -354,19 +354,11 @@ module Repo = struct
          ?swap_commit record)
     |> Yojson.Safe.from_string |> parse_write_result
 
-  (** Delete a record via [com.atproto.repo.deleteRecord]. Optional
-      [swap_record] / [swap_commit] map to the lexicon inputs. *)
-  let delete_record (s : Session.session) (repo : string) (collection : string)
-      ?swap_record ?swap_commit (rkey : string) : string =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let delete_record_url =
-      App.create_endpoint_url base_url (create_repo_endpoint "deleteRecord")
-    in
+  (** JSON body for [com.atproto.repo.deleteRecord]. Same field names as
+      [delete_record] ([repo] / [collection] / [rkey] / optional
+      [swapRecord] / [swapCommit]). *)
+  let delete_record_body ~repo ~collection ~rkey ?swap_record ?swap_commit () :
+      Yojson.Safe.t =
     let fields =
       [
         Some ("repo", `String repo);
@@ -380,13 +372,15 @@ module Repo = struct
           swap_commit;
       ]
     in
-    let json_data = `Assoc (List.filter_map Fun.id fields) in
-    let data = Yojson.Basic.to_string json_data in
-    let deleted_record =
-      Lwt_main.run
-        (Cohttp_client.post_data_with_headers delete_record_url data headers)
-    in
-    deleted_record
+    `Assoc (List.filter_map Fun.id fields)
+
+  (** Delete a record via [com.atproto.repo.deleteRecord]. Optional
+      [swap_record] / [swap_commit] map to the lexicon inputs. Shares
+      [delete_record_body] with callers that need the JSON. *)
+  let delete_record (s : Session.session) (repo : string) (collection : string)
+      ?swap_record ?swap_commit (rkey : string) : string =
+    post_repo_write s "deleteRecord"
+      (delete_record_body ~repo ~collection ~rkey ?swap_record ?swap_commit ())
 
   type write_op =
     | Create of {
@@ -444,20 +438,17 @@ module Repo = struct
       [com.atproto.repo.applyWrites]. Returns the raw JSON body. *)
   let apply_writes (s : Session.session) ~repo ~writes ?validate ?swap_commit ()
       : string =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let url =
-      App.create_endpoint_url base_url (create_repo_endpoint "applyWrites")
-    in
-    let data =
-      Yojson.Safe.to_string
-        (apply_writes_body ~repo ~writes ?validate ?swap_commit ())
-    in
-    Lwt_main.run (Cohttp_client.post_data_with_headers url data headers)
+    post_repo_write s "applyWrites"
+      (apply_writes_body ~repo ~writes ?validate ?swap_commit ())
+
+  (** Apply a batch of create/update/delete ops via
+      [com.atproto.repo.applyWrites] and parse the response. Same
+      arguments as [apply_writes]. Returns [apply_writes_result]
+      ([commit] / [results]) via [parse_apply_writes_result]. *)
+  let apply_writes_parsed (s : Session.session) ~repo ~writes ?validate
+      ?swap_commit () : apply_writes_result =
+    apply_writes s ~repo ~writes ?validate ?swap_commit ()
+    |> Yojson.Safe.from_string |> parse_apply_writes_result
 
   type blob_ref = {
     cid : string;

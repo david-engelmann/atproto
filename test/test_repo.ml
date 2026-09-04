@@ -89,6 +89,88 @@ let test_create_put_record_json_body _ =
   ignore Repo.create_record_json;
   ignore Repo.put_record_json
 
+let test_delete_record_body _ =
+  let body =
+    Repo.delete_record_body ~repo:"did:plc:7iza6de2dwap2sbkpav7c6c6"
+      ~collection:"app.bsky.feed.post" ~rkey:"3jzfcijpj2z2a"
+      ~swap_record:"bafyreihswaprecord" ~swap_commit:"bafyreihdummy" ()
+  in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:7iza6de2dwap2sbkpav7c6c6"
+    (body |> member "repo" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "app.bsky.feed.post"
+    (body |> member "collection" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "3jzfcijpj2z2a"
+    (body |> member "rkey" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "bafyreihswaprecord"
+    (body |> member "swapRecord" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "bafyreihdummy"
+    (body |> member "swapCommit" |> to_string);
+  let keys =
+    match body with
+    | `Assoc fields -> List.map fst fields
+    | _ -> OUnit2.assert_failure "delete_record_body must be an object"
+  in
+  OUnit2.assert_equal
+    [ "repo"; "collection"; "rkey"; "swapRecord"; "swapCommit" ]
+    keys;
+  let minimal =
+    Repo.delete_record_body ~repo:"did:plc:7iza6de2dwap2sbkpav7c6c6"
+      ~collection:"app.bsky.feed.like" ~rkey:"3jzfcijpj2z2a" ()
+  in
+  OUnit2.assert_equal `Null (minimal |> member "swapRecord");
+  OUnit2.assert_equal `Null (minimal |> member "swapCommit")
+
+let test_apply_writes_parsed _ =
+  let sample =
+    `Assoc
+      [
+        ( "commit",
+          `Assoc
+            [
+              ("cid", `String "bafyreihdummy000000000000000000000000000000000");
+              ("rev", `String "3jzfcijpj2z2a");
+            ] );
+        ( "results",
+          `List
+            [
+              `Assoc
+                [
+                  ("$type", `String "com.atproto.repo.applyWrites#createResult");
+                  ( "uri",
+                    `String
+                      "at://did:plc:alice/app.bsky.feed.post/3jzfcijpj2z2a" );
+                  ( "cid",
+                    `String "bafyreihdummy000000000000000000000000000000000" );
+                ];
+            ] );
+      ]
+  in
+  let parsed =
+    sample |> Yojson.Safe.to_string |> Yojson.Safe.from_string
+    |> Repo.parse_apply_writes_result
+  in
+  (match parsed.commit with
+  | Some c ->
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "bafyreihdummy000000000000000000000000000000000" c.cid;
+      OUnit2.assert_equal ~printer:(fun x -> x) "3jzfcijpj2z2a" c.rev
+  | None -> OUnit2.assert_failure "expected commit");
+  OUnit2.assert_equal 1 (List.length parsed.results);
+  ignore Repo.apply_writes_parsed;
+  ignore Repo.apply_writes
+
 let test_apply_writes_body _ =
   let rkey = Tid.create ~clock_id:1 1_700_000_000_000_000L in
   let body =
@@ -300,6 +382,8 @@ let suite =
   >::: [
          "test_describe_repo" >:: test_describe_repo;
          "test_create_put_record_json_body" >:: test_create_put_record_json_body;
+         "test_delete_record_body" >:: test_delete_record_body;
+         "test_apply_writes_parsed" >:: test_apply_writes_parsed;
          "test_apply_writes_body" >:: test_apply_writes_body;
          "test_parse_blob_ref" >:: test_parse_blob_ref;
          "test_parse_list_missing_blobs" >:: test_parse_list_missing_blobs;
