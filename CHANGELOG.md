@@ -671,6 +671,14 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   served. Does not invent leftover unused createActivity fields.
   Hosted-only chat / video / Tap / phone / contacts / push stay
   listed not faked
+- [#192](https://github.com/david-engelmann/atproto/pull/192): Repo
+  create/put Yojson record helpers (`create_record_body` /
+  `put_record_body` / `create_record_json` / `put_record_json`).
+  `_json` paths take `record : Yojson.Safe.t` and return `write_result`
+  via `parse_write_result`. String `create_record` / `put_record`
+  unchanged and share the body builders. Does not invent leftover
+  unused createRecord / putRecord fields. Hosted-only chat / video /
+  Tap / phone / contacts / push stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
