@@ -127,7 +127,8 @@ let () =
           execute_after = None;
           execute_until = None;
         }
-      ~mod_tool:{ name = "automod"; meta = None } ()
+      ~mod_tool:{ name = "automod"; meta = None }
+      ()
   in
   assert (
     match

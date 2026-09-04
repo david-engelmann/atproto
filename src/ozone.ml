@@ -1143,14 +1143,16 @@ module Ozone = struct
   let schedule_action_typed_body ~action ~subjects ~created_by ~scheduling
       ?mod_tool () : Yojson.Safe.t =
     schedule_action_body ~action ~subjects ~created_by ~scheduling
-      ?mod_tool:(Option.map mod_tool_to_json mod_tool) ()
+      ?mod_tool:(Option.map mod_tool_to_json mod_tool)
+      ()
 
   (** Schedule a future action via [tools.ozone.moderation.scheduleAction].
       Optional [mod_tool] is the parsed record. *)
   let schedule_action_typed (s : Session.session) ~proxy ~action ~subjects
       ~created_by ~scheduling ?mod_tool () : batch_result =
     schedule_action s ~proxy ~action ~subjects ~created_by ~scheduling
-      ?mod_tool:(Option.map mod_tool_to_json mod_tool) ()
+      ?mod_tool:(Option.map mod_tool_to_json mod_tool)
+      ()
 
   (** Scheduled actions via [tools.ozone.moderation.listScheduledActions]. *)
   let list_scheduled_actions (s : Session.session) ~proxy ~statuses

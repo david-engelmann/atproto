@@ -386,8 +386,7 @@ let test_schedule_action_typed_body _ =
     Ozone.schedule_action_typed_body
       ~action:(Ozone.takedown_action ~comment:"spam" ())
       ~subjects:[ "did:plc:abc123xyz0001112223333" ]
-      ~created_by:"did:plc:mod000111222333444555666"
-      ~scheduling
+      ~created_by:"did:plc:mod000111222333444555666" ~scheduling
       ~mod_tool:{ name = "automod"; meta = None }
       ()
   in
@@ -407,16 +406,14 @@ let test_schedule_action_typed_body _ =
     Ozone.schedule_action_typed_body
       ~action:(Ozone.takedown_action ~comment:"spam" ())
       ~subjects:[ "did:plc:abc123xyz0001112223333" ]
-      ~created_by:"did:plc:mod000111222333444555666"
-      ~scheduling ()
+      ~created_by:"did:plc:mod000111222333444555666" ~scheduling ()
   in
   OUnit2.assert_equal `Null (omitted |> member "modTool");
   let raw =
     Ozone.schedule_action_body
       ~action:(Ozone.takedown_action ~comment:"spam" ())
       ~subjects:[ "did:plc:abc123xyz0001112223333" ]
-      ~created_by:"did:plc:mod000111222333444555666"
-      ~scheduling
+      ~created_by:"did:plc:mod000111222333444555666" ~scheduling
       ~mod_tool:(`Assoc [ ("name", `String "raw-tool") ])
       ()
   in
