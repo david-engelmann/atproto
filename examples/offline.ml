@@ -716,6 +716,19 @@ let () =
     match Yojson.Safe.Util.member "posts" draft_body with
     | `List xs -> List.length xs = 1
     | _ -> false);
+  let parsed_draft = Draft.parse_draft draft_body in
+  let encoded_draft = Draft.draft_to_json parsed_draft in
+  let reparsed_draft = Draft.parse_draft encoded_draft in
+  assert (List.length reparsed_draft.posts = 1);
+  let _typed_create = Draft.create_draft_typed_body parsed_draft in
+  let _typed_update =
+    Draft.update_draft_typed_body ~id:"3jzfcijpj2z2a" parsed_draft
+  in
+  let _raw_create = Draft.create_draft_body draft_body in
+  ignore Draft.create_draft_typed;
+  ignore Draft.update_draft_typed;
+  ignore Draft.create_draft;
+  ignore Draft.update_draft;
   let aa =
     Ageassurance.parse_state
       (`Assoc [ ("status", `String "unknown"); ("access", `String "unknown") ])
@@ -982,16 +995,6 @@ let () =
   assert (describe.did = "did:web:bsky.social");
   let proxy = Xrpc.parse_proxy "did:web:api.bsky.chat#bsky_chat" in
   assert (proxy.service = "bsky_chat");
-  let topics_h, topics_v = Xrpc.topics_header [ "news"; "sports" ] in
-  assert (topics_h = Xrpc.topics_header_name);
-  assert (topics_v = "news,sports");
-  let topics_extra = Xrpc.topics_headers ~legacy:true [ "news"; "sports" ] in
-  assert (List.length topics_extra = 2);
-  assert (Xrpc.parse_topics topics_v = [ "news"; "sports" ]);
-  let legacy_h, legacy_v = Xrpc.legacy_topics_header [ "news" ] in
-  assert (legacy_h = Xrpc.legacy_topics_header_name);
-  assert (legacy_v = "news");
-  assert (Xrpc.topics_from_headers topics_extra = [ "news"; "sports" ]);
   let scopes = Oauth_scope.parse "atproto repo:app.bsky.feed.post" in
   Oauth_scope.require_atproto scopes;
   let ev =

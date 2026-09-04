@@ -1,7 +1,12 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#189](https://github.com/david-engelmann/atproto/pull/189):
+shipped through [#190](https://github.com/david-engelmann/atproto/pull/190):
+typed Draft create/update helpers
+(`draft_to_json` / `create_draft_typed` / `update_draft_typed` /
+`create_draft_typed_body` / `update_draft_typed_body`; raw Yojson
+`create_draft` / `update_draft` unchanged) on top of
+[#189](https://github.com/david-engelmann/atproto/pull/189):
 Xrpc `x-atproto-bsky-topics` helpers
 (`topics_to_string` / `topics_header` / `legacy_topics_header` /
 `topics_headers` / `parse_topics` / `topics_from_headers`; current
@@ -290,6 +295,15 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   legacy. Mirrors bluesky-social/atproto #5448 (`80d391a2`) client
   header names; does not bump the lexicon pin (`f0d4877a`). No
   hosted chat / video / Tap / phone / contacts / push faked
+- [#190](https://github.com/david-engelmann/atproto/pull/190): typed
+  Draft create/update helpers: `draft_to_json` /
+  `create_draft_typed` / `update_draft_typed` /
+  `create_draft_typed_body` / `update_draft_typed_body`. Serializes
+  parsed `draft` via existing `draft_json` builders. Raw Yojson
+  `create_draft` / `update_draft` stay unchanged. Unit tests for
+  encode round-trip; live AppView hop uses the typed path when served.
+  Does not invent leftover unused draft fields. No hosted chat / video /
+  Tap / phone / contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
