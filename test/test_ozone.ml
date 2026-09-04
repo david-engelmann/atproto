@@ -375,7 +375,7 @@ let test_parse_timeline_and_schedule _ =
 
 let test_schedule_action_typed_body _ =
   let open Yojson.Safe.Util in
-  let scheduling =
+  let scheduling : Ozone.scheduling =
     {
       execute_at = Some "2024-02-01T00:00:00.000Z";
       execute_after = None;
