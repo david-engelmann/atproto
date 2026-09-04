@@ -274,11 +274,17 @@ let test_blob_ref_to_json _ =
   let blob = Repo.parse_blob_ref json in
   let encoded = Repo.blob_ref_to_json blob in
   let open Yojson.Safe.Util in
-  OUnit2.assert_equal ~printer:(fun x -> x) "blob"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "blob"
     (encoded |> member "$type" |> to_string);
-  OUnit2.assert_equal ~printer:(fun x -> x) cid
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    cid
     (encoded |> member "ref" |> member "$link" |> to_string);
-  OUnit2.assert_equal ~printer:(fun x -> x) "image/png"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "image/png"
     (encoded |> member "mimeType" |> to_string);
   OUnit2.assert_equal ~printer:string_of_int 1234
     (encoded |> member "size" |> to_int);
@@ -287,11 +293,17 @@ let test_blob_ref_to_json _ =
   OUnit2.assert_equal ~printer:(fun x -> x) blob.mime_type again.mime_type;
   OUnit2.assert_equal ~printer:string_of_int blob.size again.size;
   let rebuilt = Repo.blob_ref_to_json { blob with original = `Null } in
-  OUnit2.assert_equal ~printer:(fun x -> x) "blob"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "blob"
     (rebuilt |> member "$type" |> to_string);
-  OUnit2.assert_equal ~printer:(fun x -> x) cid
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    cid
     (rebuilt |> member "ref" |> member "$link" |> to_string);
-  OUnit2.assert_equal ~printer:(fun x -> x) "image/png"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "image/png"
     (rebuilt |> member "mimeType" |> to_string);
   OUnit2.assert_equal ~printer:string_of_int 1234
     (rebuilt |> member "size" |> to_int)
