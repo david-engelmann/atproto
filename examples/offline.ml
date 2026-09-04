@@ -990,6 +990,31 @@ let () =
   let n, _ = Varint.decode (Varint.encode 128) in
   assert (n = 128);
   assert (Syntax.is_valid_nsid "app.bsky.video.uploadVideo");
+  let create_json_record =
+    `Assoc
+      [
+        ("$type", `String "app.bsky.feed.post");
+        ("text", `String "hi");
+        ("createdAt", `String "2024-01-01T00:00:00.000Z");
+      ]
+  in
+  let created_json =
+    Repo.create_record_body ~repo:"did:plc:abc123xyz0001112223333"
+      ~collection:"app.bsky.feed.post" ~rkey:"3jzfcijpj2z2a" create_json_record
+  in
+  assert (
+    match
+      Yojson.Safe.Util.member "record" created_json
+      |> Yojson.Safe.Util.member "text"
+    with
+    | `String "hi" -> true
+    | _ -> false);
+  let _put_json =
+    Repo.put_record_body ~repo:"did:plc:abc123xyz0001112223333"
+      ~collection:"app.bsky.feed.post" ~rkey:"3jzfcijpj2z2a" create_json_record
+  in
+  ignore Repo.create_record_json;
+  ignore Repo.put_record_json;
   let writes =
     Repo.apply_writes_body ~repo:"did:plc:abc123xyz0001112223333"
       ~writes:

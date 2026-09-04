@@ -25,6 +25,70 @@ let test_create_record _ =
   let created_record = Repo.create_record test_session "david-engelmann.bsky.social"
 *)
 
+let test_create_put_record_json_body _ =
+  let record =
+    `Assoc
+      [
+        ("$type", `String "app.bsky.feed.post");
+        ("text", `String "hi");
+        ("createdAt", `String "2024-01-01T00:00:00.000Z");
+      ]
+  in
+  let created =
+    Repo.create_record_body ~repo:"did:plc:7iza6de2dwap2sbkpav7c6c6"
+      ~collection:"app.bsky.feed.post" ~rkey:"3jzfcijpj2z2a"
+      ~swap_commit:"bafyreihdummy" record
+  in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:7iza6de2dwap2sbkpav7c6c6"
+    (created |> member "repo" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "app.bsky.feed.post"
+    (created |> member "collection" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "3jzfcijpj2z2a"
+    (created |> member "rkey" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "bafyreihdummy"
+    (created |> member "swapCommit" |> to_string);
+  OUnit2.assert_equal true (created |> member "validate" |> to_bool);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "hi"
+    (created |> member "record" |> member "text" |> to_string);
+  let from_string =
+    Repo.create_record_body ~repo:"did:plc:7iza6de2dwap2sbkpav7c6c6"
+      ~collection:"app.bsky.feed.post"
+      (Repo.record_json_of_string (Yojson.Safe.to_string record))
+  in
+  OUnit2.assert_equal ~printer:Yojson.Safe.to_string
+    (created |> member "record")
+    (from_string |> member "record");
+  let put =
+    Repo.put_record_body ~repo:"did:plc:7iza6de2dwap2sbkpav7c6c6"
+      ~collection:"app.bsky.actor.profile" ~rkey:"self"
+      ~swap_record:"bafyreihswaprecord" ~swap_commit:"bafyreihdummy" record
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "self"
+    (put |> member "rkey" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "bafyreihswaprecord"
+    (put |> member "swapRecord" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "hi"
+    (put |> member "record" |> member "text" |> to_string);
+  ignore Repo.create_record_json;
+  ignore Repo.put_record_json
+
 let test_apply_writes_body _ =
   let rkey = Tid.create ~clock_id:1 1_700_000_000_000_000L in
   let body =
@@ -235,6 +299,7 @@ let suite =
   "suite"
   >::: [
          "test_describe_repo" >:: test_describe_repo;
+         "test_create_put_record_json_body" >:: test_create_put_record_json_body;
          "test_apply_writes_body" >:: test_apply_writes_body;
          "test_parse_blob_ref" >:: test_parse_blob_ref;
          "test_parse_list_missing_blobs" >:: test_parse_list_missing_blobs;
