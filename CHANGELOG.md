@@ -1,7 +1,7 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [THISPR](https://github.com/david-engelmann/atproto/pull/THISPR):
+shipped through [#196](https://github.com/david-engelmann/atproto/pull/196):
 typed `Ozone.schedule_action` encoding
 (`schedule_action_typed` / `schedule_action_typed_body`; optional typed
 `mod_tool`; raw Yojson `schedule_action` unchanged) on top of
@@ -380,7 +380,7 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `Client.post_json` and still returns `report_response`. Does not
   invent leftover unused lexicon fields. No lexicon pin bump. No
   hosted chat / video / Tap / phone / contacts / push faked
-- [THISPR](https://github.com/david-engelmann/atproto/pull/THISPR): typed
+- [#196](https://github.com/david-engelmann/atproto/pull/196): typed
   `Ozone.schedule_action` encoding: `schedule_action_typed` /
   `schedule_action_typed_body`. Same labeled args as raw
   `schedule_action`; optional `mod_tool` is the parsed record and
@@ -757,7 +757,7 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   posts via `Client.post_json` and still returns `report_response`.
   Does not invent leftover unused createReport fields. Hosted-only
   chat / video / Tap / phone / contacts / push stay listed not faked
-- [THISPR](https://github.com/david-engelmann/atproto/pull/THISPR): typed
+- [#196](https://github.com/david-engelmann/atproto/pull/196): typed
   `Ozone.schedule_action` encoding (`schedule_action_typed` /
   `schedule_action_typed_body`). Optional `mod_tool` is the parsed
   record (`mod_tool_to_json`). `action` stays Yojson; `scheduling`
