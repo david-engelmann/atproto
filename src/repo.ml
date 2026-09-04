@@ -309,7 +309,8 @@ module Repo = struct
         (create_repo_endpoint query_name)
     in
     Lwt_main.run
-      (Cohttp_client.post_data_with_headers url (Yojson.Safe.to_string body)
+      (Cohttp_client.post_data_with_headers url
+         (Yojson.Safe.to_string body)
          headers)
 
   (** Create a record via [com.atproto.repo.createRecord]. [record] is a JSON
@@ -329,8 +330,7 @@ module Repo = struct
       (record : Yojson.Safe.t) : write_result =
     post_repo_write s "createRecord"
       (create_record_body ~repo ~collection ?rkey ~validate ?swap_commit record)
-    |> Yojson.Safe.from_string
-    |> parse_write_result
+    |> Yojson.Safe.from_string |> parse_write_result
 
   (** Put a record via [com.atproto.repo.putRecord]. [record] is a JSON
       object string; optional [rkey], [swap_record], and [swap_commit] map
@@ -340,19 +340,19 @@ module Repo = struct
       string =
     post_repo_write s "putRecord"
       (put_record_body ~repo ~collection ?rkey ~validate ?swap_record
-         ?swap_commit (record_json_of_string record))
+         ?swap_commit
+         (record_json_of_string record))
 
   (** Put a record via [com.atproto.repo.putRecord] from Yojson. Same
       optional labels as [put_record]. Returns the parsed write result
       ([uri] / [cid] / optional [commit]) via [parse_write_result]. *)
-  let put_record_json (s : Session.session) (repo : string) (collection : string)
-      ?rkey ?(validate = true) ?swap_record ?swap_commit
+  let put_record_json (s : Session.session) (repo : string)
+      (collection : string) ?rkey ?(validate = true) ?swap_record ?swap_commit
       (record : Yojson.Safe.t) : write_result =
     post_repo_write s "putRecord"
       (put_record_body ~repo ~collection ?rkey ~validate ?swap_record
          ?swap_commit record)
-    |> Yojson.Safe.from_string
-    |> parse_write_result
+    |> Yojson.Safe.from_string |> parse_write_result
 
   (** Delete a record via [com.atproto.repo.deleteRecord]. Optional
       [swap_record] / [swap_commit] map to the lexicon inputs. *)

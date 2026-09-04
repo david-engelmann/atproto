@@ -66,8 +66,7 @@ let test_create_put_record_json_body _ =
       ~collection:"app.bsky.feed.post"
       (Repo.record_json_of_string (Yojson.Safe.to_string record))
   in
-  OUnit2.assert_equal
-    ~printer:Yojson.Safe.to_string
+  OUnit2.assert_equal ~printer:Yojson.Safe.to_string
     (created |> member "record")
     (from_string |> member "record");
   let put =
