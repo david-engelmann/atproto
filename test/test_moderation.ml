@@ -55,7 +55,9 @@ let test_report_bodies _ =
       "com.atproto.moderation.defs#reasonOther"
       { did = "did:plc:abc123xyz0001112223333" }
   in
-  OUnit2.assert_equal ~printer:(fun x -> x) (Yojson.Safe.to_string repo)
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    (Yojson.Safe.to_string repo)
     repo_data;
   OUnit2.assert_equal
     ~printer:(fun x -> x)
