@@ -35,6 +35,7 @@ open Atproto.Graph
 open Atproto.Site
 open Atproto.Germnetwork
 open Atproto.Admin
+open Atproto.Moderation
 open Atproto.Request
 open Atproto.Response
 open Atproto.Http_client
@@ -1025,6 +1026,46 @@ let () =
     | `String "3jzfcijpj2z2a" -> true
     | _ -> false);
   ignore Repo.apply_writes_parsed;
+  let report_strong =
+    Moderation.create_report_body_from_strong_ref Moderation.reason_spam
+      ~reason:"bots"
+      {
+        uri =
+          "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3jzfcijpj2z2a";
+        cid = "bafyreihdummy";
+      }
+  in
+  assert (
+    match Yojson.Safe.Util.member "reasonType" report_strong with
+    | `String s -> s = Moderation.reason_spam
+    | _ -> false);
+  assert (
+    match
+      Yojson.Safe.Util.member "subject" report_strong
+      |> Yojson.Safe.Util.member "$type"
+    with
+    | `String "com.atproto.repo.strongRef" -> true
+    | _ -> false);
+  let report_repo =
+    Moderation.create_report_body_from_repo_ref Moderation.reason_other
+      { did = "did:plc:abc123xyz0001112223333" }
+  in
+  assert (
+    match
+      Yojson.Safe.Util.member "subject" report_repo
+      |> Yojson.Safe.Util.member "$type"
+    with
+    | `String "com.atproto.admin.defs#repoRef" -> true
+    | _ -> false);
+  let _report_data =
+    Moderation.create_report_data_from_strong_ref Moderation.reason_spam
+      {
+        uri =
+          "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3jzfcijpj2z2a";
+        cid = "bafyreihdummy";
+      }
+  in
+  ignore Moderation.create_report_data_from_repo_ref;
   let uploaded_blob =
     Repo.parse_blob_ref
       (`Assoc
