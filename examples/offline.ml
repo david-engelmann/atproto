@@ -1025,6 +1025,32 @@ let () =
     | `String "3jzfcijpj2z2a" -> true
     | _ -> false);
   ignore Repo.apply_writes_parsed;
+  let uploaded_blob =
+    Repo.parse_blob_ref
+      (`Assoc
+        [
+          ( "blob",
+            `Assoc
+              [
+                ("$type", `String "blob");
+                ("ref", `Assoc [ ("$link", `String "bafyimage") ]);
+                ("mimeType", `String "image/png");
+                ("size", `Int 4);
+              ] );
+        ])
+  in
+  let blob_ref_json = Repo.blob_ref_to_json uploaded_blob in
+  assert (
+    match Yojson.Safe.Util.member "$type" blob_ref_json with
+    | `String "blob" -> true
+    | _ -> false);
+  assert (
+    match
+      Yojson.Safe.Util.member "ref" blob_ref_json
+      |> Yojson.Safe.Util.member "$link"
+    with
+    | `String "bafyimage" -> true
+    | _ -> false);
   let writes =
     Repo.apply_writes_body ~repo:"did:plc:abc123xyz0001112223333"
       ~writes:

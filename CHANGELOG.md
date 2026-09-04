@@ -1,7 +1,10 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#193](https://github.com/david-engelmann/atproto/pull/193):
+shipped through [#194](https://github.com/david-engelmann/atproto/pull/194):
+Repo `blob_ref_to_json` for upload→record
+(`blob_ref_to_json`; `parse_blob_ref` / `upload_blob` unchanged) on top of
+[#193](https://github.com/david-engelmann/atproto/pull/193):
 Repo `delete_record_body` + parsed `apply_writes`
 (`delete_record_body` / `apply_writes_parsed`; string `delete_record` /
 `apply_writes` unchanged) on top of
@@ -348,6 +351,15 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `delete_record` / `apply_writes` stay unchanged. Does not invent
   leftover unused lexicon fields. No lexicon pin bump. No hosted chat /
   video / Tap / phone / contacts / push faked
+- [#194](https://github.com/david-engelmann/atproto/pull/194): Repo
+  `blob_ref_to_json` for the upload→record loop. Encodes the standard
+  AT blob object (`$type` / `ref.$link` / `mimeType` / `size`). Reuses
+  `.original` when it is already a well-formed blob Assoc with those
+  fields; otherwise builds from `cid` / `mime_type` / `size` via
+  `Embed.blob_to_json`. `parse_blob_ref` / `upload_blob` stay
+  unchanged. Does not invent leftover unused lexicon fields. No
+  lexicon pin bump. No hosted chat / video / Tap / phone / contacts /
+  push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -701,6 +713,13 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   Does not invent leftover unused deleteRecord / applyWrites fields.
   Hosted-only chat / video / Tap / phone / contacts / push stay
   listed not faked
+- [#194](https://github.com/david-engelmann/atproto/pull/194): Repo
+  `blob_ref_to_json` for upload→record (`$type` / `ref.$link` /
+  `mimeType` / `size`). Reuses `.original` when it is already a
+  well-formed blob Assoc; otherwise builds from `cid` / `mime_type` /
+  `size`. `parse_blob_ref` / `upload_blob` unchanged. Does not invent
+  leftover unused blob fields. Hosted-only chat / video / Tap / phone
+  / contacts / push stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 

@@ -480,6 +480,36 @@ module Repo = struct
       original = blob;
     }
 
+  (** Encode [blob_ref] as a lexicon blob object
+      ([{ "$type": "blob", "ref": { "$link": cid }, "mimeType", "size" }]).
+      Reuses [.original] when it is already a well-formed blob Assoc
+      with those fields; otherwise builds from [cid] / [mime_type] /
+      [size] via [Embed.blob_to_json]. Does not invent leftover unused
+      fields. *)
+  let blob_ref_to_json (b : blob_ref) : Yojson.Safe.t =
+    let well_formed =
+      match b.original with
+      | `Assoc _ as json -> (
+          let open Yojson.Safe.Util in
+          (match json |> member "$type" with
+          | `String "blob" -> true
+          | _ -> false)
+          && (match json |> member "ref" with
+             | `Assoc _ as ref_ -> (
+                 match ref_ |> member "$link" with
+                 | `String s -> s = b.cid
+                 | _ -> false)
+             | _ -> false)
+          && (match json |> member "mimeType" with
+             | `String s -> s = b.mime_type
+             | _ -> false)
+          &&
+          match json |> member "size" with `Int n -> n = b.size | _ -> false)
+      | _ -> false
+    in
+    if well_formed then b.original
+    else Embed.blob_to_json ~cid:b.cid ~mime_type:b.mime_type ~size:b.size ()
+
   let upload_blob_url (s : Session.session) : string =
     App.create_endpoint_url (App.create_base_url s)
       (create_repo_endpoint "uploadBlob")
