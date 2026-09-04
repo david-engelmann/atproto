@@ -116,6 +116,28 @@ let () =
   ignore Ozone.emit_event_service;
   ignore Ozone.emit_event_service_typed;
   ignore Ozone.emit_event_typed;
+  let ozone_sched =
+    Ozone.schedule_action_typed_body
+      ~action:(Ozone.takedown_action ~comment:"spam" ())
+      ~subjects:[ "did:plc:abc123xyz0001112223333" ]
+      ~created_by:"did:plc:mod000111222333444555666"
+      ~scheduling:
+        {
+          execute_at = Some "2024-02-01T00:00:00.000Z";
+          execute_after = None;
+          execute_until = None;
+        }
+      ~mod_tool:{ name = "automod"; meta = None } ()
+  in
+  assert (
+    match
+      Yojson.Safe.Util.member "modTool" ozone_sched
+      |> Yojson.Safe.Util.member "name"
+    with
+    | `String "automod" -> true
+    | _ -> false);
+  ignore Ozone.schedule_action_typed;
+  ignore Ozone.schedule_action;
   ignore Ozone.query_events_service;
   ignore Ozone.get_config_service;
   ignore Oauth.xrpc_post_dpop;
