@@ -1015,6 +1015,16 @@ let () =
   in
   ignore Repo.create_record_json;
   ignore Repo.put_record_json;
+  let delete_json =
+    Repo.delete_record_body ~repo:"did:plc:abc123xyz0001112223333"
+      ~collection:"app.bsky.feed.post" ~rkey:"3jzfcijpj2z2a"
+      ~swap_record:"bafyreihswaprecord" ~swap_commit:"bafyreihdummy" ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "rkey" delete_json with
+    | `String "3jzfcijpj2z2a" -> true
+    | _ -> false);
+  ignore Repo.apply_writes_parsed;
   let writes =
     Repo.apply_writes_body ~repo:"did:plc:abc123xyz0001112223333"
       ~writes:
