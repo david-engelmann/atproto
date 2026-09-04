@@ -257,27 +257,17 @@ module Repo = struct
     in
     records
 
-  (** Create a record via [com.atproto.repo.createRecord]. [record] is a JSON
-      object string; optional [rkey] and [swap_commit] map to the lexicon
-      inputs. *)
-  let create_record (s : Session.session) (repo : string) (collection : string)
-      ?rkey ?(validate = true) ?swap_commit (record : string) : string =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let create_record_url =
-      App.create_endpoint_url base_url (create_repo_endpoint "createRecord")
-    in
+  let record_json_of_string (record : string) : Yojson.Safe.t =
+    try Yojson.Safe.from_string record with _ -> `String record
+
+  (** JSON body for [com.atproto.repo.createRecord]. [record] is Yojson. *)
+  let create_record_body ~repo ~collection ?rkey ?(validate = true) ?swap_commit
+      (record : Yojson.Safe.t) : Yojson.Safe.t =
     let fields =
       [
         Some ("repo", `String repo);
         Some ("collection", `String collection);
-        Some
-          ( "record",
-            try Yojson.Basic.from_string record with _ -> `String record );
+        Some ("record", record);
         Option.map (fun rkey -> ("rkey", `String rkey)) rkey;
         Some ("validate", `Bool validate);
         Option.map
@@ -285,36 +275,16 @@ module Repo = struct
           swap_commit;
       ]
     in
-    let json_data = `Assoc (List.filter_map Fun.id fields) in
-    let data = Yojson.Basic.to_string json_data in
-    let created_record =
-      Lwt_main.run
-        (Cohttp_client.post_data_with_headers create_record_url data headers)
-    in
-    created_record
+    `Assoc (List.filter_map Fun.id fields)
 
-  (** Put a record via [com.atproto.repo.putRecord]. [record] is a JSON
-      object string; optional [rkey], [swap_record], and [swap_commit] map
-      to the lexicon inputs. *)
-  let put_record (s : Session.session) (repo : string) (collection : string)
-      ?rkey ?(validate = true) ?swap_record ?swap_commit (record : string) :
-      string =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let put_record_url =
-      App.create_endpoint_url base_url (create_repo_endpoint "putRecord")
-    in
+  (** JSON body for [com.atproto.repo.putRecord]. [record] is Yojson. *)
+  let put_record_body ~repo ~collection ?rkey ?(validate = true) ?swap_record
+      ?swap_commit (record : Yojson.Safe.t) : Yojson.Safe.t =
     let fields =
       [
         Some ("repo", `String repo);
         Some ("collection", `String collection);
-        Some
-          ( "record",
-            try Yojson.Basic.from_string record with _ -> `String record );
+        Some ("record", record);
         Option.map (fun rkey -> ("rkey", `String rkey)) rkey;
         Some ("validate", `Bool validate);
         Option.map
@@ -325,13 +295,64 @@ module Repo = struct
           swap_commit;
       ]
     in
-    let json_data = `Assoc (List.filter_map Fun.id fields) in
-    let data = Yojson.Basic.to_string json_data in
-    let puted_record =
-      Lwt_main.run
-        (Cohttp_client.post_data_with_headers put_record_url data headers)
+    `Assoc (List.filter_map Fun.id fields)
+
+  let post_repo_write (s : Session.session) (query_name : string)
+      (body : Yojson.Safe.t) : string =
+    let bearer_token = Session.bearer_token_from_session s in
+    let application_json = Cohttp_client.application_json_setting_tuple in
+    let headers =
+      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
     in
-    puted_record
+    let url =
+      App.create_endpoint_url (App.create_base_url s)
+        (create_repo_endpoint query_name)
+    in
+    Lwt_main.run
+      (Cohttp_client.post_data_with_headers url (Yojson.Safe.to_string body)
+         headers)
+
+  (** Create a record via [com.atproto.repo.createRecord]. [record] is a JSON
+      object string; optional [rkey] and [swap_commit] map to the lexicon
+      inputs. Shares [create_record_body] with [create_record_json]. *)
+  let create_record (s : Session.session) (repo : string) (collection : string)
+      ?rkey ?(validate = true) ?swap_commit (record : string) : string =
+    post_repo_write s "createRecord"
+      (create_record_body ~repo ~collection ?rkey ~validate ?swap_commit
+         (record_json_of_string record))
+
+  (** Create a record via [com.atproto.repo.createRecord] from Yojson.
+      Same optional labels as [create_record]. Returns the parsed write
+      result ([uri] / [cid] / optional [commit]) via [parse_write_result]. *)
+  let create_record_json (s : Session.session) (repo : string)
+      (collection : string) ?rkey ?(validate = true) ?swap_commit
+      (record : Yojson.Safe.t) : write_result =
+    post_repo_write s "createRecord"
+      (create_record_body ~repo ~collection ?rkey ~validate ?swap_commit record)
+    |> Yojson.Safe.from_string
+    |> parse_write_result
+
+  (** Put a record via [com.atproto.repo.putRecord]. [record] is a JSON
+      object string; optional [rkey], [swap_record], and [swap_commit] map
+      to the lexicon inputs. Shares [put_record_body] with [put_record_json]. *)
+  let put_record (s : Session.session) (repo : string) (collection : string)
+      ?rkey ?(validate = true) ?swap_record ?swap_commit (record : string) :
+      string =
+    post_repo_write s "putRecord"
+      (put_record_body ~repo ~collection ?rkey ~validate ?swap_record
+         ?swap_commit (record_json_of_string record))
+
+  (** Put a record via [com.atproto.repo.putRecord] from Yojson. Same
+      optional labels as [put_record]. Returns the parsed write result
+      ([uri] / [cid] / optional [commit]) via [parse_write_result]. *)
+  let put_record_json (s : Session.session) (repo : string) (collection : string)
+      ?rkey ?(validate = true) ?swap_record ?swap_commit
+      (record : Yojson.Safe.t) : write_result =
+    post_repo_write s "putRecord"
+      (put_record_body ~repo ~collection ?rkey ~validate ?swap_record
+         ?swap_commit record)
+    |> Yojson.Safe.from_string
+    |> parse_write_result
 
   (** Delete a record via [com.atproto.repo.deleteRecord]. Optional
       [swap_record] / [swap_commit] map to the lexicon inputs. *)
