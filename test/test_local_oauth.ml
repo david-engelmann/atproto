@@ -448,8 +448,7 @@ let assert_oauth_ozone_write ~origin ~priv ~pub ~token ?nonce () =
       let tag = leftover_tag () in
       let ev =
         Ozone.emit_event_service_typed ~bearer:svc ~host:ozone_host
-          ~event:
-            (`Comment { comment = "oauth dpop " ^ tag; sticky = None })
+          ~event:(`Comment { comment = "oauth dpop " ^ tag; sticky = None })
           ~subject:(`Repo_ref { did = token.sub })
           ~created_by:token.sub ()
       in
