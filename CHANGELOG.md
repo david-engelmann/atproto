@@ -1,7 +1,8 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through typed `Ozone.create_activity` encoding
+shipped through [#191](https://github.com/david-engelmann/atproto/pull/191):
+typed `Ozone.create_activity` encoding
 (`report_activity_to_json` / `create_activity_typed` /
 `create_activity_typed_body`; raw Yojson `create_activity` unchanged)
 on top of
@@ -308,7 +309,8 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   encode round-trip; live AppView hop uses the typed path when served.
   Does not invent leftover unused draft fields. No hosted chat / video /
   Tap / phone / contacts / push faked
-- typed `Ozone.create_activity` encoding: `report_activity_to_json`
+- [#191](https://github.com/david-engelmann/atproto/pull/191): typed
+  `Ozone.create_activity` encoding: `report_activity_to_json`
   plus `create_activity_typed` / `create_activity_typed_body`.
   Serializes the parsed `report_activity` union (`queueActivity` /
   `assignmentActivity` / `escalationActivity` / `closeActivity` /
@@ -645,7 +647,8 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   Ozone hop uses `emit_event_service_typed` (`Comment` / `Repo_ref`).
   Skip-if-not-served / `classify_ozone` unchanged. Hosted-only chat /
   video / Tap / phone / contacts / push stay listed not faked
-- typed `Ozone.create_activity` encoding (`report_activity_to_json` /
+- [#191](https://github.com/david-engelmann/atproto/pull/191): typed
+  `Ozone.create_activity` encoding (`report_activity_to_json` /
   `create_activity_typed` / `create_activity_typed_body`). Encodes the
   parsed report-activity union; `Unknown` reuses `.original`. Existing
   raw Yojson `create_activity` call sites stay valid. Unit tests for
