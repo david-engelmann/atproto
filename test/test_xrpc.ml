@@ -58,7 +58,9 @@ let test_topics _ =
   OUnit2.assert_equal "x-atproto-bsky-topics" h;
   OUnit2.assert_equal ~printer:(fun x -> x) Xrpc.topics_header_name h;
   OUnit2.assert_equal ~printer:(fun x -> x) "news,sports" v;
-  OUnit2.assert_equal ~printer:(fun x -> x) "news,sports"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "news,sports"
     (Xrpc.topics_to_string [ "news"; "sports" ]);
   let lh, lv = Xrpc.legacy_topics_header [ "news"; "sports" ] in
   OUnit2.assert_equal "x-bsky-topics" lh;
@@ -69,11 +71,11 @@ let test_topics _ =
     (Xrpc.topics_headers [ "news"; "sports" ]);
   OUnit2.assert_equal
     [
-      ("x-atproto-bsky-topics", "news,sports");
-      ("x-bsky-topics", "news,sports");
+      ("x-atproto-bsky-topics", "news,sports"); ("x-bsky-topics", "news,sports");
     ]
     (Xrpc.topics_headers ~legacy:true [ "news"; "sports" ]);
-  OUnit2.assert_equal [ "news"; "sports"; "tech" ]
+  OUnit2.assert_equal
+    [ "news"; "sports"; "tech" ]
     (Xrpc.parse_topics "news, sports, ,tech");
   let _, trimmed = Xrpc.topics_header [ " news "; ""; "sports" ] in
   OUnit2.assert_equal ~printer:(fun x -> x) "news,sports" trimmed;
