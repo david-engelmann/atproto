@@ -522,7 +522,7 @@ let test_privileged_writes _ =
           | report :: _ -> (
               match
                 ozone_post s p "tools.ozone.report.createActivity"
-                  (Ozone.create_activity_body ~activity:(Ozone.note_activity ())
+                  (Ozone.create_activity_typed_body ~activity:`Note
                      ~report_id:report.id ~internal_note:tag ())
               with
               | ajson when served ajson ->
