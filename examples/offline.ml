@@ -523,6 +523,25 @@ let () =
    with
   | `Note -> ()
   | _ -> assert false);
+  (match Ozone.parse_report_activity (Ozone.report_activity_to_json `Note) with
+  | `Note -> ()
+  | _ -> assert false);
+  (match
+     Ozone.parse_report_activity
+       (Ozone.report_activity_to_json (`Close (Some "assigned")))
+   with
+  | `Close (Some "assigned") -> ()
+  | _ -> assert false);
+  let _typed_activity =
+    Ozone.create_activity_typed_body ~activity:`Note ~report_id:11
+      ~internal_note:"typed" ()
+  in
+  let _raw_activity =
+    Ozone.create_activity_body ~activity:(Ozone.note_activity ()) ~report_id:11
+      ()
+  in
+  ignore Ozone.create_activity_typed;
+  ignore Ozone.create_activity;
   let resolved =
     Lexicon.parse_resolved_lexicon
       (`Assoc

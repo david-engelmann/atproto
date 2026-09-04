@@ -781,6 +781,128 @@ let test_parse_queue_and_report _ =
   in
   OUnit2.assert_equal true deleted.deleted
 
+let test_create_activity_typed_body_roundtrip _ =
+  let open Yojson.Safe.Util in
+  let note_src =
+    `Assoc [ ("$type", `String "tools.ozone.report.defs#noteActivity") ]
+  in
+  let close_src =
+    `Assoc
+      [
+        ("$type", `String "tools.ozone.report.defs#closeActivity");
+        ("previousStatus", `String "assigned");
+      ]
+  in
+  let queue_src =
+    `Assoc [ ("$type", `String "tools.ozone.report.defs#queueActivity") ]
+  in
+  let assignment_src =
+    `Assoc
+      [
+        ("$type", `String "tools.ozone.report.defs#assignmentActivity");
+        ("previousStatus", `String "unassigned");
+      ]
+  in
+  let escalation_src =
+    `Assoc
+      [
+        ("$type", `String "tools.ozone.report.defs#escalationActivity");
+        ("previousStatus", `String "open");
+      ]
+  in
+  let reopen_src =
+    `Assoc
+      [
+        ("$type", `String "tools.ozone.report.defs#reopenActivity");
+        ("previousStatus", `String "closed");
+      ]
+  in
+  (match
+     Ozone.parse_report_activity
+       (Ozone.report_activity_to_json (Ozone.parse_report_activity note_src))
+   with
+  | `Note -> ()
+  | _ -> OUnit2.assert_failure "expected note after encode");
+  (match
+     Ozone.parse_report_activity
+       (Ozone.report_activity_to_json (Ozone.parse_report_activity close_src))
+   with
+  | `Close (Some "assigned") -> ()
+  | _ -> OUnit2.assert_failure "expected close after encode");
+  (match
+     Ozone.parse_report_activity
+       (Ozone.report_activity_to_json (Ozone.parse_report_activity queue_src))
+   with
+  | `Queue None -> ()
+  | _ -> OUnit2.assert_failure "expected queue after encode");
+  (match
+     Ozone.parse_report_activity
+       (Ozone.report_activity_to_json
+          (Ozone.parse_report_activity assignment_src))
+   with
+  | `Assignment (Some "unassigned") -> ()
+  | _ -> OUnit2.assert_failure "expected assignment after encode");
+  (match
+     Ozone.parse_report_activity
+       (Ozone.report_activity_to_json
+          (Ozone.parse_report_activity escalation_src))
+   with
+  | `Escalation (Some "open") -> ()
+  | _ -> OUnit2.assert_failure "expected escalation after encode");
+  (match
+     Ozone.parse_report_activity
+       (Ozone.report_activity_to_json (Ozone.parse_report_activity reopen_src))
+   with
+  | `Reopen (Some "closed") -> ()
+  | _ -> OUnit2.assert_failure "expected reopen after encode");
+  let close_json = Ozone.report_activity_to_json (`Close (Some "assigned")) in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "tools.ozone.report.defs#closeActivity" (json_type close_json);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "assigned"
+    (close_json |> member "previousStatus" |> to_string);
+  let note_json = Ozone.report_activity_to_json `Note in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "tools.ozone.report.defs#noteActivity" (json_type note_json);
+  OUnit2.assert_bool "previousStatus omitted on note"
+    (not (json_has_field "previousStatus" note_json));
+  let queue_plain = Ozone.report_activity_to_json (`Queue None) in
+  OUnit2.assert_bool "previousStatus omitted when None"
+    (not (json_has_field "previousStatus" queue_plain));
+  let unknown =
+    `Assoc
+      [
+        ("$type", `String "tools.ozone.report.defs#futureActivity");
+        ("extra", `String "keep");
+      ]
+  in
+  OUnit2.assert_equal unknown
+    (Ozone.report_activity_to_json (Ozone.parse_report_activity unknown));
+  let body =
+    Ozone.create_activity_typed_body ~activity:`Note ~report_id:11
+      ~internal_note:"typed" ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "tools.ozone.report.defs#noteActivity"
+    (body |> member "activity" |> member "$type" |> to_string);
+  OUnit2.assert_equal 11 (body |> member "reportId" |> to_int);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "typed"
+    (body |> member "internalNote" |> to_string);
+  let raw =
+    Ozone.create_activity_body ~activity:(Ozone.note_activity ()) ~report_id:11
+      ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "tools.ozone.report.defs#noteActivity"
+    (raw |> member "activity" |> member "$type" |> to_string)
+
 let test_query_statuses_auth_skipped _ =
   skip_if
     (not Auth.has_live_credentials)
@@ -1010,6 +1132,8 @@ let suite =
          "test_list_queues_auth_skipped" >:: test_list_queues_auth_skipped;
          "test_operator_namespace_parsers" >:: test_operator_namespace_parsers;
          "test_parse_queue_and_report" >:: test_parse_queue_and_report;
+         "test_create_activity_typed_body_roundtrip"
+         >:: test_create_activity_typed_body_roundtrip;
          "test_parse_server_config_leftovers"
          >:: test_parse_server_config_leftovers;
          "test_parse_assignment_moderator" >:: test_parse_assignment_moderator;

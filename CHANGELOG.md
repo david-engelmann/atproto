@@ -1,7 +1,12 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#190](https://github.com/david-engelmann/atproto/pull/190):
+shipped through [#191](https://github.com/david-engelmann/atproto/pull/191):
+typed `Ozone.create_activity` encoding
+(`report_activity_to_json` / `create_activity_typed` /
+`create_activity_typed_body`; raw Yojson `create_activity` unchanged)
+on top of
+[#190](https://github.com/david-engelmann/atproto/pull/190):
 typed Draft create/update helpers
 (`draft_to_json` / `create_draft_typed` / `update_draft_typed` /
 `create_draft_typed_body` / `update_draft_typed_body`; raw Yojson
@@ -304,6 +309,17 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   encode round-trip; live AppView hop uses the typed path when served.
   Does not invent leftover unused draft fields. No hosted chat / video /
   Tap / phone / contacts / push faked
+- [#191](https://github.com/david-engelmann/atproto/pull/191): typed
+  `Ozone.create_activity` encoding: `report_activity_to_json`
+  plus `create_activity_typed` / `create_activity_typed_body`.
+  Serializes the parsed `report_activity` union (`queueActivity` /
+  `assignmentActivity` / `escalationActivity` / `closeActivity` /
+  `reopenActivity` / `noteActivity`) with camelCase lexicon fields.
+  `Unknown` reuses `.original`. Raw Yojson `create_activity` /
+  `create_activity_body` stay unchanged. Does not invent leftover
+  unused lexicon fields. Live TestNetwork leftover hop uses the typed
+  body when Ozone is served; skip-if-not-served stays. No hosted chat /
+  video / Tap / phone / contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -631,6 +647,16 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   Ozone hop uses `emit_event_service_typed` (`Comment` / `Repo_ref`).
   Skip-if-not-served / `classify_ozone` unchanged. Hosted-only chat /
   video / Tap / phone / contacts / push stay listed not faked
+- [#191](https://github.com/david-engelmann/atproto/pull/191): typed
+  `Ozone.create_activity` encoding (`report_activity_to_json` /
+  `create_activity_typed` / `create_activity_typed_body`). Encodes the
+  parsed report-activity union; `Unknown` reuses `.original`. Existing
+  raw Yojson `create_activity` call sites stay valid. Unit tests for
+  note / close / queue / assignment / escalation / reopen plus
+  parse→encode→parse. Live leftover hop uses the typed body when
+  served. Does not invent leftover unused createActivity fields.
+  Hosted-only chat / video / Tap / phone / contacts / push stay
+  listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 

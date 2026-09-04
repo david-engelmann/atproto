@@ -2431,6 +2431,18 @@ module Ozone = struct
   (** [tools.ozone.report.defs#noteActivity] activity. *)
   let note_activity () = activity_json "noteActivity" ()
 
+  (** Encode a parsed [report_activity] union. [`Unknown] reuses
+      [.original]. Does not invent leftover unused fields. *)
+  let report_activity_to_json (a : report_activity) : Yojson.Safe.t =
+    match a with
+    | `Queue prev -> queue_activity ?previous_status:prev ()
+    | `Assignment prev -> assignment_activity ?previous_status:prev ()
+    | `Escalation prev -> escalation_activity ?previous_status:prev ()
+    | `Close prev -> close_activity ?previous_status:prev ()
+    | `Reopen prev -> reopen_activity ?previous_status:prev ()
+    | `Note -> note_activity ()
+    | `Unknown u -> u.original
+
   (** JSON body for [tools.ozone.report.createActivity]. *)
   let create_activity_body ~activity ?report_id ?event_id ?internal_note
       ?public_note ?is_automated () : Yojson.Safe.t =
@@ -2440,6 +2452,14 @@ module Ozone = struct
       @ opt_json_str "internalNote" internal_note
       @ opt_json_str "publicNote" public_note
       @ opt_json_bool "isAutomated" is_automated)
+
+  (** Typed body for [tools.ozone.report.createActivity] (same extras as
+      [create_activity_body]; [activity] is the parsed union). *)
+  let create_activity_typed_body ~activity ?report_id ?event_id ?internal_note
+      ?public_note ?is_automated () : Yojson.Safe.t =
+    create_activity_body
+      ~activity:(report_activity_to_json activity)
+      ?report_id ?event_id ?internal_note ?public_note ?is_automated ()
 
   (** Reports via [tools.ozone.report.queryReports] ([status] required). *)
   let query_reports (s : Session.session) ~proxy ~status ?queue_id
@@ -2519,6 +2539,15 @@ module Ozone = struct
          (create_activity_body ~activity ?report_id ?event_id ?internal_note
             ?public_note ?is_automated ()))
     |> parse_activity_result
+
+  (** Record typed activity via [tools.ozone.report.createActivity].
+      [activity] is the parsed union. *)
+  let create_activity_typed (s : Session.session) ~proxy ~activity ?report_id
+      ?event_id ?internal_note ?public_note ?is_automated () :
+      report_activity_view =
+    create_activity s ~proxy
+      ~activity:(report_activity_to_json activity)
+      ?report_id ?event_id ?internal_note ?public_note ?is_automated ()
 
   (** Activities for [report_id] via [tools.ozone.report.listActivities]. *)
   let list_activities (s : Session.session) ~proxy ~report_id ?limit ?cursor ()
