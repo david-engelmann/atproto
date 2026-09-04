@@ -117,6 +117,40 @@ module Xrpc = struct
   let content_labelers_header (ls : labeler list) : string * string =
     ("atproto-content-labelers", labelers_to_string ls)
 
+  (* ---- x-atproto-bsky-topics (legacy: x-bsky-topics) ------------------ *)
+  (* Upstream: bluesky-social/atproto #5448. x-atproto-bsky-topics is the
+     current header; x-bsky-topics is deprecated/legacy. Values are
+     comma-joined topic strings (array join, no spaces). *)
+
+  (** Current Bluesky topics header name. [x-bsky-topics] is deprecated. *)
+  let topics_header_name = "x-atproto-bsky-topics"
+
+  (** Deprecated/legacy Bluesky topics header. Prefer [topics_header_name]. *)
+  let legacy_topics_header_name = "x-bsky-topics"
+
+  (** Format [topics] as a comma-separated header value (upstream join). *)
+  let topics_to_string (topics : string list) : string =
+    String.concat "," (List.map trim topics |> List.filter (fun p -> p <> ""))
+
+  (** Parse [x-atproto-bsky-topics] / [x-bsky-topics] (comma-separated). *)
+  let parse_topics (value : string) : string list = split_commas value
+
+  (** Current [x-atproto-bsky-topics] header pair from [topics]. *)
+  let topics_header (topics : string list) : string * string =
+    (topics_header_name, topics_to_string topics)
+
+  (** Deprecated [x-bsky-topics] header pair from [topics]. *)
+  let legacy_topics_header (topics : string list) : string * string =
+    (legacy_topics_header_name, topics_to_string topics)
+
+  (** [x-atproto-bsky-topics] pair, plus optional legacy [x-bsky-topics]
+      (upstream dual-write during switchover). Pass to
+      [Client.get_json ~extra]. *)
+  let topics_headers ?(legacy = false) (topics : string list) :
+      (string * string) list =
+    let current = topics_header topics in
+    if legacy then [ current; legacy_topics_header topics ] else [ current ]
+
   (* ---- Rate-limit and repo-rev headers -------------------------------- *)
 
   type rate_limit = {
@@ -131,6 +165,16 @@ module Xrpc = struct
     List.find_map
       (fun (k, v) -> if ascii_lower k = lower then Some (trim v) else None)
       headers
+
+  (** Topics from header pairs, preferring [x-atproto-bsky-topics] over
+      legacy [x-bsky-topics]. *)
+  let topics_from_headers (headers : (string * string) list) : string list =
+    match header_value headers topics_header_name with
+    | Some v -> parse_topics v
+    | None -> (
+        match header_value headers legacy_topics_header_name with
+        | Some v -> parse_topics v
+        | None -> [])
 
   let int_opt s = try Some (int_of_string s) with _ -> None
   let int64_opt s = try Some (Int64.of_string s) with _ -> None
