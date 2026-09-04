@@ -447,9 +447,11 @@ let assert_oauth_ozone_write ~origin ~priv ~pub ~token ?nonce () =
   | `Token svc, nonce -> (
       let tag = leftover_tag () in
       let ev =
-        Ozone.emit_event_service ~bearer:svc ~host:ozone_host
-          ~event:(Ozone.comment_event ("oauth dpop " ^ tag))
-          ~subject:(Ozone.repo_ref token.sub) ~created_by:token.sub ()
+        Ozone.emit_event_service_typed ~bearer:svc ~host:ozone_host
+          ~event:
+            (`Comment { comment = "oauth dpop " ^ tag; sticky = None })
+          ~subject:(`Repo_ref { did = token.sub })
+          ~created_by:token.sub ()
       in
       match classify_ozone ev.original with
       | `Not_served ->
