@@ -1,7 +1,9 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#187](https://github.com/david-engelmann/atproto/pull/187):
+shipped through [#188](https://github.com/david-engelmann/atproto/pull/188):
+OAuth live Ozone hop uses `emit_event_service_typed` on top of
+[#187](https://github.com/david-engelmann/atproto/pull/187):
 typed `Ozone.emit_event` encoding
 (`event_to_json` / `subject_to_json` / `mod_tool_to_json` /
 `emit_event_typed` / `emit_event_service_typed`) on top of
@@ -128,7 +130,8 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   DPoP `getSession`, refresh, RFC 7009 revoke
 - AppView service-auth minted from the OAuth DPoP token (`getServiceAuth`)
 - Ozone privileged writes as `admin-mod.test` via OAuth DPoP
-  `getServiceAuth` + `Ozone.emit_event_service` (DPoP cannot be proxied)
+  `getServiceAuth` + `Ozone.emit_event_service_typed` (DPoP cannot be
+  proxied)
 - [#116](https://github.com/david-engelmann/atproto/pull/116): live
   TestNetwork coverage for PDS `com.atproto.identity.updateHandle` and
   `com.atproto.server.deactivateAccount` / `activateAccount`, plus
@@ -261,6 +264,14 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `isReporterMuted`). Live TestNetwork hop uses the typed path when
   Ozone is served; skip-if-not-served stays. No hosted chat / video /
   Tap / phone / contacts / push faked
+- [#188](https://github.com/david-engelmann/atproto/pull/188): OAuth live
+  Ozone hop (`test_live_oauth_ozone`) uses
+  `Ozone.emit_event_service_typed` with typed `Comment` / `Repo_ref`
+  variants (same pattern as
+  [#187](https://github.com/david-engelmann/atproto/pull/187)
+  `emit_event_typed` on `test_local_ozone.ml`). Skip-if-not-served /
+  `classify_ozone` unchanged. Raw Yojson `emit_event_service` stays.
+  Does not invent hosted chat / video / Tap / phone / contacts / push
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -584,6 +595,10 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   when served. Does not invent leftover unused emitEvent fields.
   Hosted-only chat / video / Tap / phone / contacts / push stay
   listed not faked
+- [#188](https://github.com/david-engelmann/atproto/pull/188): OAuth live
+  Ozone hop uses `emit_event_service_typed` (`Comment` / `Repo_ref`).
+  Skip-if-not-served / `classify_ozone` unchanged. Hosted-only chat /
+  video / Tap / phone / contacts / push stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
