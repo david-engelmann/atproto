@@ -1,7 +1,12 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#194](https://github.com/david-engelmann/atproto/pull/194):
+shipped through [#195](https://github.com/david-engelmann/atproto/pull/195):
+Moderation `create_report` Yojson body helpers
+(`create_report_body_from_strong_ref` / `create_report_body_from_repo_ref`;
+string `create_report_data_from_strong_ref` /
+`create_report_data_from_repo_ref` unchanged) on top of
+[#194](https://github.com/david-engelmann/atproto/pull/194):
 Repo `blob_ref_to_json` for upload→record
 (`blob_ref_to_json`; `parse_blob_ref` / `upload_blob` unchanged) on top of
 [#193](https://github.com/david-engelmann/atproto/pull/193):
@@ -360,6 +365,17 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   unchanged. Does not invent leftover unused lexicon fields. No
   lexicon pin bump. No hosted chat / video / Tap / phone / contacts /
   push faked
+- [#195](https://github.com/david-engelmann/atproto/pull/195):
+  Moderation `create_report` Yojson body helpers:
+  `create_report_body_from_strong_ref` /
+  `create_report_body_from_repo_ref`. Uses existing `report_fields` /
+  subject constructors (`reasonType` / `subject.$type` / optional
+  `reason` / `modTool`). String `create_report_data_from_strong_ref` /
+  `create_report_data_from_repo_ref` stay as `Yojson.Safe.to_string`
+  wrappers. `create_report_with_*` posts the Yojson body via
+  `Client.post_json` and still returns `report_response`. Does not
+  invent leftover unused lexicon fields. No lexicon pin bump. No
+  hosted chat / video / Tap / phone / contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -720,6 +736,14 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `size`. `parse_blob_ref` / `upload_blob` unchanged. Does not invent
   leftover unused blob fields. Hosted-only chat / video / Tap / phone
   / contacts / push stay listed not faked
+- [#195](https://github.com/david-engelmann/atproto/pull/195):
+  Moderation `create_report` Yojson body helpers
+  (`create_report_body_from_strong_ref` /
+  `create_report_body_from_repo_ref`). String
+  `create_report_data_from_*` wrappers unchanged. `create_report_with_*`
+  posts via `Client.post_json` and still returns `report_response`.
+  Does not invent leftover unused createReport fields. Hosted-only
+  chat / video / Tap / phone / contacts / push stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 

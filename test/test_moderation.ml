@@ -15,48 +15,63 @@ let create_test_session _ =
   Session.create_session username password
 
 let test_report_bodies _ =
-  let data =
-    Moderation.create_report_data_from_strong_ref
+  let body =
+    Moderation.create_report_body_from_strong_ref
       "com.atproto.moderation.defs#reasonSpam" ~reason:"bots" sample_strong_ref
   in
-  let json = Yojson.Safe.from_string data in
   let open Yojson.Safe.Util in
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "com.atproto.moderation.defs#reasonSpam"
-    (json |> member "reasonType" |> to_string);
+    (body |> member "reasonType" |> to_string);
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "bots"
-    (json |> member "reason" |> to_string);
+    (body |> member "reason" |> to_string);
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "com.atproto.repo.strongRef"
-    (json |> member "subject" |> member "$type" |> to_string);
+    (body |> member "subject" |> member "$type" |> to_string);
+  let data =
+    Moderation.create_report_data_from_strong_ref
+      "com.atproto.moderation.defs#reasonSpam" ~reason:"bots" sample_strong_ref
+  in
+  OUnit2.assert_equal ~printer:(fun x -> x) (Yojson.Safe.to_string body) data;
   let repo =
+    Moderation.create_report_body_from_repo_ref
+      "com.atproto.moderation.defs#reasonOther"
+      { did = "did:plc:abc123xyz0001112223333" }
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "com.atproto.moderation.defs#reasonOther"
+    (repo |> member "reasonType" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "com.atproto.admin.defs#repoRef"
+    (repo |> member "subject" |> member "$type" |> to_string);
+  let repo_data =
     Moderation.create_report_data_from_repo_ref
       "com.atproto.moderation.defs#reasonOther"
       { did = "did:plc:abc123xyz0001112223333" }
   in
-  let repo_json = Yojson.Safe.from_string repo in
   OUnit2.assert_equal
     ~printer:(fun x -> x)
-    "com.atproto.admin.defs#repoRef"
-    (repo_json |> member "subject" |> member "$type" |> to_string);
+    (Yojson.Safe.to_string repo)
+    repo_data;
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     Moderation.reason_spam "com.atproto.moderation.defs#reasonSpam";
   let with_tool =
-    Moderation.create_report_data_from_strong_ref Moderation.reason_other
+    Moderation.create_report_body_from_strong_ref Moderation.reason_other
       ~reason:"context"
       ~mod_tool:{ name = "atproto-ocaml/test"; meta = None }
       sample_strong_ref
   in
-  let tool_json = Yojson.Safe.from_string with_tool in
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "atproto-ocaml/test"
-    (tool_json |> member "modTool" |> member "name" |> to_string)
+    (with_tool |> member "modTool" |> member "name" |> to_string)
 
 let test_parse_report_response _ =
   let json =

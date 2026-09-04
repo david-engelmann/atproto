@@ -1,5 +1,4 @@
-open Cohttp_client
-open App
+open Client
 open Session
 
 (** [com.atproto.moderation.createReport] — user reports (not Ozone operator tools). *)
@@ -118,65 +117,51 @@ module Moderation = struct
     | Some t -> [ ("modTool", mod_tool_json t) ]
     | None -> []
 
+  (** Yojson body for [com.atproto.moderation.createReport] on a record
+      ([com.atproto.repo.strongRef]). Shares [report_fields] with the
+      string wrappers. *)
+  let create_report_body_from_strong_ref (reason_type : string) ?reason
+      ?mod_tool (subject : strong_ref) : Yojson.Safe.t =
+    let subject = create_subject_from_strong_ref subject in
+    `Assoc (report_fields reason_type ?reason ?mod_tool subject)
+
+  (** Yojson body for [com.atproto.moderation.createReport] on an
+      account ([com.atproto.admin.defs#repoRef]). Shares [report_fields]
+      with the string wrappers. *)
+  let create_report_body_from_repo_ref (reason_type : string) ?reason ?mod_tool
+      (subject : repo_ref) : Yojson.Safe.t =
+    let subject = create_subject_from_repo_ref subject in
+    `Assoc (report_fields reason_type ?reason ?mod_tool subject)
+
   (** JSON body for [com.atproto.moderation.createReport] on a record
       ([com.atproto.repo.strongRef]). *)
   let create_report_data_from_strong_ref (reason_type : string) ?reason
       ?mod_tool (subject : strong_ref) : string =
-    let subject = create_subject_from_strong_ref subject in
     Yojson.Safe.to_string
-      (`Assoc (report_fields reason_type ?reason ?mod_tool subject))
+      (create_report_body_from_strong_ref reason_type ?reason ?mod_tool subject)
 
   (** JSON body for [com.atproto.moderation.createReport] on an
       account ([com.atproto.admin.defs#repoRef]). *)
   let create_report_data_from_repo_ref (reason_type : string) ?reason ?mod_tool
       (subject : repo_ref) : string =
-    let subject = create_subject_from_repo_ref subject in
     Yojson.Safe.to_string
-      (`Assoc (report_fields reason_type ?reason ?mod_tool subject))
+      (create_report_body_from_repo_ref reason_type ?reason ?mod_tool subject)
 
   (** User report via [com.atproto.moderation.createReport] on a record
       ([com.atproto.repo.strongRef]). Not an Ozone operator tool. *)
   let create_report_with_strong_ref (s : Session.session) (reason_type : string)
       ?reason ?mod_tool (subject : strong_ref) : report_response =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let create_report_url =
-      App.create_endpoint_url base_url
-        (create_moderation_endpoint "createReport")
-    in
-    let data =
-      create_report_data_from_strong_ref reason_type ?reason ?mod_tool subject
-    in
-    let created_report =
-      Lwt_main.run
-        (Cohttp_client.post_data_with_headers create_report_url data headers)
-    in
-    created_report |> convert_body_to_json |> parse_report_response
+    create_report_body_from_strong_ref reason_type ?reason ?mod_tool subject
+    |> Yojson.Safe.to_string
+    |> Client.post_json ~session:s "com.atproto.moderation.createReport"
+    |> parse_report_response
 
   (** User report via [com.atproto.moderation.createReport] on an
       account ([com.atproto.admin.defs#repoRef]). *)
   let create_report_with_repo_ref (s : Session.session) (reason_type : string)
       ?reason ?mod_tool (subject : repo_ref) : report_response =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let create_report_url =
-      App.create_endpoint_url base_url
-        (create_moderation_endpoint "createReport")
-    in
-    let data =
-      create_report_data_from_repo_ref reason_type ?reason ?mod_tool subject
-    in
-    let created_report =
-      Lwt_main.run
-        (Cohttp_client.post_data_with_headers create_report_url data headers)
-    in
-    created_report |> convert_body_to_json |> parse_report_response
+    create_report_body_from_repo_ref reason_type ?reason ?mod_tool subject
+    |> Yojson.Safe.to_string
+    |> Client.post_json ~session:s "com.atproto.moderation.createReport"
+    |> parse_report_response
 end
