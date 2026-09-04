@@ -373,6 +373,55 @@ let test_parse_timeline_and_schedule _ =
     "tools.ozone.moderation.scheduleAction#takedown"
     (body |> member "action" |> member "$type" |> to_string)
 
+let test_schedule_action_typed_body _ =
+  let open Yojson.Safe.Util in
+  let scheduling : Ozone.scheduling =
+    {
+      execute_at = Some "2024-02-01T00:00:00.000Z";
+      execute_after = None;
+      execute_until = None;
+    }
+  in
+  let typed =
+    Ozone.schedule_action_typed_body
+      ~action:(Ozone.takedown_action ~comment:"spam" ())
+      ~subjects:[ "did:plc:abc123xyz0001112223333" ]
+      ~created_by:"did:plc:mod000111222333444555666" ~scheduling
+      ~mod_tool:{ name = "automod"; meta = None }
+      ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "tools.ozone.moderation.scheduleAction#takedown"
+    (typed |> member "action" |> member "$type" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "automod"
+    (typed |> member "modTool" |> member "name" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "2024-02-01T00:00:00.000Z"
+    (typed |> member "scheduling" |> member "executeAt" |> to_string);
+  let omitted =
+    Ozone.schedule_action_typed_body
+      ~action:(Ozone.takedown_action ~comment:"spam" ())
+      ~subjects:[ "did:plc:abc123xyz0001112223333" ]
+      ~created_by:"did:plc:mod000111222333444555666" ~scheduling ()
+  in
+  OUnit2.assert_equal `Null (omitted |> member "modTool");
+  let raw =
+    Ozone.schedule_action_body
+      ~action:(Ozone.takedown_action ~comment:"spam" ())
+      ~subjects:[ "did:plc:abc123xyz0001112223333" ]
+      ~created_by:"did:plc:mod000111222333444555666" ~scheduling
+      ~mod_tool:(`Assoc [ ("name", `String "raw-tool") ])
+      ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "raw-tool"
+    (raw |> member "modTool" |> member "name" |> to_string)
+
 let test_parse_typed_event_and_subject _ =
   let ev =
     Ozone.parse_mod_event
@@ -1124,6 +1173,7 @@ let suite =
          "test_emit_event_typed_body_roundtrip"
          >:: test_emit_event_typed_body_roundtrip;
          "test_parse_timeline_and_schedule" >:: test_parse_timeline_and_schedule;
+         "test_schedule_action_typed_body" >:: test_schedule_action_typed_body;
          "test_parse_typed_event_and_subject"
          >:: test_parse_typed_event_and_subject;
          "test_parse_leftover_event_and_status"

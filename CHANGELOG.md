@@ -1,7 +1,11 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#195](https://github.com/david-engelmann/atproto/pull/195):
+shipped through [#196](https://github.com/david-engelmann/atproto/pull/196):
+typed `Ozone.schedule_action` encoding
+(`schedule_action_typed` / `schedule_action_typed_body`; optional typed
+`mod_tool`; raw Yojson `schedule_action` unchanged) on top of
+[#195](https://github.com/david-engelmann/atproto/pull/195):
 Moderation `create_report` Yojson body helpers
 (`create_report_body_from_strong_ref` / `create_report_body_from_repo_ref`;
 string `create_report_data_from_strong_ref` /
@@ -376,6 +380,15 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `Client.post_json` and still returns `report_response`. Does not
   invent leftover unused lexicon fields. No lexicon pin bump. No
   hosted chat / video / Tap / phone / contacts / push faked
+- [#196](https://github.com/david-engelmann/atproto/pull/196): typed
+  `Ozone.schedule_action` encoding: `schedule_action_typed` /
+  `schedule_action_typed_body`. Same labeled args as raw
+  `schedule_action`; optional `mod_tool` is the parsed record and
+  encodes via `mod_tool_to_json`. `action` stays Yojson
+  (`takedown_action`); `scheduling` still uses `scheduling_to_json`.
+  Raw Yojson `schedule_action` / `schedule_action_body` stay unchanged.
+  Does not invent leftover unused lexicon fields. No lexicon pin bump.
+  No hosted chat / video / Tap / phone / contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -744,6 +757,14 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   posts via `Client.post_json` and still returns `report_response`.
   Does not invent leftover unused createReport fields. Hosted-only
   chat / video / Tap / phone / contacts / push stay listed not faked
+- [#196](https://github.com/david-engelmann/atproto/pull/196): typed
+  `Ozone.schedule_action` encoding (`schedule_action_typed` /
+  `schedule_action_typed_body`). Optional `mod_tool` is the parsed
+  record (`mod_tool_to_json`). `action` stays Yojson; `scheduling`
+  still uses `scheduling_to_json`. Raw Yojson `schedule_action` /
+  `schedule_action_body` unchanged. Does not invent leftover unused
+  scheduleAction fields. Hosted-only chat / video / Tap / phone /
+  contacts / push stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
