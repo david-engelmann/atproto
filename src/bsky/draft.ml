@@ -235,10 +235,13 @@ module Draft = struct
     | `Unknown j -> j
 
   (** Build an [app.bsky.draft.defs#draftPost] object ([text] plus optional
-      embed-image / gallery / video / external / record fields). *)
+      [labels] / embed-image / gallery / video / external / record fields). *)
   let draft_post_json (p : draft_post) : Yojson.Safe.t =
     let fields =
       [ ("text", `String p.text) ]
+      @ (match p.labels with
+        | Some xs -> [ ("labels", Label.Label.self_labels_to_json xs) ]
+        | None -> [])
       @ (match p.embed_images with
         | [] -> []
         | xs -> [ ("embedImages", `List (List.map embed_image_json xs)) ])
@@ -315,12 +318,29 @@ module Draft = struct
     in
     `Assoc fields
 
-  (** JSON body for [app.bsky.draft.createDraft]. *)
+  (** Encode a parsed [draft]. Uses the typed fields (not leftover
+      [.original]). *)
+  let draft_to_json (d : draft) : Yojson.Safe.t =
+    draft_json ?device_id:d.device_id ?device_name:d.device_name ~langs:d.langs
+      ~postgate_embedding_rules:d.postgate_embedding_rules
+      ~threadgate_allow:d.threadgate_allow ~posts:d.posts ()
+
+  (** JSON body for [app.bsky.draft.createDraft]. [draft] is raw Yojson. *)
   let create_draft_body draft : Yojson.Safe.t = `Assoc [ ("draft", draft) ]
 
-  (** JSON body for [app.bsky.draft.updateDraft]. [id] is the draft TID. *)
+  (** JSON body for [app.bsky.draft.updateDraft]. [id] is the draft TID.
+      [draft] is raw Yojson. *)
   let update_draft_body ~id draft : Yojson.Safe.t =
     `Assoc [ ("draft", `Assoc [ ("id", `String id); ("draft", draft) ]) ]
+
+  (** Typed body for [app.bsky.draft.createDraft] (same JSON as
+      [create_draft_body] over [draft_to_json]). *)
+  let create_draft_typed_body (d : draft) : Yojson.Safe.t =
+    create_draft_body (draft_to_json d)
+
+  (** Typed body for [app.bsky.draft.updateDraft]. [id] is the draft TID. *)
+  let update_draft_typed_body ~id (d : draft) : Yojson.Safe.t =
+    update_draft_body ~id (draft_to_json d)
 
   (** JSON body for [app.bsky.draft.deleteDraft]. [id] is the draft TID. *)
   let delete_draft_body ~id : Yojson.Safe.t = `Assoc [ ("id", `String id) ]
@@ -331,17 +351,29 @@ module Draft = struct
       (Client.opt_int "limit" limit @ Client.opt_pair "cursor" cursor)
     |> parse_drafts_page
 
-  (** Create a stash draft via [app.bsky.draft.createDraft]. *)
+  (** Create a stash draft via [app.bsky.draft.createDraft]. [draft] is raw
+      Yojson. *)
   let create_draft (s : Session.session) draft : create_result =
     Client.post_json ~session:s "app.bsky.draft.createDraft"
       (Yojson.Safe.to_string (create_draft_body draft))
     |> fun json -> { id = Client.string_member json "id" }
 
-  (** Update a stash draft via [app.bsky.draft.updateDraft]. *)
+  (** Create a stash draft from a typed [draft]
+      ([app.bsky.draft.createDraft]). *)
+  let create_draft_typed (s : Session.session) (d : draft) : create_result =
+    create_draft s (draft_to_json d)
+
+  (** Update a stash draft via [app.bsky.draft.updateDraft]. [draft] is raw
+      Yojson. *)
   let update_draft (s : Session.session) ~id draft : unit =
     ignore
       (Client.post_json ~session:s "app.bsky.draft.updateDraft"
          (Yojson.Safe.to_string (update_draft_body ~id draft)))
+
+  (** Update a stash draft from a typed [draft]
+      ([app.bsky.draft.updateDraft]). *)
+  let update_draft_typed (s : Session.session) ~id (d : draft) : unit =
+    update_draft s ~id (draft_to_json d)
 
   (** Delete a stash draft via [app.bsky.draft.deleteDraft]. *)
   let delete_draft (s : Session.session) ~id () : unit =

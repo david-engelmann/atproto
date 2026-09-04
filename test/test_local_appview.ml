@@ -891,12 +891,20 @@ let draft_post text : Draft.draft_post =
 (* AppView 0.0.277 registers the draft family. PDS stash proxy may 501. *)
 let test_drafts _ =
   let s = session () in
-  let draft =
-    Draft.draft_json ~langs:[ "en" ] ~posts:[ draft_post "av draft" ] ()
+  let draft : Draft.draft =
+    {
+      device_id = None;
+      device_name = None;
+      posts = [ draft_post "av draft" ];
+      langs = [ "en" ];
+      postgate_embedding_rules = [];
+      threadgate_allow = [];
+      original = `Null;
+    }
   in
   match
     av_post_if_served ~session:s "app.bsky.draft.createDraft"
-      (Yojson.Safe.to_string (Draft.create_draft_body draft))
+      (Yojson.Safe.to_string (Draft.create_draft_typed_body draft))
   with
   | None -> ()
   | Some json ->
@@ -911,14 +919,12 @@ let test_drafts _ =
           let page = Draft.parse_drafts_page page_json in
           OUnit2.assert_bool "getDrafts includes created"
             (List.exists (fun (d : Draft.draft_view) -> d.id = id) page.drafts));
-      let updated =
-        Draft.draft_json ~langs:[ "en" ]
-          ~posts:[ draft_post "av draft updated" ]
-          ()
+      let updated : Draft.draft =
+        { draft with posts = [ draft_post "av draft updated" ] }
       in
       ignore
         (av_post_if_served ~session:s "app.bsky.draft.updateDraft"
-           (Yojson.Safe.to_string (Draft.update_draft_body ~id updated)));
+           (Yojson.Safe.to_string (Draft.update_draft_typed_body ~id updated)));
       ignore
         (av_post_if_served ~session:s "app.bsky.draft.deleteDraft"
            (Yojson.Safe.to_string (Draft.delete_draft_body ~id)))
