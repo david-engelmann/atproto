@@ -782,22 +782,31 @@ let test_update_template_body _ =
     | _ -> OUnit2.assert_failure "expected Assoc"
   in
   let body =
-    Ozone.update_template_body ~id:"tmpl-1" ~name:"Hello"
-      ~content_markdown:"hi" ~subject:"welcome" ~updated_by:"did:plc:updater"
-      ~disabled:false ()
+    Ozone.update_template_body ~id:"tmpl-1" ~name:"Hello" ~content_markdown:"hi"
+      ~subject:"welcome" ~updated_by:"did:plc:updater" ~disabled:false ()
   in
   OUnit2.assert_equal
     [ "id"; "name"; "contentMarkdown"; "subject"; "disabled"; "updatedBy" ]
     (keys body);
-  OUnit2.assert_equal ~printer:(fun x -> x) "tmpl-1"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "tmpl-1"
     (body |> member "id" |> to_string);
-  OUnit2.assert_equal ~printer:(fun x -> x) "Hello"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "Hello"
     (body |> member "name" |> to_string);
-  OUnit2.assert_equal ~printer:(fun x -> x) "hi"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "hi"
     (body |> member "contentMarkdown" |> to_string);
-  OUnit2.assert_equal ~printer:(fun x -> x) "welcome"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "welcome"
     (body |> member "subject" |> to_string);
-  OUnit2.assert_equal ~printer:(fun x -> x) "did:plc:updater"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:updater"
     (body |> member "updatedBy" |> to_string);
   OUnit2.assert_equal false (body |> member "disabled" |> to_bool);
   OUnit2.assert_equal `Null (body |> member "lang");
@@ -805,7 +814,9 @@ let test_update_template_body _ =
   OUnit2.assert_equal [ "id" ] (keys omitted);
   let deleted = Ozone.delete_template_body ~id:"tmpl-1" in
   OUnit2.assert_equal [ "id" ] (keys deleted);
-  OUnit2.assert_equal ~printer:(fun x -> x) "tmpl-1"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "tmpl-1"
     (deleted |> member "id" |> to_string)
 
 let test_parse_queue_and_report _ =

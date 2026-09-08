@@ -1268,7 +1268,7 @@ module Ozone = struct
       ?updated_by () : Yojson.Safe.t =
     `Assoc
       (("id", `String id)
-      :: (match name with Some n -> [ ("name", `String n) ] | None -> [])
+       :: (match name with Some n -> [ ("name", `String n) ] | None -> [])
       @ (match content_markdown with
         | Some c -> [ ("contentMarkdown", `String c) ]
         | None -> [])
@@ -1291,8 +1291,7 @@ module Ozone = struct
     |> parse_template
 
   (** JSON body for [tools.ozone.communication.deleteTemplate]. *)
-  let delete_template_body ~id : Yojson.Safe.t =
-    `Assoc [ ("id", `String id) ]
+  let delete_template_body ~id : Yojson.Safe.t = `Assoc [ ("id", `String id) ]
 
   (** Delete template [id] via [tools.ozone.communication.deleteTemplate]. *)
   let delete_template (s : Session.session) ~proxy ~id () : unit =
