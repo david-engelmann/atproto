@@ -42,6 +42,7 @@ open Atproto.Http_client
 open Atproto.Auth
 open Atproto.Session
 open Atproto.Label
+open Atproto.Labeler
 open Atproto.Firehose
 open Atproto.Sync
 
@@ -520,6 +521,28 @@ let () =
         ])
   in
   assert (lvd.identifier = "spam");
+  let lvd_json = Label.label_value_definition_to_json lvd in
+  assert ((Label.parse_label_value_definition lvd_json).identifier = "spam");
+  let locale_json =
+    Label.label_value_definition_strings_to_json
+      { lang = "en"; name = "Spam"; description = "Spam" }
+  in
+  assert ((Label.parse_label_value_definition_strings locale_json).lang = "en");
+  let policies_json =
+    Labeler.policies_to_json
+      { label_values = [ "!hide" ]; label_value_definitions = [ lvd ] }
+  in
+  assert (
+    match Labeler.parse_policies policies_json with
+    | p -> List.mem "!hide" p.label_values && lvd.identifier = "spam");
+  let labeler_rec =
+    Records.labeler_service ~policies:policies_json
+      ~created_at:"2024-01-01T00:00:00.000Z" ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "$type" labeler_rec with
+    | `String "app.bsky.labeler.service" -> true
+    | _ -> false);
   let session_body =
     Auth.create_session_body ~identifier:"alice.test" ~password:"x"
       ~allow_takendown:true ()

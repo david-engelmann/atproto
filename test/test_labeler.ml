@@ -1,5 +1,7 @@
 open OUnit2
 open Atproto.Labeler
+open Atproto.Records
+open Atproto.Label
 
 let with_public_timeout ?(seconds = 20) f =
   let old =
@@ -79,6 +81,57 @@ let test_parse_services _ =
         | [] -> false)
     | None -> false)
 
+let test_policies_to_json _ =
+  let locale : Label.label_value_definition_strings =
+    { lang = "en"; name = "Spam"; description = "Spam" }
+  in
+  let def : Label.label_value_definition =
+    {
+      identifier = "spam";
+      severity = "inform";
+      blurs = "none";
+      default_setting = Some "warn";
+      adult_only = None;
+      locales = [ locale ];
+    }
+  in
+  let policies : Labeler.policies =
+    { label_values = [ "spam"; "!hide" ]; label_value_definitions = [ def ] }
+  in
+  let encoded = Labeler.policies_to_json policies in
+  let parsed = Labeler.parse_policies encoded in
+  OUnit2.assert_bool "roundtrip values"
+    (List.mem "spam" parsed.label_values && List.mem "!hide" parsed.label_values);
+  (match parsed.label_value_definitions with
+  | d :: _ ->
+      OUnit2.assert_equal ~printer:(fun x -> x) "spam" d.identifier;
+      OUnit2.assert_equal ~printer:(fun x -> x) "inform" d.severity;
+      OUnit2.assert_equal (Some "warn") d.default_setting;
+      OUnit2.assert_equal None d.adult_only
+  | [] -> OUnit2.assert_failure "expected labelValueDefinitions");
+  let values_only : Labeler.policies =
+    { label_values = [ "!hide" ]; label_value_definitions = [] }
+  in
+  let values_json = Labeler.policies_to_json values_only in
+  OUnit2.assert_equal `Null
+    (Yojson.Safe.Util.member "labelValueDefinitions" values_json);
+  let labeler =
+    Records.labeler_service ~policies:values_json
+      ~created_at:"2024-01-01T00:00:00.000Z"
+      ~reason_types:[ "com.atproto.moderation.defs#reasonSpam" ]
+      ()
+  in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "app.bsky.labeler.service"
+    (labeler |> member "$type" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "!hide"
+    (labeler |> member "policies" |> member "labelValues" |> to_list |> List.hd
+   |> to_string)
+
 let test_get_services_live _ =
   try
     with_public_timeout (fun () ->
@@ -94,6 +147,7 @@ let suite =
   "labeler"
   >::: [
          "test_parse_services" >:: test_parse_services;
+         "test_policies_to_json" >:: test_policies_to_json;
          "test_get_services_live" >:: test_get_services_live;
        ]
 

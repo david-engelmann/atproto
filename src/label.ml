@@ -180,6 +180,42 @@ module Label = struct
         | _ -> []);
     }
 
+  (* com.atproto.label.defs#labelValueDefinitionStrings — encode sibling of
+     parse. Required lang / name / description only. *)
+  let label_value_definition_strings_to_json
+      (s : label_value_definition_strings) : Yojson.Safe.t =
+    `Assoc
+      [
+        ("lang", `String s.lang);
+        ("name", `String s.name);
+        ("description", `String s.description);
+      ]
+
+  (* com.atproto.label.defs#labelValueDefinition — encode sibling of parse.
+     Required identifier / severity / blurs / locales; optional
+     defaultSetting / adultOnly when present. Does not invent leftover
+     definition fields. *)
+  let label_value_definition_to_json (d : label_value_definition) :
+      Yojson.Safe.t =
+    let fields =
+      [
+        ("identifier", `String d.identifier);
+        ("severity", `String d.severity);
+        ("blurs", `String d.blurs);
+      ]
+      @ (match d.default_setting with
+        | Some s -> [ ("defaultSetting", `String s) ]
+        | None -> [])
+      @ (match d.adult_only with
+        | Some b -> [ ("adultOnly", `Bool b) ]
+        | None -> [])
+      @ [
+          ( "locales",
+            `List (List.map label_value_definition_strings_to_json d.locales) );
+        ]
+    in
+    `Assoc fields
+
   let self_labels_to_json (vals : string list) : Yojson.Safe.t =
     `Assoc
       [
