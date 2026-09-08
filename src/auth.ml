@@ -13,6 +13,24 @@ module Auth = struct
     refresh_token : string option;
   }
 
+  (* Live session record. [Session.session] is this type so Client / App
+     can use host + Bearer without depending on Session. *)
+  type session = {
+    username : string;
+    password : string;
+    atp_host : string;
+    auth : auth;
+    did_doc : Yojson.Safe.t option;
+  }
+
+  (** PDS host from [ATP_HOST] (default [bsky.social]). *)
+  let atp_host_from_env : string =
+    try Sys.getenv "ATP_HOST" with Not_found -> "bsky.social"
+
+  (** [Authorization: Bearer] header pair from the session access JWT. *)
+  let bearer_token_from_session (s : session) : string * string =
+    ("Authorization", "Bearer " ^ s.auth.token)
+
   let base_endpoint_from_env : string =
     let base_endpoint =
       try Sys.getenv "BASE_ENDPOINT" with Not_found -> "xrpc"

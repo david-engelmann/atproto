@@ -1,7 +1,12 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#204](https://github.com/david-engelmann/atproto/pull/204):
+shipped through [#205](https://github.com/david-engelmann/atproto/pull/205):
+Session leftover JSON XRPC via Client
+(`get_session_request` via `Client.get_text`; `refresh_session` /
+`delete_session` via `Client.post_json` with Bearer `refreshJwt`,
+empty delete output stays `""`) on top of
+[#204](https://github.com/david-engelmann/atproto/pull/204):
 Server leftover session JSON XRPC via Client
 (`describe_server` / `create_account` / `list_app_passwords` /
 `get_account_invite_codes` share `create_account_body` /
@@ -517,6 +522,17 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   stays Cohttp. Does not invent leftover unused lexicon fields. No
   lexicon pin bump. No hosted chat / video / Tap / phone / contacts /
   push faked
+- [#205](https://github.com/david-engelmann/atproto/pull/205):
+  Session leftover JSON XRPC via Client: `get_session_request` uses
+  `Client.get_text` (no leftover unused getSession query fields).
+  `refresh_session` / `delete_session` post via `Client.post_json`
+  with Bearer `refreshJwt` (no JSON body). `delete_session` still
+  returns `string` (empty procedure output stays `""`). Parse return
+  types and public signatures stay unchanged. `Session.session` is
+  the same record as `Auth.session` so Client / App can hop without
+  a Session cycle. `create_session` stays on Auth Cohttp. Does not
+  invent leftover unused lexicon fields. No lexicon pin bump. No
+  hosted chat / video / Tap / phone / contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -938,6 +954,13 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `create_invite_codes_body`. `get_service_auth` stays Cohttp. Does
   not invent leftover unused server query/body fields. Hosted-only
   chat / video / Tap / phone / contacts / push stay listed not faked
+- [#205](https://github.com/david-engelmann/atproto/pull/205):
+  Session leftover JSON XRPC via Client. `get_session_request` via
+  `Client.get_text`; `refresh_session` / `delete_session` via
+  `Client.post_json` with Bearer `refreshJwt`. Empty delete output
+  stays `""`. Does not invent leftover unused getSession /
+  refreshSession / deleteSession fields. Hosted-only chat / video /
+  Tap / phone / contacts / push stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 

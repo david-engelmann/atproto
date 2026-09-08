@@ -135,6 +135,21 @@ let test_delete_session _ =
   Printf.printf "Delete Session: %s\n" deleted_session;
   OUnit2.assert_bool "Delete Session is not empty" (deleted_session = "")
 
+let test_refresh_session_missing_refresh _ =
+  let no_refresh =
+    {
+      sample_session with
+      auth = { sample_session.auth with refresh_token = None };
+    }
+  in
+  try
+    ignore (Session.refresh_session no_refresh);
+    OUnit2.assert_failure "expected missing refreshJwt"
+  with Failure msg ->
+    OUnit2.assert_equal
+      ~printer:(fun x -> x)
+      "Session.refresh_session: missing refreshJwt" msg
+
 let suite =
   "suite"
   >::: [
@@ -148,6 +163,8 @@ let suite =
          "test_create_session" >:: test_create_session;
          "test_bearer_token_from_session" >:: test_bearer_token_from_session;
          "test_parse_session_request" >:: test_parse_session_request;
+         "test_refresh_session_missing_refresh"
+         >:: test_refresh_session_missing_refresh;
          "test_get_session_request" >:: test_get_session_request;
          "test_delete_session" >:: test_delete_session;
        ]

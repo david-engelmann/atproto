@@ -1,4 +1,3 @@
-open Session
 open Auth
 
 (** XRPC base-URL helpers for a PDS session or a public host. *)
@@ -11,12 +10,12 @@ module App = struct
     url ^ endpoint
 
   (** PDS XRPC base for [s] ([https://host/xrpc] or [ATP_SCHEME]). *)
-  let create_base_url (s : Session.session) : string =
+  let create_base_url (s : Auth.session) : string =
     let base_endpoint = Auth.get_base_endpoint in
     Auth.origin_of_host s.atp_host ^ "/" ^ base_endpoint
 
   (** XRPC base for a public [host] (default [ATP_HOST]). *)
-  let create_public_base_url ?(host = Session.atp_host_from_env) () : string =
+  let create_public_base_url ?(host = Auth.atp_host_from_env) () : string =
     let base_endpoint = Auth.get_base_endpoint in
     Auth.origin_of_host host ^ "/" ^ base_endpoint
 end

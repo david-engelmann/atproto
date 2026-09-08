@@ -1,10 +1,9 @@
 open Auth
-open Cohttp_client
 open Error
 
 (** [com.atproto.server.createSession] / [getSession] and the live session record. *)
 module Session = struct
-  type session = {
+  type session = Auth.session = {
     username : string;
     password : string;
     atp_host : string;
@@ -63,11 +62,7 @@ module Session = struct
     }
 
   (** PDS host from [ATP_HOST] (default [bsky.social]). *)
-  let atp_host_from_env : string =
-    let atp_host =
-      try Sys.getenv "ATP_HOST" with Not_found -> "bsky.social"
-    in
-    atp_host
+  let atp_host_from_env = Auth.atp_host_from_env
 
   (** Create a password session ([com.atproto.server.createSession]) on
       [ATP_HOST] (default [bsky.social]). Optional [auth_factor_token] and
@@ -89,34 +84,20 @@ module Session = struct
     { username; password; atp_host; auth = session_auth; did_doc }
 
   (** [Authorization: Bearer] header pair from the session access JWT. *)
-  let bearer_token_from_session (s : session) : string * string =
-    let bearer_header = "Bearer " ^ s.auth.token in
-    ("Authorization", bearer_header)
+  let bearer_token_from_session = Auth.bearer_token_from_session
 
   (** [Authorization: Bearer] header pair from the session refresh JWT. *)
   let refresh_token_from_session (s : session) : string * string =
     let bearer_header = "Bearer " ^ Option.get s.auth.refresh_token in
     ("Authorization", bearer_header)
 
+  (* Empty procedure output stays [""] for existing string callers. *)
+  let json_body_string (json : Yojson.Safe.t) : string =
+    match json with `Assoc [] -> "" | j -> Yojson.Safe.to_string j
+
   (** Raw JSON from [com.atproto.server.getSession] for [s]. *)
   let get_session_request (s : session) : string =
-    let base_endpoint = Auth.get_base_endpoint in
-    let get_session_endpoint = Auth.create_server_endpoint "getSession" in
-    let get_session_url =
-      Printf.sprintf "%s/%s%s"
-        (Auth.origin_of_host s.atp_host)
-        base_endpoint get_session_endpoint
-    in
-    let bearer_token = bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let session =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_headers get_session_url headers)
-    in
-    session
+    Client.Client.get_text ~session:s "com.atproto.server.getSession" []
 
   (** Current account info for [s] via [com.atproto.server.getSession]
       (handle, DID, email flags, active/status). *)
@@ -129,11 +110,10 @@ module Session = struct
     match s.auth.refresh_token with
     | None -> failwith "Session.refresh_session: missing refreshJwt"
     | Some refresh ->
-        let body =
-          Auth.refresh_auth_token_request s.auth.token refresh s.username
-            s.auth.did s.atp_host
+        let json =
+          Client.Client.post_json ~host:s.atp_host ~bearer:refresh
+            "com.atproto.server.refreshSession" ""
         in
-        let json = Auth.convert_body_to_json body in
         (match Error.check_for_error json with
         | Some _ ->
             failwith
@@ -153,17 +133,11 @@ module Session = struct
     if Auth.is_token_expired s.auth then refresh_session s else s
 
   (** End the session via [com.atproto.server.deleteSession] (Bearer
-      [refreshJwt]). *)
+      [refreshJwt]). Empty procedure output stays [""] for existing
+      callers. *)
   let delete_session (s : session) : string =
-    let bearer_token = refresh_token_from_session s in
-    let headers = Cohttp_client.create_headers_from_pairs [ bearer_token ] in
-    let base_endpoint = Auth.get_base_endpoint in
-    let delete_session_endpoint = Auth.create_server_endpoint "deleteSession" in
-    let delete_session_url =
-      Printf.sprintf "%s/%s%s"
-        (Auth.origin_of_host s.atp_host)
-        base_endpoint delete_session_endpoint
-    in
-    Lwt_main.run
-      (Cohttp_client.post_request_with_headers delete_session_url headers)
+    let refresh = Option.get s.auth.refresh_token in
+    Client.Client.post_json ~host:s.atp_host ~bearer:refresh
+      "com.atproto.server.deleteSession" ""
+    |> json_body_string
 end
