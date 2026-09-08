@@ -139,6 +139,16 @@ let () =
     | _ -> false);
   ignore Ozone.schedule_action_typed;
   ignore Ozone.schedule_action;
+  let ozone_cancel =
+    Ozone.cancel_scheduled_actions_body
+      ~subjects:[ "did:plc:abc123xyz0001112223333" ]
+      ~comment:"false positive" ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "comment" ozone_cancel with
+    | `String "false positive" -> true
+    | _ -> false);
+  ignore Ozone.cancel_scheduled_actions;
   ignore Ozone.query_events_service;
   ignore Ozone.get_config_service;
   ignore Oauth.xrpc_post_dpop;

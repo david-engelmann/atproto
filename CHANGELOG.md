@@ -1,7 +1,11 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#198](https://github.com/david-engelmann/atproto/pull/198): Graph mute/unmute Client +
+shipped through [#197](https://github.com/david-engelmann/atproto/pull/197):
+Ozone `cancel_scheduled_actions` Yojson body helper
+(`cancel_scheduled_actions_body`; `cancel_scheduled_actions` shares that
+body) on top of
+[#198](https://github.com/david-engelmann/atproto/pull/198): Graph mute/unmute Client +
 `unmute_actor_body` (`unmute_actor_body`; `mute_actor` /
 `unmute_actor` via `Client.post_json`, string return unchanged; session
 `get_blocks` / `get_mutes` / `get_follows` / `get_followers` via
@@ -403,6 +407,14 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `get_followers` use `Client.get_json` with the `limit` query param
   and keep parsed return types. No lexicon pin bump. No hosted chat /
   video / Tap / phone / contacts / push faked
+- [#197](https://github.com/david-engelmann/atproto/pull/197): Ozone
+  `cancel_scheduled_actions` Yojson body helper
+  (`cancel_scheduled_actions_body`). Lexicon fields only: `subjects`
+  (array of strings) and optional `comment`. Existing
+  `cancel_scheduled_actions` shares that body and still returns
+  `batch_result`. Does not invent leftover unused lexicon fields. No
+  lexicon pin bump. No hosted chat / video / Tap / phone / contacts /
+  push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -786,6 +798,13 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `Client.get_json` with `limit`. Does not invent leftover unused
   unmuteActor fields. Hosted-only chat / video / Tap / phone /
   contacts / push stay listed not faked
+- [#197](https://github.com/david-engelmann/atproto/pull/197): Ozone
+  `cancel_scheduled_actions` Yojson body helper
+  (`cancel_scheduled_actions_body`). Lexicon fields only: `subjects`
+  (array of strings) and optional `comment`. `cancel_scheduled_actions`
+  shares that body and still returns `batch_result`. Does not invent
+  leftover unused cancelScheduledActions fields. Hosted-only chat /
+  video / Tap / phone / contacts / push stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
