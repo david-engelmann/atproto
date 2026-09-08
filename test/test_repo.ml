@@ -89,6 +89,42 @@ let test_create_put_record_json_body _ =
   ignore Repo.create_record_json;
   ignore Repo.put_record_json
 
+let test_repo_query_bodies _ =
+  OUnit2.assert_equal
+    [ ("repo", "alice.test") ]
+    (Repo.describe_repo_body ~repo:"alice.test");
+  OUnit2.assert_equal
+    [
+      ("repo", "did:plc:alice");
+      ("collection", "app.bsky.feed.post");
+      ("rkey", "3jzfcijpj2z2a");
+      ("cid", "bafyreihdummy");
+    ]
+    (Repo.get_record_body ~repo:"did:plc:alice" ~collection:"app.bsky.feed.post"
+       ~rkey:"3jzfcijpj2z2a" ~cid:"bafyreihdummy" ());
+  OUnit2.assert_equal
+    [
+      ("repo", "did:plc:alice");
+      ("collection", "app.bsky.feed.post");
+      ("rkey", "3jzfcijpj2z2a");
+    ]
+    (Repo.get_record_body ~repo:"did:plc:alice" ~collection:"app.bsky.feed.post"
+       ~rkey:"3jzfcijpj2z2a" ());
+  OUnit2.assert_equal
+    [
+      ("repo", "did:plc:alice");
+      ("collection", "app.bsky.feed.post");
+      ("limit", "5");
+      ("cursor", "c1");
+      ("reverse", "true");
+    ]
+    (Repo.list_records_body ~repo:"did:plc:alice"
+       ~collection:"app.bsky.feed.post" ~limit:5 ~cursor:"c1" ~reverse:true ());
+  OUnit2.assert_equal
+    [ ("cursor", "c1"); ("limit", "5") ]
+    (Repo.list_missing_blobs_body ~cursor:"c1" ~limit:5 ());
+  OUnit2.assert_equal [] (Repo.list_missing_blobs_body ())
+
 let test_delete_record_body _ =
   let body =
     Repo.delete_record_body ~repo:"did:plc:7iza6de2dwap2sbkpav7c6c6"
@@ -433,6 +469,7 @@ let suite =
   "suite"
   >::: [
          "test_describe_repo" >:: test_describe_repo;
+         "test_repo_query_bodies" >:: test_repo_query_bodies;
          "test_create_put_record_json_body" >:: test_create_put_record_json_body;
          "test_delete_record_body" >:: test_delete_record_body;
          "test_apply_writes_parsed" >:: test_apply_writes_parsed;

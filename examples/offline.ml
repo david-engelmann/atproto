@@ -1054,6 +1054,13 @@ let () =
   in
   ignore Repo.create_record_json;
   ignore Repo.put_record_json;
+  assert (
+    Repo.describe_repo_body ~repo:"alice.test" = [ ("repo", "alice.test") ]);
+  assert (Repo.list_missing_blobs_body ~limit:5 () = [ ("limit", "5") ]);
+  ignore Repo.describe_repo;
+  ignore Repo.get_record;
+  ignore Repo.list_records;
+  ignore Repo.list_missing_blobs;
   let delete_json =
     Repo.delete_record_body ~repo:"did:plc:abc123xyz0001112223333"
       ~collection:"app.bsky.feed.post" ~rkey:"3jzfcijpj2z2a"

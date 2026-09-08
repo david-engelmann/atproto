@@ -1,7 +1,14 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#200](https://github.com/david-engelmann/atproto/pull/200):
+shipped through [#201](https://github.com/david-engelmann/atproto/pull/201):
+Repo leftover JSON XRPC via Client
+(`describe_repo` / `get_record` / `list_records` share
+`describe_repo_body` / `get_record_body` / `list_records_body` with
+parsed helpers; `post_repo_write` via `Client.post_json`;
+`list_missing_blobs` shares `list_missing_blobs_body`; binary
+`upload_blob` / `import_repo` stay Cohttp) on top of
+[#200](https://github.com/david-engelmann/atproto/pull/200):
 Actor profile/search/suggestions via `Client.get_json`
 (`get_profile` / `get_profiles` / `get_suggestions` / `search_actors` /
 `search_actors_typeahead` share `get_profile_body` /
@@ -443,6 +450,17 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   public signatures stay unchanged. Preferences paths stay.
   Does not invent leftover unused lexicon fields. No lexicon pin
   bump. No hosted chat / video / Tap / phone / contacts / push faked
+- [#201](https://github.com/david-engelmann/atproto/pull/201): Repo
+  leftover JSON XRPC via Client. String `describe_repo` /
+  `get_record` / `list_records` use `Client.get_text` and share
+  `describe_repo_body` / `get_record_body` / `list_records_body` with
+  the parsed helpers. `post_repo_write` (create/put/delete/applyWrites)
+  uses `Client.post_json` and still returns `string` (empty procedure
+  output stays `""`). `list_missing_blobs` uses `Client.get_json` and
+  shares `list_missing_blobs_body`. Binary `upload_blob` / `import_repo`
+  stay Cohttp. Does not invent leftover unused lexicon fields. No
+  lexicon pin bump. No hosted chat / video / Tap / phone / contacts /
+  push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -848,6 +866,14 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `search_actors_body`). Parsed return types stay. Does not invent
   leftover unused actor query fields. Hosted-only chat / video / Tap /
   phone / contacts / push stay listed not faked
+- [#201](https://github.com/david-engelmann/atproto/pull/201): Repo
+  leftover JSON XRPC via Client. `describe_repo` / `get_record` /
+  `list_records` share query-pair helpers with parsed paths;
+  `post_repo_write` via `Client.post_json` keeps `string`;
+  `list_missing_blobs` shares `list_missing_blobs_body`. Binary
+  `upload_blob` / `import_repo` stay Cohttp. Does not invent leftover
+  unused repo query fields. Hosted-only chat / video / Tap / phone /
+  contacts / push stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 

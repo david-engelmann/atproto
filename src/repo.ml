@@ -150,11 +150,29 @@ module Repo = struct
       results = (match json |> member "results" with `List xs -> xs | _ -> []);
     }
 
+  (** Query-string pairs for [com.atproto.repo.describeRepo]. *)
+  let describe_repo_body ~repo : (string * string) list = [ ("repo", repo) ]
+
+  (** Query-string pairs for [com.atproto.repo.getRecord]. Optional [cid]
+      maps to the lexicon query. *)
+  let get_record_body ~repo ~collection ~rkey ?cid () : (string * string) list =
+    [ ("repo", repo); ("collection", collection); ("rkey", rkey) ]
+    @ Client.Client.opt_pair "cid" cid
+
+  (** Query-string pairs for [com.atproto.repo.listRecords]. Optional
+      [limit] / [cursor] / [reverse] map to the lexicon query. *)
+  let list_records_body ~repo ~collection ?limit ?cursor ?reverse () :
+      (string * string) list =
+    [ ("repo", repo); ("collection", collection) ]
+    @ Client.Client.opt_int "limit" limit
+    @ Client.Client.opt_pair "cursor" cursor
+    @ Client.Client.opt_bool "reverse" reverse
+
   (** Parsed [com.atproto.repo.describeRepo] (handle, DID, collections).
       Works without a session. *)
   let describe_repo_parsed ?session ?host ~repo () : repo_description =
     Client.Client.get_json ?session ?host "com.atproto.repo.describeRepo"
-      [ ("repo", repo) ]
+      (describe_repo_body ~repo)
     |> parse_repo_description
 
   (** Parsed [com.atproto.repo.getRecord] ([uri], optional [cid], [value]).
@@ -162,8 +180,7 @@ module Repo = struct
   let get_record_parsed ?session ?host ~repo ~collection ~rkey ?cid () :
       record_get =
     Client.Client.get_json ?session ?host "com.atproto.repo.getRecord"
-      ([ ("repo", repo); ("collection", collection); ("rkey", rkey) ]
-      @ Client.Client.opt_pair "cid" cid)
+      (get_record_body ~repo ~collection ~rkey ?cid ())
     |> parse_record_get
 
   (** Parsed [com.atproto.repo.listRecords]. Optional [limit] / [cursor] /
@@ -171,91 +188,31 @@ module Repo = struct
   let list_records_parsed ?session ?host ~repo ~collection ?limit ?cursor
       ?reverse () : listed_records =
     Client.Client.get_json ?session ?host "com.atproto.repo.listRecords"
-      ([ ("repo", repo); ("collection", collection) ]
-      @ Client.Client.opt_int "limit" limit
-      @ Client.Client.opt_pair "cursor" cursor
-      @ Client.Client.opt_bool "reverse" reverse)
+      (list_records_body ~repo ~collection ?limit ?cursor ?reverse ())
     |> parse_listed_records
 
   let create_repo_endpoint (query_name : string) : string =
     "com.atproto.repo" ^ "." ^ query_name
 
-  (** Raw JSON from [com.atproto.repo.describeRepo] for [repo]. *)
+  (** Raw JSON from [com.atproto.repo.describeRepo] for [repo]. Shares
+      [describe_repo_body] with [describe_repo_parsed]. *)
   let describe_repo (s : Session.session) (repo : string) : string =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let describe_repo_url =
-      App.create_endpoint_url base_url (create_repo_endpoint "describeRepo")
-    in
-    let body = Cohttp_client.create_body_from_pairs [ ("repo", repo) ] in
-    let repo_description =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers describe_repo_url body
-           headers)
-    in
-    repo_description
+    Client.Client.get_text ~session:s "com.atproto.repo.describeRepo"
+      (describe_repo_body ~repo)
 
   (** Fetch a record via [com.atproto.repo.getRecord]. Returns the raw JSON
-      body. *)
+      body. Shares [get_record_body] with [get_record_parsed]. *)
   let get_record (s : Session.session) (repo : string) (collection : string)
       (rkey : string) (cid : string) : string =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let get_record_url =
-      App.create_endpoint_url base_url (create_repo_endpoint "getRecord")
-    in
-    let body =
-      Cohttp_client.create_body_from_pairs
-        [
-          ("repo", repo);
-          ("collection", collection);
-          ("rkey", rkey);
-          ("cid", cid);
-        ]
-    in
-    let record =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers get_record_url body
-           headers)
-    in
-    record
+    Client.Client.get_text ~session:s "com.atproto.repo.getRecord"
+      (get_record_body ~repo ~collection ~rkey ~cid ())
 
   (** List records via [com.atproto.repo.listRecords]. Returns the raw JSON
-      body. *)
+      body. Shares [list_records_body] with [list_records_parsed]. *)
   let list_records (s : Session.session) (repo : string) (collection : string)
       (limit : int) (reverse : bool) : string =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let list_records_url =
-      App.create_endpoint_url base_url (create_repo_endpoint "listRecords")
-    in
-    let body =
-      Cohttp_client.create_body_from_pairs
-        [
-          ("repo", repo);
-          ("collection", collection);
-          ("limit", string_of_int limit);
-          ("reverse", string_of_bool reverse);
-        ]
-    in
-    let records =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers list_records_url body
-           headers)
-    in
-    records
+    Client.Client.get_text ~session:s "com.atproto.repo.listRecords"
+      (list_records_body ~repo ~collection ~limit ~reverse ())
 
   let record_json_of_string (record : string) : Yojson.Safe.t =
     try Yojson.Safe.from_string record with _ -> `String record
@@ -297,21 +254,16 @@ module Repo = struct
     in
     `Assoc (List.filter_map Fun.id fields)
 
+  (* Empty procedure output stays [""] for existing string write callers. *)
+  let json_body_string (json : Yojson.Safe.t) : string =
+    match json with `Assoc [] -> "" | j -> Yojson.Safe.to_string j
+
   let post_repo_write (s : Session.session) (query_name : string)
       (body : Yojson.Safe.t) : string =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let url =
-      App.create_endpoint_url (App.create_base_url s)
-        (create_repo_endpoint query_name)
-    in
-    Lwt_main.run
-      (Cohttp_client.post_data_with_headers url
-         (Yojson.Safe.to_string body)
-         headers)
+    Client.Client.post_json ~session:s
+      (create_repo_endpoint query_name)
+      (Yojson.Safe.to_string body)
+    |> json_body_string
 
   (** Create a record via [com.atproto.repo.createRecord]. [record] is a JSON
       object string; optional [rkey] and [swap_commit] map to the lexicon
@@ -555,29 +507,18 @@ module Repo = struct
         | _ -> []);
     }
 
+  (** Query-string pairs for [com.atproto.repo.listMissingBlobs]. Optional
+      [cursor] / [limit] map to the lexicon query. *)
+  let list_missing_blobs_body ?cursor ?limit () : (string * string) list =
+    Client.Client.opt_pair "cursor" cursor @ Client.Client.opt_int "limit" limit
+
   (** Missing blobs via [com.atproto.repo.listMissingBlobs]. Optional
       [cursor] / [limit] map to the lexicon query. *)
   let list_missing_blobs (s : Session.session) ?cursor ?limit () :
       list_missing_blobs =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let url =
-      App.create_endpoint_url (App.create_base_url s)
-        (create_repo_endpoint "listMissingBlobs")
-    in
-    let pairs =
-      (match cursor with Some c -> [ ("cursor", c) ] | None -> [])
-      @ match limit with Some n -> [ ("limit", string_of_int n) ] | None -> []
-    in
-    let body = Cohttp_client.create_body_from_pairs pairs in
-    let resp =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers url body headers)
-    in
-    parse_list_missing_blobs (Yojson.Safe.from_string resp)
+    Client.Client.get_json ~session:s "com.atproto.repo.listMissingBlobs"
+      (list_missing_blobs_body ?cursor ?limit ())
+    |> parse_list_missing_blobs
 
   let import_repo_url (s : Session.session) : string =
     App.create_endpoint_url (App.create_base_url s)
