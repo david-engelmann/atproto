@@ -1,6 +1,4 @@
 open Session
-open Cohttp_client
-open App
 open Actor
 open Notification
 open Facet
@@ -541,178 +539,87 @@ module Feed = struct
     in
     { uri; cid; reposted_by; cursor }
 
-  let convert_body_to_json (body : string) : Yojson.Safe.t =
-    let json = Yojson.Safe.from_string body in
-    json
+  (** Query-string pairs for [app.bsky.feed.getAuthorFeed]. *)
+  let get_author_feed_body ~actor ~limit ?filter ?include_pins () :
+      (string * string) list =
+    [ ("actor", actor); ("limit", string_of_int limit) ]
+    @ Client.Client.opt_pair "filter" filter
+    @ Client.Client.opt_bool "includePins" include_pins
 
-  let create_feed_endpoint (query_name : string) : string =
-    "app.bsky.feed" ^ "." ^ query_name
+  (** Query-string pairs for [app.bsky.feed.getLikes]. *)
+  let get_likes_body ~uri ~cid ~limit : (string * string) list =
+    [ ("uri", uri); ("cid", cid); ("limit", string_of_int limit) ]
+
+  (** Query-string pairs for [app.bsky.feed.getPostThread]. *)
+  let get_post_thread_body ~uri ~depth : (string * string) list =
+    [ ("uri", uri); ("depth", string_of_int depth) ]
+
+  (** Query-string pairs for [app.bsky.feed.getPosts]. Repeated [uris]
+      params via [Client.repeat_param]. *)
+  let get_posts_body (uris : string list) : (string * string) list =
+    Client.Client.repeat_param "uris" uris
+
+  (** Query-string pairs for [app.bsky.feed.getRepostedBy]. *)
+  let get_reposted_by_body ~uri ~cid ~limit : (string * string) list =
+    [ ("uri", uri); ("cid", cid); ("limit", string_of_int limit) ]
+
+  (** Query-string pairs for [app.bsky.feed.getTimeline]. *)
+  let get_timeline_body ~algorithm ~limit : (string * string) list =
+    [ ("algorithm", algorithm); ("limit", string_of_int limit) ]
+
+  (** Query-string pairs for [app.bsky.feed.getFeedSkeleton]. *)
+  let get_feed_skeleton_body ~feed ~limit : (string * string) list =
+    [ ("feed", feed); ("limit", string_of_int limit) ]
 
   (** Author feed via [app.bsky.feed.getAuthorFeed] (session required).
       Prefer [get_author_feed_page] for public AppView + cursor. *)
   let get_author_feed ?filter ?include_pins (s : Session.session)
       (actor : string) (limit : int) : feed list =
     let open Yojson.Safe.Util in
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let get_author_feed_url =
-      App.create_endpoint_url base_url (create_feed_endpoint "getAuthorFeed")
-    in
-    let body =
-      Cohttp_client.create_body_from_pairs
-        ([ ("actor", actor); ("limit", string_of_int limit) ]
-        @ (match filter with Some f -> [ ("filter", f) ] | None -> [])
-        @
-        match include_pins with
-        | Some b -> [ ("includePins", string_of_bool b) ]
-        | None -> [])
-    in
-    let author_feed =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers get_author_feed_url
-           body headers)
-    in
-    let feed = author_feed |> convert_body_to_json |> member "feed" in
-    feed |> to_list |> List.map parse_feed
+    Client.Client.get_json ~session:s "app.bsky.feed.getAuthorFeed"
+      (get_author_feed_body ~actor ~limit ?filter ?include_pins ())
+    |> member "feed" |> to_list |> List.map parse_feed
 
   (** Likes on [uri] / [cid] via [app.bsky.feed.getLikes]. *)
   let get_likes (s : Session.session) (uri : string) (cid : string)
       (limit : int) : likes =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let get_likes_url =
-      App.create_endpoint_url base_url (create_feed_endpoint "getLikes")
-    in
-    let body =
-      Cohttp_client.create_body_from_pairs
-        [ ("uri", uri); ("cid", cid); ("limit", string_of_int limit) ]
-    in
-    let likes =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers get_likes_url body
-           headers)
-    in
-    likes |> convert_body_to_json |> parse_likes
+    Client.Client.get_json ~session:s "app.bsky.feed.getLikes"
+      (get_likes_body ~uri ~cid ~limit)
+    |> parse_likes
 
   (** Thread for [uri] via [app.bsky.feed.getPostThread]. *)
   let get_post_thread (s : Session.session) (uri : string) (depth : int) :
       thread_feed =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let get_post_thread_url =
-      App.create_endpoint_url base_url (create_feed_endpoint "getPostThread")
-    in
-    let body =
-      Cohttp_client.create_body_from_pairs
-        [ ("uri", uri); ("depth", string_of_int depth) ]
-    in
-    let post_thread =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers get_post_thread_url
-           body headers)
-    in
-    post_thread |> convert_body_to_json |> parse_thread_feed
+    Client.Client.get_json ~session:s "app.bsky.feed.getPostThread"
+      (get_post_thread_body ~uri ~depth)
+    |> parse_thread_feed
 
   (** Hydrated posts for [uris] via [app.bsky.feed.getPosts]. *)
   let get_posts (s : Session.session) (uris : string list) : posts_feed =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let get_posts_url =
-      App.create_endpoint_url base_url (create_feed_endpoint "getPosts")
-    in
-    let body = Cohttp_client.add_query_params "uris" uris in
-    let posts =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers get_posts_url body
-           headers)
-    in
-    posts |> convert_body_to_json |> parse_posts_feed (* used function name *)
+    Client.Client.get_json ~session:s "app.bsky.feed.getPosts"
+      (get_posts_body uris)
+    |> parse_posts_feed
 
   (** Reposts of [uri] / [cid] via [app.bsky.feed.getRepostedBy]. *)
   let get_reposted_by (s : Session.session) (uri : string) (cid : string)
       (limit : int) : reposted_by_feed =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let get_reposted_by_url =
-      App.create_endpoint_url base_url (create_feed_endpoint "getRepostedBy")
-    in
-    let body =
-      Cohttp_client.create_body_from_pairs
-        [ ("uri", uri); ("cid", cid); ("limit", string_of_int limit) ]
-    in
-    let reposted_by =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers get_reposted_by_url
-           body headers)
-    in
-    reposted_by |> convert_body_to_json |> parse_reposted_by_feed
+    Client.Client.get_json ~session:s "app.bsky.feed.getRepostedBy"
+      (get_reposted_by_body ~uri ~cid ~limit)
+    |> parse_reposted_by_feed
 
   (** Home timeline via [app.bsky.feed.getTimeline]. *)
   let get_timeline (s : Session.session) (algorithm : string) (limit : int) :
       timeline =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let get_timeline_url =
-      App.create_endpoint_url base_url (create_feed_endpoint "getTimeline")
-    in
-    let body =
-      Cohttp_client.create_body_from_pairs
-        [ ("algorithm", algorithm); ("limit", string_of_int limit) ]
-    in
-    let timeline =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers get_timeline_url body
-           headers)
-    in
-    timeline |> convert_body_to_json |> parse_timeline
+    Client.Client.get_json ~session:s "app.bsky.feed.getTimeline"
+      (get_timeline_body ~algorithm ~limit)
+    |> parse_timeline
 
   (** Feed skeleton via [app.bsky.feed.getFeedSkeleton] (session required).
       Prefer [get_feed_skeleton_parsed] for public AppView + cursor. *)
   let get_feed_skeleton (s : Session.session) (feed : string) (limit : int) :
       string =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let get_feed_skeleton_url =
-      App.create_endpoint_url base_url (create_feed_endpoint "getFeedSkeleton")
-    in
-    let body =
-      Cohttp_client.create_body_from_pairs
-        [ ("feed", feed); ("limit", string_of_int limit) ]
-    in
-    let feed_skeleton =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers get_feed_skeleton_url
-           body headers)
-    in
-    feed_skeleton
+    Client.Client.get_text ~session:s "app.bsky.feed.getFeedSkeleton"
+      (get_feed_skeleton_body ~feed ~limit)
 
   (* ---- feed generators, search, quotes, interactions ------------------- *)
 

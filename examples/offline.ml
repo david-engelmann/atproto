@@ -1411,4 +1411,28 @@ let () =
   ignore Actor.get_suggestions;
   ignore Actor.search_actors;
   ignore Actor.search_actors_typeahead;
+  assert (
+    Feed.get_author_feed_body ~actor:"alice.test" ~limit:5 ()
+    = [ ("actor", "alice.test"); ("limit", "5") ]);
+  assert (
+    Feed.get_likes_body ~uri:"at://did:plc:alice/app.bsky.feed.post/3abc"
+      ~cid:"bafy" ~limit:10
+    = [
+        ("uri", "at://did:plc:alice/app.bsky.feed.post/3abc");
+        ("cid", "bafy");
+        ("limit", "10");
+      ]);
+  assert (
+    Feed.get_posts_body [ "at://one"; "at://two" ]
+    = [ ("uris", "at://one"); ("uris", "at://two") ]);
+  assert (
+    Feed.get_timeline_body ~algorithm:"reverse-chronological" ~limit:2
+    = [ ("algorithm", "reverse-chronological"); ("limit", "2") ]);
+  ignore Feed.get_author_feed;
+  ignore Feed.get_likes;
+  ignore Feed.get_post_thread;
+  ignore Feed.get_posts;
+  ignore Feed.get_reposted_by;
+  ignore Feed.get_timeline;
+  ignore Feed.get_feed_skeleton;
   print_endline "examples/offline: public API typechecks and fixtures pass"

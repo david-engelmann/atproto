@@ -7,6 +7,52 @@ let create_test_session _ =
   let username, password = Auth.username_and_password_from_env in
   Session.create_session username password
 
+let test_feed_query_bodies _ =
+  OUnit2.assert_equal
+    [ ("actor", "alice.test"); ("limit", "5") ]
+    (Feed.get_author_feed_body ~actor:"alice.test" ~limit:5 ());
+  OUnit2.assert_equal
+    [
+      ("actor", "alice.test");
+      ("limit", "5");
+      ("filter", Feed.filter_posts_no_replies);
+      ("includePins", "true");
+    ]
+    (Feed.get_author_feed_body ~actor:"alice.test" ~limit:5
+       ~filter:Feed.filter_posts_no_replies ~include_pins:true ());
+  OUnit2.assert_equal
+    [
+      ("uri", "at://did:plc:alice/app.bsky.feed.post/3abc");
+      ("cid", "bafy");
+      ("limit", "10");
+    ]
+    (Feed.get_likes_body ~uri:"at://did:plc:alice/app.bsky.feed.post/3abc"
+       ~cid:"bafy" ~limit:10);
+  OUnit2.assert_equal
+    [ ("uri", "at://did:plc:alice/app.bsky.feed.post/3abc"); ("depth", "1") ]
+    (Feed.get_post_thread_body ~uri:"at://did:plc:alice/app.bsky.feed.post/3abc"
+       ~depth:1);
+  OUnit2.assert_equal
+    [ ("uris", "at://one"); ("uris", "at://two") ]
+    (Feed.get_posts_body [ "at://one"; "at://two" ]);
+  OUnit2.assert_equal
+    [
+      ("uri", "at://did:plc:alice/app.bsky.feed.post/3abc");
+      ("cid", "bafy");
+      ("limit", "1");
+    ]
+    (Feed.get_reposted_by_body ~uri:"at://did:plc:alice/app.bsky.feed.post/3abc"
+       ~cid:"bafy" ~limit:1);
+  OUnit2.assert_equal
+    [ ("algorithm", "reverse-chronological"); ("limit", "2") ]
+    (Feed.get_timeline_body ~algorithm:"reverse-chronological" ~limit:2);
+  OUnit2.assert_equal
+    [
+      ("feed", "at://did:plc:alice/app.bsky.feed.generator/hot"); ("limit", "3");
+    ]
+    (Feed.get_feed_skeleton_body
+       ~feed:"at://did:plc:alice/app.bsky.feed.generator/hot" ~limit:3)
+
 let test_get_author_feed _ =
   skip_if
     (not Auth.has_live_credentials)
@@ -682,6 +728,7 @@ let test_get_author_feed_page_live _ =
 let suite =
   "suite"
   >::: [
+         "test_feed_query_bodies" >:: test_feed_query_bodies;
          "test_get_author_feed" >:: test_get_author_feed;
          "test_get_likes" >:: test_get_likes;
          "test_get_post_thread" >:: test_get_post_thread;
