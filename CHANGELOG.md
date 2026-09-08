@@ -1,7 +1,8 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through Feed leftover session JSON XRPC via Client
+shipped through [#202](https://github.com/david-engelmann/atproto/pull/202):
+Feed leftover session JSON XRPC via Client
 (`get_author_feed` / `get_likes` / `get_post_thread` / `get_posts` /
 `get_reposted_by` / `get_timeline` / `get_feed_skeleton` share
 `get_author_feed_body` / `get_likes_body` / `get_post_thread_body` /
@@ -468,7 +469,8 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   stay Cohttp. Does not invent leftover unused lexicon fields. No
   lexicon pin bump. No hosted chat / video / Tap / phone / contacts /
   push faked
-- Feed leftover session JSON XRPC via Client: `get_author_feed` /
+- [#202](https://github.com/david-engelmann/atproto/pull/202):
+  Feed leftover session JSON XRPC via Client: `get_author_feed` /
   `get_likes` / `get_post_thread` / `get_posts` / `get_reposted_by` /
   `get_timeline` / `get_feed_skeleton` share `get_author_feed_body` /
   `get_likes_body` / `get_post_thread_body` / `get_posts_body` /
