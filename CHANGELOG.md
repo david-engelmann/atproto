@@ -1,7 +1,7 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#204](https://github.com/david-engelmann/atproto/pull/204):
+shipped through [#205](https://github.com/david-engelmann/atproto/pull/205):
 Session leftover JSON XRPC via Client
 (`get_session_request` via `Client.get_text`; `refresh_session` /
 `delete_session` via `Client.post_json` with Bearer `refreshJwt`,
@@ -522,7 +522,7 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   stays Cohttp. Does not invent leftover unused lexicon fields. No
   lexicon pin bump. No hosted chat / video / Tap / phone / contacts /
   push faked
-- [#204](https://github.com/david-engelmann/atproto/pull/204):
+- [#205](https://github.com/david-engelmann/atproto/pull/205):
   Session leftover JSON XRPC via Client: `get_session_request` uses
   `Client.get_text` (no leftover unused getSession query fields).
   `refresh_session` / `delete_session` post via `Client.post_json`
@@ -953,7 +953,7 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `create_invite_codes_body`. `get_service_auth` stays Cohttp. Does
   not invent leftover unused server query/body fields. Hosted-only
   chat / video / Tap / phone / contacts / push stay listed not faked
-- [#204](https://github.com/david-engelmann/atproto/pull/204):
+- [#205](https://github.com/david-engelmann/atproto/pull/205):
   Session leftover JSON XRPC via Client. `get_session_request` via
   `Client.get_text`; `refresh_session` / `delete_session` via
   `Client.post_json` with Bearer `refreshJwt`. Empty delete output
