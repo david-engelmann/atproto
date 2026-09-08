@@ -272,7 +272,8 @@ let () =
   in
   assert (List.mem ("limit", "10") ozone_statuses_q);
   assert (
-    List.mem ("reviewState", "tools.ozone.moderation.defs#reviewOpen")
+    List.mem
+      ("reviewState", "tools.ozone.moderation.defs#reviewOpen")
       ozone_statuses_q);
   ignore Ozone.query_statuses;
   ignore Ozone.query_events_service;
