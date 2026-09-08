@@ -532,12 +532,10 @@ let test_upsert_option_body _ =
   in
   let value = `Assoc [ ("enabled", `Bool true) ] in
   let body =
-    Ozone.upsert_option_body ~key:"tools.ozone.setting.example" ~scope:"instance"
-      ~value ~description:"toggle" ()
+    Ozone.upsert_option_body ~key:"tools.ozone.setting.example"
+      ~scope:"instance" ~value ~description:"toggle" ()
   in
-  OUnit2.assert_equal
-    [ "key"; "scope"; "value"; "description" ]
-    (keys body);
+  OUnit2.assert_equal [ "key"; "scope"; "value"; "description" ] (keys body);
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "tools.ozone.setting.example"
@@ -554,8 +552,8 @@ let test_upsert_option_body _ =
     (body |> member "description" |> to_string);
   OUnit2.assert_equal `Null (body |> member "managerRole");
   let omitted =
-    Ozone.upsert_option_body ~key:"tools.ozone.setting.example" ~scope:"personal"
-      ~value ()
+    Ozone.upsert_option_body ~key:"tools.ozone.setting.example"
+      ~scope:"personal" ~value ()
   in
   OUnit2.assert_equal [ "key"; "scope"; "value" ] (keys omitted);
   OUnit2.assert_equal `Null (omitted |> member "description");

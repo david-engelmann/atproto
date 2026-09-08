@@ -1529,7 +1529,7 @@ module Ozone = struct
   let update_member_body ~did ?role ?disabled () : Yojson.Safe.t =
     `Assoc
       (("did", `String did)
-      :: (match role with Some r -> [ ("role", `String r) ] | None -> [])
+       :: (match role with Some r -> [ ("role", `String r) ] | None -> [])
       @ match disabled with Some b -> [ ("disabled", `Bool b) ] | None -> [])
 
   (** Update team member [did] via [tools.ozone.team.updateMember]. *)

@@ -215,8 +215,8 @@ let () =
     | _ -> false);
   ignore Ozone.delete_set_values;
   let upsert_option =
-    Ozone.upsert_option_body ~key:"tools.ozone.setting.example" ~scope:"instance"
-      ~value:(`Bool true) ~description:"toggle" ()
+    Ozone.upsert_option_body ~key:"tools.ozone.setting.example"
+      ~scope:"instance" ~value:(`Bool true) ~description:"toggle" ()
   in
   assert (
     match Yojson.Safe.Util.member "key" upsert_option with
