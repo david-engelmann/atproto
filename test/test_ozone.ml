@@ -1476,7 +1476,6 @@ let suite =
          "test_cancel_scheduled_actions_body"
          >:: test_cancel_scheduled_actions_body;
          "test_query_safelink_rules_body" >:: test_query_safelink_rules_body;
-
          "test_assign_report_moderator_body"
          >:: test_assign_report_moderator_body;
          "test_reassign_queue_body" >:: test_reassign_queue_body;
