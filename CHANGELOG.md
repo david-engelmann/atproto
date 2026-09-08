@@ -1,7 +1,17 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#206](https://github.com/david-engelmann/atproto/pull/206):
+shipped through [#207](https://github.com/david-engelmann/atproto/pull/207):
+Sync leftover JSON XRPC via Client
+(`get_latest_commit` / `get_repo_status` / `list_repos` / `list_blobs`
+/ `list_hosts` / `get_host_status` / `list_repos_by_collection` share
+`get_latest_commit_body` / `get_repo_status_body` / `list_repos_body`
+/ `list_blobs_body` / `list_hosts_body` / `get_host_status_body` /
+`list_repos_by_collection_body`; `request_crawl` via
+`Client.post_json` with `request_crawl_body`, empty procedure output
+stays `""`; binary `getRepo` / `getBlob` / `getBlocks` / `getRecord`
+CAR stay Cohttp; public signatures and parse types unchanged) on top of
+[#206](https://github.com/david-engelmann/atproto/pull/206):
 Identity resolveHandle/resolveDid via Client
 (`resolve_handle` / `resolve_did` / `resolve_identity` share
 `resolve_handle_body` / `resolve_did_body` /
@@ -547,6 +557,20 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   stays. Parse return types and public signatures stay unchanged.
   Does not invent leftover unused lexicon fields. No lexicon pin
   bump. No hosted chat / video / Tap / phone / contacts / push faked
+- [#207](https://github.com/david-engelmann/atproto/pull/207):
+  Sync leftover JSON XRPC via Client. `get_latest_commit` /
+  `get_repo_status` / `list_repos` / `list_blobs` / `list_hosts` /
+  `get_host_status` / `list_repos_by_collection` use `Client.get_json`
+  and share `get_latest_commit_body` / `get_repo_status_body` /
+  `list_repos_body` / `list_blobs_body` / `list_hosts_body` /
+  `get_host_status_body` / `list_repos_by_collection_body`. Host
+  still defaults to `ATP_HOST` (not public AppView). `request_crawl`
+  via `Client.post_json` still returns `string` (empty procedure
+  output stays `""`). Binary `getRepo` / `getBlob` / `getBlocks` /
+  `getRecord` CAR stay Cohttp. Parse return types and public
+  signatures stay unchanged. Does not invent leftover unused lexicon
+  fields. No lexicon pin bump. No hosted chat / video / Tap / phone /
+  contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -982,6 +1006,17 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   leftover unused resolveHandle / resolveDid / resolveIdentity
   fields. Hosted-only chat / video / Tap / phone / contacts / push
   stay listed not faked
+- [#207](https://github.com/david-engelmann/atproto/pull/207): Sync
+  leftover JSON XRPC via Client. `get_latest_commit` /
+  `get_repo_status` / `list_repos` / `list_blobs` / `list_hosts` /
+  `get_host_status` / `list_repos_by_collection` share query-pair
+  helpers and call `Client.get_json` (host stays `ATP_HOST` / session
+  PDS, not Client's AppView default). `request_crawl` via
+  `Client.post_json` keeps `string` (empty procedure output stays
+  `""`). Binary `getRepo` / `getBlob` / `getBlocks` / `getRecord` CAR
+  stay Cohttp. Does not invent leftover unused sync query/body fields.
+  Hosted-only chat / video / Tap / phone / contacts / push stay listed
+  not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
