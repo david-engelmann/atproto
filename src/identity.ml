@@ -1,5 +1,3 @@
-open Cohttp_client
-open App
 open Session
 
 (** com.atproto.identity — handle and DID resolution (no auth required). *)
@@ -46,37 +44,31 @@ module Identity = struct
           Some "http://localhost:2582"
         else None
 
-  let get_body ?host ?session endpoint pairs =
-    let host = host_from ?host ?session () in
-    let base_url = App.create_public_base_url ~host () in
-    let url = App.create_endpoint_url base_url endpoint in
-    let body = Cohttp_client.create_body_from_pairs pairs in
-    let headers =
-      match session with
-      | Some s ->
-          Cohttp_client.create_headers_from_pairs
-            [
-              Cohttp_client.application_json_setting_tuple;
-              Session.bearer_token_from_session s;
-            ]
-      | None ->
-          Cohttp_client.create_headers_from_pairs
-            [ Cohttp_client.application_json_setting_tuple ]
-    in
-    Lwt_main.run
-      (Cohttp_client.get_request_with_body_and_headers url body headers)
-
-  let get_json ?host ?session endpoint pairs =
-    let resp = get_body ?host ?session endpoint pairs in
-    match Error.Error.of_body resp with
-    | Some e -> failwith ("Identity: " ^ Error.Error.to_string e)
-    | None -> Yojson.Safe.from_string resp
-
-  let get_json_allow_error ?host ?session endpoint pairs =
-    Yojson.Safe.from_string (get_body ?host ?session endpoint pairs)
+  (* Always pass [host] so unauthenticated calls use [ATP_HOST], not
+     Client's public AppView default. *)
+  let get_json ?host ?session nsid pairs =
+    Client.Client.get_json ?session
+      ~host:(host_from ?host ?session ())
+      nsid pairs
 
   let raise_xrpc json =
     failwith ("Identity: " ^ Error.Error.to_string (Error.Error.of_json json))
+
+  let raise_if_xrpc json =
+    match Error.Error.check_for_error json with
+    | Some _ -> raise_xrpc json
+    | None -> json
+
+  (** Query pairs for [com.atproto.identity.resolveHandle]. *)
+  let resolve_handle_body ~handle : (string * string) list =
+    [ ("handle", handle) ]
+
+  (** Query pairs for [com.atproto.identity.resolveDid]. *)
+  let resolve_did_body ~did : (string * string) list = [ ("did", did) ]
+
+  (** Query pairs for [com.atproto.identity.resolveIdentity]. *)
+  let resolve_identity_query ~identifier : (string * string) list =
+    [ ("identifier", identifier) ]
 
   (** Host of a service endpoint URL (scheme and path stripped). *)
   let host_of_service_endpoint (url : string) : string =
@@ -100,8 +92,8 @@ module Identity = struct
   let resolve_handle ?host ?session (handle : string) : resolved_handle =
     get_json ?host ?session
       (create_identity_endpoint "resolveHandle")
-      [ ("handle", handle) ]
-    |> parse_resolved_handle
+      (resolve_handle_body ~handle)
+    |> raise_if_xrpc |> parse_resolved_handle
 
   type did_resolution = {
     did_doc : Yojson.Safe.t;
@@ -139,9 +131,9 @@ module Identity = struct
       [MethodNotImplemented] (common on PDS 0.5.x). *)
   let resolve_did ?host ?session (did : string) : Yojson.Safe.t =
     let json =
-      get_json_allow_error ?host ?session
+      get_json ?host ?session
         (create_identity_endpoint "resolveDid")
-        [ ("did", did) ]
+        (resolve_did_body ~did)
     in
     if Error.Error.is_not_implemented_json json then
       resolve_did_via_directory ?host ?session did
@@ -245,9 +237,9 @@ module Identity = struct
       Same XRPC-then-directory fallback as {!resolve_did}. *)
   let resolve_identity ?host ?session (identifier : string) : identity_info =
     let json =
-      get_json_allow_error ?host ?session
+      get_json ?host ?session
         (create_identity_endpoint "resolveIdentity")
-        [ ("identifier", identifier) ]
+        (resolve_identity_query ~identifier)
     in
     if Error.Error.is_not_implemented_json json then
       resolve_identity_via_directory ?host ?session identifier

@@ -179,6 +179,20 @@ let test_refresh_identity_body _ =
     "jay.bsky.team"
     (body |> member "identifier" |> to_string)
 
+let test_resolve_query_bodies _ =
+  ignore Identity.resolve_handle;
+  ignore Identity.resolve_did;
+  ignore Identity.resolve_identity;
+  OUnit2.assert_equal
+    [ ("handle", "jay.bsky.team") ]
+    (Identity.resolve_handle_body ~handle:"jay.bsky.team");
+  OUnit2.assert_equal
+    [ ("did", "did:plc:ewvi7nxzyoun6zhxrhs64oiz") ]
+    (Identity.resolve_did_body ~did:"did:plc:ewvi7nxzyoun6zhxrhs64oiz");
+  OUnit2.assert_equal
+    [ ("identifier", "jay.bsky.team") ]
+    (Identity.resolve_identity_query ~identifier:"jay.bsky.team")
+
 let suite =
   "identity"
   >::: [
@@ -195,6 +209,7 @@ let suite =
          "test_update_handle_body" >:: test_update_handle_body;
          "test_resolve_did_directory_wrap" >:: test_resolve_did_directory_wrap;
          "test_refresh_identity_body" >:: test_refresh_identity_body;
+         "test_resolve_query_bodies" >:: test_resolve_query_bodies;
        ]
 
 let () = run_test_tt_main suite
