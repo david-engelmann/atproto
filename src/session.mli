@@ -24,41 +24,41 @@ module Session : sig
 
   val parse_session_request : Yojson.Safe.t -> session_request
 
-  (** PDS host from [ATP_HOST] (default [bsky.social]). *)
   val atp_host_from_env : string
+  (** PDS host from [ATP_HOST] (default [bsky.social]). *)
 
-  (** Create a password session ([com.atproto.server.createSession]) on
-      [ATP_HOST] (default [bsky.social]). Optional [auth_factor_token] and
-      [allow_takendown] map to the lexicon inputs. *)
   val create_session :
     ?auth_factor_token:string ->
     ?allow_takendown:bool ->
     string ->
     string ->
     session
+  (** Create a password session ([com.atproto.server.createSession]) on
+      [ATP_HOST] (default [bsky.social]). Optional [auth_factor_token] and
+      [allow_takendown] map to the lexicon inputs. *)
 
-  (** [Authorization: Bearer] header pair from the session access JWT. *)
   val bearer_token_from_session : session -> string * string
+  (** [Authorization: Bearer] header pair from the session access JWT. *)
 
-  (** [Authorization: Bearer] header pair from the session refresh JWT. *)
   val refresh_token_from_session : session -> string * string
+  (** [Authorization: Bearer] header pair from the session refresh JWT. *)
 
-  (** Raw JSON from [com.atproto.server.getSession] for [s]. *)
   val get_session_request : session -> string
+  (** Raw JSON from [com.atproto.server.getSession] for [s]. *)
 
+  val get_session : session -> session_request
   (** Current account info for [s] via [com.atproto.server.getSession]
       (handle, DID, email flags, active/status). *)
-  val get_session : session -> session_request
 
+  val refresh_session : session -> session
   (** Rotate JWTs via [com.atproto.server.refreshSession] using
       [refreshJwt]. Fails if the session has no refresh token. *)
-  val refresh_session : session -> session
 
-  (** Refresh [s] when [Auth.is_token_expired]; otherwise return [s]. *)
   val refresh_session_auth : session -> session
+  (** Refresh [s] when [Auth.is_token_expired]; otherwise return [s]. *)
 
+  val delete_session : session -> string
   (** End the session via [com.atproto.server.deleteSession] (Bearer
       [refreshJwt]). Empty procedure output stays [""] for existing
       callers. *)
-  val delete_session : session -> string
 end
