@@ -1,6 +1,4 @@
 open Session
-open Cohttp_client
-open App
 
 (** [app.bsky.actor] — profiles, search, suggestions, and preferences. *)
 module Actor = struct
@@ -491,121 +489,55 @@ module Actor = struct
     let profiles = json |> member "actors" |> to_list in
     List.map parse_typeahead_profile profiles
 
-  let convert_body_to_json (body : string) : Yojson.Safe.t =
-    let json = Yojson.Safe.from_string body in
-    json
+  (** Query-string pairs for [app.bsky.actor.getProfile]. *)
+  let get_profile_body ~actor : (string * string) list = [ ("actor", actor) ]
 
-  let create_actor_endpoint (query_name : string) : string =
-    "app.bsky.actor" ^ "." ^ query_name
+  (** Query-string pairs for [app.bsky.actor.getProfiles]. Repeated
+      [actors] params via [Client.repeat_param]. *)
+  let get_profiles_body (actors : string list) : (string * string) list =
+    Client.Client.repeat_param "actors" actors
+
+  (** Query-string pairs for [app.bsky.actor.getSuggestions]. *)
+  let get_suggestions_body ~limit : (string * string) list =
+    [ ("limit", string_of_int limit) ]
+
+  (** Query-string pairs for [app.bsky.actor.searchActors] and
+      [app.bsky.actor.searchActorsTypeahead] ([q] is the search term). *)
+  let search_actors_body ~q ~limit : (string * string) list =
+    [ ("q", q); ("limit", string_of_int limit) ]
 
   (** Profile view for [actor] (handle or DID) via
       [app.bsky.actor.getProfile]. *)
   let get_profile (s : Session.session) (actor : string) : profile =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let get_profile_url =
-      App.create_endpoint_url base_url (create_actor_endpoint "getProfile")
-    in
-    let body = Cohttp_client.create_body_from_pairs [ ("actor", actor) ] in
-    let profile =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers get_profile_url body
-           headers)
-    in
-    let profile_json = profile |> convert_body_to_json in
-    profile_json |> parse_profile
+    Client.Client.get_json ~session:s "app.bsky.actor.getProfile"
+      (get_profile_body ~actor)
+    |> parse_profile
 
   (** Profile views for several actors via [app.bsky.actor.getProfiles]. *)
   let get_profiles (s : Session.session) (actors : string list) : profile list =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let get_profiles_url =
-      App.create_endpoint_url base_url (create_actor_endpoint "getProfiles")
-    in
-    let body = Cohttp_client.add_query_params "actors" actors in
-    let profiles =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers get_profiles_url body
-           headers)
-    in
-    let profiles_json = profiles |> convert_body_to_json in
-    profiles_json |> parse_profiles
+    Client.Client.get_json ~session:s "app.bsky.actor.getProfiles"
+      (get_profiles_body actors)
+    |> parse_profiles
 
   (** Suggested accounts via [app.bsky.actor.getSuggestions]. *)
   let get_suggestions (s : Session.session) (limit : int) : short_profile list =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let get_suggestions_url =
-      App.create_endpoint_url base_url (create_actor_endpoint "getSuggestions")
-    in
-    let body =
-      Cohttp_client.create_body_from_pairs [ ("limit", string_of_int limit) ]
-    in
-    let suggestions =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers get_suggestions_url
-           body headers)
-    in
-    suggestions |> convert_body_to_json |> parse_short_profiles
+    Client.Client.get_json ~session:s "app.bsky.actor.getSuggestions"
+      (get_suggestions_body ~limit)
+    |> parse_short_profiles
 
   (** Actor search via [app.bsky.actor.searchActors] ([q] = [term]). *)
   let search_actors (s : Session.session) (term : string) (limit : int) :
       short_profile list =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let search_actors_url =
-      App.create_endpoint_url base_url (create_actor_endpoint "searchActors")
-    in
-    let body =
-      Cohttp_client.create_body_from_pairs
-        [ ("q", term); ("limit", string_of_int limit) ]
-    in
-    let profiles =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers search_actors_url body
-           headers)
-    in
-    profiles |> convert_body_to_json |> parse_short_profiles
+    Client.Client.get_json ~session:s "app.bsky.actor.searchActors"
+      (search_actors_body ~q:term ~limit)
+    |> parse_short_profiles
 
   (** Typeahead via [app.bsky.actor.searchActorsTypeahead]. *)
   let search_actors_typeahead (s : Session.session) (term : string)
       (limit : int) : typeahead_profile list =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let search_actors_typeahead_url =
-      App.create_endpoint_url base_url
-        (create_actor_endpoint "searchActorsTypeahead")
-    in
-    let body =
-      Cohttp_client.create_body_from_pairs
-        [ ("q", term); ("limit", string_of_int limit) ]
-    in
-    let profiles =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers
-           search_actors_typeahead_url body headers)
-    in
-    profiles |> convert_body_to_json |> parse_typeahead_profiles
+    Client.Client.get_json ~session:s "app.bsky.actor.searchActorsTypeahead"
+      (search_actors_body ~q:term ~limit)
+    |> parse_typeahead_profiles
 
   type saved_feed = {
     id : string;

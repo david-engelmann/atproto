@@ -1,7 +1,13 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#199](https://github.com/david-engelmann/atproto/pull/199):
+shipped through [#200](https://github.com/david-engelmann/atproto/pull/200):
+Actor profile/search/suggestions via `Client.get_json`
+(`get_profile` / `get_profiles` / `get_suggestions` / `search_actors` /
+`search_actors_typeahead` share `get_profile_body` /
+`get_profiles_body` / `get_suggestions_body` / `search_actors_body`;
+parsed return types unchanged) on top of
+[#199](https://github.com/david-engelmann/atproto/pull/199):
 Label `queryLabels` via `Client.get_json`
 (`query_labels` / `query_labels_parsed` share `query_labels_body`;
 `subscribeLabels` unchanged) on top of
@@ -428,6 +434,15 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `subscribeLabels` / WebSocket paths stay. Does not invent leftover
   unused lexicon fields. No lexicon pin bump. No hosted chat / video /
   Tap / phone / contacts / push faked
+- [#200](https://github.com/david-engelmann/atproto/pull/200): Actor
+  `getProfile` / `getProfiles` / `getSuggestions` / `searchActors` /
+  `searchActorsTypeahead` via `Client.get_json`. Session helpers share
+  `get_profile_body` / `get_profiles_body` / `get_suggestions_body` /
+  `search_actors_body` (`actor` / repeated `actors` / `limit` / `q`)
+  instead of hand-rolled Cohttp headers. Parse return types and
+  public signatures stay unchanged. Preferences paths stay.
+  Does not invent leftover unused lexicon fields. No lexicon pin
+  bump. No hosted chat / video / Tap / phone / contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -825,6 +840,14 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   WebSocket paths stay. Does not invent leftover unused queryLabels
   fields. Hosted-only chat / video / Tap / phone / contacts / push
   stay listed not faked
+- [#200](https://github.com/david-engelmann/atproto/pull/200): Actor
+  profile/search/suggestions via `Client.get_json`. `get_profile` /
+  `get_profiles` / `get_suggestions` / `search_actors` /
+  `search_actors_typeahead` share query-pair helpers
+  (`get_profile_body` / `get_profiles_body` / `get_suggestions_body` /
+  `search_actors_body`). Parsed return types stay. Does not invent
+  leftover unused actor query fields. Hosted-only chat / video / Tap /
+  phone / contacts / push stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
