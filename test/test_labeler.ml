@@ -101,8 +101,7 @@ let test_policies_to_json _ =
   let encoded = Labeler.policies_to_json policies in
   let parsed = Labeler.parse_policies encoded in
   OUnit2.assert_bool "roundtrip values"
-    (List.mem "spam" parsed.label_values
-    && List.mem "!hide" parsed.label_values);
+    (List.mem "spam" parsed.label_values && List.mem "!hide" parsed.label_values);
   (match parsed.label_value_definitions with
   | d :: _ ->
       OUnit2.assert_equal ~printer:(fun x -> x) "spam" d.identifier;
@@ -123,11 +122,15 @@ let test_policies_to_json _ =
       ()
   in
   let open Yojson.Safe.Util in
-  OUnit2.assert_equal ~printer:(fun x -> x) "app.bsky.labeler.service"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "app.bsky.labeler.service"
     (labeler |> member "$type" |> to_string);
-  OUnit2.assert_equal ~printer:(fun x -> x) "!hide"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "!hide"
     (labeler |> member "policies" |> member "labelValues" |> to_list |> List.hd
-    |> to_string)
+   |> to_string)
 
 let test_get_services_live _ =
   try

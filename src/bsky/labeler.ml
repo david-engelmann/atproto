@@ -37,16 +37,15 @@ module Labeler = struct
      invent leftover policy fields. *)
   let policies_to_json (p : policies) : Yojson.Safe.t =
     let fields =
-      [
-        ("labelValues", `List (List.map (fun s -> `String s) p.label_values));
-      ]
+      [ ("labelValues", `List (List.map (fun s -> `String s) p.label_values)) ]
       @
       match p.label_value_definitions with
       | [] -> []
       | defs ->
           [
             ( "labelValueDefinitions",
-              `List (List.map Label.Label.label_value_definition_to_json defs) );
+              `List (List.map Label.Label.label_value_definition_to_json defs)
+            );
           ]
     in
     `Assoc fields

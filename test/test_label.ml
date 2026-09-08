@@ -234,11 +234,7 @@ let test_parse_label_value_definition _ =
 
 let test_label_value_definition_to_json _ =
   let locale : Label.label_value_definition_strings =
-    {
-      lang = "en";
-      name = "Spam";
-      description = "Unwanted commercial content";
-    }
+    { lang = "en"; name = "Spam"; description = "Unwanted commercial content" }
   in
   let encoded_locale = Label.label_value_definition_strings_to_json locale in
   let parsed_locale =
@@ -269,7 +265,9 @@ let test_label_value_definition_to_json _ =
   OUnit2.assert_equal 1 (List.length back.locales);
   OUnit2.assert_equal ~printer:(fun x -> x) "en" (List.hd back.locales).lang;
   let open Yojson.Safe.Util in
-  OUnit2.assert_equal ~printer:(fun x -> x) "hide"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "hide"
     (encoded |> member "defaultSetting" |> to_string);
   OUnit2.assert_equal false (encoded |> member "adultOnly" |> to_bool);
   let minimal : Label.label_value_definition =
