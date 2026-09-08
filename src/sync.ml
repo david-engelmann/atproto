@@ -116,8 +116,7 @@ module Sync = struct
   (** Query-string pairs for [com.atproto.sync.listBlobs]. Optional
       [since] / [cursor] / [limit] map to the lexicon query. *)
   let list_blobs_body ~did ?since ?cursor ?limit () : (string * string) list =
-    ("did", did)
-    :: Client.Client.opt_pair "since" since
+    (("did", did) :: Client.Client.opt_pair "since" since)
     @ Client.Client.opt_pair "cursor" cursor
     @ Client.Client.opt_int "limit" limit
 
@@ -134,8 +133,7 @@ module Sync = struct
       Optional [cursor] / [limit] map to the lexicon query. *)
   let list_repos_by_collection_body ~collection ?cursor ?limit () :
       (string * string) list =
-    ("collection", collection)
-    :: Client.Client.opt_pair "cursor" cursor
+    (("collection", collection) :: Client.Client.opt_pair "cursor" cursor)
     @ Client.Client.opt_int "limit" limit
 
   (** Latest commit CID and rev for [did] via

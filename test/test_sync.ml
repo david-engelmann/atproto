@@ -154,16 +154,14 @@ let test_sync_query_bodies _ =
   OUnit2.assert_equal
     [ ("did", "did:plc:abc123xyz0001112223333") ]
     (Sync.list_blobs_body ~did:"did:plc:abc123xyz0001112223333" ());
-  OUnit2.assert_equal
-    [ ("limit", "3") ]
-    (Sync.list_hosts_body ~limit:3 ());
+  OUnit2.assert_equal [ ("limit", "3") ] (Sync.list_hosts_body ~limit:3 ());
   OUnit2.assert_equal
     [ ("hostname", "morel.us-east.host.bsky.network") ]
     (Sync.get_host_status_body ~hostname:"morel.us-east.host.bsky.network");
   OUnit2.assert_equal
     [ ("collection", "app.bsky.feed.post"); ("limit", "2") ]
-    (Sync.list_repos_by_collection_body ~collection:"app.bsky.feed.post" ~limit:2
-       ())
+    (Sync.list_repos_by_collection_body ~collection:"app.bsky.feed.post"
+       ~limit:2 ())
 
 let test_parse_list_repos_by_collection _ =
   let json =
