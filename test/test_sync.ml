@@ -131,6 +131,40 @@ let test_request_crawl_body _ =
     "morel.us-east.host.bsky.network"
     (Yojson.Safe.Util.to_string (Yojson.Safe.Util.member "hostname" json))
 
+let test_sync_query_bodies _ =
+  OUnit2.assert_equal
+    [ ("did", "did:plc:abc123xyz0001112223333") ]
+    (Sync.get_latest_commit_body ~did:"did:plc:abc123xyz0001112223333");
+  OUnit2.assert_equal
+    [ ("did", "did:plc:abc123xyz0001112223333") ]
+    (Sync.get_repo_status_body ~did:"did:plc:abc123xyz0001112223333");
+  OUnit2.assert_equal
+    [ ("cursor", "c1"); ("limit", "5") ]
+    (Sync.list_repos_body ~cursor:"c1" ~limit:5 ());
+  OUnit2.assert_equal [] (Sync.list_repos_body ());
+  OUnit2.assert_equal
+    [
+      ("did", "did:plc:abc123xyz0001112223333");
+      ("since", "3jzfcijpj2z2a");
+      ("cursor", "c2");
+      ("limit", "10");
+    ]
+    (Sync.list_blobs_body ~did:"did:plc:abc123xyz0001112223333"
+       ~since:"3jzfcijpj2z2a" ~cursor:"c2" ~limit:10 ());
+  OUnit2.assert_equal
+    [ ("did", "did:plc:abc123xyz0001112223333") ]
+    (Sync.list_blobs_body ~did:"did:plc:abc123xyz0001112223333" ());
+  OUnit2.assert_equal
+    [ ("limit", "3") ]
+    (Sync.list_hosts_body ~limit:3 ());
+  OUnit2.assert_equal
+    [ ("hostname", "morel.us-east.host.bsky.network") ]
+    (Sync.get_host_status_body ~hostname:"morel.us-east.host.bsky.network");
+  OUnit2.assert_equal
+    [ ("collection", "app.bsky.feed.post"); ("limit", "2") ]
+    (Sync.list_repos_by_collection_body ~collection:"app.bsky.feed.post" ~limit:2
+       ())
+
 let test_parse_list_repos_by_collection _ =
   let json =
     `Assoc
@@ -204,6 +238,7 @@ let suite =
          "test_parse_repo_status" >:: test_parse_repo_status;
          "test_parse_list_hosts" >:: test_parse_list_hosts;
          "test_request_crawl_body" >:: test_request_crawl_body;
+         "test_sync_query_bodies" >:: test_sync_query_bodies;
          "test_parse_list_repos_by_collection"
          >:: test_parse_list_repos_by_collection;
          "test_get_blocks_url" >:: test_get_blocks_url;

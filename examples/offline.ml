@@ -43,6 +43,7 @@ open Atproto.Auth
 open Atproto.Session
 open Atproto.Label
 open Atproto.Firehose
+open Atproto.Sync
 
 let () =
   (* TID used as record keys and commit revs *)
@@ -1469,4 +1470,21 @@ let () =
   ignore Identity.resolve_handle;
   ignore Identity.resolve_did;
   ignore Identity.resolve_identity;
+  assert (
+    Sync.get_latest_commit_body ~did:"did:plc:abc123xyz0001112223333"
+    = [ ("did", "did:plc:abc123xyz0001112223333") ]);
+  assert (
+    Sync.get_repo_status_body ~did:"did:plc:abc123xyz0001112223333"
+    = [ ("did", "did:plc:abc123xyz0001112223333") ]);
+  assert (Sync.list_repos_body ~limit:5 () = [ ("limit", "5") ]);
+  assert (
+    Sync.list_blobs_body ~did:"did:plc:abc123xyz0001112223333" ~limit:5 ()
+    = [ ("did", "did:plc:abc123xyz0001112223333"); ("limit", "5") ]);
+  assert (
+    Sync.list_repos_by_collection_body ~collection:"app.bsky.feed.post" ()
+    = [ ("collection", "app.bsky.feed.post") ]);
+  ignore Sync.get_latest_commit;
+  ignore Sync.list_repos;
+  ignore Sync.get_repo_status;
+  ignore Sync.request_crawl;
   print_endline "examples/offline: public API typechecks and fixtures pass"

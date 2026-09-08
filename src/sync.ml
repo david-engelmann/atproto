@@ -37,19 +37,11 @@ module Sync = struct
           [ application_json; Session.bearer_token_from_session sess ]
     | None -> Cohttp_client.create_headers_from_pairs [ application_json ]
 
+  (* JSON GET/POST go through Client. Always pass ~host so unauthenticated
+     calls stay on ATP_HOST / the session PDS, not Client's AppView default. *)
   let request_json ?host ?session endpoint pairs =
     let host = host_of ?host session in
-    let base_url = App.create_public_base_url ~host () in
-    let url = App.create_endpoint_url base_url endpoint in
-    let body = Cohttp_client.create_body_from_pairs pairs in
-    let headers = headers_of session in
-    let resp =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers url body headers)
-    in
-    match Error.Error.of_body resp with
-    | Some e -> failwith ("Sync: " ^ Error.Error.to_string e)
-    | None -> Yojson.Safe.from_string resp
+    Client.Client.get_json ?session ~host endpoint pairs
 
   let request_bytes ?host ?session endpoint pairs =
     let host = host_of ?host session in
@@ -110,13 +102,50 @@ module Sync = struct
   let optional_pairs pairs =
     List.filter_map (fun (k, v) -> Option.map (fun x -> (k, x)) v) pairs
 
+  (** Query-string pairs for [com.atproto.sync.getLatestCommit]. *)
+  let get_latest_commit_body ~did : (string * string) list = [ ("did", did) ]
+
+  (** Query-string pairs for [com.atproto.sync.getRepoStatus]. *)
+  let get_repo_status_body ~did : (string * string) list = [ ("did", did) ]
+
+  (** Query-string pairs for [com.atproto.sync.listRepos]. Optional
+      [cursor] / [limit] map to the lexicon query. *)
+  let list_repos_body ?cursor ?limit () : (string * string) list =
+    Client.Client.opt_pair "cursor" cursor @ Client.Client.opt_int "limit" limit
+
+  (** Query-string pairs for [com.atproto.sync.listBlobs]. Optional
+      [since] / [cursor] / [limit] map to the lexicon query. *)
+  let list_blobs_body ~did ?since ?cursor ?limit () : (string * string) list =
+    ("did", did)
+    :: Client.Client.opt_pair "since" since
+    @ Client.Client.opt_pair "cursor" cursor
+    @ Client.Client.opt_int "limit" limit
+
+  (** Query-string pairs for [com.atproto.sync.listHosts]. Optional
+      [cursor] / [limit] map to the lexicon query. *)
+  let list_hosts_body ?cursor ?limit () : (string * string) list =
+    Client.Client.opt_pair "cursor" cursor @ Client.Client.opt_int "limit" limit
+
+  (** Query-string pairs for [com.atproto.sync.getHostStatus]. *)
+  let get_host_status_body ~hostname : (string * string) list =
+    [ ("hostname", hostname) ]
+
+  (** Query-string pairs for [com.atproto.sync.listReposByCollection].
+      Optional [cursor] / [limit] map to the lexicon query. *)
+  let list_repos_by_collection_body ~collection ?cursor ?limit () :
+      (string * string) list =
+    ("collection", collection)
+    :: Client.Client.opt_pair "cursor" cursor
+    @ Client.Client.opt_int "limit" limit
+
   (** Latest commit CID and rev for [did] via
       [com.atproto.sync.getLatestCommit]. Optional [host] / [session] select
-      the PDS; otherwise [ATP_HOST] or [bsky.social]. *)
+      the PDS; otherwise [ATP_HOST] or [bsky.social]. Shares
+      [get_latest_commit_body] with callers that need the query pairs. *)
   let get_latest_commit ?host ?session (did : string) : latest_commit =
     request_json ?host ?session
       (create_sync_endpoint "getLatestCommit")
-      [ ("did", did) ]
+      (get_latest_commit_body ~did)
     |> parse_latest_commit
 
   (** Full repo CAR bytes for [did] via [com.atproto.sync.getRepo]. Optional
@@ -227,27 +256,22 @@ module Sync = struct
   let record_path ~collection ~rkey = collection ^ "/" ^ rkey
 
   (** Blob CIDs for [did] via [com.atproto.sync.listBlobs]. Optional
-      [since] / [cursor] / [limit] map to the lexicon query. *)
+      [since] / [cursor] / [limit] map to the lexicon query. Shares
+      [list_blobs_body] with callers that need the query pairs. *)
   let list_blobs ?host ?session ?since ?cursor ?limit (did : string) :
       list_blobs =
     request_json ?host ?session
       (create_sync_endpoint "listBlobs")
-      (("did", did)
-      :: optional_pairs
-           [
-             ("since", since);
-             ("cursor", cursor);
-             ("limit", Option.map string_of_int limit);
-           ])
+      (list_blobs_body ~did ?since ?cursor ?limit ())
     |> parse_list_blobs
 
   (** Repos on the host via [com.atproto.sync.listRepos]. Optional
-      [cursor] / [limit] map to the lexicon query. *)
+      [cursor] / [limit] map to the lexicon query. Shares
+      [list_repos_body] with callers that need the query pairs. *)
   let list_repos ?host ?session ?cursor ?limit () : list_repos =
     request_json ?host ?session
       (create_sync_endpoint "listRepos")
-      (optional_pairs
-         [ ("cursor", cursor); ("limit", Option.map string_of_int limit) ])
+      (list_repos_body ?cursor ?limit ())
     |> parse_list_repos
 
   type repo_status = {
@@ -342,40 +366,42 @@ module Sync = struct
     }
 
   (** Active / status / rev for [did] via
-      [com.atproto.sync.getRepoStatus]. *)
+      [com.atproto.sync.getRepoStatus]. Shares [get_repo_status_body]
+      with callers that need the query pairs. *)
   let get_repo_status ?host ?session (did : string) : repo_status =
     request_json ?host ?session
       (create_sync_endpoint "getRepoStatus")
-      [ ("did", did) ]
+      (get_repo_status_body ~did)
     |> parse_repo_status
 
   (** Upstream hosts via [com.atproto.sync.listHosts]. Optional
-      [cursor] / [limit] map to the lexicon query. *)
+      [cursor] / [limit] map to the lexicon query. Shares
+      [list_hosts_body] with callers that need the query pairs. *)
   let list_hosts ?host ?session ?cursor ?limit () : list_hosts =
     request_json ?host ?session
       (create_sync_endpoint "listHosts")
-      (optional_pairs
-         [ ("cursor", cursor); ("limit", Option.map string_of_int limit) ])
+      (list_hosts_body ?cursor ?limit ())
     |> parse_list_hosts
 
   (** Status / seq / account count for [hostname] via
-      [com.atproto.sync.getHostStatus]. *)
+      [com.atproto.sync.getHostStatus]. Shares [get_host_status_body]
+      with callers that need the query pairs. *)
   let get_host_status ?host ?session (hostname : string) : host_status =
     request_json ?host ?session
       (create_sync_endpoint "getHostStatus")
-      [ ("hostname", hostname) ]
+      (get_host_status_body ~hostname)
     |> parse_host_status
 
   (** Repos that have [collection] via
       [com.atproto.sync.listReposByCollection]. Optional [cursor] /
-      [limit] map to the lexicon query. *)
+      [limit] map to the lexicon query. Shares
+      [list_repos_by_collection_body] with callers that need the query
+      pairs. *)
   let list_repos_by_collection ?host ?session ?cursor ?limit
       (collection : string) : list_repos_by_collection =
     request_json ?host ?session
       (create_sync_endpoint "listReposByCollection")
-      (("collection", collection)
-      :: optional_pairs
-           [ ("cursor", cursor); ("limit", Option.map string_of_int limit) ])
+      (list_repos_by_collection_body ~collection ?cursor ?limit ())
     |> parse_list_repos_by_collection
 
   (** JSON body for [com.atproto.sync.requestCrawl]. *)
@@ -383,16 +409,16 @@ module Sync = struct
     `Assoc [ ("hostname", `String hostname) ]
 
   (** Ask the host to crawl [hostname] via
-      [com.atproto.sync.requestCrawl]. *)
+      [com.atproto.sync.requestCrawl]. Empty procedure output stays
+      [""] for existing callers. *)
   let request_crawl ?host ?session (hostname : string) : string =
     let host = host_of ?host session in
-    let base_url = App.create_public_base_url ~host () in
-    let url =
-      App.create_endpoint_url base_url (create_sync_endpoint "requestCrawl")
+    let json =
+      Client.Client.post_json ?session ~host
+        (create_sync_endpoint "requestCrawl")
+        (Yojson.Safe.to_string (request_crawl_body hostname))
     in
-    let headers = headers_of session in
-    let data = Yojson.Safe.to_string (request_crawl_body hostname) in
-    Lwt_main.run (Cohttp_client.post_data_with_headers url data headers)
+    match json with `Assoc [] -> "" | j -> Yojson.Safe.to_string j
 
   (* Deprecated 2023 endpoints kept as thin wrappers so older call sites compile. *)
   let get_head (s : Session.session) (did : string) : string =
