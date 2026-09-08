@@ -303,6 +303,15 @@ module Site = struct
         | j -> Some j);
     }
 
+  (** Encode a parsed [document]. Uses the typed lexicon fields
+      (siblings of [theme_to_json] / [contributor_to_json]). *)
+  let document_to_json (d : document) : Yojson.Safe.t =
+    document ~site:d.site ~title:d.title ~published_at:d.published_at
+      ?path:d.path ?description:d.description ?text_content:d.text_content
+      ~tags:d.tags ~contributors:d.contributors ?updated_at:d.updated_at
+      ?bsky_post_ref:d.bsky_post_ref ?self_labels:d.self_labels
+      ?cover_image:d.cover_image ?content:d.content ?links:d.links ()
+
   (** Build a [site.standard.publication] record. [url] and [name] are
       required; optional [description] / [icon] / [self_labels] /
       [basic_theme] / [show_in_discover] map to the lexicon. *)
@@ -354,6 +363,17 @@ module Site = struct
         | _ -> None);
     }
 
+  (** Encode a parsed [publication]. Uses the typed lexicon fields
+      (siblings of [theme_to_json] / [contributor_to_json]). *)
+  let publication_to_json (p : publication) : Yojson.Safe.t =
+    let show_in_discover =
+      match p.preferences with
+      | Some pref -> pref.show_in_discover
+      | None -> None
+    in
+    publication ~url:p.url ~name:p.name ?description:p.description ?icon:p.icon
+      ?self_labels:p.self_labels ?basic_theme:p.basic_theme ?show_in_discover ()
+
   (** Build a [site.standard.graph.recommend] record for [document]
       (AT-URI). [created_at] is required. *)
   let recommend ~document ~created_at () : Yojson.Safe.t =
@@ -369,6 +389,11 @@ module Site = struct
       document = string_member json "document";
       created_at = string_member json "createdAt";
     }
+
+  (** Encode a parsed [recommend]. Uses the typed lexicon fields
+      (siblings of [theme_to_json] / [contributor_to_json]). *)
+  let recommend_to_json (r : recommend) : Yojson.Safe.t =
+    recommend ~document:r.document ~created_at:r.created_at ()
 
   (** Build a [site.standard.graph.subscription] record for
       [publication] (AT-URI). Optional [created_at] maps to the
@@ -391,4 +416,9 @@ module Site = struct
       publication = string_member json "publication";
       created_at = string_opt json "createdAt";
     }
+
+  (** Encode a parsed [subscription]. Uses the typed lexicon fields
+      (siblings of [theme_to_json] / [contributor_to_json]). *)
+  let subscription_to_json (s : subscription) : Yojson.Safe.t =
+    subscription ~publication:s.publication ?created_at:s.created_at ()
 end

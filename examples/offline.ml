@@ -1349,6 +1349,44 @@ let () =
     match Yojson.Safe.Util.member "$type" site_doc with
     | `String "site.standard.document" -> true
     | _ -> false);
+  let encoded_site_doc = Site.document_to_json (Site.parse_document site_doc) in
+  assert (
+    match Yojson.Safe.Util.member "$type" encoded_site_doc with
+    | `String "site.standard.document" -> true
+    | _ -> false);
+  let site_pub =
+    Site.publication_to_json
+      (Site.parse_publication
+         (Site.publication ~url:"https://standard.site" ~name:"Notes" ()))
+  in
+  assert (
+    match Yojson.Safe.Util.member "$type" site_pub with
+    | `String "site.standard.publication" -> true
+    | _ -> false);
+  let site_rec =
+    Site.recommend_to_json
+      (Site.parse_recommend
+         (Site.recommend
+            ~document:
+              "at://did:plc:abc123xyz0001112223333/site.standard.document/3k"
+            ~created_at:"2026-01-01T00:00:00.000Z" ()))
+  in
+  assert (
+    match Yojson.Safe.Util.member "document" site_rec with
+    | `String _ -> true
+    | _ -> false);
+  let site_sub =
+    Site.subscription_to_json
+      (Site.parse_subscription
+         (Site.subscription
+            ~publication:
+              "at://did:plc:abc123xyz0001112223333/site.standard.publication/3k"
+            ()))
+  in
+  assert (
+    match Yojson.Safe.Util.member "publication" site_sub with
+    | `String _ -> true
+    | _ -> false);
   let germ =
     Germnetwork.declaration ~version:"1.0.0" ~current_key:"key-bytes" ()
   in
