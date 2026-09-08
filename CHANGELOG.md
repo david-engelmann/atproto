@@ -1,7 +1,11 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#210](https://github.com/david-engelmann/atproto/pull/210):
+shipped through [#211](https://github.com/david-engelmann/atproto/pull/211):
+Ozone `list_scheduled_actions` Yojson body helper
+(`list_scheduled_actions_body`; `list_scheduled_actions` shares that
+body) on top of
+[#210](https://github.com/david-engelmann/atproto/pull/210):
 Notification putPreferences v1 + putActivitySubscription Yojson body
 helpers (`put_preferences_body` / `put_activity_subscription_body`;
 `put_preferences` / `put_activity_subscription` share those bodies via
@@ -619,6 +623,15 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   Push register/unregister stay listed not faked. Does not invent
   leftover unused lexicon fields. No lexicon pin bump. No hosted
   chat / video / Tap / phone / contacts / push faked
+- [#211](https://github.com/david-engelmann/atproto/pull/211): Ozone
+  `list_scheduled_actions` Yojson body helper
+  (`list_scheduled_actions_body`). Lexicon fields only: required
+  `statuses` (array of strings) and optional `startsAfter` /
+  `endsBefore` / `subjects` / `limit` / `cursor`. Existing
+  `list_scheduled_actions` shares that body and still returns
+  `scheduled_actions`. Does not invent leftover unused lexicon
+  fields. No lexicon pin bump. No hosted chat / video / Tap / phone /
+  contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -1089,6 +1102,15 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `put_activity_subscription` share those bodies via
   `Client.post_json`. Does not invent leftover unused putPreferences
   / putActivitySubscription fields. Hosted-only chat / video / Tap /
+  phone / contacts / push stay listed not faked
+- [#211](https://github.com/david-engelmann/atproto/pull/211): Ozone
+  `list_scheduled_actions` Yojson body helper
+  (`list_scheduled_actions_body`). Lexicon fields only: required
+  `statuses` (array of strings) and optional `startsAfter` /
+  `endsBefore` / `subjects` / `limit` / `cursor`.
+  `list_scheduled_actions` shares that body and still returns
+  `scheduled_actions`. Does not invent leftover unused
+  listScheduledActions fields. Hosted-only chat / video / Tap /
   phone / contacts / push stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`

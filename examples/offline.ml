@@ -140,6 +140,16 @@ let () =
     | _ -> false);
   ignore Ozone.schedule_action_typed;
   ignore Ozone.schedule_action;
+  let ozone_list =
+    Ozone.list_scheduled_actions_body ~statuses:[ "pending" ]
+      ~subjects:[ "did:plc:abc123xyz0001112223333" ]
+      ~limit:10 ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "statuses" ozone_list with
+    | `List (`String "pending" :: _) -> true
+    | _ -> false);
+  ignore Ozone.list_scheduled_actions;
   let ozone_cancel =
     Ozone.cancel_scheduled_actions_body
       ~subjects:[ "did:plc:abc123xyz0001112223333" ]

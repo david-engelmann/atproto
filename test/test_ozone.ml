@@ -422,6 +422,52 @@ let test_schedule_action_typed_body _ =
     "raw-tool"
     (raw |> member "modTool" |> member "name" |> to_string)
 
+let test_list_scheduled_actions_body _ =
+  let open Yojson.Safe.Util in
+  let keys json =
+    match json with
+    | `Assoc fields -> List.map fst fields
+    | _ -> OUnit2.assert_failure "expected Assoc"
+  in
+  let body =
+    Ozone.list_scheduled_actions_body ~statuses:[ "pending"; "executed" ]
+      ~starts_after:"2024-01-01T00:00:00.000Z"
+      ~ends_before:"2024-02-01T00:00:00.000Z"
+      ~subjects:[ "did:plc:abc123xyz0001112223333" ]
+      ~limit:25 ~cursor:"c1" ()
+  in
+  OUnit2.assert_equal
+    [ "statuses"; "startsAfter"; "endsBefore"; "subjects"; "limit"; "cursor" ]
+    (keys body);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "pending"
+    (body |> member "statuses" |> to_list |> List.hd |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "2024-01-01T00:00:00.000Z"
+    (body |> member "startsAfter" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "2024-02-01T00:00:00.000Z"
+    (body |> member "endsBefore" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:abc123xyz0001112223333"
+    (body |> member "subjects" |> to_list |> List.hd |> to_string);
+  OUnit2.assert_equal 25 (body |> member "limit" |> to_int);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "c1"
+    (body |> member "cursor" |> to_string);
+  let omitted = Ozone.list_scheduled_actions_body ~statuses:[ "pending" ] () in
+  OUnit2.assert_equal [ "statuses" ] (keys omitted);
+  OUnit2.assert_equal `Null (omitted |> member "startsAfter");
+  OUnit2.assert_equal `Null (omitted |> member "endsBefore");
+  OUnit2.assert_equal `Null (omitted |> member "subjects");
+  OUnit2.assert_equal `Null (omitted |> member "limit");
+  OUnit2.assert_equal `Null (omitted |> member "cursor")
+
 let test_cancel_scheduled_actions_body _ =
   let open Yojson.Safe.Util in
   let keys json =
@@ -1203,6 +1249,7 @@ let suite =
          >:: test_emit_event_typed_body_roundtrip;
          "test_parse_timeline_and_schedule" >:: test_parse_timeline_and_schedule;
          "test_schedule_action_typed_body" >:: test_schedule_action_typed_body;
+         "test_list_scheduled_actions_body" >:: test_list_scheduled_actions_body;
          "test_cancel_scheduled_actions_body"
          >:: test_cancel_scheduled_actions_body;
          "test_parse_typed_event_and_subject"
