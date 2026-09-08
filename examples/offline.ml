@@ -1385,9 +1385,7 @@ let () =
   assert (
     Label.subscribe_url ()
     = "wss://bsky.network/xrpc/com.atproto.label.subscribeLabels");
-  let qpairs =
-    Label.query_labels_body ~uri_patterns:[ "*" ] ~limit:10 ()
-  in
+  let qpairs = Label.query_labels_body ~uri_patterns:[ "*" ] ~limit:10 () in
   assert (List.mem ("uriPatterns", "*") qpairs);
   assert (List.mem ("limit", "10") qpairs);
   ignore Label.query_labels;
