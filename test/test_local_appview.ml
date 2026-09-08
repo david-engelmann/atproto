@@ -706,10 +706,10 @@ let test_leftover_appview _ =
                     (List.length other.thread >= 0));
               ignore
                 (av_post_if_served ~session:s "app.bsky.graph.muteThread"
-                   (Yojson.Safe.to_string (`Assoc [ ("root", `String uri) ])));
+                   (Yojson.Safe.to_string (Graph.mute_thread_body ~root:uri)));
               ignore
                 (av_post_if_served ~session:s "app.bsky.graph.unmuteThread"
-                   (Yojson.Safe.to_string (`Assoc [ ("root", `String uri) ])))
+                   (Yojson.Safe.to_string (Graph.unmute_thread_body ~root:uri)))
           | _ -> ())
       | _ -> ())
   | _ -> ());
@@ -950,7 +950,7 @@ let test_mute_actor_list _ =
        [ ("list", listed.uri); ("limit", "5") ]);
   ignore
     (av_post_if_served ~session:s "app.bsky.graph.muteActorList"
-       (Yojson.Safe.to_string (`Assoc [ ("list", `String listed.uri) ])));
+       (Yojson.Safe.to_string (Graph.mute_actor_list_body ~list:listed.uri)));
   (match
      av_get_if_served ~session:s "app.bsky.graph.getListMutes"
        [ ("limit", "10") ]
@@ -961,7 +961,7 @@ let test_mute_actor_list _ =
       OUnit2.assert_bool "getListMutes" (List.length page.lists >= 0));
   ignore
     (av_post_if_served ~session:s "app.bsky.graph.unmuteActorList"
-       (Yojson.Safe.to_string (`Assoc [ ("list", `String listed.uri) ])))
+       (Yojson.Safe.to_string (Graph.unmute_actor_list_body ~list:listed.uri)))
 
 let test_put_preferences_v2 _ =
   let s = session () in

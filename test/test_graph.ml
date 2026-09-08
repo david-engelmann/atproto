@@ -133,6 +133,41 @@ let test_unmute_actor_body _ =
       OUnit2.assert_equal ~printer:string_of_int 1 (List.length fields)
   | _ -> OUnit2.assert_failure "unmute_actor_body should be a JSON object"
 
+let assert_single_string_field body field expected =
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    expected
+    (body |> member field |> to_string);
+  match body with
+  | `Assoc fields ->
+      OUnit2.assert_equal ~printer:string_of_int 1 (List.length fields)
+  | _ -> OUnit2.assert_failure "body should be a JSON object"
+
+let test_mute_actor_list_body _ =
+  assert_single_string_field
+    (Graph.mute_actor_list_body
+       ~list:"at://did:plc:abc123xyz0001112223333/app.bsky.graph.list/3k2a")
+    "list" "at://did:plc:abc123xyz0001112223333/app.bsky.graph.list/3k2a"
+
+let test_unmute_actor_list_body _ =
+  assert_single_string_field
+    (Graph.unmute_actor_list_body
+       ~list:"at://did:plc:abc123xyz0001112223333/app.bsky.graph.list/3k2a")
+    "list" "at://did:plc:abc123xyz0001112223333/app.bsky.graph.list/3k2a"
+
+let test_mute_thread_body _ =
+  assert_single_string_field
+    (Graph.mute_thread_body
+       ~root:"at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k2b")
+    "root" "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k2b"
+
+let test_unmute_thread_body _ =
+  assert_single_string_field
+    (Graph.unmute_thread_body
+       ~root:"at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k2b")
+    "root" "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k2b"
+
 let test_follow_page_sort_and_cursor _ =
   OUnit2.assert_equal ~printer:(fun x -> x) "latest" Graph.sort_latest;
   OUnit2.assert_equal ~printer:(fun x -> x) "top" Graph.sort_top;
@@ -657,6 +692,10 @@ let suite =
          "test_unmute_actor" >:: test_unmute_actor;
          "test_mute_actor_body" >:: test_mute_actor_body;
          "test_unmute_actor_body" >:: test_unmute_actor_body;
+         "test_mute_actor_list_body" >:: test_mute_actor_list_body;
+         "test_unmute_actor_list_body" >:: test_unmute_actor_list_body;
+         "test_mute_thread_body" >:: test_mute_thread_body;
+         "test_unmute_thread_body" >:: test_unmute_thread_body;
          "test_follow_page_sort_and_cursor" >:: test_follow_page_sort_and_cursor;
          "test_parse_list" >:: test_parse_list;
          "test_parse_list_opt_out_fields" >:: test_parse_list_opt_out_fields;

@@ -1,7 +1,13 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#208](https://github.com/david-engelmann/atproto/pull/208):
+shipped through [#209](https://github.com/david-engelmann/atproto/pull/209):
+Graph muteActorList / muteThread Yojson body helpers
+(`mute_actor_list_body` / `unmute_actor_list_body` /
+`mute_thread_body` / `unmute_thread_body`; `mute_actor_list` /
+`unmute_actor_list` / `mute_thread` / `unmute_thread` share those
+bodies via `Client.post_json`; public signatures unchanged) on top of
+[#208](https://github.com/david-engelmann/atproto/pull/208):
 Server getServiceAuth via Client
 (`get_service_auth` via `Client.get_json` sharing `get_service_auth_body`
 with `get_service_auth_url`; reuses `Xrpc.service_auth_body` for aud /
@@ -587,6 +593,16 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `upload_blob` / `import_repo` / Sync CAR stay Cohttp. Does not
   invent leftover unused lexicon fields. No lexicon pin bump. No
   hosted chat / video / Tap / phone / contacts / push faked
+- [#209](https://github.com/david-engelmann/atproto/pull/209): Graph
+  muteActorList / muteThread Yojson body helpers:
+  `mute_actor_list_body` / `unmute_actor_list_body` /
+  `mute_thread_body` / `unmute_thread_body`. JSON matches the pin
+  `f0d4877a` lexicon (`{"list": ...}` / `{"root": ...}` only; no
+  leftover unused muteActorList / unmuteActorList / muteThread /
+  unmuteThread fields). `mute_actor_list` / `unmute_actor_list` /
+  `mute_thread` / `unmute_thread` share those bodies via
+  `Client.post_json`. Public signatures stay `unit`. No lexicon pin
+  bump. No hosted chat / video / Tap / phone / contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -1039,6 +1055,15 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `get_service_auth_url`. Reuses `Xrpc.service_auth_body` for aud /
   lxm validation. `service_auth` parse type and public signature
   unchanged. Does not invent leftover unused getServiceAuth fields.
+  Hosted-only chat / video / Tap / phone / contacts / push stay
+  listed not faked
+- [#209](https://github.com/david-engelmann/atproto/pull/209): Graph
+  muteActorList / muteThread Yojson body helpers
+  (`mute_actor_list_body` / `unmute_actor_list_body` /
+  `mute_thread_body` / `unmute_thread_body`). `mute_actor_list` /
+  `unmute_actor_list` / `mute_thread` / `unmute_thread` share those
+  bodies via `Client.post_json`. Public signatures stay `unit`. Does
+  not invent leftover unused muteActorList / muteThread fields.
   Hosted-only chat / video / Tap / phone / contacts / push stay
   listed not faked
 - `examples/offline.ml` typechecks against the public API under
