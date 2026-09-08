@@ -41,15 +41,14 @@ let test_feed_query_bodies _ =
       ("cid", "bafy");
       ("limit", "1");
     ]
-    (Feed.get_reposted_by_body
-       ~uri:"at://did:plc:alice/app.bsky.feed.post/3abc" ~cid:"bafy" ~limit:1);
+    (Feed.get_reposted_by_body ~uri:"at://did:plc:alice/app.bsky.feed.post/3abc"
+       ~cid:"bafy" ~limit:1);
   OUnit2.assert_equal
     [ ("algorithm", "reverse-chronological"); ("limit", "2") ]
     (Feed.get_timeline_body ~algorithm:"reverse-chronological" ~limit:2);
   OUnit2.assert_equal
     [
-      ("feed", "at://did:plc:alice/app.bsky.feed.generator/hot");
-      ("limit", "3");
+      ("feed", "at://did:plc:alice/app.bsky.feed.generator/hot"); ("limit", "3");
     ]
     (Feed.get_feed_skeleton_body
        ~feed:"at://did:plc:alice/app.bsky.feed.generator/hot" ~limit:3)
