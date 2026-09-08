@@ -642,31 +642,47 @@ module Graph = struct
       @ Client.Client.opt_pair "cursor" cursor)
     |> parse_lists
 
+  (** JSON body for [app.bsky.graph.muteActorList]. *)
+  let mute_actor_list_body ~list : Yojson.Safe.t =
+    `Assoc [ ("list", `String list) ]
+
   (** Mute list [list] (AT URI) via [app.bsky.graph.muteActorList]. *)
   let mute_actor_list (s : Session.session) ~list () : unit =
     ignore
       (Client.Client.post_json ~session:s "app.bsky.graph.muteActorList"
-         (Yojson.Safe.to_string (`Assoc [ ("list", `String list) ])))
+         (Yojson.Safe.to_string (mute_actor_list_body ~list)))
+
+  (** JSON body for [app.bsky.graph.unmuteActorList]. *)
+  let unmute_actor_list_body ~list : Yojson.Safe.t =
+    `Assoc [ ("list", `String list) ]
 
   (** Unmute list [list] (AT URI) via [app.bsky.graph.unmuteActorList]. *)
   let unmute_actor_list (s : Session.session) ~list () : unit =
     ignore
       (Client.Client.post_json ~session:s "app.bsky.graph.unmuteActorList"
-         (Yojson.Safe.to_string (`Assoc [ ("list", `String list) ])))
+         (Yojson.Safe.to_string (unmute_actor_list_body ~list)))
+
+  (** JSON body for [app.bsky.graph.muteThread]. *)
+  let mute_thread_body ~root : Yojson.Safe.t =
+    `Assoc [ ("root", `String root) ]
 
   (** Mute the thread rooted at [root] (AT URI) via
       [app.bsky.graph.muteThread]. *)
   let mute_thread (s : Session.session) ~root () : unit =
     ignore
       (Client.Client.post_json ~session:s "app.bsky.graph.muteThread"
-         (Yojson.Safe.to_string (`Assoc [ ("root", `String root) ])))
+         (Yojson.Safe.to_string (mute_thread_body ~root)))
+
+  (** JSON body for [app.bsky.graph.unmuteThread]. *)
+  let unmute_thread_body ~root : Yojson.Safe.t =
+    `Assoc [ ("root", `String root) ]
 
   (** Unmute the thread rooted at [root] (AT URI) via
       [app.bsky.graph.unmuteThread]. *)
   let unmute_thread (s : Session.session) ~root () : unit =
     ignore
       (Client.Client.post_json ~session:s "app.bsky.graph.unmuteThread"
-         (Yojson.Safe.to_string (`Assoc [ ("root", `String root) ])))
+         (Yojson.Safe.to_string (unmute_thread_body ~root)))
 
   (** Starter pack [starter_pack] (AT URI) via [app.bsky.graph.getStarterPack].
       Works without a session against public AppView. *)

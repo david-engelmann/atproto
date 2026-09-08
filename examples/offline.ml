@@ -345,6 +345,36 @@ let () =
     match Yojson.Safe.Util.member "actor" unmute with
     | `String "alice.test" -> true
     | _ -> false);
+  let list_uri =
+    "at://did:plc:abc123xyz0001112223333/app.bsky.graph.list/3k2a"
+  in
+  let root_uri =
+    "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k2b"
+  in
+  let mute_list = Graph.mute_actor_list_body ~list:list_uri in
+  assert (
+    match mute_list with
+    | `Assoc [ ("list", `String uri) ] when uri = list_uri -> true
+    | _ -> false);
+  let unmute_list = Graph.unmute_actor_list_body ~list:list_uri in
+  assert (
+    match unmute_list with
+    | `Assoc [ ("list", `String uri) ] when uri = list_uri -> true
+    | _ -> false);
+  let mute_thread = Graph.mute_thread_body ~root:root_uri in
+  assert (
+    match mute_thread with
+    | `Assoc [ ("root", `String uri) ] when uri = root_uri -> true
+    | _ -> false);
+  let unmute_thread = Graph.unmute_thread_body ~root:root_uri in
+  assert (
+    match unmute_thread with
+    | `Assoc [ ("root", `String uri) ] when uri = root_uri -> true
+    | _ -> false);
+  ignore Graph.mute_actor_list;
+  ignore Graph.unmute_actor_list;
+  ignore Graph.mute_thread;
+  ignore Graph.unmute_thread;
   assert (Feed.filter_posts_with_replies = "posts_with_replies");
   assert (Feed.filter_posts_no_replies = "posts_no_replies");
   assert (Feed.filter_posts_with_media = "posts_with_media");
