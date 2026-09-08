@@ -292,7 +292,18 @@ let test_server_query_bodies _ =
   let invites = Server.create_invite_codes_body ~code_count:1 ~use_count:1 () in
   let open Yojson.Safe.Util in
   OUnit2.assert_equal 1 (invites |> member "codeCount" |> to_int);
-  OUnit2.assert_equal `Null (invites |> member "forAccounts")
+  OUnit2.assert_equal `Null (invites |> member "forAccounts");
+  OUnit2.assert_equal
+    [ ("aud", "did:web:mod.example.com") ]
+    (Server.get_service_auth_body ~aud:"did:web:mod.example.com" ());
+  OUnit2.assert_equal
+    [
+      ("aud", "did:web:video.bsky.app#bsky_transcode");
+      ("lxm", "com.atproto.repo.uploadBlob");
+      ("exp", "1700000000");
+    ]
+    (Server.get_service_auth_body ~aud:"did:web:video.bsky.app#bsky_transcode"
+       ~lxm:"com.atproto.repo.uploadBlob" ~exp:1_700_000_000L ())
 
 let test_describe_server_public _ =
   try
