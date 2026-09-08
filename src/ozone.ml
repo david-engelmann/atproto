@@ -2540,16 +2540,22 @@ module Ozone = struct
       "tools.ozone.report.getLatestReport" []
     |> parse_report_result
 
+  (** JSON body for [tools.ozone.report.assignModerator]. *)
+  let assign_report_moderator_body ~report_id ?queue_id ?did ?is_permanent () :
+      Yojson.Safe.t =
+    `Assoc
+      ((("reportId", `Int report_id) :: opt_json_int "queueId" queue_id)
+      @ opt_json_str "did" did
+      @ opt_json_bool "isPermanent" is_permanent)
+
   (** Assign a moderator via [tools.ozone.report.assignModerator]. *)
   let assign_report_moderator (s : Session.session) ~proxy ~report_id ?queue_id
       ?did ?is_permanent () : assignment_view =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.report.assignModerator"
       (Yojson.Safe.to_string
-         (`Assoc
-           ((("reportId", `Int report_id) :: opt_json_int "queueId" queue_id)
-           @ opt_json_str "did" did
-           @ opt_json_bool "isPermanent" is_permanent)))
+         (assign_report_moderator_body ~report_id ?queue_id ?did ?is_permanent
+            ()))
     |> parse_assignment_view
 
   (** Unassign the moderator via [tools.ozone.report.unassignModerator]. *)
@@ -2615,17 +2621,31 @@ module Ozone = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_report_activities
 
+  (** JSON body for [tools.ozone.report.reassignQueue]. *)
+  let reassign_queue_body ~report_id ~queue_id ?comment () : Yojson.Safe.t =
+    `Assoc
+      (("reportId", `Int report_id)
+      :: ("queueId", `Int queue_id)
+      :: opt_json_str "comment" comment)
+
   (** Move [report_id] to [queue_id] via [tools.ozone.report.reassignQueue]. *)
   let reassign_queue (s : Session.session) ~proxy ~report_id ~queue_id ?comment
       () : report_view =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.report.reassignQueue"
       (Yojson.Safe.to_string
-         (`Assoc
-           (("reportId", `Int report_id)
-           :: ("queueId", `Int queue_id)
-           :: opt_json_str "comment" comment)))
+         (reassign_queue_body ~report_id ~queue_id ?comment ()))
     |> parse_report_result
+
+  (** JSON body for [tools.ozone.report.refreshStats]. *)
+  let refresh_stats_body ~start_date ~end_date ?queue_ids () : Yojson.Safe.t =
+    `Assoc
+      (("startDate", `String start_date)
+      :: ("endDate", `String end_date)
+      ::
+      (match queue_ids with
+      | Some xs -> [ ("queueIds", json_ints xs) ]
+      | None -> []))
 
   (** Recompute stats via [tools.ozone.report.refreshStats]. *)
   let refresh_stats (s : Session.session) ~proxy ~start_date ~end_date
@@ -2634,13 +2654,19 @@ module Ozone = struct
       (Client.post_json ~session:s ~extra:(proxy_headers proxy)
          "tools.ozone.report.refreshStats"
          (Yojson.Safe.to_string
-            (`Assoc
-              (("startDate", `String start_date)
-              :: ("endDate", `String end_date)
-              ::
-              (match queue_ids with
-              | Some xs -> [ ("queueIds", json_ints xs) ]
-              | None -> [])))))
+            (refresh_stats_body ~start_date ~end_date ?queue_ids ())))
+
+  (** JSON body for [tools.ozone.report.closeReports]. *)
+  let close_reports_body ~subject ?(report_types = []) ?internal_note
+      ?is_automated () : Yojson.Safe.t =
+    `Assoc
+      (("subject", `String subject)
+       ::
+       (match report_types with
+       | [] -> []
+       | xs -> [ ("reportTypes", json_strings xs) ])
+      @ opt_json_str "internalNote" internal_note
+      @ opt_json_bool "isAutomated" is_automated)
 
   (** Close reports for [subject] via [tools.ozone.report.closeReports]. *)
   let close_reports (s : Session.session) ~proxy ~subject ?(report_types = [])
@@ -2648,14 +2674,8 @@ module Ozone = struct
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.report.closeReports"
       (Yojson.Safe.to_string
-         (`Assoc
-           (("subject", `String subject)
-            ::
-            (match report_types with
-            | [] -> []
-            | xs -> [ ("reportTypes", json_strings xs) ])
-           @ opt_json_str "internalNote" internal_note
-           @ opt_json_bool "isAutomated" is_automated)))
+         (close_reports_body ~subject ?report_types ?internal_note
+            ?is_automated ()))
     |> parse_close_reports_result
 
   (** Live report stats via [tools.ozone.report.getLiveStats]. *)

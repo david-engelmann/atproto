@@ -690,6 +690,41 @@ let () =
   in
   ignore Ozone.create_activity_typed;
   ignore Ozone.create_activity;
+  let assign_body =
+    Ozone.assign_report_moderator_body ~report_id:11 ~queue_id:3
+      ~did:"did:plc:mod000111222333444555666" ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "reportId" assign_body with
+    | `Int 11 -> true
+    | _ -> false);
+  ignore Ozone.assign_report_moderator;
+  let reassign_body =
+    Ozone.reassign_queue_body ~report_id:11 ~queue_id:3 ~comment:"move" ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "queueId" reassign_body with
+    | `Int 3 -> true
+    | _ -> false);
+  ignore Ozone.reassign_queue;
+  let stats_body =
+    Ozone.refresh_stats_body ~start_date:"2020-01-01T00:00:00.000Z"
+      ~end_date:"2099-01-01T00:00:00.000Z" ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "startDate" stats_body with
+    | `String "2020-01-01T00:00:00.000Z" -> true
+    | _ -> false);
+  ignore Ozone.refresh_stats;
+  let close_body =
+    Ozone.close_reports_body ~subject:"did:plc:abc123xyz0001112223333"
+      ~internal_note:"resolved" ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "subject" close_body with
+    | `String "did:plc:abc123xyz0001112223333" -> true
+    | _ -> false);
+  ignore Ozone.close_reports;
   let resolved =
     Lexicon.parse_resolved_lexicon
       (`Assoc

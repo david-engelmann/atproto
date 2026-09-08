@@ -562,6 +562,118 @@ let test_query_safelink_rules_body _ =
   OUnit2.assert_equal `Null (omitted |> member "createdBy");
   OUnit2.assert_equal `Null (omitted |> member "sortDirection")
 
+let test_assign_report_moderator_body _ =
+  let open Yojson.Safe.Util in
+  let keys json =
+    match json with
+    | `Assoc fields -> List.map fst fields
+    | _ -> OUnit2.assert_failure "expected Assoc"
+  in
+  let body =
+    Ozone.assign_report_moderator_body ~report_id:11 ~queue_id:3
+      ~did:"did:plc:mod000111222333444555666" ~is_permanent:true ()
+  in
+  OUnit2.assert_equal [ "reportId"; "queueId"; "did"; "isPermanent" ]
+    (keys body);
+  OUnit2.assert_equal 11 (body |> member "reportId" |> to_int);
+  OUnit2.assert_equal 3 (body |> member "queueId" |> to_int);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:mod000111222333444555666"
+    (body |> member "did" |> to_string);
+  OUnit2.assert_equal true (body |> member "isPermanent" |> to_bool);
+  let omitted = Ozone.assign_report_moderator_body ~report_id:11 () in
+  OUnit2.assert_equal [ "reportId" ] (keys omitted);
+  OUnit2.assert_equal `Null (omitted |> member "queueId");
+  OUnit2.assert_equal `Null (omitted |> member "did");
+  OUnit2.assert_equal `Null (omitted |> member "isPermanent")
+
+let test_reassign_queue_body _ =
+  let open Yojson.Safe.Util in
+  let keys json =
+    match json with
+    | `Assoc fields -> List.map fst fields
+    | _ -> OUnit2.assert_failure "expected Assoc"
+  in
+  let body =
+    Ozone.reassign_queue_body ~report_id:11 ~queue_id:4 ~comment:"move" ()
+  in
+  OUnit2.assert_equal [ "reportId"; "queueId"; "comment" ] (keys body);
+  OUnit2.assert_equal 11 (body |> member "reportId" |> to_int);
+  OUnit2.assert_equal 4 (body |> member "queueId" |> to_int);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "move"
+    (body |> member "comment" |> to_string);
+  let omitted = Ozone.reassign_queue_body ~report_id:11 ~queue_id:4 () in
+  OUnit2.assert_equal [ "reportId"; "queueId" ] (keys omitted);
+  OUnit2.assert_equal `Null (omitted |> member "comment")
+
+let test_refresh_stats_body _ =
+  let open Yojson.Safe.Util in
+  let keys json =
+    match json with
+    | `Assoc fields -> List.map fst fields
+    | _ -> OUnit2.assert_failure "expected Assoc"
+  in
+  let body =
+    Ozone.refresh_stats_body ~start_date:"2020-01-01T00:00:00.000Z"
+      ~end_date:"2099-01-01T00:00:00.000Z" ~queue_ids:[ 1; 2 ] ()
+  in
+  OUnit2.assert_equal [ "startDate"; "endDate"; "queueIds" ] (keys body);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "2020-01-01T00:00:00.000Z"
+    (body |> member "startDate" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "2099-01-01T00:00:00.000Z"
+    (body |> member "endDate" |> to_string);
+  OUnit2.assert_equal [ 1; 2 ]
+    (body |> member "queueIds" |> to_list |> List.map to_int);
+  let omitted =
+    Ozone.refresh_stats_body ~start_date:"2020-01-01T00:00:00.000Z"
+      ~end_date:"2099-01-01T00:00:00.000Z" ()
+  in
+  OUnit2.assert_equal [ "startDate"; "endDate" ] (keys omitted);
+  OUnit2.assert_equal `Null (omitted |> member "queueIds")
+
+let test_close_reports_body _ =
+  let open Yojson.Safe.Util in
+  let keys json =
+    match json with
+    | `Assoc fields -> List.map fst fields
+    | _ -> OUnit2.assert_failure "expected Assoc"
+  in
+  let body =
+    Ozone.close_reports_body ~subject:"did:plc:abc123xyz0001112223333"
+      ~report_types:[ Ozone.reason_violence_threats ]
+      ~internal_note:"resolved" ~is_automated:true ()
+  in
+  OUnit2.assert_equal
+    [ "subject"; "reportTypes"; "internalNote"; "isAutomated" ]
+    (keys body);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:abc123xyz0001112223333"
+    (body |> member "subject" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    Ozone.reason_violence_threats
+    (body |> member "reportTypes" |> to_list |> List.hd |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "resolved"
+    (body |> member "internalNote" |> to_string);
+  OUnit2.assert_equal true (body |> member "isAutomated" |> to_bool);
+  let omitted =
+    Ozone.close_reports_body ~subject:"did:plc:abc123xyz0001112223333" ()
+  in
+  OUnit2.assert_equal [ "subject" ] (keys omitted);
+  OUnit2.assert_equal `Null (omitted |> member "reportTypes");
+  OUnit2.assert_equal `Null (omitted |> member "internalNote");
+  OUnit2.assert_equal `Null (omitted |> member "isAutomated")
+
 let test_parse_typed_event_and_subject _ =
   let ev =
     Ozone.parse_mod_event
@@ -1363,6 +1475,12 @@ let suite =
          "test_cancel_scheduled_actions_body"
          >:: test_cancel_scheduled_actions_body;
          "test_query_safelink_rules_body" >:: test_query_safelink_rules_body;
+
+         "test_assign_report_moderator_body"
+         >:: test_assign_report_moderator_body;
+         "test_reassign_queue_body" >:: test_reassign_queue_body;
+         "test_refresh_stats_body" >:: test_refresh_stats_body;
+         "test_close_reports_body" >:: test_close_reports_body;
          "test_parse_typed_event_and_subject"
          >:: test_parse_typed_event_and_subject;
          "test_parse_leftover_event_and_status"
