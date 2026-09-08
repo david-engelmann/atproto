@@ -280,6 +280,20 @@ let test_procedure_bodies_and_app_passwords _ =
   OUnit2.assert_equal 1 (List.length listed);
   OUnit2.assert_equal None (List.hd listed).password
 
+let test_server_query_bodies _ =
+  OUnit2.assert_equal
+    [ ("includeUsed", "true"); ("createAvailable", "false") ]
+    (Server.get_account_invite_codes_body ~include_used:true
+       ~create_available:false);
+  OUnit2.assert_equal
+    [ ("includeUsed", "false"); ("createAvailable", "true") ]
+    (Server.get_account_invite_codes_body ~include_used:false
+       ~create_available:true);
+  let invites = Server.create_invite_codes_body ~code_count:1 ~use_count:1 () in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal 1 (invites |> member "codeCount" |> to_int);
+  OUnit2.assert_equal `Null (invites |> member "forAccounts")
+
 let test_describe_server_public _ =
   try
     with_public_timeout (fun () ->
@@ -310,6 +324,7 @@ let suite =
          "test_email_and_account_bodies" >:: test_email_and_account_bodies;
          "test_procedure_bodies_and_app_passwords"
          >:: test_procedure_bodies_and_app_passwords;
+         "test_server_query_bodies" >:: test_server_query_bodies;
          "test_describe_server_public" >:: test_describe_server_public;
        ]
 

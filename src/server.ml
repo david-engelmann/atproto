@@ -7,22 +7,10 @@ module Server = struct
   let create_server_endpoint (query_name : string) : string =
     "com.atproto.server" ^ "." ^ query_name
 
-  (** Raw JSON from [com.atproto.server.describeServer] for [s]. *)
+  (** Raw JSON from [com.atproto.server.describeServer] for [s].
+      Shares the empty query with [describe_server_parsed]. *)
   let describe_server (s : Session.session) : string =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let describe_server_url =
-      App.create_endpoint_url base_url (create_server_endpoint "describeServer")
-    in
-    let server_description =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_headers describe_server_url headers)
-    in
-    server_description
+    Client.Client.get_text ~session:s "com.atproto.server.describeServer" []
 
   (** JSON body for [com.atproto.server.createAccount]. *)
   let create_account_body ~handle ?email ?did ?invite_code ?verification_code
@@ -51,29 +39,17 @@ module Server = struct
     `Assoc fields
 
   (** Create an account via [com.atproto.server.createAccount] on [s].
-      [handle], [email], and [password] are required. *)
+      [handle], [email], and [password] are required. Shares
+      [create_account_body] with [create_account_at]. *)
   let create_account (s : Session.session) (handle : string) (email : string)
       ?invite_code ?recovery_key ?did ?verification_code ?verification_phone
       ?plc_op (password : string) : string =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let create_account_url =
-      App.create_endpoint_url base_url (create_server_endpoint "createAccount")
-    in
-    let data =
-      Yojson.Safe.to_string
-        (create_account_body ~handle ~email ?did ?invite_code ?verification_code
-           ?verification_phone ~password ?recovery_key ?plc_op ())
-    in
-    let created_account =
-      Lwt_main.run
-        (Cohttp_client.post_data_with_headers create_account_url data headers)
-    in
-    created_account
+    Client.Client.post_json ~session:s "com.atproto.server.createAccount"
+      (Yojson.Safe.to_string
+         (create_account_body ~handle ~email ?did ?invite_code
+            ?verification_code ?verification_phone ~password ?recovery_key
+            ?plc_op ()))
+    |> Yojson.Safe.to_string
 
   (** Public signup via [com.atproto.server.createAccount] on [host]
       (or the session / [ATP_HOST] PDS). Unauthenticated on an open
@@ -139,33 +115,22 @@ module Server = struct
       (Yojson.Safe.to_string (create_app_password_body ~name ?privileged ()))
     |> Yojson.Safe.to_string
 
+  (** Query-string pairs for [com.atproto.server.getAccountInviteCodes]. *)
+  let get_account_invite_codes_body ~include_used ~create_available :
+      (string * string) list =
+    [
+      ("includeUsed", string_of_bool include_used);
+      ("createAvailable", string_of_bool create_available);
+    ]
+
   (** Invite codes for the current account via
-      [com.atproto.server.getAccountInviteCodes]. *)
+      [com.atproto.server.getAccountInviteCodes]. Shares
+      [get_account_invite_codes_body]. *)
   let get_account_invite_codes (s : Session.session) (include_used : bool)
       (create_available : bool) : string =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let get_account_invite_codes_url =
-      App.create_endpoint_url base_url
-        (create_server_endpoint "getAccountInviteCodes")
-    in
-    let body =
-      Cohttp_client.create_body_from_pairs
-        [
-          ("includeUsed", string_of_bool include_used);
-          ("createAvailable", string_of_bool create_available);
-        ]
-    in
-    let account_invite_codes =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers
-           get_account_invite_codes_url body headers)
-    in
-    account_invite_codes
+    Client.Client.get_text ~session:s
+      "com.atproto.server.getAccountInviteCodes"
+      (get_account_invite_codes_body ~include_used ~create_available)
 
   (** JSON body for [com.atproto.server.createInviteCode]. *)
   let create_invite_code_body ~use_count ?for_account () : Yojson.Safe.t =
@@ -187,40 +152,34 @@ module Server = struct
          (create_invite_code_body ~use_count ?for_account ()))
     |> Yojson.Safe.to_string
 
-  (** Bulk invite codes via [com.atproto.server.createInviteCodes].
-      Optional [for_accounts] is a list of recipient DIDs. *)
-  let create_invite_codes ?for_accounts (s : Session.session) (code_count : int)
-      (use_count : int) : string =
-    let accounts = Option.value ~default:[] for_accounts in
+  (** JSON body for [com.atproto.server.createInviteCodes]. *)
+  let create_invite_codes_body ~code_count ~use_count ?(for_accounts = []) () :
+      Yojson.Safe.t =
     let fields =
       [ ("codeCount", `Int code_count); ("useCount", `Int use_count) ]
       @
-      match accounts with
+      match for_accounts with
       | [] -> []
-      | xs -> [ ("forAccounts", `List (List.map (fun d -> `String d) xs)) ]
+      | xs -> [ ("forAccounts", `List (List.map (fun s -> `String s) xs)) ]
     in
+    `Assoc fields
+
+  (** Bulk invite codes via [com.atproto.server.createInviteCodes].
+      Optional [for_accounts] is a list of recipient DIDs. Shares
+      [create_invite_codes_body]. *)
+  let create_invite_codes ?for_accounts (s : Session.session) (code_count : int)
+      (use_count : int) : string =
+    let accounts = Option.value ~default:[] for_accounts in
     Client.Client.post_json ~session:s "com.atproto.server.createInviteCodes"
-      (Yojson.Safe.to_string (`Assoc fields))
+      (Yojson.Safe.to_string
+         (create_invite_codes_body ~code_count ~use_count ~for_accounts:accounts
+            ()))
     |> Yojson.Safe.to_string
 
   (** App passwords via [com.atproto.server.listAppPasswords] (secrets
       omitted). *)
   let list_app_passwords (s : Session.session) : string =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let list_app_passwords_url =
-      App.create_endpoint_url base_url
-        (create_server_endpoint "listAppPasswords")
-    in
-    let app_passwords =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_headers list_app_passwords_url headers)
-    in
-    app_passwords
+    Client.Client.get_text ~session:s "com.atproto.server.listAppPasswords" []
 
   (** JSON body for [com.atproto.server.requestAccountDelete]
       (empty object). *)
@@ -348,17 +307,6 @@ module Server = struct
       expected_blobs = int_opt "expectedBlobs";
       imported_blobs = int_opt "importedBlobs";
     }
-
-  let create_invite_codes_body ~code_count ~use_count ?(for_accounts = []) () :
-      Yojson.Safe.t =
-    let fields =
-      [ ("codeCount", `Int code_count); ("useCount", `Int use_count) ]
-      @
-      match for_accounts with
-      | [] -> []
-      | xs -> [ ("forAccounts", `List (List.map (fun s -> `String s) xs)) ]
-    in
-    `Assoc fields
 
   let deactivate_account_url (s : Session.session) : string =
     App.create_endpoint_url (App.create_base_url s)
