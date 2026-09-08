@@ -954,12 +954,46 @@ module Feed = struct
     in
     `Assoc fields
 
+  (** Query-string pairs for [app.bsky.feed.getFeed]. Currently sent
+      fields only: required [feed], optional [limit] / [cursor]. *)
+  let get_feed_body ~feed ?limit ?cursor () : (string * string) list =
+    (("feed", feed) :: Client.Client.opt_int "limit" limit)
+    @ Client.Client.opt_pair "cursor" cursor
+
+  (** Query-string pairs for [app.bsky.feed.getListFeed]. Currently sent
+      fields only: required [list], optional [limit] / [cursor]. *)
+  let get_list_feed_body ~list ?limit ?cursor () : (string * string) list =
+    (("list", list) :: Client.Client.opt_int "limit" limit)
+    @ Client.Client.opt_pair "cursor" cursor
+
+  (** Query-string pairs for [app.bsky.feed.getActorFeeds]. Currently sent
+      fields only: required [actor], optional [limit] / [cursor]. *)
+  let get_actor_feeds_body ~actor ?limit ?cursor () : (string * string) list =
+    (("actor", actor) :: Client.Client.opt_int "limit" limit)
+    @ Client.Client.opt_pair "cursor" cursor
+
+  (** Query-string pairs for [app.bsky.feed.searchPosts]. Currently sent
+      fields only: required [q], optional [sort] / [since] / [until] /
+      [mentions] / [author] / [lang] / [domain] / [url] / [limit] /
+      [cursor]. *)
+  let search_posts_body ~q ?sort ?since ?until ?mentions ?author ?lang ?domain
+      ?url ?limit ?cursor () : (string * string) list =
+    (("q", q) :: Client.Client.opt_pair "sort" sort)
+    @ Client.Client.opt_pair "since" since
+    @ Client.Client.opt_pair "until" until
+    @ Client.Client.opt_pair "mentions" mentions
+    @ Client.Client.opt_pair "author" author
+    @ Client.Client.opt_pair "lang" lang
+    @ Client.Client.opt_pair "domain" domain
+    @ Client.Client.opt_pair "url" url
+    @ Client.Client.opt_int "limit" limit
+    @ Client.Client.opt_pair "cursor" cursor
+
   (** Custom feed [feed] (AT URI) via [app.bsky.feed.getFeed]. Works
       without a session against public AppView. *)
   let get_feed ?session ?host ~feed ?limit ?cursor () : timeline =
     Client.Client.get_json ?session ?host "app.bsky.feed.getFeed"
-      ((("feed", feed) :: Client.Client.opt_int "limit" limit)
-      @ Client.Client.opt_pair "cursor" cursor)
+      (get_feed_body ~feed ?limit ?cursor ())
     |> parse_timeline
 
   (** Feed generator metadata for [feed] (AT URI) via
@@ -983,8 +1017,7 @@ module Feed = struct
       without a session against public AppView. *)
   let get_actor_feeds ?session ?host ~actor ?limit ?cursor () : generators =
     Client.Client.get_json ?session ?host "app.bsky.feed.getActorFeeds"
-      ((("actor", actor) :: Client.Client.opt_int "limit" limit)
-      @ Client.Client.opt_pair "cursor" cursor)
+      (get_actor_feeds_body ~actor ?limit ?cursor ())
     |> parse_generators
 
   (** Suggested feeds via [app.bsky.feed.getSuggestedFeeds]. Works without
@@ -1010,8 +1043,7 @@ module Feed = struct
   (** Posts from list [list] (AT URI) via [app.bsky.feed.getListFeed]. *)
   let get_list_feed ?session ?host ~list ?limit ?cursor () : timeline =
     Client.Client.get_json ?session ?host "app.bsky.feed.getListFeed"
-      ((("list", list) :: Client.Client.opt_int "limit" limit)
-      @ Client.Client.opt_pair "cursor" cursor)
+      (get_list_feed_body ~list ?limit ?cursor ())
     |> parse_timeline
 
   (** Parsed [app.bsky.feed.getFeedSkeleton] for [feed] (AT URI). Works
@@ -1037,16 +1069,8 @@ module Feed = struct
   let search_posts ?session ?host ~q ?sort ?since ?until ?mentions ?author ?lang
       ?domain ?url ?limit ?cursor () : search_posts =
     Client.Client.get_json ?session ?host "app.bsky.feed.searchPosts"
-      ((("q", q) :: Client.Client.opt_pair "sort" sort)
-      @ Client.Client.opt_pair "since" since
-      @ Client.Client.opt_pair "until" until
-      @ Client.Client.opt_pair "mentions" mentions
-      @ Client.Client.opt_pair "author" author
-      @ Client.Client.opt_pair "lang" lang
-      @ Client.Client.opt_pair "domain" domain
-      @ Client.Client.opt_pair "url" url
-      @ Client.Client.opt_int "limit" limit
-      @ Client.Client.opt_pair "cursor" cursor)
+      (search_posts_body ~q ?sort ?since ?until ?mentions ?author ?lang ?domain
+         ?url ?limit ?cursor ())
     |> parse_search_posts
 
   (** Search posts ([app.bsky.feed.searchPostsV2]). Works without a session

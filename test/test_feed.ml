@@ -51,7 +51,60 @@ let test_feed_query_bodies _ =
       ("feed", "at://did:plc:alice/app.bsky.feed.generator/hot"); ("limit", "3");
     ]
     (Feed.get_feed_skeleton_body
-       ~feed:"at://did:plc:alice/app.bsky.feed.generator/hot" ~limit:3)
+       ~feed:"at://did:plc:alice/app.bsky.feed.generator/hot" ~limit:3);
+  OUnit2.assert_equal
+    [ ("feed", "at://did:plc:alice/app.bsky.feed.generator/hot") ]
+    (Feed.get_feed_body
+       ~feed:"at://did:plc:alice/app.bsky.feed.generator/hot" ());
+  OUnit2.assert_equal
+    [
+      ("feed", "at://did:plc:alice/app.bsky.feed.generator/hot");
+      ("limit", "5");
+      ("cursor", "abc");
+    ]
+    (Feed.get_feed_body
+       ~feed:"at://did:plc:alice/app.bsky.feed.generator/hot" ~limit:5
+       ~cursor:"abc" ());
+  OUnit2.assert_equal
+    [ ("list", "at://did:plc:alice/app.bsky.graph.list/mods") ]
+    (Feed.get_list_feed_body
+       ~list:"at://did:plc:alice/app.bsky.graph.list/mods" ());
+  OUnit2.assert_equal
+    [
+      ("list", "at://did:plc:alice/app.bsky.graph.list/mods");
+      ("limit", "10");
+      ("cursor", "next");
+    ]
+    (Feed.get_list_feed_body
+       ~list:"at://did:plc:alice/app.bsky.graph.list/mods" ~limit:10
+       ~cursor:"next" ());
+  OUnit2.assert_equal
+    [ ("actor", "alice.test") ]
+    (Feed.get_actor_feeds_body ~actor:"alice.test" ());
+  OUnit2.assert_equal
+    [ ("actor", "alice.test"); ("limit", "2"); ("cursor", "c1") ]
+    (Feed.get_actor_feeds_body ~actor:"alice.test" ~limit:2 ~cursor:"c1" ());
+  OUnit2.assert_equal
+    [ ("q", "atproto") ]
+    (Feed.search_posts_body ~q:"atproto" ());
+  OUnit2.assert_equal
+    [
+      ("q", "atproto");
+      ("sort", "latest");
+      ("since", "2024-01-01T00:00:00.000Z");
+      ("until", "2024-02-01T00:00:00.000Z");
+      ("mentions", "alice.test");
+      ("author", "bob.test");
+      ("lang", "en");
+      ("domain", "bsky.app");
+      ("url", "https://atproto.com");
+      ("limit", "5");
+      ("cursor", "s1");
+    ]
+    (Feed.search_posts_body ~q:"atproto" ~sort:"latest"
+       ~since:"2024-01-01T00:00:00.000Z" ~until:"2024-02-01T00:00:00.000Z"
+       ~mentions:"alice.test" ~author:"bob.test" ~lang:"en" ~domain:"bsky.app"
+       ~url:"https://atproto.com" ~limit:5 ~cursor:"s1" ())
 
 let test_get_author_feed _ =
   skip_if

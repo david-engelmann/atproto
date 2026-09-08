@@ -1703,6 +1703,26 @@ let () =
   ignore Feed.get_reposted_by;
   ignore Feed.get_timeline;
   ignore Feed.get_feed_skeleton;
+  assert (
+    Feed.get_feed_body ~feed:"at://did:plc:alice/app.bsky.feed.generator/hot" ()
+    = [ ("feed", "at://did:plc:alice/app.bsky.feed.generator/hot") ]);
+  assert (
+    Feed.get_list_feed_body
+      ~list:"at://did:plc:alice/app.bsky.graph.list/mods" ~limit:10 ()
+    = [
+        ("list", "at://did:plc:alice/app.bsky.graph.list/mods");
+        ("limit", "10");
+      ]);
+  assert (
+    Feed.get_actor_feeds_body ~actor:"alice.test" ~limit:2 ~cursor:"c1" ()
+    = [ ("actor", "alice.test"); ("limit", "2"); ("cursor", "c1") ]);
+  assert (
+    Feed.search_posts_body ~q:"atproto" ~sort:"latest" ~limit:5 ()
+    = [ ("q", "atproto"); ("sort", "latest"); ("limit", "5") ]);
+  ignore Feed.get_feed;
+  ignore Feed.get_list_feed;
+  ignore Feed.get_actor_feeds;
+  ignore Feed.search_posts;
   let seen =
     Notification.update_seen_body ~seen_at:"2023-07-15T12:34:56.789012Z"
   in

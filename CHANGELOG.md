@@ -1,7 +1,12 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#219](https://github.com/david-engelmann/atproto/pull/219):
+shipped through [#220](https://github.com/david-engelmann/atproto/pull/220):
+Feed leftover AppView query-pair helpers
+(`get_feed_body` / `get_list_feed_body` / `get_actor_feeds_body` /
+`search_posts_body`; `get_feed` / `get_list_feed` / `get_actor_feeds` /
+`search_posts` share those pairs) on top of
+[#219](https://github.com/david-engelmann/atproto/pull/219):
 Ozone `query_events` / `query_statuses` query-pair helpers
 (`query_events_body` / `query_statuses_body`; `query_events` /
 `query_events_service` / `query_statuses` share those pairs) on top of
@@ -759,6 +764,23 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   leftover live hop (live queryEvents / queryStatuses already exist).
   No lexicon pin bump. No hosted chat / video / Tap / phone /
   contacts / push faked
+- [#220](https://github.com/david-engelmann/atproto/pull/220): Feed
+  leftover AppView query-pair helpers (`get_feed_body` /
+  `get_list_feed_body` / `get_actor_feeds_body` /
+  `search_posts_body`). Currently sent fields only: `feed` / `limit` /
+  `cursor` for getFeed; `list` / `limit` / `cursor` for getListFeed;
+  `actor` / `limit` / `cursor` for getActorFeeds; `q` / `sort` /
+  `since` / `until` / `mentions` / `author` / `lang` / `domain` /
+  `url` / `limit` / `cursor` for searchPosts (pin `f0d4877a03`).
+  Existing `get_feed` / `get_list_feed` / `get_actor_feeds` /
+  `search_posts` share those pairs. Distinct from #202 session
+  `get_author_feed_body` / `get_likes_body` /
+  `get_post_thread_body` / `get_posts_body` / `get_reposted_by_body` /
+  `get_timeline_body` / `get_feed_skeleton_body`. Does not invent
+  leftover unused getFeed / getListFeed / getActorFeeds / searchPosts
+  fields. No leftover live hop (live getFeed / getListFeed /
+  getActorFeeds / searchPosts already exist). No lexicon pin bump. No
+  hosted chat / video / Tap / phone / contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -1302,6 +1324,15 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `query_safelink_rules_body`. Does not invent leftover unused
   queryEvents / queryStatuses fields. Hosted-only chat / video /
   Tap / phone / contacts / push stay listed not faked
+- [#220](https://github.com/david-engelmann/atproto/pull/220): Feed
+  leftover AppView query-pair helpers (`get_feed_body` /
+  `get_list_feed_body` / `get_actor_feeds_body` /
+  `search_posts_body`). Currently sent fields only. `get_feed` /
+  `get_list_feed` / `get_actor_feeds` / `search_posts` share those
+  pairs. Distinct from #202 session query-pair helpers. Does not
+  invent leftover unused getFeed / getListFeed / getActorFeeds /
+  searchPosts fields. Hosted-only chat / video / Tap / phone /
+  contacts / push stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
