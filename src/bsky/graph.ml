@@ -1,6 +1,4 @@
 open Session
-open Cohttp_client
-open App
 open Actor
 open Label
 
@@ -24,13 +22,6 @@ module Graph = struct
 
   type blocks = { blocks : Actor.block_profile list; cursor : string }
   type mutes = { mutes : Actor.block_profile list; cursor : string }
-
-  let create_graph_endpoint (query_name : string) : string =
-    "app.bsky.graph" ^ "." ^ query_name
-
-  let convert_body_to_json (body : string) : Yojson.Safe.t =
-    let json = Yojson.Safe.from_string body in
-    json
 
   let string_opt json field =
     match Yojson.Safe.Util.member field json with
@@ -82,47 +73,16 @@ module Graph = struct
 
   (** Accounts the session blocks via [app.bsky.graph.getBlocks]. *)
   let get_blocks (s : Session.session) (limit : int) : blocks =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let get_blocks_url =
-      App.create_endpoint_url base_url (create_graph_endpoint "getBlocks")
-    in
-    let body =
-      Cohttp_client.create_body_from_pairs [ ("limit", string_of_int limit) ]
-    in
-    let blocks =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers get_blocks_url body
-           headers)
-    in
-    blocks |> convert_body_to_json |> parse_blocks
+    Client.Client.get_json ~session:s "app.bsky.graph.getBlocks"
+      [ ("limit", string_of_int limit) ]
+    |> parse_blocks
 
   (** Followers of [actor] (handle or DID) via [app.bsky.graph.getFollowers]. *)
   let get_followers (s : Session.session) (actor : string) (limit : int) :
       followers =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let get_followers_url =
-      App.create_endpoint_url base_url (create_graph_endpoint "getFollowers")
-    in
-    let body =
-      Cohttp_client.create_body_from_pairs
-        [ ("actor", actor); ("limit", string_of_int limit) ]
-    in
-    let followers =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers get_followers_url body
-           headers)
-    in
-    followers |> convert_body_to_json |> parse_followers
+    Client.Client.get_json ~session:s "app.bsky.graph.getFollowers"
+      [ ("actor", actor); ("limit", string_of_int limit) ]
+    |> parse_followers
 
   (** Paginated followers of [actor] via [app.bsky.graph.getFollowers].
       Optional [limit] / [cursor] / [sort] map to the lexicon query
@@ -137,25 +97,9 @@ module Graph = struct
   (** Accounts [actor] follows via [app.bsky.graph.getFollows]. *)
   let get_follows (s : Session.session) (actor : string) (limit : int) : follows
       =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let get_follows_url =
-      App.create_endpoint_url base_url (create_graph_endpoint "getFollows")
-    in
-    let body =
-      Cohttp_client.create_body_from_pairs
-        [ ("actor", actor); ("limit", string_of_int limit) ]
-    in
-    let follows =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers get_follows_url body
-           headers)
-    in
-    follows |> convert_body_to_json |> parse_follows
+    Client.Client.get_json ~session:s "app.bsky.graph.getFollows"
+      [ ("actor", actor); ("limit", string_of_int limit) ]
+    |> parse_follows
 
   (** Paginated accounts [actor] follows via [app.bsky.graph.getFollows].
       Optional [limit] / [cursor] / [sort] map to the lexicon query
@@ -168,24 +112,9 @@ module Graph = struct
 
   (** Accounts the session mutes via [app.bsky.graph.getMutes]. *)
   let get_mutes (s : Session.session) (limit : int) : mutes =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let get_mutes_url =
-      App.create_endpoint_url base_url (create_graph_endpoint "getMutes")
-    in
-    let body =
-      Cohttp_client.create_body_from_pairs [ ("limit", string_of_int limit) ]
-    in
-    let mutes =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers get_mutes_url body
-           headers)
-    in
-    mutes |> convert_body_to_json |> parse_mutes
+    Client.Client.get_json ~session:s "app.bsky.graph.getMutes"
+      [ ("limit", string_of_int limit) ]
+    |> parse_mutes
 
   (* app.bsky.graph.muteActor — optional onlyReposts / onlyQuoteposts replace
      a full mute with a scoped mute. Repeat calls replace the stored scope. *)
@@ -209,45 +138,28 @@ module Graph = struct
 
   (** Mute [actor] via [app.bsky.graph.muteActor]. Optional [only_reposts] /
       [only_quoteposts] store a scoped mute; later calls replace the stored
-      scope. *)
+      scope. Empty procedure output stays [""] for existing callers. *)
   let mute_actor (s : Session.session) ?only_reposts ?only_quoteposts
       (actor : string) : string =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
+    let json =
+      Client.Client.post_json ~session:s "app.bsky.graph.muteActor"
+        (Yojson.Safe.to_string
+           (mute_actor_body ~actor ?only_reposts ?only_quoteposts ()))
     in
-    let base_url = App.create_base_url s in
-    let get_muted_actor_url =
-      App.create_endpoint_url base_url (create_graph_endpoint "muteActor")
-    in
-    let data =
-      Yojson.Safe.to_string
-        (mute_actor_body ~actor ?only_reposts ?only_quoteposts ())
-    in
-    let muted_actor =
-      Lwt_main.run
-        (Cohttp_client.post_data_with_headers get_muted_actor_url data headers)
-    in
-    muted_actor
+    match json with `Assoc [] -> "" | j -> Yojson.Safe.to_string j
 
-  (** Unmute [actor] via [app.bsky.graph.unmuteActor]. *)
+  (** JSON body for [app.bsky.graph.unmuteActor]. *)
+  let unmute_actor_body ~actor : Yojson.Safe.t =
+    `Assoc [ ("actor", `String actor) ]
+
+  (** Unmute [actor] via [app.bsky.graph.unmuteActor]. Empty procedure
+      output stays [""] for existing callers. *)
   let unmute_actor (s : Session.session) (actor : string) : string =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
+    let json =
+      Client.Client.post_json ~session:s "app.bsky.graph.unmuteActor"
+        (Yojson.Safe.to_string (unmute_actor_body ~actor))
     in
-    let base_url = App.create_base_url s in
-    let get_unmuted_actor_url =
-      App.create_endpoint_url base_url (create_graph_endpoint "unmuteActor")
-    in
-    let data = Printf.sprintf "{\"actor\": \"%s\"}" actor in
-    let unmuted_actor =
-      Lwt_main.run
-        (Cohttp_client.post_data_with_headers get_unmuted_actor_url data headers)
-    in
-    unmuted_actor
+    match json with `Assoc [] -> "" | j -> Yojson.Safe.to_string j
 
   (* ---- lists, starter packs, relationships ----------------------------- *)
 

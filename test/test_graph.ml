@@ -113,6 +113,26 @@ let test_mute_actor_body _ =
   OUnit2.assert_equal true (scoped |> member "onlyReposts" |> to_bool);
   OUnit2.assert_equal false (scoped |> member "onlyQuoteposts" |> to_bool)
 
+let test_unmute_actor_body _ =
+  let open Yojson.Safe.Util in
+  let body = Graph.unmute_actor_body ~actor:"alice.test" in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "alice.test"
+    (body |> member "actor" |> to_string);
+  OUnit2.assert_equal `Null (body |> member "onlyReposts");
+  let did_body =
+    Graph.unmute_actor_body ~actor:"did:plc:abc123xyz0001112223333"
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:abc123xyz0001112223333"
+    (did_body |> member "actor" |> to_string);
+  match did_body with
+  | `Assoc fields ->
+      OUnit2.assert_equal ~printer:string_of_int 1 (List.length fields)
+  | _ -> OUnit2.assert_failure "unmute_actor_body should be a JSON object"
+
 let test_follow_page_sort_and_cursor _ =
   OUnit2.assert_equal ~printer:(fun x -> x) "latest" Graph.sort_latest;
   OUnit2.assert_equal ~printer:(fun x -> x) "top" Graph.sort_top;
@@ -636,6 +656,7 @@ let suite =
          "test_mute_actor" >:: test_mute_actor;
          "test_unmute_actor" >:: test_unmute_actor;
          "test_mute_actor_body" >:: test_mute_actor_body;
+         "test_unmute_actor_body" >:: test_unmute_actor_body;
          "test_follow_page_sort_and_cursor" >:: test_follow_page_sort_and_cursor;
          "test_parse_list" >:: test_parse_list;
          "test_parse_list_opt_out_fields" >:: test_parse_list_opt_out_fields;
