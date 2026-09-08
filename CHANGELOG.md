@@ -1,7 +1,12 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#209](https://github.com/david-engelmann/atproto/pull/209):
+shipped through [#210](https://github.com/david-engelmann/atproto/pull/210):
+Notification putPreferences v1 + putActivitySubscription Yojson body
+helpers (`put_preferences_body` / `put_activity_subscription_body`;
+`put_preferences` / `put_activity_subscription` share those bodies via
+`Client.post_json`; public signatures unchanged) on top of
+[#209](https://github.com/david-engelmann/atproto/pull/209):
 Graph muteActorList / muteThread Yojson body helpers
 (`mute_actor_list_body` / `unmute_actor_list_body` /
 `mute_thread_body` / `unmute_thread_body`; `mute_actor_list` /
@@ -603,6 +608,17 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `mute_thread` / `unmute_thread` share those bodies via
   `Client.post_json`. Public signatures stay `unit`. No lexicon pin
   bump. No hosted chat / video / Tap / phone / contacts / push faked
+- [#210](https://github.com/david-engelmann/atproto/pull/210):
+  Notification putPreferences v1 + putActivitySubscription Yojson
+  body helpers: `put_preferences_body` is `{ "priority" }`;
+  `put_activity_subscription_body` is `{ "subject",
+  "activitySubscription": { "post", "reply" } }`. Existing
+  `put_preferences` / `put_activity_subscription` share those bodies
+  via `Client.post_json`. Parse return types and public signatures
+  stay unchanged. `putPreferencesV2` still uses `preferences_to_json`.
+  Push register/unregister stay listed not faked. Does not invent
+  leftover unused lexicon fields. No lexicon pin bump. No hosted
+  chat / video / Tap / phone / contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -1066,6 +1082,14 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   not invent leftover unused muteActorList / muteThread fields.
   Hosted-only chat / video / Tap / phone / contacts / push stay
   listed not faked
+- [#210](https://github.com/david-engelmann/atproto/pull/210):
+  Notification putPreferences v1 + putActivitySubscription Yojson
+  body helpers (`put_preferences_body` /
+  `put_activity_subscription_body`). `put_preferences` /
+  `put_activity_subscription` share those bodies via
+  `Client.post_json`. Does not invent leftover unused putPreferences
+  / putActivitySubscription fields. Hosted-only chat / video / Tap /
+  phone / contacts / push stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 

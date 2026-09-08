@@ -1489,8 +1489,31 @@ let () =
     match Yojson.Safe.Util.member "seenAt" seen with
     | `String "2023-07-15T12:34:56.789012Z" -> true
     | _ -> false);
+  let priority_body = Notification.put_preferences_body ~priority:true in
+  assert (
+    match Yojson.Safe.Util.member "priority" priority_body with
+    | `Bool true -> true
+    | _ -> false);
+  let activity_body =
+    Notification.put_activity_subscription_body ~subject:"did:plc:alice"
+      ~activity_subscription:{ post = true; reply = false }
+  in
+  assert (
+    match Yojson.Safe.Util.member "subject" activity_body with
+    | `String "did:plc:alice" -> true
+    | _ -> false);
+  assert (
+    match
+      activity_body
+      |> Yojson.Safe.Util.member "activitySubscription"
+      |> Yojson.Safe.Util.member "post"
+    with
+    | `Bool true -> true
+    | _ -> false);
   ignore Notification.get_unread_count;
   ignore Notification.update_seen;
+  ignore Notification.put_preferences;
+  ignore Notification.put_activity_subscription;
   ignore Server.describe_server;
   ignore Server.create_account;
   ignore Server.list_app_passwords;

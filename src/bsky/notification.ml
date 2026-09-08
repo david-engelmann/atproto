@@ -502,11 +502,15 @@ module Notification = struct
     Client.Client.get_json ~session:s "app.bsky.notification.getPreferences" []
     |> parse_preferences
 
+  (** JSON body for [app.bsky.notification.putPreferences] (v1). *)
+  let put_preferences_body ~priority : Yojson.Safe.t =
+    `Assoc [ ("priority", `Bool priority) ]
+
   (** Set [priority] via [app.bsky.notification.putPreferences]. *)
   let put_preferences (s : Session.session) ~priority () : unit =
     ignore
       (Client.Client.post_json ~session:s "app.bsky.notification.putPreferences"
-         (Yojson.Safe.to_string (`Assoc [ ("priority", `Bool priority) ])))
+         (Yojson.Safe.to_string (put_preferences_body ~priority)))
 
   (** Replace notification preferences via
       [app.bsky.notification.putPreferencesV2]. *)
@@ -531,6 +535,16 @@ module Notification = struct
   let activity_subscription_to_json (a : activity_subscription) : Yojson.Safe.t
       =
     `Assoc [ ("post", `Bool a.post); ("reply", `Bool a.reply) ]
+
+  (** JSON body for [app.bsky.notification.putActivitySubscription]. *)
+  let put_activity_subscription_body ~subject
+      ~(activity_subscription : activity_subscription) : Yojson.Safe.t =
+    `Assoc
+      [
+        ("subject", `String subject);
+        ( "activitySubscription",
+          activity_subscription_to_json activity_subscription );
+      ]
 
   let parse_activity_subscription_page json : activity_subscription_page =
     let open Yojson.Safe.Util in
@@ -563,12 +577,7 @@ module Notification = struct
       Client.Client.post_json ~session:s
         "app.bsky.notification.putActivitySubscription"
         (Yojson.Safe.to_string
-           (`Assoc
-             [
-               ("subject", `String subject);
-               ( "activitySubscription",
-                 activity_subscription_to_json activity_subscription );
-             ]))
+           (put_activity_subscription_body ~subject ~activity_subscription))
     in
     let open Yojson.Safe.Util in
     ( (match json |> member "subject" with `String s -> s | _ -> subject),

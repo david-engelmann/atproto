@@ -180,6 +180,33 @@ let test_update_seen_body _ =
     "2023-07-15T12:34:56.789012Z"
     (body |> member "seenAt" |> to_string)
 
+let test_put_preferences_body _ =
+  let body = Notification.put_preferences_body ~priority:true in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal true (body |> member "priority" |> to_bool);
+  match body with
+  | `Assoc fields ->
+      OUnit2.assert_equal ~printer:string_of_int 1 (List.length fields)
+  | _ -> OUnit2.assert_failure "expected put_preferences_body object"
+
+let test_put_activity_subscription_body _ =
+  let body =
+    Notification.put_activity_subscription_body ~subject:"did:plc:alice"
+      ~activity_subscription:{ post = true; reply = false }
+  in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:alice"
+    (body |> member "subject" |> to_string);
+  let sub = body |> member "activitySubscription" in
+  OUnit2.assert_equal true (sub |> member "post" |> to_bool);
+  OUnit2.assert_equal false (sub |> member "reply" |> to_bool);
+  match body with
+  | `Assoc fields ->
+      OUnit2.assert_equal ~printer:string_of_int 2 (List.length fields)
+  | _ -> OUnit2.assert_failure "expected put_activity_subscription_body object"
+
 let test_get_unread_count _ =
   skip_if
     (not Auth.has_live_credentials)
@@ -223,6 +250,9 @@ let suite =
          >:: test_parse_mention_and_via_repost;
          "test_parse_preferences" >:: test_parse_preferences;
          "test_update_seen_body" >:: test_update_seen_body;
+         "test_put_preferences_body" >:: test_put_preferences_body;
+         "test_put_activity_subscription_body"
+         >:: test_put_activity_subscription_body;
          "test_get_unread_count" >:: test_get_unread_count;
          "test_list_notifications" >:: test_list_notifications;
          "test_update_seen" >:: test_update_seen;
