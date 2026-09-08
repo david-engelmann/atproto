@@ -128,8 +128,7 @@ module Server = struct
       [get_account_invite_codes_body]. *)
   let get_account_invite_codes (s : Session.session) (include_used : bool)
       (create_available : bool) : string =
-    Client.Client.get_text ~session:s
-      "com.atproto.server.getAccountInviteCodes"
+    Client.Client.get_text ~session:s "com.atproto.server.getAccountInviteCodes"
       (get_account_invite_codes_body ~include_used ~create_available)
 
   (** JSON body for [com.atproto.server.createInviteCode]. *)
