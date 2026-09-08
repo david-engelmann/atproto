@@ -1,7 +1,13 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#217](https://github.com/david-engelmann/atproto/pull/217): Label `label_value_definition` encode helpers
+shipped through [#214](https://github.com/david-engelmann/atproto/pull/214):
+Ozone report leftover Yojson POST body helpers
+(`assign_report_moderator_body` / `reassign_queue_body` /
+`refresh_stats_body` / `close_reports_body`;
+`assign_report_moderator` / `reassign_queue` / `refresh_stats` /
+`close_reports` share those bodies) on top of
+[#217](https://github.com/david-engelmann/atproto/pull/217): Label `label_value_definition` encode helpers
 (`label_value_definition_strings_to_json` /
 `label_value_definition_to_json`; required `identifier` / `severity` /
 `blurs` / `locales`, optional `defaultSetting` / `adultOnly`) plus
@@ -670,6 +676,19 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   fields. No leftover live hop (live queryRules already exists). No
   lexicon pin bump. No hosted chat / video / Tap / phone / contacts /
   push faked
+- [#214](https://github.com/david-engelmann/atproto/pull/214): Ozone
+  report leftover Yojson POST body helpers
+  (`assign_report_moderator_body` / `reassign_queue_body` /
+  `refresh_stats_body` / `close_reports_body`). Lexicon fields only:
+  assignModerator `reportId` plus optional `queueId` / `did` /
+  `isPermanent`; reassignQueue `reportId` / `queueId` plus optional
+  `comment`; refreshStats `startDate` / `endDate` plus optional
+  `queueIds`; closeReports `subject` plus optional `reportTypes` /
+  `internalNote` / `isAutomated`. Existing `assign_report_moderator` /
+  `reassign_queue` / `refresh_stats` / `close_reports` share those
+  bodies. Public signatures unchanged. Does not invent leftover unused
+  lexicon fields. No lexicon pin bump. No hosted chat / video / Tap /
+  phone / contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -1165,6 +1184,20 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   body and still returns `url_rules`. Does not invent leftover unused
   queryRules fields. Hosted-only chat / video / Tap / phone /
   contacts / push stay listed not faked
+- [#214](https://github.com/david-engelmann/atproto/pull/214): Ozone
+  report leftover Yojson POST body helpers
+  (`assign_report_moderator_body` / `reassign_queue_body` /
+  `refresh_stats_body` / `close_reports_body`). Lexicon fields only:
+  assignModerator `reportId` plus optional `queueId` / `did` /
+  `isPermanent`; reassignQueue `reportId` / `queueId` plus optional
+  `comment`; refreshStats `startDate` / `endDate` plus optional
+  `queueIds`; closeReports `subject` plus optional `reportTypes` /
+  `internalNote` / `isAutomated`. `assign_report_moderator` /
+  `reassign_queue` / `refresh_stats` / `close_reports` share those
+  bodies. Public signatures unchanged. Does not invent leftover unused
+  assignModerator / reassignQueue / refreshStats / closeReports
+  fields. Hosted-only chat / video / Tap / phone / contacts / push
+  stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
