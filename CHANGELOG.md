@@ -1,7 +1,15 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#213](https://github.com/david-engelmann/atproto/pull/213):
+shipped through [#217](https://github.com/david-engelmann/atproto/pull/217): Label `label_value_definition` encode helpers
+(`label_value_definition_strings_to_json` /
+`label_value_definition_to_json`; required `identifier` / `severity` /
+`blurs` / `locales`, optional `defaultSetting` / `adultOnly`) plus
+Labeler `policies_to_json` (`labelValues` / optional
+`labelValueDefinitions`) so `Records.labeler_service ~policies` has a
+typed path; parse types and `labeler_service` Yojson signature
+unchanged; does not invent leftover definition fields on top of
+[#213](https://github.com/david-engelmann/atproto/pull/213):
 Ozone `query_safelink_rules` Yojson body helper
 (`query_safelink_rules_body`; `query_safelink_rules` shares that
 body) on top of

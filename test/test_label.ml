@@ -232,6 +232,64 @@ let test_parse_label_value_definition _ =
   OUnit2.assert_equal 1 (List.length def.locales);
   OUnit2.assert_equal ~printer:(fun x -> x) "en" (List.hd def.locales).lang
 
+let test_label_value_definition_to_json _ =
+  let locale : Label.label_value_definition_strings =
+    {
+      lang = "en";
+      name = "Spam";
+      description = "Unwanted commercial content";
+    }
+  in
+  let encoded_locale = Label.label_value_definition_strings_to_json locale in
+  let parsed_locale =
+    Label.parse_label_value_definition_strings encoded_locale
+  in
+  OUnit2.assert_equal ~printer:(fun x -> x) "en" parsed_locale.lang;
+  OUnit2.assert_equal ~printer:(fun x -> x) "Spam" parsed_locale.name;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "Unwanted commercial content" parsed_locale.description;
+  let def : Label.label_value_definition =
+    {
+      identifier = "spam";
+      severity = "alert";
+      blurs = "content";
+      default_setting = Some "hide";
+      adult_only = Some false;
+      locales = [ locale ];
+    }
+  in
+  let encoded = Label.label_value_definition_to_json def in
+  let back = Label.parse_label_value_definition encoded in
+  OUnit2.assert_equal ~printer:(fun x -> x) "spam" back.identifier;
+  OUnit2.assert_equal ~printer:(fun x -> x) "alert" back.severity;
+  OUnit2.assert_equal ~printer:(fun x -> x) "content" back.blurs;
+  OUnit2.assert_equal (Some "hide") back.default_setting;
+  OUnit2.assert_equal (Some false) back.adult_only;
+  OUnit2.assert_equal 1 (List.length back.locales);
+  OUnit2.assert_equal ~printer:(fun x -> x) "en" (List.hd back.locales).lang;
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal ~printer:(fun x -> x) "hide"
+    (encoded |> member "defaultSetting" |> to_string);
+  OUnit2.assert_equal false (encoded |> member "adultOnly" |> to_bool);
+  let minimal : Label.label_value_definition =
+    {
+      identifier = "warn";
+      severity = "inform";
+      blurs = "none";
+      default_setting = None;
+      adult_only = None;
+      locales = [];
+    }
+  in
+  let minimal_json = Label.label_value_definition_to_json minimal in
+  OUnit2.assert_equal `Null (minimal_json |> member "defaultSetting");
+  OUnit2.assert_equal `Null (minimal_json |> member "adultOnly");
+  let again = Label.parse_label_value_definition minimal_json in
+  OUnit2.assert_equal None again.default_setting;
+  OUnit2.assert_equal None again.adult_only;
+  OUnit2.assert_equal [] again.locales
+
 let suite =
   "suite"
   >::: [
@@ -240,6 +298,8 @@ let suite =
          "test_self_labels" >:: test_self_labels;
          "test_parse_label_value_definition"
          >:: test_parse_label_value_definition;
+         "test_label_value_definition_to_json"
+         >:: test_label_value_definition_to_json;
          "test_parse_query_labels" >:: test_parse_query_labels;
          "test_label_sign_verify_p256" >:: test_label_sign_verify_p256;
          "test_label_sign_verify_k256" >:: test_label_sign_verify_k256;

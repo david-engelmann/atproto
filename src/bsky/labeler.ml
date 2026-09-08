@@ -31,6 +31,26 @@ module Labeler = struct
           (Client.list_member json "labelValueDefinitions");
     }
 
+  (* app.bsky.labeler.defs#labelerPolicies — encode sibling of parse.
+     Required labelValues; optional labelValueDefinitions when non-empty.
+     Completes [Records.labeler_service ~policies] typed path. Does not
+     invent leftover policy fields. *)
+  let policies_to_json (p : policies) : Yojson.Safe.t =
+    let fields =
+      [
+        ("labelValues", `List (List.map (fun s -> `String s) p.label_values));
+      ]
+      @
+      match p.label_value_definitions with
+      | [] -> []
+      | defs ->
+          [
+            ( "labelValueDefinitions",
+              `List (List.map Label.Label.label_value_definition_to_json defs) );
+          ]
+    in
+    `Assoc fields
+
   let parse_service json : service =
     let creator_did =
       match Yojson.Safe.Util.member "creator" json with
