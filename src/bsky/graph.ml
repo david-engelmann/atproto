@@ -663,8 +663,7 @@ module Graph = struct
          (Yojson.Safe.to_string (unmute_actor_list_body ~list)))
 
   (** JSON body for [app.bsky.graph.muteThread]. *)
-  let mute_thread_body ~root : Yojson.Safe.t =
-    `Assoc [ ("root", `String root) ]
+  let mute_thread_body ~root : Yojson.Safe.t = `Assoc [ ("root", `String root) ]
 
   (** Mute the thread rooted at [root] (AT URI) via
       [app.bsky.graph.muteThread]. *)
