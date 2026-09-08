@@ -2209,14 +2209,23 @@ module Ozone = struct
          (delete_queue_body ~queue_id ?migrate_to_queue_id ()))
     |> parse_delete_queue_result
 
+  (** JSON body for [tools.ozone.queue.assignModerator]
+      (not [tools.ozone.report.assignModerator]). *)
+  let assign_queue_moderator_body ~queue_id ~did : Yojson.Safe.t =
+    `Assoc [ ("queueId", `Int queue_id); ("did", `String did) ]
+
   (** Assign [did] to [queue_id] via [tools.ozone.queue.assignModerator]. *)
   let assign_queue_moderator (s : Session.session) ~proxy ~queue_id ~did () :
       assignment_view =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.queue.assignModerator"
-      (Yojson.Safe.to_string
-         (`Assoc [ ("queueId", `Int queue_id); ("did", `String did) ]))
+      (Yojson.Safe.to_string (assign_queue_moderator_body ~queue_id ~did))
     |> parse_assignment_view
+
+  (** JSON body for [tools.ozone.queue.unassignModerator]
+      (not [tools.ozone.report.unassignModerator]). *)
+  let unassign_queue_moderator_body ~queue_id ~did : Yojson.Safe.t =
+    `Assoc [ ("queueId", `Int queue_id); ("did", `String did) ]
 
   (** Unassign [did] from [queue_id] via
       [tools.ozone.queue.unassignModerator]. *)
@@ -2225,8 +2234,7 @@ module Ozone = struct
     ignore
       (Client.post_json ~session:s ~extra:(proxy_headers proxy)
          "tools.ozone.queue.unassignModerator"
-         (Yojson.Safe.to_string
-            (`Assoc [ ("queueId", `Int queue_id); ("did", `String did) ])))
+         (Yojson.Safe.to_string (unassign_queue_moderator_body ~queue_id ~did)))
 
   (** Queue assignments via [tools.ozone.queue.getAssignments]. *)
   let get_queue_assignments (s : Session.session) ~proxy ?only_active
@@ -2240,17 +2248,21 @@ module Ozone = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_assignments
 
+  (** JSON body for [tools.ozone.queue.routeReports]. *)
+  let route_reports_body ~start_report_id ~end_report_id : Yojson.Safe.t =
+    `Assoc
+      [
+        ("startReportId", `Int start_report_id);
+        ("endReportId", `Int end_report_id);
+      ]
+
   (** Route a report-id range via [tools.ozone.queue.routeReports]. *)
   let route_reports (s : Session.session) ~proxy ~start_report_id ~end_report_id
       () : route_reports_result =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.queue.routeReports"
       (Yojson.Safe.to_string
-         (`Assoc
-           [
-             ("startReportId", `Int start_report_id);
-             ("endReportId", `Int end_report_id);
-           ]))
+         (route_reports_body ~start_report_id ~end_report_id))
     |> parse_route_reports_result
 
   type report_activity =
