@@ -769,17 +769,33 @@ module Ozone = struct
       ~subject:(subject_to_json subject) ~created_by ?subject_blob_cids
       ?external_id ?mod_tool ?report_action ()
 
+  (** Query-string pairs for [tools.ozone.moderation.queryStatuses]. Optional
+      [subject], [comment], [reviewState], [limit], and [cursor]. *)
+  let query_statuses_body ?subject ?comment ?review_state ?limit ?cursor () :
+      (string * string) list =
+    Client.opt_pair "subject" subject
+    @ Client.opt_pair "comment" comment
+    @ Client.opt_pair "reviewState" review_state
+    @ Client.opt_int "limit" limit
+    @ Client.opt_pair "cursor" cursor
+
   (** Subject statuses via [tools.ozone.moderation.queryStatuses]. *)
   let query_statuses (s : Session.session) ~proxy ?host ?subject ?comment
       ?review_state ?limit ?cursor () : statuses =
     Client.get_json ~session:s ?host ~extra:(proxy_headers proxy)
       "tools.ozone.moderation.queryStatuses"
-      (Client.opt_pair "subject" subject
-      @ Client.opt_pair "comment" comment
-      @ Client.opt_pair "reviewState" review_state
-      @ Client.opt_int "limit" limit
-      @ Client.opt_pair "cursor" cursor)
+      (query_statuses_body ?subject ?comment ?review_state ?limit ?cursor ())
     |> parse_statuses
+
+  (** Query-string pairs for [tools.ozone.moderation.queryEvents]. Optional
+      [types], [createdBy], [subject], [limit], and [cursor]. *)
+  let query_events_body ?types ?created_by ?subject ?limit ?cursor () :
+      (string * string) list =
+    Client.repeat_param "types" (Option.value types ~default:[])
+    @ Client.opt_pair "createdBy" created_by
+    @ Client.opt_pair "subject" subject
+    @ Client.opt_int "limit" limit
+    @ Client.opt_pair "cursor" cursor
 
   (** Moderation events via [tools.ozone.moderation.queryEvents]. Password
       [at+jwt] sessions send [atproto-proxy] through the PDS. *)
@@ -787,11 +803,7 @@ module Ozone = struct
       ?subject ?limit ?cursor () : events =
     Client.get_json ~session:s ?host ~extra:(proxy_headers proxy)
       "tools.ozone.moderation.queryEvents"
-      (Client.repeat_param "types" (Option.value types ~default:[])
-      @ Client.opt_pair "createdBy" created_by
-      @ Client.opt_pair "subject" subject
-      @ Client.opt_int "limit" limit
-      @ Client.opt_pair "cursor" cursor)
+      (query_events_body ?types ?created_by ?subject ?limit ?cursor ())
     |> parse_events
 
   (** Emit a moderation event via [tools.ozone.moderation.emitEvent]. Password
@@ -839,11 +851,7 @@ module Ozone = struct
   let query_events_service ~bearer ~host ?types ?created_by ?subject ?limit
       ?cursor () : events =
     Client.get_json ~bearer ~host "tools.ozone.moderation.queryEvents"
-      (Client.repeat_param "types" (Option.value types ~default:[])
-      @ Client.opt_pair "createdBy" created_by
-      @ Client.opt_pair "subject" subject
-      @ Client.opt_int "limit" limit
-      @ Client.opt_pair "cursor" cursor)
+      (query_events_body ?types ?created_by ?subject ?limit ?cursor ())
     |> parse_events
 
   (** Ozone config via [tools.ozone.server.getConfig] on the Ozone host with

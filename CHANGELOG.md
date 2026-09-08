@@ -1,6 +1,10 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
+shipped through [#219](https://github.com/david-engelmann/atproto/pull/219):
+Ozone `query_events` / `query_statuses` query-pair helpers
+(`query_events_body` / `query_statuses_body`; `query_events` /
+`query_events_service` / `query_statuses` share those pairs) on top of
 shipped through [#216](https://github.com/david-engelmann/atproto/pull/216):
 Ozone queue leftover Yojson POST body helpers
 (`assign_queue_moderator_body` / `unassign_queue_moderator_body` /
@@ -743,6 +747,18 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `route_reports` share those bodies. Public signatures unchanged.
   No lexicon pin bump. No hosted chat / video / Tap / phone /
   contacts / push faked
+- [#219](https://github.com/david-engelmann/atproto/pull/219): Ozone
+  `query_events` / `query_statuses` query-pair helpers
+  (`query_events_body` / `query_statuses_body`). Currently sent
+  fields only: `types` / `createdBy` / `subject` / `limit` / `cursor`
+  for events; `subject` / `comment` / `reviewState` / `limit` /
+  `cursor` for statuses (pin `f0d4877a03`). Existing `query_events` /
+  `query_events_service` / `query_statuses` share those pairs.
+  Distinct from #213 POST `query_safelink_rules_body`. Does not
+  invent leftover unused queryEvents / queryStatuses fields. No
+  leftover live hop (live queryEvents / queryStatuses already exist).
+  No lexicon pin bump. No hosted chat / video / Tap / phone /
+  contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -1278,6 +1294,14 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   Queue assign/unassign/route only (not `report.assignModerator`).
   Does not invent leftover unused queue fields. Hosted-only chat /
   video / Tap / phone / contacts / push stay listed not faked
+- [#219](https://github.com/david-engelmann/atproto/pull/219): Ozone
+  `query_events` / `query_statuses` query-pair helpers
+  (`query_events_body` / `query_statuses_body`). Currently sent
+  fields only. `query_events` / `query_events_service` /
+  `query_statuses` share those pairs. Distinct from #213 POST
+  `query_safelink_rules_body`. Does not invent leftover unused
+  queryEvents / queryStatuses fields. Hosted-only chat / video /
+  Tap / phone / contacts / push stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 

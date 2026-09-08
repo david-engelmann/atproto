@@ -258,6 +258,23 @@ let () =
     | `Int 11 -> true
     | _ -> false);
   ignore Ozone.route_reports;
+  let ozone_events_q =
+    Ozone.query_events_body
+      ~types:[ "tools.ozone.moderation.defs#modEventTakedown" ]
+      ~subject:"did:plc:abc123xyz0001112223333" ~limit:10 ()
+  in
+  assert (List.mem ("limit", "10") ozone_events_q);
+  assert (List.mem ("subject", "did:plc:abc123xyz0001112223333") ozone_events_q);
+  ignore Ozone.query_events;
+  let ozone_statuses_q =
+    Ozone.query_statuses_body ~subject:"did:plc:abc123xyz0001112223333"
+      ~review_state:"tools.ozone.moderation.defs#reviewOpen" ~limit:10 ()
+  in
+  assert (List.mem ("limit", "10") ozone_statuses_q);
+  assert (
+    List.mem ("reviewState", "tools.ozone.moderation.defs#reviewOpen")
+      ozone_statuses_q);
+  ignore Ozone.query_statuses;
   ignore Ozone.query_events_service;
   ignore Ozone.get_config_service;
   ignore Oauth.xrpc_post_dpop;
