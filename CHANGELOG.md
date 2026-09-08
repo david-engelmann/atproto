@@ -5,7 +5,7 @@ shipped through [#219](https://github.com/david-engelmann/atproto/pull/219):
 Ozone `query_events` / `query_statuses` query-pair helpers
 (`query_events_body` / `query_statuses_body`; `query_events` /
 `query_events_service` / `query_statuses` share those pairs) on top of
-shipped through [#216](https://github.com/david-engelmann/atproto/pull/216):
+[#216](https://github.com/david-engelmann/atproto/pull/216):
 Ozone queue leftover Yojson POST body helpers
 (`assign_queue_moderator_body` / `unassign_queue_moderator_body` /
 `route_reports_body`; `assign_queue_moderator` /
