@@ -7,6 +7,18 @@ let create_test_session _ =
   let username, password = Auth.username_and_password_from_env in
   Session.create_session username password
 
+let test_actor_query_bodies _ =
+  OUnit2.assert_equal
+    [ ("actor", "alice.test") ]
+    (Actor.get_profile_body ~actor:"alice.test");
+  OUnit2.assert_equal
+    [ ("actors", "alice.test"); ("actors", "bob.test") ]
+    (Actor.get_profiles_body [ "alice.test"; "bob.test" ]);
+  OUnit2.assert_equal [ ("limit", "5") ] (Actor.get_suggestions_body ~limit:5);
+  OUnit2.assert_equal
+    [ ("q", "david-engelmann"); ("limit", "1") ]
+    (Actor.search_actors_body ~q:"david-engelmann" ~limit:1)
+
 let test_get_profile _ =
   skip_if
     (not Auth.has_live_credentials)
@@ -549,6 +561,7 @@ let test_get_preferences_auth_skipped _ =
 let suite =
   "suite"
   >::: [
+         "test_actor_query_bodies" >:: test_actor_query_bodies;
          "test_get_profile" >:: test_get_profile;
          "test_get_profiles" >:: test_get_profiles;
          "test_get_suggestions" >:: test_get_suggestions;

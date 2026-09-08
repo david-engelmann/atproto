@@ -1390,4 +1390,18 @@ let () =
   assert (List.mem ("limit", "10") qpairs);
   ignore Label.query_labels;
   ignore Label.query_labels_parsed;
+  let actor_pairs = Actor.get_profile_body ~actor:"alice.test" in
+  assert (List.mem ("actor", "alice.test") actor_pairs);
+  assert (
+    Actor.get_profiles_body [ "alice.test"; "bob.test" ]
+    = [ ("actors", "alice.test"); ("actors", "bob.test") ]);
+  assert (Actor.get_suggestions_body ~limit:5 = [ ("limit", "5") ]);
+  assert (
+    Actor.search_actors_body ~q:"alice" ~limit:1
+    = [ ("q", "alice"); ("limit", "1") ]);
+  ignore Actor.get_profile;
+  ignore Actor.get_profiles;
+  ignore Actor.get_suggestions;
+  ignore Actor.search_actors;
+  ignore Actor.search_actors_typeahead;
   print_endline "examples/offline: public API typechecks and fixtures pass"
