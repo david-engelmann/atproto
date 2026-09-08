@@ -1457,4 +1457,16 @@ let () =
   ignore Session.get_session;
   ignore Session.refresh_session;
   ignore Session.delete_session;
+  assert (
+    Identity.resolve_handle_body ~handle:"jay.bsky.team"
+    = [ ("handle", "jay.bsky.team") ]);
+  assert (
+    Identity.resolve_did_body ~did:"did:plc:ewvi7nxzyoun6zhxrhs64oiz"
+    = [ ("did", "did:plc:ewvi7nxzyoun6zhxrhs64oiz") ]);
+  assert (
+    Identity.resolve_identity_query ~identifier:"jay.bsky.team"
+    = [ ("identifier", "jay.bsky.team") ]);
+  ignore Identity.resolve_handle;
+  ignore Identity.resolve_did;
+  ignore Identity.resolve_identity;
   print_endline "examples/offline: public API typechecks and fixtures pass"
