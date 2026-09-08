@@ -1116,6 +1116,44 @@ let test_update_template_body _ =
     "tmpl-1"
     (deleted |> member "id" |> to_string)
 
+let test_queue_moderator_bodies _ =
+  let open Yojson.Safe.Util in
+  let keys json =
+    match json with
+    | `Assoc fields -> List.map fst fields
+    | _ -> OUnit2.assert_failure "expected Assoc"
+  in
+  let assigned =
+    Ozone.assign_queue_moderator_body ~queue_id:7
+      ~did:"did:plc:mod000111222333444555666"
+  in
+  OUnit2.assert_equal [ "queueId"; "did" ] (keys assigned);
+  OUnit2.assert_equal 7 (assigned |> member "queueId" |> to_int);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:mod000111222333444555666"
+    (assigned |> member "did" |> to_string);
+  OUnit2.assert_equal `Null (assigned |> member "reportId");
+  OUnit2.assert_equal `Null (assigned |> member "isPermanent");
+  let unassigned =
+    Ozone.unassign_queue_moderator_body ~queue_id:7
+      ~did:"did:plc:mod000111222333444555666"
+  in
+  OUnit2.assert_equal [ "queueId"; "did" ] (keys unassigned);
+  OUnit2.assert_equal 7 (unassigned |> member "queueId" |> to_int);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:mod000111222333444555666"
+    (unassigned |> member "did" |> to_string);
+  OUnit2.assert_equal `Null (unassigned |> member "reportId");
+  let routed =
+    Ozone.route_reports_body ~start_report_id:11 ~end_report_id:15
+  in
+  OUnit2.assert_equal [ "startReportId"; "endReportId" ] (keys routed);
+  OUnit2.assert_equal 11 (routed |> member "startReportId" |> to_int);
+  OUnit2.assert_equal 15 (routed |> member "endReportId" |> to_int);
+  OUnit2.assert_equal `Null (routed |> member "queueId")
+
 let test_parse_queue_and_report _ =
   let queues =
     Ozone.parse_queues
@@ -1621,6 +1659,7 @@ let suite =
          "test_official_safelink_and_verification_bodies"
          >:: test_official_safelink_and_verification_bodies;
          "test_update_template_body" >:: test_update_template_body;
+         "test_queue_moderator_bodies" >:: test_queue_moderator_bodies;
          "test_service_auth_helpers_exist" >:: test_service_auth_helpers_exist;
        ]
 

@@ -1,7 +1,14 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#215](https://github.com/david-engelmann/atproto/pull/215):
+shipped through [#216](https://github.com/david-engelmann/atproto/pull/216):
+Ozone queue leftover Yojson POST body helpers
+(`assign_queue_moderator_body` / `unassign_queue_moderator_body` /
+`route_reports_body`; `assign_queue_moderator` /
+`unassign_queue_moderator` / `route_reports` share those bodies;
+`tools.ozone.queue.assignModerator` / `unassignModerator` /
+`routeReports` only — not `report.assignModerator`) on top of
+[#215](https://github.com/david-engelmann/atproto/pull/215):
 Ozone set/setting/team leftover Yojson POST body helpers
 (`upsert_set_body` / `add_set_values_body` / `delete_set_values_body` /
 `upsert_option_body` / `update_member_body`;
@@ -725,6 +732,17 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `add_member` / `delete_member` / `remove_options` stay inline).
   Does not invent leftover unused lexicon fields. No lexicon pin
   bump. No hosted chat / video / Tap / phone / contacts / push faked
+- [#216](https://github.com/david-engelmann/atproto/pull/216):
+  Ozone queue leftover Yojson POST body helpers
+  (`assign_queue_moderator_body` / `unassign_queue_moderator_body` /
+  `route_reports_body`). Extracts current params only: required
+  `queueId` / `did` for queue assign/unassign, required
+  `startReportId` / `endReportId` for `routeReports`. Does not
+  invent leftover unused queue fields. Existing
+  `assign_queue_moderator` / `unassign_queue_moderator` /
+  `route_reports` share those bodies. Public signatures unchanged.
+  No lexicon pin bump. No hosted chat / video / Tap / phone /
+  contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -1252,6 +1270,14 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   Does not invent leftover unused upsertSet / addValues /
   deleteValues / upsertOption / updateMember fields. Hosted-only
   chat / video / Tap / phone / contacts / push stay listed not faked
+- [#216](https://github.com/david-engelmann/atproto/pull/216):
+  Ozone queue leftover Yojson POST body helpers
+  (`assign_queue_moderator_body` / `unassign_queue_moderator_body` /
+  `route_reports_body`). `assign_queue_moderator` /
+  `unassign_queue_moderator` / `route_reports` share those bodies.
+  Queue assign/unassign/route only (not `report.assignModerator`).
+  Does not invent leftover unused queue fields. Hosted-only chat /
+  video / Tap / phone / contacts / push stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 

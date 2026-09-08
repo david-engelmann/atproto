@@ -232,6 +232,32 @@ let () =
     | `String "did:plc:mod000111222333444555666" -> true
     | _ -> false);
   ignore Ozone.update_member;
+  let ozone_assign_q =
+    Ozone.assign_queue_moderator_body ~queue_id:7
+      ~did:"did:plc:mod000111222333444555666"
+  in
+  assert (
+    match Yojson.Safe.Util.member "queueId" ozone_assign_q with
+    | `Int 7 -> true
+    | _ -> false);
+  ignore Ozone.assign_queue_moderator;
+  let ozone_unassign_q =
+    Ozone.unassign_queue_moderator_body ~queue_id:7
+      ~did:"did:plc:mod000111222333444555666"
+  in
+  assert (
+    match Yojson.Safe.Util.member "did" ozone_unassign_q with
+    | `String "did:plc:mod000111222333444555666" -> true
+    | _ -> false);
+  ignore Ozone.unassign_queue_moderator;
+  let ozone_route =
+    Ozone.route_reports_body ~start_report_id:11 ~end_report_id:15
+  in
+  assert (
+    match Yojson.Safe.Util.member "startReportId" ozone_route with
+    | `Int 11 -> true
+    | _ -> false);
+  ignore Ozone.route_reports;
   ignore Ozone.query_events_service;
   ignore Ozone.get_config_service;
   ignore Oauth.xrpc_post_dpop;
