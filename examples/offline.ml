@@ -190,6 +190,48 @@ let () =
     | `String "domain" -> true
     | _ -> false);
   ignore Ozone.query_safelink_rules;
+  let upsert_set =
+    Ozone.upsert_set_body ~name:"blocklist" ~description:"spam accounts" ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "name" upsert_set with
+    | `String "blocklist" -> true
+    | _ -> false);
+  ignore Ozone.upsert_set;
+  let add_values =
+    Ozone.add_set_values_body ~name:"blocklist" ~values:[ "did:plc:a" ]
+  in
+  assert (
+    match Yojson.Safe.Util.member "values" add_values with
+    | `List (`String "did:plc:a" :: _) -> true
+    | _ -> false);
+  ignore Ozone.add_set_values;
+  let delete_values =
+    Ozone.delete_set_values_body ~name:"blocklist" ~values:[ "did:plc:a" ]
+  in
+  assert (
+    match Yojson.Safe.Util.member "name" delete_values with
+    | `String "blocklist" -> true
+    | _ -> false);
+  ignore Ozone.delete_set_values;
+  let upsert_option =
+    Ozone.upsert_option_body ~key:"tools.ozone.setting.example" ~scope:"instance"
+      ~value:(`Bool true) ~description:"toggle" ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "key" upsert_option with
+    | `String "tools.ozone.setting.example" -> true
+    | _ -> false);
+  ignore Ozone.upsert_option;
+  let update_member =
+    Ozone.update_member_body ~did:"did:plc:mod000111222333444555666"
+      ~role:"tools.ozone.team.defs#roleModerator" ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "did" update_member with
+    | `String "did:plc:mod000111222333444555666" -> true
+    | _ -> false);
+  ignore Ozone.update_member;
   ignore Ozone.query_events_service;
   ignore Ozone.get_config_service;
   ignore Oauth.xrpc_post_dpop;

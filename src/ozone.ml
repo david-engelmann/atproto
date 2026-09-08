@@ -1351,17 +1351,20 @@ module Ozone = struct
       @ Client.opt_pair "sortDirection" sort_direction)
     |> parse_sets
 
+  (** JSON body for [tools.ozone.set.upsertSet]. *)
+  let upsert_set_body ~name ?description () : Yojson.Safe.t =
+    `Assoc
+      (("name", `String name)
+      ::
+      (match description with
+      | Some d -> [ ("description", `String d) ]
+      | None -> []))
+
   (** Create or update set [name] via [tools.ozone.set.upsertSet]. *)
   let upsert_set (s : Session.session) ~proxy ~name ?description () : set_view =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.set.upsertSet"
-      (Yojson.Safe.to_string
-         (`Assoc
-           (("name", `String name)
-           ::
-           (match description with
-           | Some d -> [ ("description", `String d) ]
-           | None -> []))))
+      (Yojson.Safe.to_string (upsert_set_body ~name ?description ()))
     |> parse_set_view
 
   (** Values in set [name] via [tools.ozone.set.getValues]. *)
@@ -1373,29 +1376,35 @@ module Ozone = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_set_values
 
+  (** JSON body for [tools.ozone.set.addValues]. *)
+  let add_set_values_body ~name ~values : Yojson.Safe.t =
+    `Assoc
+      [
+        ("name", `String name);
+        ("values", `List (List.map (fun v -> `String v) values));
+      ]
+
   (** Add [values] to set [name] via [tools.ozone.set.addValues]. *)
   let add_set_values (s : Session.session) ~proxy ~name ~values () : unit =
     ignore
       (Client.post_json ~session:s ~extra:(proxy_headers proxy)
          "tools.ozone.set.addValues"
-         (Yojson.Safe.to_string
-            (`Assoc
-              [
-                ("name", `String name);
-                ("values", `List (List.map (fun v -> `String v) values));
-              ])))
+         (Yojson.Safe.to_string (add_set_values_body ~name ~values)))
+
+  (** JSON body for [tools.ozone.set.deleteValues]. *)
+  let delete_set_values_body ~name ~values : Yojson.Safe.t =
+    `Assoc
+      [
+        ("name", `String name);
+        ("values", `List (List.map (fun v -> `String v) values));
+      ]
 
   (** Remove [values] from set [name] via [tools.ozone.set.deleteValues]. *)
   let delete_set_values (s : Session.session) ~proxy ~name ~values () : unit =
     ignore
       (Client.post_json ~session:s ~extra:(proxy_headers proxy)
          "tools.ozone.set.deleteValues"
-         (Yojson.Safe.to_string
-            (`Assoc
-              [
-                ("name", `String name);
-                ("values", `List (List.map (fun v -> `String v) values));
-              ])))
+         (Yojson.Safe.to_string (delete_set_values_body ~name ~values)))
 
   (** Delete set [name] via [tools.ozone.set.deleteSet]. *)
   let delete_set (s : Session.session) ~proxy ~name () : unit =
@@ -1443,18 +1452,22 @@ module Ozone = struct
       @ Client.opt_pair "cursor" cursor)
     |> parse_setting_options
 
+  (** JSON body for [tools.ozone.setting.upsertOption]. *)
+  let upsert_option_body ~key ~scope ~value ?description () : Yojson.Safe.t =
+    `Assoc
+      ([ ("key", `String key); ("scope", `String scope); ("value", value) ]
+      @
+      match description with
+      | Some d -> [ ("description", `String d) ]
+      | None -> [])
+
   (** Create or update setting [key] via [tools.ozone.setting.upsertOption]. *)
   let upsert_option (s : Session.session) ~proxy ~key ~scope ~value ?description
       () : setting_option =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.setting.upsertOption"
       (Yojson.Safe.to_string
-         (`Assoc
-           ([ ("key", `String key); ("scope", `String scope); ("value", value) ]
-           @
-           match description with
-           | Some d -> [ ("description", `String d) ]
-           | None -> [])))
+         (upsert_option_body ~key ~scope ~value ?description ()))
     |> parse_setting_option
 
   (** Remove setting [keys] via [tools.ozone.setting.removeOptions]. *)
@@ -1512,17 +1525,19 @@ module Ozone = struct
          (`Assoc [ ("did", `String did); ("role", `String role) ]))
     |> parse_team_member
 
+  (** JSON body for [tools.ozone.team.updateMember]. *)
+  let update_member_body ~did ?role ?disabled () : Yojson.Safe.t =
+    `Assoc
+      (("did", `String did)
+      :: (match role with Some r -> [ ("role", `String r) ] | None -> [])
+      @ match disabled with Some b -> [ ("disabled", `Bool b) ] | None -> [])
+
   (** Update team member [did] via [tools.ozone.team.updateMember]. *)
   let update_member (s : Session.session) ~proxy ~did ?role ?disabled () :
       team_member =
-    let fields =
-      ("did", `String did)
-      :: (match role with Some r -> [ ("role", `String r) ] | None -> [])
-      @ match disabled with Some b -> [ ("disabled", `Bool b) ] | None -> []
-    in
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.team.updateMember"
-      (Yojson.Safe.to_string (`Assoc fields))
+      (Yojson.Safe.to_string (update_member_body ~did ?role ?disabled ()))
     |> parse_team_member
 
   (** Remove team member [did] via [tools.ozone.team.deleteMember]. *)

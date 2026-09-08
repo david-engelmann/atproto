@@ -1,7 +1,13 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#218](https://github.com/david-engelmann/atproto/pull/218): Site typed record encodes
+shipped through [#215](https://github.com/david-engelmann/atproto/pull/215):
+Ozone set/setting/team leftover Yojson POST body helpers
+(`upsert_set_body` / `add_set_values_body` / `delete_set_values_body` /
+`upsert_option_body` / `update_member_body`;
+`upsert_set` / `add_set_values` / `delete_set_values` / `upsert_option` /
+`update_member` share those bodies) on top of
+[#218](https://github.com/david-engelmann/atproto/pull/218): Site typed record encodes
 (`document_to_json` / `publication_to_json` / `recommend_to_json` /
 `subscription_to_json`; siblings of `theme_to_json` /
 `contributor_to_json` / `parse_*`; lexicon fields only) on top of
@@ -705,6 +711,20 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   round-trip; no live `Repo.create_record` hop. No lexicon pin
   bump. No hosted chat / video / Tap / phone / contacts / push
   faked
+- [#215](https://github.com/david-engelmann/atproto/pull/215): Ozone
+  set/setting/team leftover Yojson POST body helpers
+  (`upsert_set_body` / `add_set_values_body` / `delete_set_values_body` /
+  `upsert_option_body` / `update_member_body`). Lexicon fields only:
+  upsertSet `name` plus optional `description`; addValues /
+  deleteValues `name` / `values`; upsertOption `key` / `scope` /
+  `value` plus optional `description` (does not invent leftover unused
+  `managerRole`); updateMember `did` plus optional `role` / `disabled`.
+  Existing `upsert_set` / `add_set_values` / `delete_set_values` /
+  `upsert_option` / `update_member` share those bodies. Public
+  signatures unchanged. Skips empty/`{}` leftovers (`delete_set` /
+  `add_member` / `delete_member` / `remove_options` stay inline).
+  Does not invent leftover unused lexicon fields. No lexicon pin
+  bump. No hosted chat / video / Tap / phone / contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -1219,6 +1239,19 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `subscription_to_json`). Lexicon fields only; existing builders
   and parse types unchanged. Hosted-only chat / video / Tap /
   phone / contacts / push stay listed not faked
+- [#215](https://github.com/david-engelmann/atproto/pull/215): Ozone
+  set/setting/team leftover Yojson POST body helpers
+  (`upsert_set_body` / `add_set_values_body` / `delete_set_values_body` /
+  `upsert_option_body` / `update_member_body`). Lexicon fields only:
+  upsertSet `name` plus optional `description`; addValues /
+  deleteValues `name` / `values`; upsertOption `key` / `scope` /
+  `value` plus optional `description` (does not invent leftover unused
+  `managerRole`); updateMember `did` plus optional `role` / `disabled`.
+  `upsert_set` / `add_set_values` / `delete_set_values` / `upsert_option` /
+  `update_member` share those bodies. Public signatures unchanged.
+  Does not invent leftover unused upsertSet / addValues /
+  deleteValues / upsertOption / updateMember fields. Hosted-only
+  chat / video / Tap / phone / contacts / push stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 

@@ -468,6 +468,127 @@ let test_list_scheduled_actions_body _ =
   OUnit2.assert_equal `Null (omitted |> member "limit");
   OUnit2.assert_equal `Null (omitted |> member "cursor")
 
+let test_upsert_set_body _ =
+  let open Yojson.Safe.Util in
+  let keys json =
+    match json with
+    | `Assoc fields -> List.map fst fields
+    | _ -> OUnit2.assert_failure "expected Assoc"
+  in
+  let body =
+    Ozone.upsert_set_body ~name:"blocklist" ~description:"spam accounts" ()
+  in
+  OUnit2.assert_equal [ "name"; "description" ] (keys body);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "blocklist"
+    (body |> member "name" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "spam accounts"
+    (body |> member "description" |> to_string);
+  let omitted = Ozone.upsert_set_body ~name:"blocklist" () in
+  OUnit2.assert_equal [ "name" ] (keys omitted);
+  OUnit2.assert_equal `Null (omitted |> member "description")
+
+let test_add_and_delete_set_values_body _ =
+  let open Yojson.Safe.Util in
+  let keys json =
+    match json with
+    | `Assoc fields -> List.map fst fields
+    | _ -> OUnit2.assert_failure "expected Assoc"
+  in
+  let add =
+    Ozone.add_set_values_body ~name:"blocklist" ~values:[ "did:plc:a" ]
+  in
+  OUnit2.assert_equal [ "name"; "values" ] (keys add);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "blocklist"
+    (add |> member "name" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:a"
+    (add |> member "values" |> to_list |> List.hd |> to_string);
+  let delete =
+    Ozone.delete_set_values_body ~name:"blocklist" ~values:[ "did:plc:a" ]
+  in
+  OUnit2.assert_equal [ "name"; "values" ] (keys delete);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "blocklist"
+    (delete |> member "name" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:a"
+    (delete |> member "values" |> to_list |> List.hd |> to_string)
+
+let test_upsert_option_body _ =
+  let open Yojson.Safe.Util in
+  let keys json =
+    match json with
+    | `Assoc fields -> List.map fst fields
+    | _ -> OUnit2.assert_failure "expected Assoc"
+  in
+  let value = `Assoc [ ("enabled", `Bool true) ] in
+  let body =
+    Ozone.upsert_option_body ~key:"tools.ozone.setting.example" ~scope:"instance"
+      ~value ~description:"toggle" ()
+  in
+  OUnit2.assert_equal
+    [ "key"; "scope"; "value"; "description" ]
+    (keys body);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "tools.ozone.setting.example"
+    (body |> member "key" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "instance"
+    (body |> member "scope" |> to_string);
+  OUnit2.assert_equal true
+    (body |> member "value" |> member "enabled" |> to_bool);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "toggle"
+    (body |> member "description" |> to_string);
+  OUnit2.assert_equal `Null (body |> member "managerRole");
+  let omitted =
+    Ozone.upsert_option_body ~key:"tools.ozone.setting.example" ~scope:"personal"
+      ~value ()
+  in
+  OUnit2.assert_equal [ "key"; "scope"; "value" ] (keys omitted);
+  OUnit2.assert_equal `Null (omitted |> member "description");
+  OUnit2.assert_equal `Null (omitted |> member "managerRole")
+
+let test_update_member_body _ =
+  let open Yojson.Safe.Util in
+  let keys json =
+    match json with
+    | `Assoc fields -> List.map fst fields
+    | _ -> OUnit2.assert_failure "expected Assoc"
+  in
+  let body =
+    Ozone.update_member_body ~did:"did:plc:mod000111222333444555666"
+      ~role:"tools.ozone.team.defs#roleModerator" ~disabled:true ()
+  in
+  OUnit2.assert_equal [ "did"; "role"; "disabled" ] (keys body);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:mod000111222333444555666"
+    (body |> member "did" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "tools.ozone.team.defs#roleModerator"
+    (body |> member "role" |> to_string);
+  OUnit2.assert_equal true (body |> member "disabled" |> to_bool);
+  let omitted =
+    Ozone.update_member_body ~did:"did:plc:mod000111222333444555666" ()
+  in
+  OUnit2.assert_equal [ "did" ] (keys omitted);
+  OUnit2.assert_equal `Null (omitted |> member "role");
+  OUnit2.assert_equal `Null (omitted |> member "disabled")
+
 let test_cancel_scheduled_actions_body _ =
   let open Yojson.Safe.Util in
   let keys json =
@@ -1473,6 +1594,11 @@ let suite =
          "test_parse_timeline_and_schedule" >:: test_parse_timeline_and_schedule;
          "test_schedule_action_typed_body" >:: test_schedule_action_typed_body;
          "test_list_scheduled_actions_body" >:: test_list_scheduled_actions_body;
+         "test_upsert_set_body" >:: test_upsert_set_body;
+         "test_add_and_delete_set_values_body"
+         >:: test_add_and_delete_set_values_body;
+         "test_upsert_option_body" >:: test_upsert_option_body;
+         "test_update_member_body" >:: test_update_member_body;
          "test_cancel_scheduled_actions_body"
          >:: test_cancel_scheduled_actions_body;
          "test_query_safelink_rules_body" >:: test_query_safelink_rules_body;
