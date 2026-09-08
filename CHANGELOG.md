@@ -1,7 +1,15 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#220](https://github.com/david-engelmann/atproto/pull/220):
+shipped through [#221](https://github.com/david-engelmann/atproto/pull/221):
+Graph leftover AppView query-pair helpers
+(`get_list_body` / `get_lists_body` / `get_actor_starter_packs_body` /
+`search_starter_packs_body` / `get_relationships_body` /
+`get_known_followers_body`; `get_list` / `get_lists` /
+`get_actor_starter_packs` / `search_starter_packs` /
+`search_starter_packs_v2` / `get_relationships` /
+`get_known_followers` share those pairs) on top of
+[#220](https://github.com/david-engelmann/atproto/pull/220):
 Feed leftover AppView query-pair helpers
 (`get_feed_body` / `get_list_feed_body` / `get_actor_feeds_body` /
 `search_posts_body`; `get_feed` / `get_list_feed` / `get_actor_feeds` /
@@ -781,6 +789,28 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   fields. No leftover live hop (live getFeed / getListFeed /
   getActorFeeds / searchPosts already exist). No lexicon pin bump. No
   hosted chat / video / Tap / phone / contacts / push faked
+- [#221](https://github.com/david-engelmann/atproto/pull/221): Graph
+  leftover AppView query-pair helpers (`get_list_body` /
+  `get_lists_body` / `get_actor_starter_packs_body` /
+  `search_starter_packs_body` / `get_relationships_body` /
+  `get_known_followers_body`). Currently sent fields only: `list` /
+  `limit` / `cursor` for getList; `actor` / `limit` / `cursor` for
+  getLists / getActorStarterPacks / getKnownFollowers; `q` / `limit` /
+  `cursor` for searchStarterPacks / searchStarterPacksV2; `actor` /
+  repeated `others` for getRelationships (pin `f0d4877a03`). Existing
+  `get_list` / `get_lists` / `get_actor_starter_packs` /
+  `search_starter_packs` / `search_starter_packs_v2` /
+  `get_relationships` / `get_known_followers` share those pairs.
+  Distinct from #198 session leftovers and existing
+  `follow_page_pairs`. Skips tiny one-liners (`get_starter_pack`
+  `[("starterPack", ...)]`, `get_starter_packs` `repeat_param`,
+  `get_suggested_follows_by_actor` `[("actor", ...)]`). Does not
+  invent leftover unused getList / getLists / getActorStarterPacks /
+  searchStarterPacks / getRelationships / getKnownFollowers fields.
+  No leftover live hop (live getList / getLists /
+  getActorStarterPacks / searchStarterPacks / getRelationships /
+  getKnownFollowers already exist). No lexicon pin bump. No hosted
+  chat / video / Tap / phone / contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -1333,6 +1363,18 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   invent leftover unused getFeed / getListFeed / getActorFeeds /
   searchPosts fields. Hosted-only chat / video / Tap / phone /
   contacts / push stay listed not faked
+- [#221](https://github.com/david-engelmann/atproto/pull/221): Graph
+  leftover AppView query-pair helpers (`get_list_body` /
+  `get_lists_body` / `get_actor_starter_packs_body` /
+  `search_starter_packs_body` / `get_relationships_body` /
+  `get_known_followers_body`). Currently sent fields only. `get_list`
+  / `get_lists` / `get_actor_starter_packs` / `search_starter_packs` /
+  `search_starter_packs_v2` / `get_relationships` /
+  `get_known_followers` share those pairs. Distinct from #198 session
+  leftovers and `follow_page_pairs`. Does not invent leftover unused
+  getList / getLists / getActorStarterPacks / searchStarterPacks /
+  getRelationships / getKnownFollowers fields. Hosted-only chat /
+  video / Tap / phone / contacts / push stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
