@@ -1,7 +1,12 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#202](https://github.com/david-engelmann/atproto/pull/202):
+shipped through [#203](https://github.com/david-engelmann/atproto/pull/203):
+Notification leftover JSON XRPC via Client
+(`get_unread_count` via `Client.get_json`; `update_seen_body` plus
+`update_seen` via `Client.post_json`, empty procedure output stays
+`""`) on top of
+[#202](https://github.com/david-engelmann/atproto/pull/202):
 Feed leftover session JSON XRPC via Client
 (`get_author_feed` / `get_likes` / `get_post_thread` / `get_posts` /
 `get_reposted_by` / `get_timeline` / `get_feed_skeleton` share
@@ -481,6 +486,15 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   uses `Client.get_text`) instead of hand-rolled Cohttp headers.
   Parse return types and public signatures stay unchanged. Public
   `get_author_feed_page` / `get_feed_skeleton_parsed` stay. Does not
+  invent leftover unused lexicon fields. No lexicon pin bump. No
+  hosted chat / video / Tap / phone / contacts / push faked
+- [#203](https://github.com/david-engelmann/atproto/pull/203):
+  Notification leftover JSON XRPC via Client: `get_unread_count`
+  uses `Client.get_json` (no leftover unused getUnreadCount query
+  fields). `update_seen_body` is `{ "seenAt" }`; `update_seen` posts
+  via `Client.post_json` and still returns `string` (empty procedure
+  output stays `""`). Parse return types and public signatures stay
+  unchanged. Push register/unregister stay listed not faked. Does not
   invent leftover unused lexicon fields. No lexicon pin bump. No
   hosted chat / video / Tap / phone / contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`

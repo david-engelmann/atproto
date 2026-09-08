@@ -1435,4 +1435,13 @@ let () =
   ignore Feed.get_reposted_by;
   ignore Feed.get_timeline;
   ignore Feed.get_feed_skeleton;
+  let seen =
+    Notification.update_seen_body ~seen_at:"2023-07-15T12:34:56.789012Z"
+  in
+  assert (
+    match Yojson.Safe.Util.member "seenAt" seen with
+    | `String "2023-07-15T12:34:56.789012Z" -> true
+    | _ -> false);
+  ignore Notification.get_unread_count;
+  ignore Notification.update_seen;
   print_endline "examples/offline: public API typechecks and fixtures pass"
