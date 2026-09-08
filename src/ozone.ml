@@ -1154,29 +1154,35 @@ module Ozone = struct
       ?mod_tool:(Option.map mod_tool_to_json mod_tool)
       ()
 
+  (** JSON body for [tools.ozone.moderation.listScheduledActions]. *)
+  let list_scheduled_actions_body ~statuses ?starts_after ?ends_before ?subjects
+      ?limit ?cursor () : Yojson.Safe.t =
+    let fields =
+      [ ("statuses", `List (List.map (fun s -> `String s) statuses)) ]
+      @ (match starts_after with
+        | Some t -> [ ("startsAfter", `String t) ]
+        | None -> [])
+      @ (match ends_before with
+        | Some t -> [ ("endsBefore", `String t) ]
+        | None -> [])
+      @ (match subjects with
+        | Some xs ->
+            [ ("subjects", `List (List.map (fun s -> `String s) xs)) ]
+        | None -> [])
+      @ (match limit with Some n -> [ ("limit", `Int n) ] | None -> [])
+      @ match cursor with Some c -> [ ("cursor", `String c) ] | None -> []
+    in
+    `Assoc fields
+
   (** Scheduled actions via [tools.ozone.moderation.listScheduledActions]. *)
   let list_scheduled_actions (s : Session.session) ~proxy ~statuses
       ?starts_after ?ends_before ?subjects ?limit ?cursor () : scheduled_actions
       =
-    let body =
-      `Assoc
-        ([ ("statuses", `List (List.map (fun s -> `String s) statuses)) ]
-        @ (match starts_after with
-          | Some t -> [ ("startsAfter", `String t) ]
-          | None -> [])
-        @ (match ends_before with
-          | Some t -> [ ("endsBefore", `String t) ]
-          | None -> [])
-        @ (match subjects with
-          | Some xs ->
-              [ ("subjects", `List (List.map (fun s -> `String s) xs)) ]
-          | None -> [])
-        @ (match limit with Some n -> [ ("limit", `Int n) ] | None -> [])
-        @ match cursor with Some c -> [ ("cursor", `String c) ] | None -> [])
-    in
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.moderation.listScheduledActions"
-      (Yojson.Safe.to_string body)
+      (Yojson.Safe.to_string
+         (list_scheduled_actions_body ~statuses ?starts_after ?ends_before
+            ?subjects ?limit ?cursor ()))
     |> parse_scheduled_actions
 
   (** JSON body for [tools.ozone.moderation.cancelScheduledActions]. *)
