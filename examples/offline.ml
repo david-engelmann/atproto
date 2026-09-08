@@ -329,6 +329,11 @@ let () =
     match Yojson.Safe.Util.member "onlyReposts" mute with
     | `Bool true -> true
     | _ -> false);
+  let unmute = Graph.unmute_actor_body ~actor:"alice.test" in
+  assert (
+    match Yojson.Safe.Util.member "actor" unmute with
+    | `String "alice.test" -> true
+    | _ -> false);
   assert (Feed.filter_posts_with_replies = "posts_with_replies");
   assert (Feed.filter_posts_no_replies = "posts_no_replies");
   assert (Feed.filter_posts_with_media = "posts_with_media");

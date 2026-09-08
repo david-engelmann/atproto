@@ -546,7 +546,7 @@ let test_more_appview _ =
         (match prefs.original with `Assoc _ | _ -> true));
   ignore
     (av_post_if_served ~session:s "app.bsky.graph.unmuteActor"
-       (Yojson.Safe.to_string (`Assoc [ ("actor", `String "carla.test") ])));
+       (Yojson.Safe.to_string (Graph.unmute_actor_body ~actor:"carla.test")));
   ignore
     (av_post_if_served ~session:s "app.bsky.notification.updateSeen"
        (Yojson.Safe.to_string (`Assoc [ ("seenAt", `String (rfc3339_z ())) ])));
