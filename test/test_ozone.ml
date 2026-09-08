@@ -437,14 +437,7 @@ let test_list_scheduled_actions_body _ =
       ~limit:25 ~cursor:"c1" ()
   in
   OUnit2.assert_equal
-    [
-      "statuses";
-      "startsAfter";
-      "endsBefore";
-      "subjects";
-      "limit";
-      "cursor";
-    ]
+    [ "statuses"; "startsAfter"; "endsBefore"; "subjects"; "limit"; "cursor" ]
     (keys body);
   OUnit2.assert_equal
     ~printer:(fun x -> x)
@@ -467,9 +460,7 @@ let test_list_scheduled_actions_body _ =
     ~printer:(fun x -> x)
     "c1"
     (body |> member "cursor" |> to_string);
-  let omitted =
-    Ozone.list_scheduled_actions_body ~statuses:[ "pending" ] ()
-  in
+  let omitted = Ozone.list_scheduled_actions_body ~statuses:[ "pending" ] () in
   OUnit2.assert_equal [ "statuses" ] (keys omitted);
   OUnit2.assert_equal `Null (omitted |> member "startsAfter");
   OUnit2.assert_equal `Null (omitted |> member "endsBefore");
@@ -1258,8 +1249,7 @@ let suite =
          >:: test_emit_event_typed_body_roundtrip;
          "test_parse_timeline_and_schedule" >:: test_parse_timeline_and_schedule;
          "test_schedule_action_typed_body" >:: test_schedule_action_typed_body;
-         "test_list_scheduled_actions_body"
-         >:: test_list_scheduled_actions_body;
+         "test_list_scheduled_actions_body" >:: test_list_scheduled_actions_body;
          "test_cancel_scheduled_actions_body"
          >:: test_cancel_scheduled_actions_body;
          "test_parse_typed_event_and_subject"

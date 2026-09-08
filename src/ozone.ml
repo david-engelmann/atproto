@@ -1166,8 +1166,7 @@ module Ozone = struct
         | Some t -> [ ("endsBefore", `String t) ]
         | None -> [])
       @ (match subjects with
-        | Some xs ->
-            [ ("subjects", `List (List.map (fun s -> `String s) xs)) ]
+        | Some xs -> [ ("subjects", `List (List.map (fun s -> `String s) xs)) ]
         | None -> [])
       @ (match limit with Some n -> [ ("limit", `Int n) ] | None -> [])
       @ match cursor with Some c -> [ ("cursor", `String c) ] | None -> []
