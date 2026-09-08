@@ -249,8 +249,7 @@ module Server = struct
       Reuses [Xrpc.service_auth_body] for aud / lxm validation. *)
   let get_service_auth_body ~aud ?lxm ?exp () : (string * string) list =
     let _ = Xrpc.Xrpc.service_auth_body ~aud ?lxm ?exp () in
-    ("aud", aud)
-    :: (match lxm with Some n -> [ ("lxm", n) ] | None -> [])
+    (("aud", aud) :: (match lxm with Some n -> [ ("lxm", n) ] | None -> []))
     @ match exp with Some n -> [ ("exp", Int64.to_string n) ] | None -> []
 
   let get_service_auth_url ~aud ?lxm ?exp (s : Session.session) : string =

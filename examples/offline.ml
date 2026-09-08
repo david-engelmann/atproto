@@ -431,10 +431,7 @@ let () =
   assert (
     Server.get_service_auth_body ~aud:"did:web:api.bsky.app"
       ~lxm:"app.bsky.feed.getTimeline" ()
-    = [
-        ("aud", "did:web:api.bsky.app");
-        ("lxm", "app.bsky.feed.getTimeline");
-      ]);
+    = [ ("aud", "did:web:api.bsky.app"); ("lxm", "app.bsky.feed.getTimeline") ]);
   assert (
     Server.get_service_auth_body ~aud:"did:web:video.bsky.app#bsky_transcode"
       ~lxm:"com.atproto.repo.uploadBlob" ~exp:1_700_000_000L ()
