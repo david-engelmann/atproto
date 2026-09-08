@@ -1,7 +1,14 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#201](https://github.com/david-engelmann/atproto/pull/201):
+shipped through Feed leftover session JSON XRPC via Client
+(`get_author_feed` / `get_likes` / `get_post_thread` / `get_posts` /
+`get_reposted_by` / `get_timeline` / `get_feed_skeleton` share
+`get_author_feed_body` / `get_likes_body` / `get_post_thread_body` /
+`get_posts_body` / `get_reposted_by_body` / `get_timeline_body` /
+`get_feed_skeleton_body`; parsed return types unchanged;
+`get_feed_skeleton` via `Client.get_text`) on top of
+[#201](https://github.com/david-engelmann/atproto/pull/201):
 Repo leftover JSON XRPC via Client
 (`describe_repo` / `get_record` / `list_records` share
 `describe_repo_body` / `get_record_body` / `list_records_body` with
@@ -461,6 +468,19 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   stay Cohttp. Does not invent leftover unused lexicon fields. No
   lexicon pin bump. No hosted chat / video / Tap / phone / contacts /
   push faked
+- Feed leftover session JSON XRPC via Client: `get_author_feed` /
+  `get_likes` / `get_post_thread` / `get_posts` / `get_reposted_by` /
+  `get_timeline` / `get_feed_skeleton` share `get_author_feed_body` /
+  `get_likes_body` / `get_post_thread_body` / `get_posts_body` /
+  `get_reposted_by_body` / `get_timeline_body` /
+  `get_feed_skeleton_body` (`actor` / `uri` / `cid` / repeated `uris` /
+  `depth` / `algorithm` / `feed` / `limit` / optional `filter` /
+  `includePins`) and call `Client.get_json` (raw `get_feed_skeleton`
+  uses `Client.get_text`) instead of hand-rolled Cohttp headers.
+  Parse return types and public signatures stay unchanged. Public
+  `get_author_feed_page` / `get_feed_skeleton_parsed` stay. Does not
+  invent leftover unused lexicon fields. No lexicon pin bump. No
+  hosted chat / video / Tap / phone / contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
