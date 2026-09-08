@@ -774,6 +774,40 @@ let test_operator_namespace_parsers _ =
     "Hello"
     (body |> member "name" |> to_string)
 
+let test_update_template_body _ =
+  let open Yojson.Safe.Util in
+  let keys json =
+    match json with
+    | `Assoc fields -> List.map fst fields
+    | _ -> OUnit2.assert_failure "expected Assoc"
+  in
+  let body =
+    Ozone.update_template_body ~id:"tmpl-1" ~name:"Hello"
+      ~content_markdown:"hi" ~subject:"welcome" ~updated_by:"did:plc:updater"
+      ~disabled:false ()
+  in
+  OUnit2.assert_equal
+    [ "id"; "name"; "contentMarkdown"; "subject"; "disabled"; "updatedBy" ]
+    (keys body);
+  OUnit2.assert_equal ~printer:(fun x -> x) "tmpl-1"
+    (body |> member "id" |> to_string);
+  OUnit2.assert_equal ~printer:(fun x -> x) "Hello"
+    (body |> member "name" |> to_string);
+  OUnit2.assert_equal ~printer:(fun x -> x) "hi"
+    (body |> member "contentMarkdown" |> to_string);
+  OUnit2.assert_equal ~printer:(fun x -> x) "welcome"
+    (body |> member "subject" |> to_string);
+  OUnit2.assert_equal ~printer:(fun x -> x) "did:plc:updater"
+    (body |> member "updatedBy" |> to_string);
+  OUnit2.assert_equal false (body |> member "disabled" |> to_bool);
+  OUnit2.assert_equal `Null (body |> member "lang");
+  let omitted = Ozone.update_template_body ~id:"tmpl-1" () in
+  OUnit2.assert_equal [ "id" ] (keys omitted);
+  let deleted = Ozone.delete_template_body ~id:"tmpl-1" in
+  OUnit2.assert_equal [ "id" ] (keys deleted);
+  OUnit2.assert_equal ~printer:(fun x -> x) "tmpl-1"
+    (deleted |> member "id" |> to_string)
+
 let test_parse_queue_and_report _ =
   let queues =
     Ozone.parse_queues
@@ -1267,6 +1301,7 @@ let suite =
          "test_parse_assignment_moderator" >:: test_parse_assignment_moderator;
          "test_official_safelink_and_verification_bodies"
          >:: test_official_safelink_and_verification_bodies;
+         "test_update_template_body" >:: test_update_template_body;
          "test_service_auth_helpers_exist" >:: test_service_auth_helpers_exist;
        ]
 

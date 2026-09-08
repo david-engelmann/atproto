@@ -160,6 +160,25 @@ let () =
     | `String "false positive" -> true
     | _ -> false);
   ignore Ozone.cancel_scheduled_actions;
+  let ozone_update_tmpl =
+    Ozone.update_template_body ~id:"tmpl-1" ~content_markdown:"updated"
+      ~updated_by:"did:plc:abc123xyz0001112223333" ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "id" ozone_update_tmpl with
+    | `String "tmpl-1" -> true
+    | _ -> false);
+  assert (
+    match Yojson.Safe.Util.member "lang" ozone_update_tmpl with
+    | `Null -> true
+    | _ -> false);
+  ignore Ozone.update_template;
+  let ozone_delete_tmpl = Ozone.delete_template_body ~id:"tmpl-1" in
+  assert (
+    match Yojson.Safe.Util.member "id" ozone_delete_tmpl with
+    | `String "tmpl-1" -> true
+    | _ -> false);
+  ignore Ozone.delete_template;
   ignore Ozone.query_events_service;
   ignore Ozone.get_config_service;
   ignore Oauth.xrpc_post_dpop;
