@@ -2674,8 +2674,8 @@ module Ozone = struct
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.report.closeReports"
       (Yojson.Safe.to_string
-         (close_reports_body ~subject ?report_types ?internal_note
-            ?is_automated ()))
+         (close_reports_body ~subject ~report_types ?internal_note ?is_automated
+            ()))
     |> parse_close_reports_result
 
   (** Live report stats via [tools.ozone.report.getLiveStats]. *)

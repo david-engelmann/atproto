@@ -573,7 +573,8 @@ let test_assign_report_moderator_body _ =
     Ozone.assign_report_moderator_body ~report_id:11 ~queue_id:3
       ~did:"did:plc:mod000111222333444555666" ~is_permanent:true ()
   in
-  OUnit2.assert_equal [ "reportId"; "queueId"; "did"; "isPermanent" ]
+  OUnit2.assert_equal
+    [ "reportId"; "queueId"; "did"; "isPermanent" ]
     (keys body);
   OUnit2.assert_equal 11 (body |> member "reportId" |> to_int);
   OUnit2.assert_equal 3 (body |> member "queueId" |> to_int);
