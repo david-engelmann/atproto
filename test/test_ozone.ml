@@ -794,6 +794,42 @@ let test_close_reports_body _ =
   OUnit2.assert_equal `Null (omitted |> member "internalNote");
   OUnit2.assert_equal `Null (omitted |> member "isAutomated")
 
+let test_query_events_body _ =
+  let pairs =
+    Ozone.query_events_body
+      ~types:[ "tools.ozone.moderation.defs#modEventTakedown" ]
+      ~created_by:"did:plc:mod000111222333444555666"
+      ~subject:"did:plc:abc123xyz0001112223333" ~limit:25 ~cursor:"c1" ()
+  in
+  OUnit2.assert_equal
+    [
+      ("types", "tools.ozone.moderation.defs#modEventTakedown");
+      ("createdBy", "did:plc:mod000111222333444555666");
+      ("subject", "did:plc:abc123xyz0001112223333");
+      ("limit", "25");
+      ("cursor", "c1");
+    ]
+    pairs;
+  OUnit2.assert_equal [] (Ozone.query_events_body ());
+  OUnit2.assert_equal [] (Ozone.query_events_body ~types:[] ())
+
+let test_query_statuses_body _ =
+  let pairs =
+    Ozone.query_statuses_body ~subject:"did:plc:abc123xyz0001112223333"
+      ~comment:"spam" ~review_state:"tools.ozone.moderation.defs#reviewOpen"
+      ~limit:10 ~cursor:"c2" ()
+  in
+  OUnit2.assert_equal
+    [
+      ("subject", "did:plc:abc123xyz0001112223333");
+      ("comment", "spam");
+      ("reviewState", "tools.ozone.moderation.defs#reviewOpen");
+      ("limit", "10");
+      ("cursor", "c2");
+    ]
+    pairs;
+  OUnit2.assert_equal [] (Ozone.query_statuses_body ())
+
 let test_parse_typed_event_and_subject _ =
   let ev =
     Ozone.parse_mod_event
@@ -1641,6 +1677,8 @@ let suite =
          "test_reassign_queue_body" >:: test_reassign_queue_body;
          "test_refresh_stats_body" >:: test_refresh_stats_body;
          "test_close_reports_body" >:: test_close_reports_body;
+         "test_query_events_body" >:: test_query_events_body;
+         "test_query_statuses_body" >:: test_query_statuses_body;
          "test_parse_typed_event_and_subject"
          >:: test_parse_typed_event_and_subject;
          "test_parse_leftover_event_and_status"
