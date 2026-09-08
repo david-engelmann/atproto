@@ -1453,4 +1453,8 @@ let () =
   ignore Server.list_app_passwords;
   ignore Server.get_account_invite_codes;
   ignore Server.create_invite_codes;
+  ignore Session.get_session_request;
+  ignore Session.get_session;
+  ignore Session.refresh_session;
+  ignore Session.delete_session;
   print_endline "examples/offline: public API typechecks and fixtures pass"
