@@ -1567,35 +1567,39 @@ module Ozone = struct
           | xs -> xs);
     }
 
+  (** JSON body for [tools.ozone.safelink.queryRules]. *)
+  let query_safelink_rules_body ?cursor ?limit ?(urls = []) ?pattern_type
+      ?(actions = []) ?reason ?created_by ?sort_direction () : Yojson.Safe.t =
+    `Assoc
+      ((match cursor with Some c -> [ ("cursor", `String c) ] | None -> [])
+      @ (match limit with Some n -> [ ("limit", `Int n) ] | None -> [])
+      @ (match urls with
+        | [] -> []
+        | xs -> [ ("urls", `List (List.map (fun u -> `String u) xs)) ])
+      @ (match pattern_type with
+        | Some p -> [ ("patternType", `String p) ]
+        | None -> [])
+      @ (match actions with
+        | [] -> []
+        | xs -> [ ("actions", `List (List.map (fun a -> `String a) xs)) ])
+      @ (match reason with Some r -> [ ("reason", `String r) ] | None -> [])
+      @ (match created_by with
+        | Some d -> [ ("createdBy", `String d) ]
+        | None -> [])
+      @
+      match sort_direction with
+      | Some d -> [ ("sortDirection", `String d) ]
+      | None -> [])
+
   (** URL rules via [tools.ozone.safelink.queryRules]. *)
   let query_safelink_rules (s : Session.session) ~proxy ?cursor ?limit
       ?(urls = []) ?pattern_type ?(actions = []) ?reason ?created_by
       ?sort_direction () : url_rules =
-    let body =
-      `Assoc
-        ((match cursor with Some c -> [ ("cursor", `String c) ] | None -> [])
-        @ (match limit with Some n -> [ ("limit", `Int n) ] | None -> [])
-        @ (match urls with
-          | [] -> []
-          | xs -> [ ("urls", `List (List.map (fun u -> `String u) xs)) ])
-        @ (match pattern_type with
-          | Some p -> [ ("patternType", `String p) ]
-          | None -> [])
-        @ (match actions with
-          | [] -> []
-          | xs -> [ ("actions", `List (List.map (fun a -> `String a) xs)) ])
-        @ (match reason with Some r -> [ ("reason", `String r) ] | None -> [])
-        @ (match created_by with
-          | Some d -> [ ("createdBy", `String d) ]
-          | None -> [])
-        @
-        match sort_direction with
-        | Some d -> [ ("sortDirection", `String d) ]
-        | None -> [])
-    in
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.safelink.queryRules"
-      (Yojson.Safe.to_string body)
+      (Yojson.Safe.to_string
+         (query_safelink_rules_body ?cursor ?limit ~urls ?pattern_type ~actions
+            ?reason ?created_by ?sort_direction ()))
     |> parse_url_rules
 
   (* Official addRule / updateRule / removeRule take `pattern` (not

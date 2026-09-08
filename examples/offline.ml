@@ -179,6 +179,16 @@ let () =
     | `String "tmpl-1" -> true
     | _ -> false);
   ignore Ozone.delete_template;
+  let ozone_rules =
+    Ozone.query_safelink_rules_body
+      ~urls:[ "https://phish.example" ]
+      ~pattern_type:"domain" ~limit:10 ()
+  in
+  assert (
+    match Yojson.Safe.Util.member "patternType" ozone_rules with
+    | `String "domain" -> true
+    | _ -> false);
+  ignore Ozone.query_safelink_rules;
   ignore Ozone.query_events_service;
   ignore Ozone.get_config_service;
   ignore Oauth.xrpc_post_dpop;
