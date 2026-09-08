@@ -245,11 +245,16 @@ module Server = struct
     let open Yojson.Safe.Util in
     { token = json |> member "token" |> to_string }
 
+  (** Query-string pairs for [com.atproto.server.getServiceAuth].
+      Reuses [Xrpc.service_auth_body] for aud / lxm validation. *)
+  let get_service_auth_body ~aud ?lxm ?exp () : (string * string) list =
+    let _ = Xrpc.Xrpc.service_auth_body ~aud ?lxm ?exp () in
+    ("aud", aud)
+    :: (match lxm with Some n -> [ ("lxm", n) ] | None -> [])
+    @ match exp with Some n -> [ ("exp", Int64.to_string n) ] | None -> []
+
   let get_service_auth_url ~aud ?lxm ?exp (s : Session.session) : string =
-    let pairs =
-      (("aud", aud) :: (match lxm with Some n -> [ ("lxm", n) ] | None -> []))
-      @ match exp with Some n -> [ ("exp", Int64.to_string n) ] | None -> []
-    in
+    let pairs = get_service_auth_body ~aud ?lxm ?exp () in
     let base =
       App.create_endpoint_url (App.create_base_url s)
         (create_server_endpoint "getServiceAuth")
@@ -258,19 +263,11 @@ module Server = struct
     if qs = "" then base else base ^ "?" ^ qs
 
   (** Service-auth JWT via [com.atproto.server.getServiceAuth] for
-      [aud] (optional [lxm] / [exp]). *)
+      [aud] (optional [lxm] / [exp]). Shares [get_service_auth_body]. *)
   let get_service_auth (s : Session.session) ~aud ?lxm ?exp () : service_auth =
-    let _ = Xrpc.Xrpc.service_auth_body ~aud ?lxm ?exp () in
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let url = get_service_auth_url ~aud ?lxm ?exp s in
-    let body =
-      Lwt_main.run (Cohttp_client.get_request_with_headers url headers)
-    in
-    parse_service_auth (Yojson.Safe.from_string body)
+    Client.Client.get_json ~session:s "com.atproto.server.getServiceAuth"
+      (get_service_auth_body ~aud ?lxm ?exp ())
+    |> parse_service_auth
 
   type account_status = {
     activated : bool option;

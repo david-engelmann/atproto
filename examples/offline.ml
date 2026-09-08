@@ -428,6 +428,21 @@ let () =
     Server.get_account_invite_codes_body ~include_used:true
       ~create_available:false
     = [ ("includeUsed", "true"); ("createAvailable", "false") ]);
+  assert (
+    Server.get_service_auth_body ~aud:"did:web:api.bsky.app"
+      ~lxm:"app.bsky.feed.getTimeline" ()
+    = [
+        ("aud", "did:web:api.bsky.app");
+        ("lxm", "app.bsky.feed.getTimeline");
+      ]);
+  assert (
+    Server.get_service_auth_body ~aud:"did:web:video.bsky.app#bsky_transcode"
+      ~lxm:"com.atproto.repo.uploadBlob" ~exp:1_700_000_000L ()
+    = [
+        ("aud", "did:web:video.bsky.app#bsky_transcode");
+        ("lxm", "com.atproto.repo.uploadBlob");
+        ("exp", "1700000000");
+      ]);
   let lvd =
     Label.parse_label_value_definition
       (`Assoc
@@ -1454,6 +1469,7 @@ let () =
   ignore Server.list_app_passwords;
   ignore Server.get_account_invite_codes;
   ignore Server.create_invite_codes;
+  ignore Server.get_service_auth;
   ignore Session.get_session_request;
   ignore Session.get_session;
   ignore Session.refresh_session;
