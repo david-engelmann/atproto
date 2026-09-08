@@ -1263,31 +1263,42 @@ module Ozone = struct
             ~created_by ()))
     |> parse_template
 
-  (** Update template [id] via [tools.ozone.communication.updateTemplate]. *)
-  let update_template (s : Session.session) ~proxy ~id ?name ?content_markdown
-      ?subject ?disabled ?updated_by () : template =
-    let updated_by = Option.value updated_by ~default:s.auth.did in
-    let fields =
-      ("id", `String id)
-      :: ("updatedBy", `String updated_by)
-      :: (match name with Some n -> [ ("name", `String n) ] | None -> [])
+  (** JSON body for [tools.ozone.communication.updateTemplate]. *)
+  let update_template_body ~id ?name ?content_markdown ?subject ?disabled
+      ?updated_by () : Yojson.Safe.t =
+    `Assoc
+      (("id", `String id)
+       :: (match name with Some n -> [ ("name", `String n) ] | None -> [])
       @ (match content_markdown with
         | Some c -> [ ("contentMarkdown", `String c) ]
         | None -> [])
       @ (match subject with Some s -> [ ("subject", `String s) ] | None -> [])
-      @ match disabled with Some b -> [ ("disabled", `Bool b) ] | None -> []
-    in
+      @ (match disabled with Some b -> [ ("disabled", `Bool b) ] | None -> [])
+      @
+      match updated_by with
+      | Some d -> [ ("updatedBy", `String d) ]
+      | None -> [])
+
+  (** Update template [id] via [tools.ozone.communication.updateTemplate]. *)
+  let update_template (s : Session.session) ~proxy ~id ?name ?content_markdown
+      ?subject ?disabled ?updated_by () : template =
+    let updated_by = Option.value updated_by ~default:s.auth.did in
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.communication.updateTemplate"
-      (Yojson.Safe.to_string (`Assoc fields))
+      (Yojson.Safe.to_string
+         (update_template_body ~id ?name ?content_markdown ?subject ?disabled
+            ~updated_by ()))
     |> parse_template
+
+  (** JSON body for [tools.ozone.communication.deleteTemplate]. *)
+  let delete_template_body ~id : Yojson.Safe.t = `Assoc [ ("id", `String id) ]
 
   (** Delete template [id] via [tools.ozone.communication.deleteTemplate]. *)
   let delete_template (s : Session.session) ~proxy ~id () : unit =
     ignore
       (Client.post_json ~session:s ~extra:(proxy_headers proxy)
          "tools.ozone.communication.deleteTemplate"
-         (Yojson.Safe.to_string (`Assoc [ ("id", `String id) ])))
+         (Yojson.Safe.to_string (delete_template_body ~id)))
 
   type set_view = {
     name : string;
