@@ -102,8 +102,7 @@ let assoc_keys json =
 let assert_keys_subset ~allowed keys =
   List.iter
     (fun k ->
-      OUnit2.assert_bool ("unexpected leftover key: " ^ k)
-        (List.mem k allowed))
+      OUnit2.assert_bool ("unexpected leftover key: " ^ k) (List.mem k allowed))
     keys
 
 let test_typed_record_encodes _ =
@@ -162,8 +161,7 @@ let test_typed_record_encodes _ =
   OUnit2.assert_equal (Some "2026-01-02T00:00:00.000Z") again_doc.updated_at;
   OUnit2.assert_equal (Some [ "graphic-media" ]) again_doc.self_labels;
   (match again_doc.bsky_post_ref with
-  | Some r ->
-      OUnit2.assert_bool "post ref uri" (String.length r.Embed.uri > 8)
+  | Some r -> OUnit2.assert_bool "post ref uri" (String.length r.Embed.uri > 8)
   | None -> OUnit2.assert_failure "expected bskyPostRef after encode");
   OUnit2.assert_bool "coverImage" (Option.is_some again_doc.cover_image);
   OUnit2.assert_bool "content" (Option.is_some again_doc.content);
@@ -291,9 +289,7 @@ let test_typed_record_encodes _ =
     ~printer:(fun x -> x)
     "at://did:plc:abc123xyz0001112223333/site.standard.publication/3k"
     again_sub.publication;
-  OUnit2.assert_equal
-    (Some "2026-01-01T00:00:00.000Z")
-    again_sub.created_at;
+  OUnit2.assert_equal (Some "2026-01-01T00:00:00.000Z") again_sub.created_at;
   OUnit2.assert_equal
     [ "$type"; "publication"; "createdAt" ]
     (assoc_keys encoded_sub);
