@@ -170,6 +170,16 @@ let test_parse_preferences _ =
     "follows"
     (encoded |> member "like" |> member "include" |> to_string)
 
+let test_update_seen_body _ =
+  let body =
+    Notification.update_seen_body ~seen_at:"2023-07-15T12:34:56.789012Z"
+  in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "2023-07-15T12:34:56.789012Z"
+    (body |> member "seenAt" |> to_string)
+
 let test_get_unread_count _ =
   skip_if
     (not Auth.has_live_credentials)
@@ -212,6 +222,7 @@ let suite =
          "test_parse_mention_and_via_repost"
          >:: test_parse_mention_and_via_repost;
          "test_parse_preferences" >:: test_parse_preferences;
+         "test_update_seen_body" >:: test_update_seen_body;
          "test_get_unread_count" >:: test_get_unread_count;
          "test_list_notifications" >:: test_list_notifications;
          "test_update_seen" >:: test_update_seen;
