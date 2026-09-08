@@ -1,7 +1,15 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#203](https://github.com/david-engelmann/atproto/pull/203):
+shipped through [#204](https://github.com/david-engelmann/atproto/pull/204):
+Server leftover session JSON XRPC via Client
+(`describe_server` / `create_account` / `list_app_passwords` /
+`get_account_invite_codes` share `create_account_body` /
+`get_account_invite_codes_body` / `create_invite_codes_body`;
+`describe_server` / `list_app_passwords` / `get_account_invite_codes`
+via `Client.get_text`; `create_account` via `Client.post_json`;
+public signatures and parse types unchanged) on top of
+[#203](https://github.com/david-engelmann/atproto/pull/203):
 Notification leftover JSON XRPC via Client
 (`get_unread_count` via `Client.get_json`; `update_seen_body` plus
 `update_seen` via `Client.post_json`, empty procedure output stays
@@ -497,6 +505,18 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   unchanged. Push register/unregister stay listed not faked. Does not
   invent leftover unused lexicon fields. No lexicon pin bump. No
   hosted chat / video / Tap / phone / contacts / push faked
+- [#204](https://github.com/david-engelmann/atproto/pull/204):
+  Server leftover session JSON XRPC via Client. String
+  `describe_server` / `list_app_passwords` / `get_account_invite_codes`
+  use `Client.get_text` and share `get_account_invite_codes_body`
+  (`includeUsed` / `createAvailable`) plus the empty query with
+  `describe_server_parsed`. `create_account` uses `Client.post_json`
+  and shares `create_account_body` with `create_account_at`.
+  `create_invite_codes` shares `create_invite_codes_body`. Parse
+  return types and public signatures stay unchanged. `get_service_auth`
+  stays Cohttp. Does not invent leftover unused lexicon fields. No
+  lexicon pin bump. No hosted chat / video / Tap / phone / contacts /
+  push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -910,6 +930,14 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `upload_blob` / `import_repo` stay Cohttp. Does not invent leftover
   unused repo query fields. Hosted-only chat / video / Tap / phone /
   contacts / push stay listed not faked
+- [#204](https://github.com/david-engelmann/atproto/pull/204): Server
+  leftover session JSON XRPC via Client. `describe_server` /
+  `list_app_passwords` / `get_account_invite_codes` via
+  `Client.get_text`; `create_account` via `Client.post_json` shares
+  `create_account_body`; `create_invite_codes` shares
+  `create_invite_codes_body`. `get_service_auth` stays Cohttp. Does
+  not invent leftover unused server query/body fields. Hosted-only
+  chat / video / Tap / phone / contacts / push stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 

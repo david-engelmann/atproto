@@ -423,6 +423,10 @@ let () =
     match Yojson.Safe.Util.member "codeCount" invites with
     | `Int 1 -> true
     | _ -> false);
+  assert (
+    Server.get_account_invite_codes_body ~include_used:true
+      ~create_available:false
+    = [ ("includeUsed", "true"); ("createAvailable", "false") ]);
   let lvd =
     Label.parse_label_value_definition
       (`Assoc
@@ -1444,4 +1448,9 @@ let () =
     | _ -> false);
   ignore Notification.get_unread_count;
   ignore Notification.update_seen;
+  ignore Server.describe_server;
+  ignore Server.create_account;
+  ignore Server.list_app_passwords;
+  ignore Server.get_account_invite_codes;
+  ignore Server.create_invite_codes;
   print_endline "examples/offline: public API typechecks and fixtures pass"
