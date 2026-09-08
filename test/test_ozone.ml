@@ -497,6 +497,71 @@ let test_cancel_scheduled_actions_body _ =
   OUnit2.assert_equal [ "subjects" ] (keys omitted);
   OUnit2.assert_equal `Null (omitted |> member "comment")
 
+let test_query_safelink_rules_body _ =
+  let open Yojson.Safe.Util in
+  let keys json =
+    match json with
+    | `Assoc fields -> List.map fst fields
+    | _ -> OUnit2.assert_failure "expected Assoc"
+  in
+  let body =
+    Ozone.query_safelink_rules_body ~cursor:"c1" ~limit:10
+      ~urls:[ "https://phish.example" ]
+      ~pattern_type:"domain" ~actions:[ "block" ] ~reason:"phishing"
+      ~created_by:"did:plc:mod000111222333444555666" ~sort_direction:"desc" ()
+  in
+  OUnit2.assert_equal
+    [
+      "cursor";
+      "limit";
+      "urls";
+      "patternType";
+      "actions";
+      "reason";
+      "createdBy";
+      "sortDirection";
+    ]
+    (keys body);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "c1"
+    (body |> member "cursor" |> to_string);
+  OUnit2.assert_equal 10 (body |> member "limit" |> to_int);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "https://phish.example"
+    (body |> member "urls" |> to_list |> List.hd |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "domain"
+    (body |> member "patternType" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "block"
+    (body |> member "actions" |> to_list |> List.hd |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "phishing"
+    (body |> member "reason" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:mod000111222333444555666"
+    (body |> member "createdBy" |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "desc"
+    (body |> member "sortDirection" |> to_string);
+  let omitted = Ozone.query_safelink_rules_body () in
+  OUnit2.assert_equal [] (keys omitted);
+  OUnit2.assert_equal `Null (omitted |> member "cursor");
+  OUnit2.assert_equal `Null (omitted |> member "limit");
+  OUnit2.assert_equal `Null (omitted |> member "urls");
+  OUnit2.assert_equal `Null (omitted |> member "patternType");
+  OUnit2.assert_equal `Null (omitted |> member "actions");
+  OUnit2.assert_equal `Null (omitted |> member "reason");
+  OUnit2.assert_equal `Null (omitted |> member "createdBy");
+  OUnit2.assert_equal `Null (omitted |> member "sortDirection")
+
 let test_parse_typed_event_and_subject _ =
   let ev =
     Ozone.parse_mod_event
@@ -1297,6 +1362,7 @@ let suite =
          "test_list_scheduled_actions_body" >:: test_list_scheduled_actions_body;
          "test_cancel_scheduled_actions_body"
          >:: test_cancel_scheduled_actions_body;
+         "test_query_safelink_rules_body" >:: test_query_safelink_rules_body;
          "test_parse_typed_event_and_subject"
          >:: test_parse_typed_event_and_subject;
          "test_parse_leftover_event_and_status"

@@ -1,7 +1,11 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#212](https://github.com/david-engelmann/atproto/pull/212):
+shipped through [#213](https://github.com/david-engelmann/atproto/pull/213):
+Ozone `query_safelink_rules` Yojson body helper
+(`query_safelink_rules_body`; `query_safelink_rules` shares that
+body) on top of
+[#212](https://github.com/david-engelmann/atproto/pull/212):
 Ozone communication `update_template` Yojson body helper
 (`update_template_body`; `update_template` shares that body; current
 params only: required `id`, optional `name` / `contentMarkdown` /
@@ -648,6 +652,16 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `delete_template`. Sibling of `create_template_body`. No lexicon
   pin bump. No hosted chat / video / Tap / phone / contacts / push
   faked
+- [#213](https://github.com/david-engelmann/atproto/pull/213): Ozone
+  `query_safelink_rules` Yojson body helper
+  (`query_safelink_rules_body`). Lexicon fields only: optional
+  `cursor` / `limit` / `urls` / `patternType` / `actions` / `reason`
+  / `createdBy` / `sortDirection` as currently sent (pin
+  `f0d4877a03`). Existing `query_safelink_rules` shares that body and
+  still returns `url_rules`. Does not invent leftover unused lexicon
+  fields. No leftover live hop (live queryRules already exists). No
+  lexicon pin bump. No hosted chat / video / Tap / phone / contacts /
+  push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -1135,6 +1149,14 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `delete_template_body` (`{ "id" }`). Does not invent leftover
   unused updateTemplate / deleteTemplate fields. Hosted-only chat /
   video / Tap / phone / contacts / push stay listed not faked
+- [#213](https://github.com/david-engelmann/atproto/pull/213): Ozone
+  `query_safelink_rules` Yojson body helper
+  (`query_safelink_rules_body`). Lexicon fields only: optional
+  `cursor` / `limit` / `urls` / `patternType` / `actions` / `reason`
+  / `createdBy` / `sortDirection`. `query_safelink_rules` shares that
+  body and still returns `url_rules`. Does not invent leftover unused
+  queryRules fields. Hosted-only chat / video / Tap / phone /
+  contacts / push stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
