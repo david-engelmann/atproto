@@ -1,7 +1,10 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#197](https://github.com/david-engelmann/atproto/pull/197):
+shipped through this PR: Label `queryLabels` via `Client.get_json`
+(`query_labels` / `query_labels_parsed` share `query_labels_body`;
+`subscribeLabels` unchanged) on top of
+[#197](https://github.com/david-engelmann/atproto/pull/197):
 Ozone `cancel_scheduled_actions` Yojson body helper
 (`cancel_scheduled_actions_body`; `cancel_scheduled_actions` shares that
 body) on top of
@@ -415,6 +418,14 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `batch_result`. Does not invent leftover unused lexicon fields. No
   lexicon pin bump. No hosted chat / video / Tap / phone / contacts /
   push faked
+- Label `queryLabels` via `Client.get_json`: `query_labels` /
+  `query_labels_parsed` share `query_labels_body` (`uriPatterns` /
+  optional `sources` / `limit` / `cursor`) and call
+  `Client.Client.get_json` instead of hand-rolled Cohttp headers.
+  Parse return types and public signatures stay unchanged.
+  `subscribeLabels` / WebSocket paths stay. Does not invent leftover
+  unused lexicon fields. No lexicon pin bump. No hosted chat / video /
+  Tap / phone / contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -805,6 +816,12 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   shares that body and still returns `batch_result`. Does not invent
   leftover unused cancelScheduledActions fields. Hosted-only chat /
   video / Tap / phone / contacts / push stay listed not faked
+- Label `queryLabels` via `Client.get_json`. `query_labels` /
+  `query_labels_parsed` share `query_labels_body` (`uriPatterns` /
+  optional `sources` / `limit` / `cursor`). `subscribeLabels` /
+  WebSocket paths stay. Does not invent leftover unused queryLabels
+  fields. Hosted-only chat / video / Tap / phone / contacts / push
+  stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 

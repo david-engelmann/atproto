@@ -16,6 +16,25 @@ let test_query_labels _ =
   Printf.printf "Query Labels: %s\n" labels;
   OUnit2.assert_bool "Query Labels is not empty" (labels <> "")
 
+let test_query_labels_body _ =
+  let pairs =
+    Label.query_labels_body
+      ~uri_patterns:[ "at://did:plc:alice/*"; "*" ]
+      ~sources:[ "did:plc:labeler" ] ~limit:25 ~cursor:"c1" ()
+  in
+  OUnit2.assert_equal
+    [
+      ("uriPatterns", "at://did:plc:alice/*");
+      ("uriPatterns", "*");
+      ("sources", "did:plc:labeler");
+      ("limit", "25");
+      ("cursor", "c1");
+    ]
+    pairs;
+  OUnit2.assert_equal
+    [ ("uriPatterns", "*") ]
+    (Label.query_labels_body ~uri_patterns:[ "*" ] ())
+
 let test_parse_query_labels _ =
   let json =
     `Assoc
@@ -217,6 +236,7 @@ let suite =
   "suite"
   >::: [
          "test_query_labels" >:: test_query_labels;
+         "test_query_labels_body" >:: test_query_labels_body;
          "test_self_labels" >:: test_self_labels;
          "test_parse_label_value_definition"
          >:: test_parse_label_value_definition;

@@ -1,6 +1,4 @@
 open Session
-open Cohttp_client
-open App
 open Dag_cbor
 open Base64url
 open Hash
@@ -197,61 +195,28 @@ module Label = struct
       [sources], [limit], and [cursor]. *)
   let query_labels_body ?(uri_patterns = []) ?sources ?limit ?cursor () :
       (string * string) list =
-    let pairs =
-      List.map (fun p -> ("uriPatterns", p)) uri_patterns
-      @ (match sources with
-        | Some srcs -> List.map (fun s -> ("sources", s)) srcs
-        | None -> [])
-      @ (match limit with
-        | Some n -> [ ("limit", string_of_int n) ]
-        | None -> [])
-      @ match cursor with Some c -> [ ("cursor", c) ] | None -> []
-    in
-    pairs
+    Client.Client.repeat_param "uriPatterns" uri_patterns
+    @ (match sources with
+      | Some srcs -> Client.Client.repeat_param "sources" srcs
+      | None -> [])
+    @ Client.Client.opt_int "limit" limit
+    @ Client.Client.opt_pair "cursor" cursor
 
   (** Query labels matching [uri_patterns] via [com.atproto.label.queryLabels].
       Each pattern may be a full AT URI or a prefix ending in [*]. Returns
       the raw JSON body. *)
   let query_labels (s : Session.session) (uri_patterns : string list) : string =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let query_labels_url =
-      App.create_endpoint_url base_url (create_label_endpoint "queryLabels")
-    in
-    let body = Cohttp_client.add_query_params "uriPatterns" uri_patterns in
-    let labels =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers query_labels_url body
-           headers)
-    in
-    labels
+    Client.Client.get_json ~session:s "com.atproto.label.queryLabels"
+      (query_labels_body ~uri_patterns ())
+    |> Yojson.Safe.to_string
 
   (** Parsed [com.atproto.label.queryLabels] for [uri_patterns]. Optional
       [sources], [limit], and [cursor]. *)
   let query_labels_parsed (s : Session.session) ~uri_patterns ?sources ?limit
       ?cursor () : query_labels =
-    let bearer_token = Session.bearer_token_from_session s in
-    let application_json = Cohttp_client.application_json_setting_tuple in
-    let headers =
-      Cohttp_client.create_headers_from_pairs [ application_json; bearer_token ]
-    in
-    let base_url = App.create_base_url s in
-    let url =
-      App.create_endpoint_url base_url (create_label_endpoint "queryLabels")
-    in
-    let body =
-      Cohttp_client.create_body_from_pairs
-        (query_labels_body ~uri_patterns ?sources ?limit ?cursor ())
-    in
-    let resp =
-      Lwt_main.run
-        (Cohttp_client.get_request_with_body_and_headers url body headers)
-    in
-    parse_query_labels (Yojson.Safe.from_string resp)
+    Client.Client.get_json ~session:s "com.atproto.label.queryLabels"
+      (query_labels_body ~uri_patterns ?sources ?limit ?cursor ())
+    |> parse_query_labels
 
   (* ---- signed labels (com.atproto.label.defs#label) -------------------- *)
 
