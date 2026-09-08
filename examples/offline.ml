@@ -1707,11 +1707,10 @@ let () =
     Feed.get_feed_body ~feed:"at://did:plc:alice/app.bsky.feed.generator/hot" ()
     = [ ("feed", "at://did:plc:alice/app.bsky.feed.generator/hot") ]);
   assert (
-    Feed.get_list_feed_body
-      ~list:"at://did:plc:alice/app.bsky.graph.list/mods" ~limit:10 ()
+    Feed.get_list_feed_body ~list:"at://did:plc:alice/app.bsky.graph.list/mods"
+      ~limit:10 ()
     = [
-        ("list", "at://did:plc:alice/app.bsky.graph.list/mods");
-        ("limit", "10");
+        ("list", "at://did:plc:alice/app.bsky.graph.list/mods"); ("limit", "10");
       ]);
   assert (
     Feed.get_actor_feeds_body ~actor:"alice.test" ~limit:2 ~cursor:"c1" ()

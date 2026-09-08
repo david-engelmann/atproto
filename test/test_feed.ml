@@ -54,30 +54,28 @@ let test_feed_query_bodies _ =
        ~feed:"at://did:plc:alice/app.bsky.feed.generator/hot" ~limit:3);
   OUnit2.assert_equal
     [ ("feed", "at://did:plc:alice/app.bsky.feed.generator/hot") ]
-    (Feed.get_feed_body
-       ~feed:"at://did:plc:alice/app.bsky.feed.generator/hot" ());
+    (Feed.get_feed_body ~feed:"at://did:plc:alice/app.bsky.feed.generator/hot"
+       ());
   OUnit2.assert_equal
     [
       ("feed", "at://did:plc:alice/app.bsky.feed.generator/hot");
       ("limit", "5");
       ("cursor", "abc");
     ]
-    (Feed.get_feed_body
-       ~feed:"at://did:plc:alice/app.bsky.feed.generator/hot" ~limit:5
-       ~cursor:"abc" ());
+    (Feed.get_feed_body ~feed:"at://did:plc:alice/app.bsky.feed.generator/hot"
+       ~limit:5 ~cursor:"abc" ());
   OUnit2.assert_equal
     [ ("list", "at://did:plc:alice/app.bsky.graph.list/mods") ]
-    (Feed.get_list_feed_body
-       ~list:"at://did:plc:alice/app.bsky.graph.list/mods" ());
+    (Feed.get_list_feed_body ~list:"at://did:plc:alice/app.bsky.graph.list/mods"
+       ());
   OUnit2.assert_equal
     [
       ("list", "at://did:plc:alice/app.bsky.graph.list/mods");
       ("limit", "10");
       ("cursor", "next");
     ]
-    (Feed.get_list_feed_body
-       ~list:"at://did:plc:alice/app.bsky.graph.list/mods" ~limit:10
-       ~cursor:"next" ());
+    (Feed.get_list_feed_body ~list:"at://did:plc:alice/app.bsky.graph.list/mods"
+       ~limit:10 ~cursor:"next" ());
   OUnit2.assert_equal
     [ ("actor", "alice.test") ]
     (Feed.get_actor_feeds_body ~actor:"alice.test" ());
