@@ -1146,9 +1146,7 @@ let test_queue_moderator_bodies _ =
     "did:plc:mod000111222333444555666"
     (unassigned |> member "did" |> to_string);
   OUnit2.assert_equal `Null (unassigned |> member "reportId");
-  let routed =
-    Ozone.route_reports_body ~start_report_id:11 ~end_report_id:15
-  in
+  let routed = Ozone.route_reports_body ~start_report_id:11 ~end_report_id:15 in
   OUnit2.assert_equal [ "startReportId"; "endReportId" ] (keys routed);
   OUnit2.assert_equal 11 (routed |> member "startReportId" |> to_int);
   OUnit2.assert_equal 15 (routed |> member "endReportId" |> to_int);
