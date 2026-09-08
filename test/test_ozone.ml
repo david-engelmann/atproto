@@ -422,6 +422,35 @@ let test_schedule_action_typed_body _ =
     "raw-tool"
     (raw |> member "modTool" |> member "name" |> to_string)
 
+let test_cancel_scheduled_actions_body _ =
+  let open Yojson.Safe.Util in
+  let keys json =
+    match json with
+    | `Assoc fields -> List.map fst fields
+    | _ -> OUnit2.assert_failure "expected Assoc"
+  in
+  let body =
+    Ozone.cancel_scheduled_actions_body
+      ~subjects:[ "did:plc:abc123xyz0001112223333" ]
+      ~comment:"false positive" ()
+  in
+  OUnit2.assert_equal [ "subjects"; "comment" ] (keys body);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:abc123xyz0001112223333"
+    (body |> member "subjects" |> to_list |> List.hd |> to_string);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "false positive"
+    (body |> member "comment" |> to_string);
+  let omitted =
+    Ozone.cancel_scheduled_actions_body
+      ~subjects:[ "did:plc:abc123xyz0001112223333" ]
+      ()
+  in
+  OUnit2.assert_equal [ "subjects" ] (keys omitted);
+  OUnit2.assert_equal `Null (omitted |> member "comment")
+
 let test_parse_typed_event_and_subject _ =
   let ev =
     Ozone.parse_mod_event
@@ -1174,6 +1203,8 @@ let suite =
          >:: test_emit_event_typed_body_roundtrip;
          "test_parse_timeline_and_schedule" >:: test_parse_timeline_and_schedule;
          "test_schedule_action_typed_body" >:: test_schedule_action_typed_body;
+         "test_cancel_scheduled_actions_body"
+         >:: test_cancel_scheduled_actions_body;
          "test_parse_typed_event_and_subject"
          >:: test_parse_typed_event_and_subject;
          "test_parse_leftover_event_and_status"

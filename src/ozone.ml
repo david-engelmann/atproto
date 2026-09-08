@@ -1179,17 +1179,22 @@ module Ozone = struct
       (Yojson.Safe.to_string body)
     |> parse_scheduled_actions
 
-  (** Cancel scheduled actions via
-      [tools.ozone.moderation.cancelScheduledActions]. *)
-  let cancel_scheduled_actions (s : Session.session) ~proxy ~subjects ?comment
-      () : batch_result =
+  (** JSON body for [tools.ozone.moderation.cancelScheduledActions]. *)
+  let cancel_scheduled_actions_body ~subjects ?comment () : Yojson.Safe.t =
     let fields =
       [ ("subjects", `List (List.map (fun s -> `String s) subjects)) ]
       @ match comment with Some c -> [ ("comment", `String c) ] | None -> []
     in
+    `Assoc fields
+
+  (** Cancel scheduled actions via
+      [tools.ozone.moderation.cancelScheduledActions]. *)
+  let cancel_scheduled_actions (s : Session.session) ~proxy ~subjects ?comment
+      () : batch_result =
     Client.post_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.moderation.cancelScheduledActions"
-      (Yojson.Safe.to_string (`Assoc fields))
+      (Yojson.Safe.to_string
+         (cancel_scheduled_actions_body ~subjects ?comment ()))
     |> parse_batch_result
 
   type template = {
