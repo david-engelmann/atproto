@@ -1,4 +1,4 @@
-open Session
+open Auth
 open Cohttp_client
 open App
 open Http_client
@@ -85,7 +85,7 @@ module Client = struct
       | Some token -> [ bearer_jwt token ]
       | None -> (
           match session with
-          | Some s -> [ Session.bearer_token_from_session s ]
+          | Some s -> [ Auth.bearer_token_from_session s ]
           | None -> []))
       @ extra
     in
@@ -96,7 +96,7 @@ module Client = struct
     | Some h -> h
     | None -> (
         match session with
-        | Some s -> s.Session.atp_host
+        | Some s -> s.Auth.atp_host
         | None -> public_appview_host)
 
   let nsid_url ?session ?host nsid =
@@ -146,7 +146,7 @@ module Client = struct
     | Some token -> [ bearer_jwt token ]
     | None -> (
         match session with
-        | Some s -> [ Session.bearer_token_from_session s ]
+        | Some s -> [ Auth.bearer_token_from_session s ]
         | None -> []))
     @ extra
 
@@ -188,7 +188,7 @@ module Client = struct
   (** Mint [com.atproto.server.getServiceAuth] for [aud] / [lxm] using
       the session [at+jwt]. AppView and Ozone want this JWT, not the
       PDS access token. *)
-  let get_service_auth (s : Session.session) ~aud ~lxm () : string =
+  let get_service_auth (s : Auth.session) ~aud ~lxm () : string =
     let json =
       get_json ~session:s "com.atproto.server.getServiceAuth"
         [ ("aud", aud); ("lxm", lxm) ]

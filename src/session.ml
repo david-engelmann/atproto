@@ -3,7 +3,7 @@ open Error
 
 (** [com.atproto.server.createSession] / [getSession] and the live session record. *)
 module Session = struct
-  type session = {
+  type session = Auth.session = {
     username : string;
     password : string;
     atp_host : string;
@@ -62,11 +62,7 @@ module Session = struct
     }
 
   (** PDS host from [ATP_HOST] (default [bsky.social]). *)
-  let atp_host_from_env : string =
-    let atp_host =
-      try Sys.getenv "ATP_HOST" with Not_found -> "bsky.social"
-    in
-    atp_host
+  let atp_host_from_env = Auth.atp_host_from_env
 
   (** Create a password session ([com.atproto.server.createSession]) on
       [ATP_HOST] (default [bsky.social]). Optional [auth_factor_token] and
@@ -88,9 +84,7 @@ module Session = struct
     { username; password; atp_host; auth = session_auth; did_doc }
 
   (** [Authorization: Bearer] header pair from the session access JWT. *)
-  let bearer_token_from_session (s : session) : string * string =
-    let bearer_header = "Bearer " ^ s.auth.token in
-    ("Authorization", bearer_header)
+  let bearer_token_from_session = Auth.bearer_token_from_session
 
   (** [Authorization: Bearer] header pair from the session refresh JWT. *)
   let refresh_token_from_session (s : session) : string * string =

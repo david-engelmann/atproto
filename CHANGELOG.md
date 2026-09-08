@@ -528,10 +528,11 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   `refresh_session` / `delete_session` post via `Client.post_json`
   with Bearer `refreshJwt` (no JSON body). `delete_session` still
   returns `string` (empty procedure output stays `""`). Parse return
-  types and public signatures stay unchanged. `create_session` stays
-  on Auth Cohttp. Does not invent leftover unused lexicon fields. No
-  lexicon pin bump. No hosted chat / video / Tap / phone / contacts /
-  push faked
+  types and public signatures stay unchanged. `Session.session` is
+  the same record as `Auth.session` so Client / App can hop without
+  a Session cycle. `create_session` stays on Auth Cohttp. Does not
+  invent leftover unused lexicon fields. No lexicon pin bump. No
+  hosted chat / video / Tap / phone / contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
