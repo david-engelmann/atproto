@@ -445,7 +445,8 @@ let test_cancel_scheduled_actions_body _ =
     (body |> member "comment" |> to_string);
   let omitted =
     Ozone.cancel_scheduled_actions_body
-      ~subjects:[ "did:plc:abc123xyz0001112223333" ] ()
+      ~subjects:[ "did:plc:abc123xyz0001112223333" ]
+      ()
   in
   OUnit2.assert_equal [ "subjects" ] (keys omitted);
   OUnit2.assert_equal `Null (omitted |> member "comment")
