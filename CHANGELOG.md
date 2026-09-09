@@ -3,31 +3,201 @@
 All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Package version stays **0.1.0** (`dune-project` / `atproto.opam`). This
-revision does not retag or bump to 1.0.0.
+Package version is **1.0.0** (`dune-project` / `atproto.opam`). This
+revision does **not** create a git tag or GitHub Release.
 
 This file is a human-readable release history for opam reviewers and
-third-party users. It reorganizes the [#112](https://github.com/david-engelmann/atproto/pull/112)–[#235](https://github.com/david-engelmann/atproto/pull/235)
-chain into thematic sections. PR numbers are kept so the history can
-still be traced; they are not a substitute for `git log`.
+third-party users. PR numbers are kept so the history can still be
+traced; they are not a substitute for `git log`.
 
 ## [Unreleased]
 
-Preparation notes toward a future **1.0.0**. `dune-project` version
-stays **0.1.0**. Nothing in this section is a release.
+### Notes
+
+- No lexicon pin bump. Official lexicons stay bluesky-social/atproto
+  [`f0d4877a`](https://github.com/bluesky-social/atproto/commit/f0d4877a03dc8ede0d3e9a36d5b72ada63b5d2e0).
+- Hosted-only products stay listed, not faked (see the 1.0.0 Notes
+  below).
+
+## [1.0.0] - 2026-09-09
+
+First stable packaged surface. What is new since the tagged **0.1.0**
+(`8f44fb9` / [#228](https://github.com/david-engelmann/atproto/pull/228)).
+
+This revision sets `dune-project` / `atproto.opam` to **1.0.0**. It
+does **not** create a git tag or GitHub Release. Tagging and the
+opam-repository 1.0.0 PR remain maintainer follow-ups. The 0.1.0
+opam-repository PR
+[#30695](https://github.com/ocaml/opam-repository/pull/30695) is
+separate.
+
+Requires OCaml `>= 4.14.1` and `< 5.4` (CI `build`: 4.14.1 and 5.3.0).
+Jane Street `core` / `async` / `ppx_jane` / `zstandard` are
+`>= v0.16.0` and `< v0.18~` (v0.16 on 4.14, v0.17 on 5.1–5.3).
+ocamlformat stays **0.25.1**. Official lexicon pin stays `f0d4877a`
+(no bump in [#229](https://github.com/david-engelmann/atproto/pull/229)–[#236](https://github.com/david-engelmann/atproto/pull/236)).
+System libzstd is required for Jetstream dict-zstd (Ubuntu/Debian
+`libzstd-dev`, Homebrew `zstd`).
+
+A GitHub pin is the 1.0.0 development surface:
+
+```shell
+opam pin add atproto git+https://github.com/david-engelmann/atproto.git
+```
+
+### Added
+
+#### OCaml 5 / packaging
+
+- OCaml 5 / packaging modernization
+  ([#229](https://github.com/david-engelmann/atproto/pull/229)): dune
+  lang 3.11, OCaml `>= 4.14.1` and `< 5.4`, Jane Street
+  `>= v0.16.0` and `< v0.18~`, CI `build` on 4.14.1 + 5.3.0.
+  ocamlformat stays **0.25.1**. Public Jane Street v0.17 does not
+  support OCaml 5.4+; 5.0 is untested (v0.17 needs 5.1+)
+
+#### HTTPS OAuth
+
+- Public HTTPS client-metadata + production browser-login path
+  ([#230](https://github.com/david-engelmann/atproto/pull/230)):
+  `https_client_id` / `public_https_metadata` /
+  `validate_https_metadata` / `metadata_document` /
+  `metadata_http_response` / `fetch_client_metadata` /
+  `start_browser_login` / `complete_browser_login`.
+  `examples/oauth_https_metadata.ml` is offline scaffolding.
+  **The application still hosts the HTTPS document and redirect URI.**
+  This library does not host a login UI
+
+#### Chat (hosted `chat.bsky.*`)
+
+- Hosted Bluesky chat client
+  ([#231](https://github.com/david-engelmann/atproto/pull/231)):
+  `Oauth.default_chat_scope` / `Oauth_scope.has_chat` /
+  `Chat.service_aud` / `list_convos_body` / `list_convos_service` /
+  `get_messages_service` / `send_message_service` on `api.bsky.chat`.
+  `examples/chat_production.ml` is offline wiring.
+  **No OSS chat backend** is started or stubbed
+
+#### Video (hosted `app.bsky.video.*`)
+
+- Hosted Bluesky video client
+  ([#232](https://github.com/david-engelmann/atproto/pull/232)):
+  `Video.pds_audience` from `#atproto_pds` /
+  `upload_service_auth_body` / `mint_upload_token` /
+  `get_upload_limits_service` / `get_job_status_body` /
+  `upload_video_body` / `part_slice` / `embed_of_blob` /
+  `embed_of_job`. `examples/video_production.ml` is offline wiring.
+  **No hosted transcoder** is started or stubbed
+
+#### Repo_sync / TAP-like indexer
+
+- Library-ready indexer / backfill path
+  ([#233](https://github.com/david-engelmann/atproto/pull/233)):
+  `Repo_sync.export_record_proof` / `export_record_proof_bytes` /
+  `walk_json` / `record_json` / `status_to_string`,
+  `Dag_cbor.to_yojson`. `examples/repo_sync_indexer.ml` is an
+  offline fixture sketch. **Not a hosted Tap**
+
+#### Jetstream archive token
+
+- Archive HTTP operator-token env
+  ([#234](https://github.com/david-engelmann/atproto/pull/234)):
+  `JETSTREAM_API_KEY` / `JETSTREAM_ARCHIVE_TOKEN` / `~token` →
+  `Authorization: Bearer`; `require_archive_token` /
+  `~require_token`. `examples/jetstream_archive.ml` is offline
+  wiring. **The operator must supply the key.** This library does
+  not invent one
+
+#### Phone / contacts / push
+
+- Hosted phone / contacts / push client
+  ([#235](https://github.com/david-engelmann/atproto/pull/235)):
+  `Contact.get_matches_body` / `get_matches_appview` / `*_service`,
+  `Notification.register_push_body` / `unregister_push_body` /
+  `platform_ios` / `effective_push_proxy` / `Xrpc.notif_proxy`,
+  `ATP_PHONE` / `ATP_PUSH` skip gates.
+  `examples/contacts_production.ml` is offline wiring.
+  **No SMS gateway and no APNs/FCM.**
+  `requestPhoneVerification` is not faked
+
+#### Docs
+
+- Human-readable Keep a Changelog history
+  ([#236](https://github.com/david-engelmann/atproto/pull/236)):
+  `## [0.1.0]` thematic sections for the tagged RC. This **1.0.0**
+  section is the packaged surface since that tag
+
+### Changed
+
+- Package version `0.1.0` → `1.0.0` (`dune-project` /
+  `atproto.opam`)
+- OCaml upper bound lifted from `< 5.0` to `< 5.4`
+  ([#229](https://github.com/david-engelmann/atproto/pull/229))
+
+### Fixed
+
+- CI `Install libzstd` drops every GitHub-runner apt source that
+  points at `dl.google.com`, so a stale Packages hash cannot fail
+  required jobs
+  ([#230](https://github.com/david-engelmann/atproto/pull/230))
 
 ### Notes
 
-- No lexicon pin bump in this revision. Official lexicons stay
-  bluesky-social/atproto [`f0d4877a`](https://github.com/bluesky-social/atproto/commit/f0d4877a03dc8ede0d3e9a36d5b72ada63b5d2e0).
-- Hosted-only products stay listed, not faked (see the 0.1.0 Notes below).
+Honesty constraints for this 1.0.0 surface:
+
+- **No fake OSS chat backend**, video transcoder, Tap host, SMS
+  gateway, or APNs/FCM push backend
+- **The app still hosts** HTTPS `client-metadata.json` (that URL is
+  `client_id`) and receives the browser redirect
+- **Jetstream archive HTTP** on Bluesky-hosted instances needs an
+  operator API key (`JETSTREAM_API_KEY` / `JETSTREAM_ARCHIVE_TOKEN`,
+  or `~token`). The library does not invent one
+- **No lexicon pin bump** in the #229–#236 series (pin stays
+  `f0d4877a`). Newly published official lexicons after that SHA
+  fail the coverage gate until the snapshot and bindings (or an
+  explicit skip) are updated
+- Hosted-only SMS / APNs-FCM / unhosted feed generator stay listed
+  not faked (`requestPhoneVerification` is not faked)
+
+### Not in this release
+
+- An application still has to host the HTTPS `client-metadata.json`
+  and receive the browser redirect (this library builds/validates
+  the document and drives authorize → code → token; it does not
+  host them or a login UI)
+- Hosted Tap service (the indexer / backfill library path is
+  documented and library-ready; this package still does not fake
+  a Tap host)
+- Hosted video transcoder (the production client path is documented
+  and library-ready; this package still does not fake a local
+  transcoder)
+- Official OSS chat backend (TestNetwork does not start one). The
+  production hosted path is documented and library-ready; this
+  package still does not fake a local chat service
+- Newly published official lexicons after bluesky-social/atproto
+  `f0d4877a` — the coverage gate fails until the pin snapshot and
+  bindings (or an explicit skip) are updated
+- Jetstream archive HTTP download on Bluesky-hosted instances still
+  requires the operator to supply an API key
+- Hosted SMS / phone-verification gateway (the production client
+  path is documented and library-ready; this package still does
+  not fake `requestPhoneVerification` or a local SMS service)
+- Official OSS push gateway (official Bluesky push is closed to
+  the official app; the production client path is documented and
+  library-ready; this package still does not fake APNs/FCM)
+- Permissioned data / spaces / LtHash (no stable public spec yet)
+- A git tag, GitHub Release, or opam-repository 1.0.0 PR — those
+  are maintainer follow-ups after this packaging PR merges
 
 ## [0.1.0] - 2026-09-09
 
-First public opam release candidate. Maintained for third-party use.
+First public opam release candidate, tagged at
+[#228](https://github.com/david-engelmann/atproto/pull/228)
+(`8f44fb9`). The packaged GitHub surface is now [1.0.0](#100---2026-09-09).
 
 `opam install atproto` after the [opam-repository PR](https://github.com/ocaml/opam-repository/pull/30695)
-merges. A GitHub pin still works for development:
+merges installs this 0.1.0 cut. A GitHub pin still works for
+development:
 
 ```shell
 opam pin add atproto git+https://github.com/david-engelmann/atproto.git
@@ -39,8 +209,12 @@ Jane Street `core` / `async` / `ppx_jane` / `zstandard` are
 libzstd is required for Jetstream dict-zstd (Ubuntu/Debian
 `libzstd-dev`, Homebrew `zstd`).
 
-The first installable cut was 2026-09-03. The packaged surface today
-is that client plus [#112](https://github.com/david-engelmann/atproto/pull/112)–[#235](https://github.com/david-engelmann/atproto/pull/235).
+The first installable cut was 2026-09-03. Work in
+[#229](https://github.com/david-engelmann/atproto/pull/229)–[#236](https://github.com/david-engelmann/atproto/pull/236)
+shipped on main after the 0.1.0 tag while the package version was
+still 0.1.0; that wave is packaged as [1.0.0](#100---2026-09-09).
+The sections below remain the human-readable 0.1.0-era history
+(through [#235](https://github.com/david-engelmann/atproto/pull/235)).
 
 ### Added
 
