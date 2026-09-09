@@ -83,26 +83,41 @@ let test_export_record_proof_and_walk_json _ =
       ]
   in
   let post_bytes =
-    Atproto.Dag_cbor.Dag_cbor.encode
-      (Atproto.Dag_cbor.Dag_cbor.of_yojson post)
+    Atproto.Dag_cbor.Dag_cbor.encode (Atproto.Dag_cbor.Dag_cbor.of_yojson post)
+  in
+  let like =
+    `Assoc
+      [
+        ("$type", `String "app.bsky.feed.like");
+        ("createdAt", `String "2024-01-01T00:00:01.000Z");
+      ]
+  in
+  let like_bytes =
+    Atproto.Dag_cbor.Dag_cbor.encode (Atproto.Dag_cbor.Dag_cbor.of_yojson like)
   in
   let va = Cid.create post_bytes in
-  let vb = Cid.create ~codec:Cid.Raw "rec-b" in
+  let vb = Cid.create like_bytes in
   let t, _ = Mst.insert t "app.bsky.feed.post/aaa" va in
   let t, _ = Mst.insert t "app.bsky.feed.like/bbb" vb in
   let car =
     car_of_tree ~did ~rev:"3jzfcijpj2z2a"
-      ~records:[ (va, post_bytes); (vb, "rec-b") ]
+      ~records:[ (va, post_bytes); (vb, like_bytes) ]
       t
   in
   let snap = Repo_sync.open_car car in
-  let proof = Repo_sync.export_record_proof snap ~path:"app.bsky.feed.post/aaa" in
+  let proof =
+    Repo_sync.export_record_proof snap ~path:"app.bsky.feed.post/aaa"
+  in
   let cid, bytes =
     Repo_sync.verify_record_proof ~car:proof ~path:"app.bsky.feed.post/aaa"
   in
   OUnit2.assert_bool "exported proof cid" (Cid.equal cid va);
-  OUnit2.assert_equal ~printer:Yojson.Safe.to_string post
-    (Repo_sync.record_json bytes);
+  let decoded = Repo_sync.record_json bytes in
+  OUnit2.assert_equal ~printer:Yojson.Safe.to_string
+    (`String "app.bsky.feed.post")
+    (Yojson.Safe.Util.member "$type" decoded);
+  OUnit2.assert_equal ~printer:Yojson.Safe.to_string (`String "hello indexer")
+    (Yojson.Safe.Util.member "text" decoded);
   OUnit2.assert_bool "like omitted from proof"
     (match Car.find_block proof vb with None -> true | Some _ -> false);
   let walked = Repo_sync.walk_json snap in
@@ -115,11 +130,17 @@ let test_export_record_proof_and_walk_json _ =
   in
   (match post_json with
   | Some json ->
-      OUnit2.assert_equal ~printer:Yojson.Safe.to_string post json
+      OUnit2.assert_equal ~printer:Yojson.Safe.to_string
+        (`String "hello indexer")
+        (Yojson.Safe.Util.member "text" json)
   | None -> OUnit2.assert_failure "walk_json missing post");
-  OUnit2.assert_equal ~printer:(fun x -> x) "desynchronized"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "desynchronized"
     (Repo_sync.status_to_string Repo_sync.Desynchronized);
-  OUnit2.assert_equal ~printer:(fun x -> x) "synchronized"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "synchronized"
     (Repo_sync.status_to_string Repo_sync.Synchronized)
 
 let test_record_table_backfill_and_commit _ =
