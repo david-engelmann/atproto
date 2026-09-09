@@ -4,7 +4,7 @@
    @atproto/dev-env 0.6.4 TestNetwork does not start either. No
    network is used here.
 
-   Contacts (app.bsky.contact.*):
+   Contacts (app.bsky.contact.* lexicons):
 
      1. Password session: Contact.get_matches / get_sync_status /
         import_contacts through the PDS / entryway.
@@ -40,7 +40,8 @@ open Atproto.Xrpc
 open Atproto.Client
 
 let () =
-  assert (Xrpc.proxy_to_string Xrpc.notif_proxy = "did:web:api.bsky.app#bsky_notif");
+  assert (
+    Xrpc.proxy_to_string Xrpc.notif_proxy = "did:web:api.bsky.app#bsky_notif");
   assert (Xrpc.notif_proxy.service = "bsky_notif");
   assert (Notification.platform_ios = "ios");
   assert (Notification.platform_android = "android");
@@ -76,7 +77,8 @@ let () =
   assert (start |> member "phone" |> to_string = "+12125550123");
   assert (verify |> member "code" |> to_string = "123456");
   assert (import |> member "token" |> to_string = "jwt");
-  assert (dismiss |> member "subject" |> to_string = "did:plc:abc123xyz0001112223333");
+  assert (
+    dismiss |> member "subject" |> to_string = "did:plc:abc123xyz0001112223333");
   assert (notify |> member "from" |> to_string = "did:plc:from");
   (match Contact.remove_data_body with `Assoc [] -> () | _ -> assert false);
   let signup =

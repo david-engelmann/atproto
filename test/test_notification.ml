@@ -233,8 +233,9 @@ let test_push_and_activity_bodies _ =
     [ ("limit", "10"); ("cursor", "a1") ]
     (Notification.list_activity_subscriptions_body ~limit:10 ~cursor:"a1" ());
   OUnit2.assert_equal ~printer:(fun x -> x) "ios" Notification.platform_ios;
-  OUnit2.assert_equal ~printer:(fun x -> x) "android"
-    Notification.platform_android;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "android" Notification.platform_android;
   OUnit2.assert_equal ~printer:(fun x -> x) "web" Notification.platform_web;
   OUnit2.assert_equal None (Notification.effective_push_proxy ());
   let gateway =
@@ -267,7 +268,8 @@ let test_push_and_activity_bodies _ =
   ignore Notification.push_live_enabled
 
 let test_register_push_opt_in _ =
-  skip_if (not Notification.push_live_enabled)
+  skip_if
+    (not Notification.push_live_enabled)
     "ATP_PUSH not set; hosted push not faked";
   skip_if
     (not Auth.has_live_credentials)
@@ -280,7 +282,7 @@ let test_register_push_opt_in _ =
   | Some token, Some service_did, Some app_id
     when String.trim token <> ""
          && String.trim service_did <> ""
-         && String.trim app_id <> "" ->
+         && String.trim app_id <> "" -> (
       let test_session = create_test_session () in
       let platform =
         match Sys.getenv_opt "ATP_PUSH_PLATFORM" with
@@ -291,8 +293,8 @@ let test_register_push_opt_in _ =
         Notification.register_push test_session ~service_did ~token ~platform
           ~app_id ();
         OUnit2.assert_bool "registerPush accepted" true
-      with exn ->
-        skip_if true ("registerPush skipped: " ^ Printexc.to_string exn)
+      with
+      | exn -> skip_if true ("registerPush skipped: " ^ Printexc.to_string exn))
   | _ -> skip_if true "ATP_PUSH_TOKEN / ATP_PUSH_DID / ATP_PUSH_APP_ID not set"
 
 let test_get_unread_count _ =

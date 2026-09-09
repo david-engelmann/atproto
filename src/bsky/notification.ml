@@ -620,8 +620,7 @@ module Notification = struct
       sent fields only: optional [limit] / [cursor]. *)
   let list_activity_subscriptions_body ?limit ?cursor () :
       (string * string) list =
-    Client.Client.opt_int "limit" limit
-    @ Client.Client.opt_pair "cursor" cursor
+    Client.Client.opt_int "limit" limit @ Client.Client.opt_pair "cursor" cursor
 
   (** Activity subscriptions via
       [app.bsky.notification.listActivitySubscriptions]. Optional
@@ -702,8 +701,8 @@ module Notification = struct
       send [atproto-proxy] (some PDS builds do not route
       [unregisterPush] to [\#bsky_notif] themselves). Shares
       [unregister_push_body]. *)
-  let unregister_push (s : Session.session) ?proxy ~service_did ~token
-      ~platform ~app_id () : unit =
+  let unregister_push (s : Session.session) ?proxy ~service_did ~token ~platform
+      ~app_id () : unit =
     ignore
       (Client.Client.post_json ~session:s
          ~extra:(push_proxy_headers ?proxy ())

@@ -1178,7 +1178,8 @@ let () =
   ignore Contact.phone_live_enabled;
   ignore Contact.phone_number_from_env;
   (match Contact.remove_data_body with `Assoc [] -> () | _ -> assert false);
-  assert (Xrpc.proxy_to_string Xrpc.notif_proxy = "did:web:api.bsky.app#bsky_notif");
+  assert (
+    Xrpc.proxy_to_string Xrpc.notif_proxy = "did:web:api.bsky.app#bsky_notif");
   assert (Notification.platform_ios = "ios");
   assert (Notification.effective_push_proxy () = None);
   assert (Notification.list_activity_subscriptions_body () = []);

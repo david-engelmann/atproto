@@ -158,8 +158,8 @@ module Contact = struct
   (** [get_sync_status] on AppView (service-auth when [session] is
       present). *)
   let get_sync_status_appview ?session ?host ?aud () : sync_status_opt =
-    Client.get_json_appview ?session ?host ?aud
-      "app.bsky.contact.getSyncStatus" []
+    Client.get_json_appview ?session ?host ?aud "app.bsky.contact.getSyncStatus"
+      []
     |> parse_sync_status_opt
 
   (** [get_sync_status] on the AppView host with a service-auth JWT. *)
