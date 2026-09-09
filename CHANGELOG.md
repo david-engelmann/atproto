@@ -1,8 +1,8 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through Ozone leftover query_reports / search_repos
-query-pair helpers
+shipped through [#225](https://github.com/david-engelmann/atproto/pull/225):
+Ozone leftover query_reports / search_repos query-pair helpers
 (`query_reports_body` / `search_repos_body`;
 `query_reports` / `search_repos` share those pairs)
 on top of
@@ -904,7 +904,8 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   getPostThreadOtherV2 `[("anchor", ...)]`. No leftover live hop
   (live getPostThreadV2 already exists). No lexicon pin bump. No
   hosted chat / video / Tap / phone / contacts / push faked
-- Ozone leftover query_reports / search_repos query-pair helpers
+- [#225](https://github.com/david-engelmann/atproto/pull/225): Ozone
+  leftover query_reports / search_repos query-pair helpers
   (`query_reports_body` / `search_repos_body`). Currently sent
   fields only: required `status`, optional `queueId` / `reportTypes`
   / `subject` / `did` / `subjectType` / `collections` /
@@ -1520,7 +1521,8 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   invent leftover unused getSuggestionsSkeleton / getPostThreadV2 /
   getSuggestedUsers fields. Hosted-only chat / video / Tap / phone /
   contacts / push stay listed not faked
-- Ozone leftover query_reports / search_repos query-pair helpers
+- [#225](https://github.com/david-engelmann/atproto/pull/225): Ozone
+  leftover query_reports / search_repos query-pair helpers
   (`query_reports_body` / `search_repos_body`). Currently sent
   fields only. `query_reports` / `search_repos` share those pairs.
   Distinct from #219 `query_events_body` / `query_statuses_body`
