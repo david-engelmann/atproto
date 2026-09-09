@@ -1,7 +1,15 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#222](https://github.com/david-engelmann/atproto/pull/222):
+shipped through [#223](https://github.com/david-engelmann/atproto/pull/223):
+Unspecced leftover searchPostsSkeleton / searchActorsSkeleton /
+searchStarterPacksSkeleton query-pair helpers
+(`search_posts_skeleton_body` / `search_actors_skeleton_body` /
+`search_starter_packs_skeleton_body`;
+`search_posts_skeleton` / `search_actors_skeleton` /
+`search_starter_packs_skeleton` share those pairs)
+on top of
+[#222](https://github.com/david-engelmann/atproto/pull/222):
 Feed leftover searchPostsV2 / getQuotes / getActorLikes query-pair helpers
 (`search_posts_v2_body` / `get_quotes_body` / `get_actor_likes_body`;
 `search_posts_v2` / `get_quotes` / `get_actor_likes` share those pairs)
