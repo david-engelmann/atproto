@@ -1,7 +1,13 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#228](https://github.com/david-engelmann/atproto/pull/228):
+shipped through the OCaml 5 / packaging modernization hop toward 1.0.0
+(dune lang 3.11, OCaml `>= 4.14.1` and `< 5.4`, Jane Street
+`core` / `async` / `ppx_jane` / `zstandard` `>= v0.16.0` and
+`< v0.18~`, CI `build` on 4.14.1 + 5.3.0; package version stays
+`0.1.0` and is not retagged)
+on top of
+[#228](https://github.com/david-engelmann/atproto/pull/228):
 opam-repository publish prep (package description / README / CONTRIBUTING /
 odoc landing say the package is published on opam-repository;
 `opam install atproto` after the opam-repository PR merges; GitHub pin
@@ -309,7 +315,10 @@ This package is published on the public
 [opam-repository](https://github.com/ocaml/opam-repository)
 (`opam install atproto`; pending merge of the opam-repository PR).
 Pin the GitHub repository for development (see the README). Requires
-OCaml `>= 4.14.1` and `< 5.0`.
+OCaml `>= 4.14.1` and `< 5.4` (CI: 4.14.1 and 5.3.0). Jane Street
+`core` / `async` / `ppx_jane` / `zstandard` are `>= v0.16.0` and
+`< v0.18~` (v0.16 on 4.14, v0.17 on 5.1–5.3). System libzstd is
+still required.
 
 ## 0.1.0 — 2026-09-03
 
@@ -1601,6 +1610,17 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   PR merges; GitHub pin still works for development. Hosted-only
   chat / video / Tap / phone / contacts / push stay listed not faked.
   No lexicon pin bump
+- OCaml 5 / packaging modernization hop toward 1.0.0. Lift the
+  hard `ocaml < 5.0` ceiling to `>= 4.14.1` and `< 5.4`. Pin Jane
+  Street `core` / `async` / `ppx_jane` / `zstandard` to
+  `>= v0.16.0` and `< v0.18~` so 4.14 resolves v0.16 and OCaml
+  5.1–5.3 resolves v0.17 (the 5-ready line). CI `build` matrix is
+  4.14.1 + 5.3.0; `lint-*` and `local-pds` stay on 4.14.1.
+  ocamlformat stays **0.25.1** (`lint-fmt` on 4.14.1; that release
+  needs OCaml `< 5.2`). Bump dune lang to 3.11 (Jane Street v0.17
+  requires dune `>= 3.11`). Package version stays `0.1.0` (do not
+  retag). Hosted-only chat / video / Tap / phone / contacts / push
+  stay listed not faked. No lexicon pin bump
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 

@@ -1,4 +1,4 @@
-(lang dune 2.9)
+(lang dune 3.11)
 (name atproto)
 (version 0.1.0)
 (generate_opam_files true)
@@ -14,14 +14,20 @@
  (name atproto)
  (synopsis "OCaml toolkit for the AT Protocol")
  (description
-  "OCaml client and protocol library for the AT Protocol (XRPC, lexicons, repo sync, identity, AppView, Ozone, chat, site.standard, and com.germnetwork records). An HTTP/2 TLS client is included for XRPC calls that need status and response headers.\n\nPublic modules include Auth, Session, Actor, Feed, Graph, Bookmark, Video, Unspecced, Labeler, Chat, Ozone, Admin, Repo, Repo_sync, Server, Identity, Did_plc, Did_web, Did_key, Sync, Cid, Car, Dag_cbor, Mst, Tid, At_uri, Lexicon, Temp, Firehose, Websocket, Jetstream, Oauth, Oauth_scope, Label, Xrpc, Error, Syntax, Embed, Facet, Records, Notification, Draft, Contact, Ageassurance, Moderation, Site, Germnetwork, Http_client, Request, and Response. Chat convo/actor clients always send atproto-proxy (default did:web:api.bsky.chat#bsky_chat, the session DID-document #bsky_chat service, or ATP_CHAT_DID).\n\nVideo support is a client for the hosted video service (byte upload + job-status poll). This package does not host a PDS, OAuth client-metadata document, browser login, or video transcoder.\n\nThis package is published on the public opam-repository (`opam install atproto`). Pin the GitHub repository for development (see the README). Requires OCaml >= 4.14.1 and < 5.0.")
+  "OCaml client and protocol library for the AT Protocol (XRPC, lexicons, repo sync, identity, AppView, Ozone, chat, site.standard, and com.germnetwork records). An HTTP/2 TLS client is included for XRPC calls that need status and response headers.\n\nPublic modules include Auth, Session, Actor, Feed, Graph, Bookmark, Video, Unspecced, Labeler, Chat, Ozone, Admin, Repo, Repo_sync, Server, Identity, Did_plc, Did_web, Did_key, Sync, Cid, Car, Dag_cbor, Mst, Tid, At_uri, Lexicon, Temp, Firehose, Websocket, Jetstream, Oauth, Oauth_scope, Label, Xrpc, Error, Syntax, Embed, Facet, Records, Notification, Draft, Contact, Ageassurance, Moderation, Site, Germnetwork, Http_client, Request, and Response. Chat convo/actor clients always send atproto-proxy (default did:web:api.bsky.chat#bsky_chat, the session DID-document #bsky_chat service, or ATP_CHAT_DID).\n\nVideo support is a client for the hosted video service (byte upload + job-status poll). This package does not host a PDS, OAuth client-metadata document, browser login, or video transcoder.\n\nThis package is published on the public opam-repository (`opam install atproto`). Pin the GitHub repository for development (see the README). Requires OCaml >= 4.14.1 and < 5.4 (CI: 4.14.1 and 5.3.0). Jane Street core / async / ppx_jane / zstandard are pinned to >= v0.16.0 and < v0.18~ (v0.16 on OCaml 4.14, v0.17 on OCaml 5.1-5.3). System libzstd is required.")
  (tags
   (atproto bluesky xrpc lexicon))
  (depends
   (ocaml
-   (and (>= 4.14.1) (< 5.0)))
-  core
-  async
+   (and (>= 4.14.1) (< 5.4)))
+  (core
+   (and
+    (>= v0.16.0)
+    (< v0.18~)))
+  (async
+   (and
+    (>= v0.16.0)
+    (< v0.18~)))
   (uri
    (>= 4.2.0))
   yojson
@@ -49,9 +55,9 @@
   (zstandard
    (and
     (>= v0.16.0)
-    (< v0.17)))
-  ppx_jane
-  (ounit2 :with-test)
-  (ocamlformat
-   (and :with-test
-        (= 0.25.1)))))
+    (< v0.18~)))
+  (ppx_jane
+   (and
+    (>= v0.16.0)
+    (< v0.18~)))
+  (ounit2 :with-test)))

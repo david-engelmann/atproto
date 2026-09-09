@@ -16,7 +16,7 @@ Steps, a short OCaml snippet, or the XRPC NSID that failed.
 What you expected instead.
 
 **Environment**
-- OCaml version (package requires `>= 4.14.1` and `< 5.0`; CI tests 4.14.1):
+- OCaml version (package requires `>= 4.14.1` and `< 5.4`; CI tests 4.14.1 and 5.3.0):
 - Install method (`opam pin add atproto git+https://github.com/david-engelmann/atproto.git` or a local clone):
 - `ATP_HOST` / `ATP_SCHEME` (if the call is live; leave blank for a pure library bug):
 

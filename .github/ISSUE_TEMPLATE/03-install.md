@@ -9,7 +9,7 @@ labels: ""
 `opam install atproto`, `opam pin`, `opam install . --deps-only`, or `dune build -p atproto`.
 
 **Environment**
-- OCaml version (must be `>= 4.14.1` and `< 5.0`; CI is 4.14.1):
+- OCaml version (must be `>= 4.14.1` and `< 5.4`; CI is 4.14.1 and 5.3.0):
 - opam version / switch:
 - OS:
 - System libzstd (Jane Street `zstandard` / Jetstream dict-zstd; Ubuntu/Debian `libzstd-dev`, macOS Homebrew `zstd`):
