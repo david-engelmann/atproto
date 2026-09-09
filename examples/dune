@@ -12,7 +12,20 @@
  (libraries atproto)
  (modules quickstart))
 
+(executable
+ (name oauth_https_metadata)
+ (flags
+  (:standard -w +33 -warn-error +33))
+ (libraries atproto yojson)
+ (modules oauth_https_metadata))
+
 (rule
  (alias runtest)
  (action
   (run %{exe:offline.exe})))
+
+(rule
+ (alias runtest)
+ (deps client-metadata.json)
+ (action
+  (run %{exe:oauth_https_metadata.exe} %{dep:client-metadata.json})))

@@ -1,7 +1,13 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#229](https://github.com/david-engelmann/atproto/pull/229):
+shipped through public HTTPS OAuth client-metadata + production
+browser-login path (`https_client_id` / `public_https_metadata` /
+`validate_https_metadata` / `metadata_document` /
+`metadata_http_response` / `fetch_client_metadata` /
+`start_browser_login` / `complete_browser_login`; the application
+still hosts the HTTPS document and redirect URI; no hosted login UI)
+on top of [#229](https://github.com/david-engelmann/atproto/pull/229):
 OCaml 5 / packaging modernization hop toward 1.0.0
 (dune lang 3.11, OCaml `>= 4.14.1` and `< 5.4`, Jane Street
 `core` / `async` / `ppx_jane` / `zstandard` `>= v0.16.0` and
@@ -345,8 +351,10 @@ exposes `(libraries atproto)` for development.
 - Lexicon 1 parse / validate / `to_ocaml`, including bundled official
   documents
 - OAuth / DPoP (`Oauth`, `Oauth_scope`): PKCE S256, PAR, token, refresh,
-  RFC 7009 revoke, granular scopes, official `app.bsky.auth*` /
-  `chat.bsky.authFullChatClient` permission-sets
+  RFC 7009 revoke, public HTTPS client-metadata helpers + production
+  browser-login path (`start_browser_login` / `complete_browser_login`;
+  the app still hosts the HTTPS document), granular scopes, official
+  `app.bsky.auth*` / `chat.bsky.authFullChatClient` permission-sets
 - Jetstream v2 tail + live dict-zstd `subscribeEvents`
   ([#109](https://github.com/david-engelmann/atproto/pull/109): Jane Street
   `zstandard` v0.16, `getZstdDictionary`, v2 `zstdDictionary=<id>`; no
@@ -1623,13 +1631,31 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   requires dune `>= 3.11`). Package version stays `0.1.0` (do not
   retag). Hosted-only chat / video / Tap / phone / contacts / push
   stay listed not faked. No lexicon pin bump
+- Public HTTPS OAuth client-metadata + production browser-login
+  path. `https_client_id` / `public_https_metadata` /
+  `validate_https_metadata` enforce AT Protocol HTTPS `client_id`
+  (no port / query / fragment) and redirect rules (web HTTPS
+  same-origin; native loopback `127.0.0.1` / `[::1]` or
+  reverse-domain custom scheme). `metadata_document` /
+  `metadata_http_headers` / `metadata_http_response` serialize an
+  HTTP 200 `application/json` body for the app to host.
+  `fetch_client_metadata` requires status 200, JSON content-type,
+  and an exact `client_id` match. `start_browser_login` /
+  `complete_browser_login` discover the PDS AS, PAR, build the
+  authorize URL, then parse the redirect and exchange the code.
+  `examples/client-metadata.json` + `examples/oauth_https_metadata.ml`
+  are offline scaffolding, not a hosted login UI. Local TestNetwork
+  loopback metadata stays valid. Hosted-only chat / video / Tap /
+  phone / contacts / push stay listed not faked. No lexicon pin bump
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
 ### Not in this release
 
-- Hosted public HTTPS client-metadata / production browser login against a
-  remote PDS
+- An application still has to host the HTTPS `client-metadata.json`
+  and receive the browser redirect (this library builds/validates
+  the document and drives authorize → code → token; it does not
+  host them or a login UI)
 - Hosted Tap service or video transcoder
 - Official OSS chat backend (TestNetwork does not start one)
 - Newly published official lexicons after bluesky-social/atproto

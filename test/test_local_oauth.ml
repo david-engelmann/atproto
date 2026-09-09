@@ -505,8 +505,7 @@ let with_live_oauth ~handle ~password f =
         Oauth.validate_metadata hosted_meta;
         OUnit2.assert_bool "hosted metadata declares transition:generic"
           (Oauth.contains_scope ~scope:hosted_meta.scope "transition:generic");
-        metadata_json :=
-          Yojson.Safe.to_string (Oauth.metadata_to_json hosted_meta);
+        metadata_json := Oauth.metadata_document hosted_meta;
         let self =
           Oauth.live_http_get ~url:hosted_client_id
             ~headers:[ ("Accept", "application/json") ]

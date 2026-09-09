@@ -13,8 +13,10 @@ let ensure_rng = lazy (Mirage_crypto_rng_unix.use_default ())
     calls use a service-auth JWT, not the DPoP access token and not a
     [createSession] at+jwt. DPoP cannot be sent through [atproto-proxy];
     Ozone privileged writes go to the Ozone host with that JWT.
-    A public HTTPS client_id and a production browser login remain
-    application-level. *)
+    Public HTTPS [client_id] helpers build, validate, and serialize a
+    client-metadata document plus the authorize-redirect → code → token
+    browser path. The application still hosts that document over HTTPS
+    and receives the redirect; this library does not. *)
 module Oauth = struct
   type pkce = { verifier : string; challenge : string; method_ : string }
 
@@ -354,6 +356,23 @@ module Oauth = struct
     "http://localhost?"
     ^ form_encode [ ("redirect_uri", redirect_uri); ("scope", scope) ]
 
+  (** Conventional path for a hosted client-metadata document. *)
+  let default_https_metadata_path = "/oauth-client-metadata.json"
+
+  (** Production HTTPS [client_id] URL ([https://host/path], no port).
+      [host] must not include a port; AT Protocol forbids an explicit
+      port on a public [client_id]. *)
+  let https_client_id ?(path = default_https_metadata_path) ~host () : string =
+    if host = "" then failwith "Oauth: https client_id host is required";
+    if String.contains host ':' then
+      failwith "Oauth: https client_id host must not include a port";
+    let path =
+      if path = "" then default_https_metadata_path
+      else if path.[0] = '/' then path
+      else "/" ^ path
+    in
+    "https://" ^ host ^ path
+
   let dpop_header proof = ("DPoP", proof)
   let authorization_dpop access_token = ("Authorization", "DPoP " ^ access_token)
 
@@ -613,6 +632,215 @@ module Oauth = struct
   let is_localhost_client_id (client_id : string) : bool =
     client_id = "http://localhost" || starts_with client_id "http://localhost?"
 
+  let parse_absolute_uri label s =
+    let u = Uri.of_string s in
+    match (Uri.scheme u, Uri.host u) with
+    | Some scheme, Some host when host <> "" && scheme <> "" -> (u, scheme, host)
+    | _ ->
+        failwith
+          (Printf.sprintf "Oauth: %s is not an absolute URL with a host" label)
+
+  let uri_has_userinfo u =
+    match (Uri.user u, Uri.password u) with
+    | Some _, _ | _, Some _ -> true
+    | None, None -> false
+
+  let path_has_dot_segments path =
+    List.exists
+      (fun seg -> seg = "." || seg = "..")
+      (String.split_on_char '/' path)
+
+  let is_loopback_host host =
+    let host = String.lowercase_ascii host in
+    host = "localhost" || host = "127.0.0.1" || host = "::1" || host = "[::1]"
+
+  let is_loopback_ip_host host =
+    let host = String.lowercase_ascii host in
+    host = "127.0.0.1" || host = "::1" || host = "[::1]"
+
+  (** True for [http://127.0.0.1], [http://[::1]], or [http://localhost]
+      URLs (optional port + path). Local TestNetwork hosts metadata this
+      way; production [client_id] values must be HTTPS. *)
+  let is_loopback_http_uri (uri : string) : bool =
+    try
+      let u, scheme, host = parse_absolute_uri "uri" uri in
+      scheme = "http" && is_loopback_host host && not (uri_has_userinfo u)
+    with Failure _ -> false
+
+  let is_https_url (uri : string) : bool =
+    try
+      let u, scheme, _host = parse_absolute_uri "url" uri in
+      scheme = "https" && not (uri_has_userinfo u)
+    with Failure _ -> false
+
+  (** Native loopback redirect: [http://127.0.0.1] or [http://[::1]]
+      (not the [localhost] hostname). *)
+  let is_loopback_http_redirect (uri : string) : bool =
+    try
+      let u, scheme, host = parse_absolute_uri "redirect_uri" uri in
+      scheme = "http" && is_loopback_ip_host host && not (uri_has_userinfo u)
+    with Failure _ -> false
+
+  let reverse_domain host =
+    String.split_on_char '.' (String.lowercase_ascii host)
+    |> List.rev |> String.concat "."
+
+  (** Native custom-scheme redirect ([com.example.app:/callback]): a
+      reverse-domain scheme, one colon, one slash, then a path. *)
+  let is_native_custom_scheme_redirect ~client_id (redirect : string) : bool =
+    try
+      let _u, scheme, host = parse_absolute_uri "client_id" client_id in
+      if scheme <> "https" then false
+      else
+        match String.index_opt redirect ':' with
+        | None -> false
+        | Some i ->
+            let redir_scheme = String.sub redirect 0 i in
+            let rest =
+              String.sub redirect (i + 1) (String.length redirect - i - 1)
+            in
+            redir_scheme <> "http" && redir_scheme <> "https"
+            && String.length rest >= 1
+            && rest.[0] = '/'
+            && (String.length rest = 1 || rest.[1] <> '/')
+            && String.lowercase_ascii redir_scheme = reverse_domain host
+    with Failure _ -> false
+
+  let uri_origin u =
+    let scheme = match Uri.scheme u with Some s -> s | None -> "" in
+    let host = match Uri.host u with Some h -> h | None -> "" in
+    let host =
+      if String.contains host ':' && not (starts_with host "[") then
+        "[" ^ host ^ "]"
+      else host
+    in
+    match Uri.port u with
+    | Some p -> Printf.sprintf "%s://%s:%d" scheme host p
+    | None -> scheme ^ "://" ^ host
+
+  let same_origin a b =
+    try
+      let ua, _, _ = parse_absolute_uri "url" a in
+      let ub, _, _ = parse_absolute_uri "url" b in
+      uri_origin ua = uri_origin ub
+    with Failure _ -> false
+
+  (** Production HTTPS [client_id]: [https] scheme, no port, no fragment,
+      no userinfo, no query, a non-dot path. *)
+  let is_https_client_id (client_id : string) : bool =
+    try
+      let u, scheme, host = parse_absolute_uri "client_id" client_id in
+      let path = Uri.path u in
+      scheme = "https"
+      && (not (is_loopback_host host))
+      && Uri.port u = None
+      && (not (uri_has_userinfo u))
+      && Uri.fragment u = None
+      && Uri.query u = []
+      && path <> ""
+      && not (path_has_dot_segments path)
+    with Failure _ -> false
+
+  let require_https_url label uri =
+    let u, scheme, _host = parse_absolute_uri label uri in
+    if scheme <> "https" then
+      failwith (Printf.sprintf "Oauth: %s must be an https URL" label);
+    if uri_has_userinfo u then
+      failwith (Printf.sprintf "Oauth: %s must not include userinfo" label)
+
+  (** Raise unless [client_id] is a public HTTPS metadata-document URL. *)
+  let validate_https_client_id (client_id : string) : unit =
+    if is_localhost_client_id client_id then
+      failwith "Oauth: localhost client_id is not a public HTTPS client_id";
+    let u, scheme, host = parse_absolute_uri "client_id" client_id in
+    if scheme <> "https" then
+      failwith "Oauth: public client_id must use the https scheme";
+    if is_loopback_host host then
+      failwith "Oauth: public HTTPS client_id must not use a loopback host";
+    if Uri.port u <> None then
+      failwith "Oauth: public HTTPS client_id must not include a port";
+    if uri_has_userinfo u then
+      failwith "Oauth: client_id must not include userinfo";
+    if Uri.fragment u <> None then
+      failwith "Oauth: client_id must not include a fragment";
+    if Uri.query u <> [] then
+      failwith "Oauth: public HTTPS client_id must not include a query";
+    let path = Uri.path u in
+    if path = "" then failwith "Oauth: client_id must include a path component";
+    if path_has_dot_segments path then
+      failwith "Oauth: client_id path must not contain . or .. segments"
+
+  let validate_https_redirect_uri ~application_type ~client_id
+      (redirect_uri : string) : unit =
+    match application_type with
+    | "web" | "" ->
+        let u, scheme, _host = parse_absolute_uri "redirect_uri" redirect_uri in
+        if scheme <> "https" then
+          failwith "Oauth: web redirect_uri must be an https URL";
+        if uri_has_userinfo u then
+          failwith "Oauth: redirect_uri must not include userinfo";
+        if Uri.fragment u <> None then
+          failwith "Oauth: redirect_uri must not include a fragment";
+        if Uri.port u = Some 443 then
+          failwith "Oauth: redirect_uri must not include the default https port";
+        if
+          is_https_client_id client_id
+          && not (same_origin client_id redirect_uri)
+        then
+          failwith
+            "Oauth: https redirect_uri must share an origin with client_id"
+    | "native" ->
+        if is_loopback_http_redirect redirect_uri then ()
+        else if is_native_custom_scheme_redirect ~client_id redirect_uri then ()
+        else
+          let u, scheme, _host =
+            parse_absolute_uri "redirect_uri" redirect_uri
+          in
+          if scheme <> "https" then
+            failwith
+              "Oauth: native redirect_uri must be https, loopback http, or a \
+               reverse-domain custom scheme";
+          if uri_has_userinfo u then
+            failwith "Oauth: redirect_uri must not include userinfo";
+          if Uri.fragment u <> None then
+            failwith "Oauth: redirect_uri must not include a fragment";
+          if Uri.port u = Some 443 then
+            failwith
+              "Oauth: redirect_uri must not include the default https port";
+          if
+            is_https_client_id client_id
+            && not (same_origin client_id redirect_uri)
+          then
+            failwith
+              "Oauth: https redirect_uri must share an origin with client_id"
+    | other ->
+        failwith ("Oauth: application_type must be web or native, got " ^ other)
+
+  let validate_optional_https_uri name = function
+    | None -> ()
+    | Some uri -> require_https_url name uri
+
+  let validate_client_uri_hostname ~client_id = function
+    | None -> ()
+    | Some client_uri ->
+        require_https_url "client_uri" client_uri;
+        let _cu, _scheme, chost = parse_absolute_uri "client_uri" client_uri in
+        let _id, _id_scheme, id_host =
+          parse_absolute_uri "client_id" client_id
+        in
+        if String.lowercase_ascii chost <> String.lowercase_ascii id_host then
+          failwith "Oauth: client_uri must have the same hostname as client_id"
+
+  let expect_declared_redirect (m : client_metadata) (redirect_uri : string) :
+      unit =
+    if not (List.mem redirect_uri m.redirect_uris) then
+      failwith "Oauth: redirect_uri is not declared in client metadata"
+
+  let expect_declared_scope (m : client_metadata) ~requested : unit =
+    if not (Oauth_scope.Oauth_scope.is_subset ~requested ~declared:m.scope) then
+      failwith
+        "Oauth: requested scope is not a subset of the client metadata scope"
+
   let validate_metadata (m : client_metadata) : unit =
     if m.client_id = "" then failwith "Oauth: client_id is required";
     if not m.dpop_bound_access_tokens then
@@ -628,6 +856,10 @@ module Oauth = struct
       failwith "Oauth: redirect_uris must contain at least one URI";
     if m.token_endpoint_auth_signing_alg = Some "none" then
       failwith "Oauth: token_endpoint_auth_signing_alg must not be none";
+    (match m.application_type with
+    | "web" | "native" -> ()
+    | other ->
+        failwith ("Oauth: application_type must be web or native, got " ^ other));
     (match (m.jwks, m.jwks_uri) with
     | Some _, Some _ ->
         failwith "Oauth: jwks and jwks_uri are mutually exclusive"
@@ -636,7 +868,7 @@ module Oauth = struct
     | Some j when jwk_has_private_d j ->
         failwith "Oauth: client JWKS must not contain private key material (d)"
     | _ -> ());
-    match m.token_endpoint_auth_method with
+    (match m.token_endpoint_auth_method with
     | "private_key_jwt" -> (
         match (m.jwks, m.jwks_uri) with
         | None, None ->
@@ -644,7 +876,54 @@ module Oauth = struct
         | _ -> ())
     | "none" | "" -> ()
     | other ->
-        failwith ("Oauth: unsupported token_endpoint_auth_method " ^ other)
+        failwith ("Oauth: unsupported token_endpoint_auth_method " ^ other));
+    if is_localhost_client_id m.client_id then ()
+    else if is_loopback_http_uri m.client_id then ()
+    else (
+      validate_https_client_id m.client_id;
+      List.iter
+        (validate_https_redirect_uri ~application_type:m.application_type
+           ~client_id:m.client_id)
+        m.redirect_uris;
+      validate_client_uri_hostname ~client_id:m.client_id m.client_uri;
+      validate_optional_https_uri "logo_uri" m.logo_uri;
+      validate_optional_https_uri "tos_uri" m.tos_uri;
+      validate_optional_https_uri "policy_uri" m.policy_uri;
+      validate_optional_https_uri "jwks_uri" m.jwks_uri)
+
+  (** Stricter than [validate_metadata]: [client_id] must be a public
+      HTTPS metadata-document URL (not loopback). *)
+  let validate_https_metadata (m : client_metadata) : unit =
+    validate_https_client_id m.client_id;
+    validate_metadata m
+
+  (** [public_metadata] then [validate_https_metadata]. *)
+  let public_https_metadata ~client_id ~redirect_uris ?(scope = default_scope)
+      ?(application_type = "web") ?client_name ?client_uri ?logo_uri ?tos_uri
+      ?policy_uri () : client_metadata =
+    let m =
+      public_metadata ~client_id ~redirect_uris ~scope ~application_type
+        ?client_name ?client_uri ?logo_uri ?tos_uri ?policy_uri ()
+    in
+    validate_https_metadata m;
+    m
+
+  let metadata_content_type = "application/json"
+
+  (** Headers for serving a client-metadata document (HTTP 200,
+      [application/json]). The application still hosts this over HTTPS. *)
+  let metadata_http_headers () =
+    [
+      ("Content-Type", metadata_content_type);
+      ("Cache-Control", "no-store");
+      ("Access-Control-Allow-Origin", "*");
+    ]
+
+  (** Serialize [m] as the JSON body an Authorization Server fetches. *)
+  let metadata_document ?(pretty = false) (m : client_metadata) : string =
+    let json = metadata_to_json m in
+    if pretty then Yojson.Safe.pretty_to_string json ^ "\n"
+    else Yojson.Safe.to_string json
 
   let localhost_metadata (client_id : string) : client_metadata =
     if not (is_localhost_client_id client_id) then
@@ -944,6 +1223,16 @@ module Oauth = struct
     url:string -> headers:(string * string) list -> body:string -> http_response
 
   type http_get = url:string -> headers:(string * string) list -> http_response
+
+  (** HTTP 200 response for a tiny static-file / sketch server. The
+      application still hosts this document over HTTPS in production. *)
+  let metadata_http_response ?(pretty = false) (m : client_metadata) :
+      http_response =
+    {
+      status = 200;
+      headers = metadata_http_headers ();
+      body = metadata_document ~pretty m;
+    }
 
   let meth_of_string = function
     | "GET" -> `GET
@@ -1292,6 +1581,36 @@ module Oauth = struct
         (Printf.sprintf "Oauth: GET %s HTTP %d: %s" url resp.status resp.body);
     (resp, decode_json_body ("GET " ^ url) resp.body)
 
+  let content_type_is_json headers =
+    match header_value headers "content-type" with
+    | None -> false
+    | Some ct ->
+        let ct = String.lowercase_ascii (String.trim ct) in
+        starts_with ct "application/json"
+
+  (** Fetch a client-metadata document from [client_id]. Status must be
+      200 with [Content-Type: application/json]; the body's [client_id]
+      must exactly match the fetch URL. *)
+  let fetch_client_metadata ~(http : http_get) ~client_id () : client_metadata =
+    let resp =
+      http ~url:client_id ~headers:[ ("Accept", "application/json") ]
+    in
+    if resp.status <> 200 then
+      failwith
+        (Printf.sprintf
+           "Oauth: client-metadata HTTP %d (must be 200, not another 2xx or a \
+            redirect)"
+           resp.status);
+    if not (content_type_is_json resp.headers) then
+      failwith "Oauth: client-metadata Content-Type must be application/json";
+    let m = metadata_of_json (decode_json_body "client-metadata" resp.body) in
+    if m.client_id <> client_id then
+      failwith
+        "Oauth: client_id in metadata document must exactly match the fetch URL";
+    validate_metadata m;
+    if is_https_client_id client_id then validate_https_metadata m;
+    m
+
   (** Fetch protected-resource and authorization-server metadata for
       [pds_origin], then [validate_as_metadata]. *)
   let discover_authorization_server ~(http : http_get) ~pds_origin () :
@@ -1351,6 +1670,104 @@ module Oauth = struct
       post_with_dpop ~http ~priv ~pub ~url:token_url ~htm:"POST" ~body ?nonce ()
     in
     (parse_token_response (ensure_ok "token" resp), nonce)
+
+  type browser_login = {
+    pkce : pkce;
+    state : string;
+    client_id : string;
+    redirect_uri : string;
+    request_uri : string;
+    authorize_url : string;
+    token_endpoint : string;
+    issuer : string;
+    nonce : string option;
+  }
+
+  let infer_application_type redirect_uri =
+    if is_loopback_http_redirect redirect_uri then "native"
+    else
+      match String.index_opt redirect_uri ':' with
+      | Some i ->
+          let scheme = String.sub redirect_uri 0 i in
+          if scheme = "http" || scheme = "https" then "web" else "native"
+      | None -> "web"
+
+  let assert_browser_client_id ~client_id ~redirect_uri ~scope ~application_type
+      =
+    if is_https_client_id client_id then
+      ignore
+        (public_https_metadata ~client_id ~redirect_uris:[ redirect_uri ] ~scope
+           ~application_type ())
+    else if is_localhost_client_id client_id || is_loopback_http_uri client_id
+    then ()
+    else
+      failwith
+        "Oauth: client_id must be an https URL (or loopback for development)"
+
+  (** Discover the PDS authorization server, push PAR, and build the
+      browser authorize URL. The app hosts [client_id] over HTTPS and
+      redirects the user-agent to [authorize_url]. Does not host a login
+      UI. *)
+  let start_browser_login ~(http_get : http_get) ~(http_post : http_post) ~priv
+      ~pub ~pds_origin ~client_id ~redirect_uri ?(scope = default_scope)
+      ?application_type ?login_hint ?prompt ?nonce () : browser_login =
+    let application_type =
+      match application_type with
+      | Some t -> t
+      | None -> infer_application_type redirect_uri
+    in
+    assert_browser_client_id ~client_id ~redirect_uri ~scope ~application_type;
+    let _resource, as_ =
+      discover_authorization_server ~http:http_get ~pds_origin ()
+    in
+    let pkce = pkce_s256 () in
+    let state = random_jti () in
+    let jkt = dpop_jkt pub in
+    let form =
+      pushed_authorization_body ~client_id ~redirect_uri
+        ~code_challenge:pkce.challenge ~state ~scope ?login_hint ?prompt
+        ~dpop_jkt:jkt ()
+    in
+    let par, nonce =
+      push_authorization ~http:http_post ~priv ~pub
+        ~par_url:as_.pushed_authorization_request_endpoint ~form ?nonce ()
+    in
+    let authorize_url =
+      authorize_redirect_url ~authorization_endpoint:as_.authorization_endpoint
+        ~client_id ~request_uri:par.request_uri
+    in
+    {
+      pkce;
+      state;
+      client_id;
+      redirect_uri;
+      request_uri = par.request_uri;
+      authorize_url;
+      token_endpoint = as_.token_endpoint;
+      issuer = as_.issuer;
+      nonce;
+    }
+
+  (** Parse the browser redirect, check [state] / [iss], and exchange
+      the authorization code for a DPoP token. *)
+  let complete_browser_login ~(http : http_post) ~priv ~pub
+      ~(login : browser_login) ~redirect ?nonce () : token * string option =
+    let cb = parse_redirect redirect in
+    expect_state ~expected:login.state cb;
+    expect_issuer ~expected:login.issuer cb;
+    match cb with
+    | Denied { error; description; _ } ->
+        failwith
+          (Printf.sprintf "Oauth: authorization denied: %s%s" error
+             (match description with Some d -> ": " ^ d | None -> ""))
+    | Authorized { code; _ } ->
+        let form =
+          token_body ~client_id:login.client_id ~redirect_uri:login.redirect_uri
+            ~code ~code_verifier:login.pkce.verifier ()
+        in
+        let nonce = match nonce with Some n -> Some n | None -> login.nonce in
+        exchange_code ~http ~priv ~pub ~token_url:login.token_endpoint ~form
+          ?nonce ()
 
   (** Refresh-token grant with DPoP (same response shape as
       [exchange_code]). *)

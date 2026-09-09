@@ -1,0 +1,11 @@
+{
+  "client_id": "https://client.example/oauth-client-metadata.json",
+  "application_type": "web",
+  "grant_types": [ "authorization_code", "refresh_token" ],
+  "response_types": [ "code" ],
+  "redirect_uris": [ "https://client.example/cb" ],
+  "scope": "atproto transition:generic",
+  "token_endpoint_auth_method": "none",
+  "dpop_bound_access_tokens": true,
+  "client_name": "Example AT Protocol client"
+}
