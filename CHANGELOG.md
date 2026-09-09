@@ -1,7 +1,8 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through public HTTPS OAuth client-metadata + production
+shipped through [#230](https://github.com/david-engelmann/atproto/pull/230):
+public HTTPS OAuth client-metadata + production
 browser-login path (`https_client_id` / `public_https_metadata` /
 `validate_https_metadata` / `metadata_document` /
 `metadata_http_response` / `fetch_client_metadata` /
@@ -1631,7 +1632,8 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   requires dune `>= 3.11`). Package version stays `0.1.0` (do not
   retag). Hosted-only chat / video / Tap / phone / contacts / push
   stay listed not faked. No lexicon pin bump
-- Public HTTPS OAuth client-metadata + production browser-login
+- [#230](https://github.com/david-engelmann/atproto/pull/230):
+  Public HTTPS OAuth client-metadata + production browser-login
   path. `https_client_id` / `public_https_metadata` /
   `validate_https_metadata` enforce AT Protocol HTTPS `client_id`
   (no port / query / fragment) and redirect rules (web HTTPS
