@@ -63,6 +63,47 @@ let test_search_skeleton_bodies _ =
     (Unspecced.search_starter_packs_skeleton_body ~q:"bluesky"
        ~viewer:"did:plc:abc123xyz0001112223333" ~limit:5 ~cursor:"p1" ())
 
+let test_suggestion_thread_bodies _ =
+  OUnit2.assert_equal [] (Unspecced.get_suggestions_skeleton_body ());
+  OUnit2.assert_equal
+    [
+      ("viewer", "did:plc:abc123xyz0001112223333");
+      ("limit", "8");
+      ("cursor", "c1");
+      ("relativeToDid", "did:plc:rel000111222333444555666");
+    ]
+    (Unspecced.get_suggestions_skeleton_body
+       ~viewer:"did:plc:abc123xyz0001112223333" ~limit:8 ~cursor:"c1"
+       ~relative_to_did:"did:plc:rel000111222333444555666" ());
+  OUnit2.assert_equal [] (Unspecced.get_suggested_users_body ());
+  OUnit2.assert_equal
+    [ ("category", "news"); ("limit", "5") ]
+    (Unspecced.get_suggested_users_body ~category:"news" ~limit:5 ());
+  OUnit2.assert_equal [] (Unspecced.get_suggested_users_skeleton_body ());
+  OUnit2.assert_equal
+    [
+      ("viewer", "did:plc:abc123xyz0001112223333");
+      ("category", "sports");
+      ("limit", "4");
+    ]
+    (Unspecced.get_suggested_users_skeleton_body
+       ~viewer:"did:plc:abc123xyz0001112223333" ~category:"sports" ~limit:4 ());
+  OUnit2.assert_equal
+    [ ("anchor", "at://did:plc:alice/app.bsky.feed.post/3abc") ]
+    (Unspecced.get_post_thread_v2_body
+       ~anchor:"at://did:plc:alice/app.bsky.feed.post/3abc" ());
+  OUnit2.assert_equal
+    [
+      ("anchor", "at://did:plc:alice/app.bsky.feed.post/3abc");
+      ("above", "true");
+      ("below", "2");
+      ("branchingFactor", "3");
+      ("sort", "oldest");
+    ]
+    (Unspecced.get_post_thread_v2_body
+       ~anchor:"at://did:plc:alice/app.bsky.feed.post/3abc" ~above:true ~below:2
+       ~branching_factor:3 ~sort:"oldest" ())
+
 let test_parse_skeleton_posts _ =
   let json =
     `Assoc
@@ -420,6 +461,7 @@ let suite =
   "unspecced"
   >::: [
          "test_search_skeleton_bodies" >:: test_search_skeleton_bodies;
+         "test_suggestion_thread_bodies" >:: test_suggestion_thread_bodies;
          "test_parse_skeleton_posts" >:: test_parse_skeleton_posts;
          "test_parse_trending" >:: test_parse_trending;
          "test_parse_popular" >:: test_parse_popular;

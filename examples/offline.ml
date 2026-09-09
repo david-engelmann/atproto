@@ -1088,9 +1088,51 @@ let () =
   assert (
     Unspecced.search_starter_packs_skeleton_body ~q:"bluesky" ~limit:5 ()
     = [ ("q", "bluesky"); ("limit", "5") ]);
+  assert (
+    Unspecced.get_suggestions_skeleton_body
+      ~viewer:"did:plc:abc123xyz0001112223333" ~limit:8 ~cursor:"c1"
+      ~relative_to_did:"did:plc:rel000111222333444555666" ()
+    = [
+        ("viewer", "did:plc:abc123xyz0001112223333");
+        ("limit", "8");
+        ("cursor", "c1");
+        ("relativeToDid", "did:plc:rel000111222333444555666");
+      ]);
+  assert (
+    Unspecced.get_suggested_users_body ~category:"news" ~limit:5 ()
+    = [ ("category", "news"); ("limit", "5") ]);
+  assert (
+    Unspecced.get_suggested_users_skeleton_body
+      ~viewer:"did:plc:abc123xyz0001112223333" ~category:"sports" ~limit:4 ()
+    = [
+        ("viewer", "did:plc:abc123xyz0001112223333");
+        ("category", "sports");
+        ("limit", "4");
+      ]);
+  assert (
+    Unspecced.get_post_thread_v2_body
+      ~anchor:"at://did:plc:alice/app.bsky.feed.post/3abc" ~above:true ~below:2
+      ~branching_factor:3 ~sort:"oldest" ()
+    = [
+        ("anchor", "at://did:plc:alice/app.bsky.feed.post/3abc");
+        ("above", "true");
+        ("below", "2");
+        ("branchingFactor", "3");
+        ("sort", "oldest");
+      ]);
   ignore Unspecced.search_posts_skeleton;
   ignore Unspecced.search_actors_skeleton;
   ignore Unspecced.search_starter_packs_skeleton;
+  ignore Unspecced.get_suggestions_skeleton;
+  ignore Unspecced.get_suggested_users;
+  ignore Unspecced.get_suggested_users_skeleton;
+  ignore Unspecced.get_suggested_onboarding_users;
+  ignore Unspecced.get_onboarding_suggested_users_skeleton;
+  ignore Unspecced.get_suggested_users_for_explore;
+  ignore Unspecced.get_suggested_users_for_explore_skeleton;
+  ignore Unspecced.get_suggested_users_for_see_more;
+  ignore Unspecced.get_suggested_users_for_see_more_skeleton;
+  ignore Unspecced.get_post_thread_v2;
   let contact_status = Contact.parse_sync_status_opt (`Assoc []) in
   assert (contact_status.sync_status = None);
   (match

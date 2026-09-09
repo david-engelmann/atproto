@@ -1,7 +1,20 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#223](https://github.com/david-engelmann/atproto/pull/223):
+shipped through [#224](https://github.com/david-engelmann/atproto/pull/224):
+Unspecced leftover getSuggestionsSkeleton / getPostThreadV2 /
+suggested-users query-pair helpers
+(`get_suggestions_skeleton_body` / `get_post_thread_v2_body` /
+`get_suggested_users_body` / `get_suggested_users_skeleton_body`;
+`get_suggestions_skeleton` / `get_post_thread_v2` /
+`get_suggested_users` / `get_suggested_onboarding_users` /
+`get_suggested_users_for_explore` / `get_suggested_users_for_see_more` /
+`get_suggested_users_skeleton` /
+`get_onboarding_suggested_users_skeleton` /
+`get_suggested_users_for_explore_skeleton` /
+`get_suggested_users_for_see_more_skeleton` share those pairs)
+on top of
+[#223](https://github.com/david-engelmann/atproto/pull/223):
 Unspecced leftover searchPostsSkeleton / searchActorsSkeleton /
 searchStarterPacksSkeleton query-pair helpers
 (`search_posts_skeleton_body` / `search_actors_skeleton_body` /
@@ -844,6 +857,48 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   live hop (live searchPostsV2 / getQuotes / getActorLikes already
   exist). No lexicon pin bump. No hosted chat / video / Tap / phone /
   contacts / push faked
+- [#223](https://github.com/david-engelmann/atproto/pull/223): Unspecced
+  leftover searchPostsSkeleton / searchActorsSkeleton /
+  searchStarterPacksSkeleton query-pair helpers
+  (`search_posts_skeleton_body` / `search_actors_skeleton_body` /
+  `search_starter_packs_skeleton_body`). Currently sent fields only:
+  required `q`, optional `sort` / `since` / `until` / `mentions` /
+  `author` / `lang` / `domain` / `url` / `viewer` / `limit` / `cursor`
+  for searchPostsSkeleton; `q` / `viewer` / `typeahead` / `limit` /
+  `cursor` for searchActorsSkeleton; `q` / `viewer` / `limit` /
+  `cursor` for searchStarterPacksSkeleton (pin `f0d4877a03`). Existing
+  `search_posts_skeleton` / `search_actors_skeleton` /
+  `search_starter_packs_skeleton` share those pairs. Distinct from
+  #220 / #222 Feed searchPosts helpers. On top of #222. Does not
+  invent leftover unused searchPostsSkeleton / searchActorsSkeleton /
+  searchStarterPacksSkeleton fields. No leftover live hop (live
+  searchPostsSkeleton already exists). No lexicon pin bump. No hosted
+  chat / video / Tap / phone / contacts / push faked
+- [#224](https://github.com/david-engelmann/atproto/pull/224): Unspecced
+  leftover getSuggestionsSkeleton / getPostThreadV2 / suggested-users
+  query-pair helpers (`get_suggestions_skeleton_body` /
+  `get_post_thread_v2_body` / `get_suggested_users_body` /
+  `get_suggested_users_skeleton_body`). Currently sent fields only:
+  optional `viewer` / `limit` / `cursor` / `relativeToDid` for
+  getSuggestionsSkeleton; required `anchor`, optional `above` /
+  `below` / `branchingFactor` / `sort` for getPostThreadV2; optional
+  `category` / `limit` for getSuggestedUsers and the onboarding /
+  explore / seeMore siblings; optional `viewer` / `category` / `limit`
+  for getSuggestedUsersSkeleton and those skeleton siblings (pin
+  `f0d4877a03`). Existing `get_suggestions_skeleton` /
+  `get_post_thread_v2` / `get_suggested_users` /
+  `get_suggested_onboarding_users` / `get_suggested_users_for_explore`
+  / `get_suggested_users_for_see_more` / `get_suggested_users_skeleton`
+  / `get_onboarding_suggested_users_skeleton` /
+  `get_suggested_users_for_explore_skeleton` /
+  `get_suggested_users_for_see_more_skeleton` share those pairs.
+  Distinct from #223 search skeleton helpers. On top of #223. Does not
+  invent leftover unused getSuggestionsSkeleton / getPostThreadV2 /
+  getSuggestedUsers fields. Skips thin viewer+limit / limit-only
+  discover / feed / starter-pack one-liners and
+  getPostThreadOtherV2 `[("anchor", ...)]`. No leftover live hop
+  (live getPostThreadV2 already exists). No lexicon pin bump. No
+  hosted chat / video / Tap / phone / contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -1416,6 +1471,33 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   top of #221 → #220. Does not invent leftover unused searchPostsV2 /
   getQuotes / getActorLikes fields. Hosted-only chat / video / Tap /
   phone / contacts / push stay listed not faked
+- [#223](https://github.com/david-engelmann/atproto/pull/223): Unspecced
+  leftover searchPostsSkeleton / searchActorsSkeleton /
+  searchStarterPacksSkeleton query-pair helpers
+  (`search_posts_skeleton_body` / `search_actors_skeleton_body` /
+  `search_starter_packs_skeleton_body`). Currently sent fields only.
+  `search_posts_skeleton` / `search_actors_skeleton` /
+  `search_starter_packs_skeleton` share those pairs. Distinct from
+  #220 / #222 Feed searchPosts helpers. On top of #222. Does not
+  invent leftover unused searchPostsSkeleton / searchActorsSkeleton /
+  searchStarterPacksSkeleton fields. Hosted-only chat / video / Tap /
+  phone / contacts / push stay listed not faked
+- [#224](https://github.com/david-engelmann/atproto/pull/224): Unspecced
+  leftover getSuggestionsSkeleton / getPostThreadV2 / suggested-users
+  query-pair helpers (`get_suggestions_skeleton_body` /
+  `get_post_thread_v2_body` / `get_suggested_users_body` /
+  `get_suggested_users_skeleton_body`). Currently sent fields only.
+  `get_suggestions_skeleton` / `get_post_thread_v2` /
+  `get_suggested_users` / `get_suggested_onboarding_users` /
+  `get_suggested_users_for_explore` /
+  `get_suggested_users_for_see_more` / `get_suggested_users_skeleton`
+  / `get_onboarding_suggested_users_skeleton` /
+  `get_suggested_users_for_explore_skeleton` /
+  `get_suggested_users_for_see_more_skeleton` share those pairs.
+  Distinct from #223 search skeleton helpers. On top of #223. Does not
+  invent leftover unused getSuggestionsSkeleton / getPostThreadV2 /
+  getSuggestedUsers fields. Hosted-only chat / video / Tap / phone /
+  contacts / push stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
