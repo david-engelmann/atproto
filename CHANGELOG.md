@@ -1,7 +1,13 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#234](https://github.com/david-engelmann/atproto/pull/234):
+shipped through hosted phone / contacts / push production path
+(`Contact.get_matches_body` / `get_matches_appview` / `*_service`;
+`Notification.register_push_body` / `unregister_push_body` /
+`platform_ios` / `effective_push_proxy` / `Xrpc.notif_proxy`;
+`ATP_PHONE` / `ATP_PUSH` skip gates;
+`examples/contacts_production.ml`; no SMS / APNs-FCM faked)
+on top of [#234](https://github.com/david-engelmann/atproto/pull/234):
 Jetstream archive operator-token env
 (`JETSTREAM_API_KEY` / `JETSTREAM_ARCHIVE_TOKEN` →
 `Authorization: Bearer`; `require_archive_token` /
@@ -1744,6 +1750,25 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   offline wiring, not a live archive download. This library does
   not invent a key. Live `subscribeEvents` stays unauthenticated.
   No lexicon pin bump
+- Hosted phone / contacts / push production path.
+  `Contact.get_matches_body` (`limit` / `cursor`) is shared with
+  `get_matches` / `get_matches_appview` / `get_matches_service`.
+  AppView service-auth wrappers (`get_matches_appview` /
+  `get_sync_status_appview`) and OAuth `*_service` helpers on
+  `Client.appview_host_from_env` cover the public
+  `app.bsky.contact.*` NSIDs. `Notification.register_push_body` /
+  `unregister_push_body` share the session helpers; `platform_ios`
+  / `platform_android` / `platform_web` are the lexicon
+  knownValues. Optional `atproto-proxy` is `effective_push_proxy`
+  (`~proxy` or `ATP_PUSH_DID`); `Xrpc.notif_proxy` is the public
+  `#bsky_notif` fragment, not a default credential.
+  `list_activity_subscriptions_body` is shared with
+  `list_activity_subscriptions`. Live SMS / registerPush stay
+  skippable unless `ATP_PHONE` / `ATP_PUSH` plus real operator
+  values. `examples/contacts_production.ml` is offline wiring, not
+  an SMS or APNs/FCM product. `requestPhoneVerification` is not
+  faked. Official TestNetwork still has no phone or push service.
+  No lexicon pin bump
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
@@ -1770,3 +1795,9 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   env and sends `Authorization: Bearer`. It does not invent a key.
   Live compressed `subscribeEvents` and `xrpc.v1.json` are
   implemented. Self-hosted archives may omit the key.
+- Hosted SMS / phone-verification gateway (the production client
+  path is documented and library-ready; this package still does
+  not fake `requestPhoneVerification` or a local SMS service)
+- Official OSS push gateway (official Bluesky push is closed to
+  the official app; the production client path is documented and
+  library-ready; this package still does not fake APNs/FCM)

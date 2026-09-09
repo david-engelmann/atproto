@@ -1290,7 +1290,7 @@ let test_unspecced_and_ageassurance _ =
 (* Unique leftover AppView NSIDs whose wrappers exist on main and are
    not live above. Skip if this revision 501s the method or TestNetwork
    policy InvalidRequest (is_policy_invalid). chat.bsky.* / video.* /
-   Tap / contact.* / push register-unregister / unhosted getFeed /
+   Tap / hosted SMS / APNs-FCM / unhosted getFeed /
    getFeedSkeleton stay listed not faked. describeFeedGenerator is a
    feed-generator service method — do not treat a skip as a hosted
    generator. *)
@@ -1340,8 +1340,8 @@ let test_leftover_feed_notification _ =
 (* Live leftover: app.bsky.actor.getPreferences / putPreferences with
    interestsPref.updatedAt (pin f0d4877a / upstream #5481). Skip if not
    served or TestNetwork policy. Assert parsed updated_at only when the
-   response JSON has updatedAt. Hosted-only chat / video / Tap / phone /
-   contacts / push stay listed not faked. *)
+   response JSON has updatedAt. Hosted-only SMS / APNs-FCM stay
+   listed not faked. *)
 let test_leftover_interests_updated_at _ =
   let s = session () in
   let updated = "2026-09-03T18:02:59.000Z" in

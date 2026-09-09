@@ -1163,6 +1163,30 @@ let () =
   ignore Unspecced.get_post_thread_v2;
   let contact_status = Contact.parse_sync_status_opt (`Assoc []) in
   assert (contact_status.sync_status = None);
+  assert (Contact.get_matches_body () = []);
+  assert (
+    Contact.get_matches_body ~limit:25 ~cursor:"c1" ()
+    = [ ("limit", "25"); ("cursor", "c1") ]);
+  ignore Contact.get_matches;
+  ignore Contact.get_matches_appview;
+  ignore Contact.get_matches_service;
+  ignore Contact.get_sync_status_appview;
+  ignore Contact.get_sync_status_service;
+  ignore Contact.import_contacts_service;
+  ignore Contact.start_phone_verification_service;
+  ignore Contact.verify_phone_service;
+  ignore Contact.phone_live_enabled;
+  ignore Contact.phone_number_from_env;
+  (match Contact.remove_data_body with `Assoc [] -> () | _ -> assert false);
+  assert (Xrpc.proxy_to_string Xrpc.notif_proxy = "did:web:api.bsky.app#bsky_notif");
+  assert (Notification.platform_ios = "ios");
+  assert (Notification.effective_push_proxy () = None);
+  assert (Notification.list_activity_subscriptions_body () = []);
+  ignore Notification.register_push_body;
+  ignore Notification.unregister_push_body;
+  ignore Notification.register_push;
+  ignore Notification.unregister_push;
+  ignore Notification.push_live_enabled;
   (match
      Actor.parse_preferences
        (`Assoc

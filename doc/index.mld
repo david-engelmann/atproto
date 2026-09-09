@@ -24,6 +24,12 @@ offline [write_signed_repo]). It is not a hosted Tap service.
 [JETSTREAM_API_KEY] / [JETSTREAM_ARCHIVE_TOKEN] (or [~token]) and
 sends [Authorization: Bearer]. It does not invent a key. Live
 [subscribe] stays unauthenticated.
+{!Atproto.Contact} is a client for hosted [app.bsky.contact.*]
+(password session or AppView service-auth [*_service]; SMS via
+[startPhoneVerification] is hosted-only and not faked).
+{!Atproto.Notification} [registerPush] / [unregisterPush] take a
+caller [serviceDid] plus device token; official Bluesky push is
+closed to the official app. This package does not send APNs/FCM.
 
 {1 Install}
 

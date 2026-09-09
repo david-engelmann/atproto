@@ -24,6 +24,10 @@ let test_proxy _ =
     (Xrpc.proxy_to_string Xrpc.appview_proxy);
   OUnit2.assert_equal
     ~printer:(fun x -> x)
+    "did:web:api.bsky.app#bsky_notif"
+    (Xrpc.proxy_to_string Xrpc.notif_proxy);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
     "did:web:mod.example.com#atproto_labeler" v;
   OUnit2.assert_bool "missing fragment rejected"
     (try

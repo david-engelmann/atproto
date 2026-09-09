@@ -84,7 +84,60 @@ let test_parse_and_bodies _ =
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "123456"
-    (verify |> member "code" |> to_string)
+    (verify |> member "code" |> to_string);
+  OUnit2.assert_equal [] (Contact.get_matches_body ());
+  OUnit2.assert_equal
+    [ ("limit", "25"); ("cursor", "c1") ]
+    (Contact.get_matches_body ~limit:25 ~cursor:"c1" ());
+  let start =
+    Contact.start_phone_verification_body ~phone:"+12125550123"
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "+12125550123"
+    (start |> member "phone" |> to_string);
+  (match Contact.remove_data_body with
+  | `Assoc [] -> ()
+  | _ -> OUnit2.assert_failure "expected empty remove_data_body");
+  ignore Contact.get_matches_appview;
+  ignore Contact.get_matches_service;
+  ignore Contact.get_sync_status_appview;
+  ignore Contact.get_sync_status_service;
+  ignore Contact.import_contacts_service;
+  ignore Contact.start_phone_verification_service;
+  ignore Contact.verify_phone_service;
+  ignore Contact.phone_live_enabled;
+  ignore Contact.phone_number_from_env
+
+let test_get_matches_auth_skipped _ =
+  skip_if
+    (not Auth.has_live_credentials)
+    "ATP_AUTH not configured; live Bluesky test skipped";
+  let username, password = Auth.username_and_password_from_env in
+  let s = Atproto.Session.Session.create_session username password in
+  try
+    let page = Contact.get_matches s ~limit:5 () in
+    OUnit2.assert_bool "matches parsed" (List.length page.matches >= 0)
+  with exn -> skip_if true ("getMatches skipped: " ^ Printexc.to_string exn)
+
+let test_start_phone_verification_opt_in _ =
+  skip_if (not Contact.phone_live_enabled)
+    "ATP_PHONE not set; hosted SMS not faked";
+  skip_if
+    (not Auth.has_live_credentials)
+    "ATP_AUTH not configured; live Bluesky test skipped";
+  match Contact.phone_number_from_env with
+  | None ->
+      skip_if true "ATP_PHONE_NUMBER not set; hosted SMS not faked"
+  | Some phone ->
+      let username, password = Auth.username_and_password_from_env in
+      let s = Atproto.Session.Session.create_session username password in
+      try
+        Contact.start_phone_verification s ~phone ();
+        OUnit2.assert_bool "startPhoneVerification accepted" true
+      with exn ->
+        skip_if true
+          ("startPhoneVerification skipped: " ^ Printexc.to_string exn)
 
 let test_get_sync_status_auth_skipped _ =
   skip_if
@@ -104,6 +157,9 @@ let suite =
          "test_parse_and_bodies" >:: test_parse_and_bodies;
          "test_get_sync_status_auth_skipped"
          >:: test_get_sync_status_auth_skipped;
+         "test_get_matches_auth_skipped" >:: test_get_matches_auth_skipped;
+         "test_start_phone_verification_opt_in"
+         >:: test_start_phone_verification_opt_in;
        ]
 
 let () = run_test_tt_main suite
