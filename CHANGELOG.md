@@ -1,7 +1,8 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through Jetstream archive operator-token env
+shipped through [#234](https://github.com/david-engelmann/atproto/pull/234):
+Jetstream archive operator-token env
 (`JETSTREAM_API_KEY` / `JETSTREAM_ARCHIVE_TOKEN` →
 `Authorization: Bearer`; `require_archive_token` /
 `examples/jetstream_archive.ml`; no invented key)
@@ -1729,7 +1730,8 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   Sync 1.1 export, `write_signed_repo`). Library-ready indexer
   path; this package still does not fake a hosted Tap. No lexicon
   pin bump
-- Jetstream archive HTTP operator-token env. Official SDK name
+- [#234](https://github.com/david-engelmann/atproto/pull/234):
+  Jetstream archive HTTP operator-token env. Official SDK name
   `JETSTREAM_API_KEY`, alias `JETSTREAM_ARCHIVE_TOKEN`, or
   explicit `~token` become `Authorization: Bearer` on
   `planSnapshot` / `planBackfill` / `listSegments` / `getSegment` /
