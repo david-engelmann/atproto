@@ -818,9 +818,9 @@ module Jetstream = struct
   exception Snapshot_http of int * string
   exception Snapshot_rate_limited of int * string
 
-  (** Raised by [require_archive_token] / [~require_token:true] when no
-      explicit token and no [JETSTREAM_API_KEY] /
-      [JETSTREAM_ARCHIVE_TOKEN] is set. This is not an invented key. *)
+  (* Raised by [require_archive_token] / [~require_token:true] when no
+     explicit token and no [JETSTREAM_API_KEY] /
+     [JETSTREAM_ARCHIVE_TOKEN] is set. This is not an invented key. *)
   exception Archive_token_required of string
 
   type snapshot_fetch =
@@ -839,12 +839,11 @@ module Jetstream = struct
   (** Text of [Archive_token_required]. Operators set
       [JETSTREAM_API_KEY] rather than inventing a key. *)
   let archive_token_required_message =
-    "Jetstream archive HTTP on Bluesky-hosted instances needs an operator \
-     API key. Set JETSTREAM_API_KEY (official SDK name) or \
-     JETSTREAM_ARCHIVE_TOKEN from https://bsky.network/account. Pass the \
-     raw key; this library sends Authorization: Bearer. This library does \
-     not invent a key. Self-hosted or public archives may omit it; live \
-     subscribeEvents stays unauthenticated."
+    "Jetstream archive HTTP on Bluesky-hosted instances needs an operator API \
+     key. Set JETSTREAM_API_KEY (official SDK name) or JETSTREAM_ARCHIVE_TOKEN \
+     from https://bsky.network/account. Pass the raw key; this library sends \
+     Authorization: Bearer. This library does not invent a key. Self-hosted or \
+     public archives may omit it; live subscribeEvents stays unauthenticated."
 
   let nonempty_env_value = function
     | None -> None
@@ -862,8 +861,8 @@ module Jetstream = struct
     | None -> nonempty_env_value (getenv archive_token_env)
 
   (** Explicit [~token] (non-empty) wins; otherwise [archive_token_from_env]. *)
-  let resolve_archive_token ?token ?(getenv = Sys.getenv_opt) () :
-      string option =
+  let resolve_archive_token ?token ?(getenv = Sys.getenv_opt) () : string option
+      =
     match nonempty_env_value token with
     | Some t -> Some t
     | None -> archive_token_from_env ~getenv ()
@@ -929,8 +928,8 @@ module Jetstream = struct
   (** [GET getSegment]. Same token / env / [~require_token] rules as
       [try_plan_snapshot]. Optional [Range] resume after a mid-download
       429. *)
-  let try_get_segment ?host ?token ?(require_token = false) ?getenv ?range
-      ~name () : string =
+  let try_get_segment ?host ?token ?(require_token = false) ?getenv ?range ~name
+      () : string =
     let token = resolved_archive_token ~require_token ?token ?getenv () in
     let url = get_segment_url ?host ~name () in
     let headers = snapshot_headers ?token ?range () in
@@ -953,8 +952,8 @@ module Jetstream = struct
 
   (** [GET listSegments]. Same token / env / [~require_token] rules as
       [try_plan_snapshot]. *)
-  let try_list_segments ?host ?token ?(require_token = false) ?getenv ?cursor
-      () : list_segments =
+  let try_list_segments ?host ?token ?(require_token = false) ?getenv ?cursor ()
+      : list_segments =
     let token = resolved_archive_token ~require_token ?token ?getenv () in
     let url = list_segments_url ?host ?cursor () in
     let headers = snapshot_headers ?token () in

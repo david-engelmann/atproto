@@ -57,9 +57,7 @@ let () =
   in
   assert (List.mem ("Authorization", "Bearer " ^ fixture) pairs);
   assert (List.mem ("Range", "bytes=0-") pairs);
-  let from_official =
-    getenv_of [ (Jetstream.archive_api_key_env, fixture) ]
-  in
+  let from_official = getenv_of [ (Jetstream.archive_api_key_env, fixture) ] in
   assert (
     Jetstream.archive_token_from_env ~getenv:from_official () = Some fixture);
   assert (Jetstream.require_archive_token ~getenv:from_official () = fixture);

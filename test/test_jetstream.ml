@@ -356,10 +356,12 @@ let getenv_of pairs name =
   try Some (List.assoc name pairs) with Not_found -> None
 
 let test_archive_token_env _ =
-  OUnit2.assert_equal ~printer:(fun x -> x) "JETSTREAM_API_KEY"
-    Jetstream.archive_api_key_env;
-  OUnit2.assert_equal ~printer:(fun x -> x) "JETSTREAM_ARCHIVE_TOKEN"
-    Jetstream.archive_token_env;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "JETSTREAM_API_KEY" Jetstream.archive_api_key_env;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "JETSTREAM_ARCHIVE_TOKEN" Jetstream.archive_token_env;
   let empty = getenv_of [] in
   OUnit2.assert_equal None (Jetstream.archive_token_from_env ~getenv:empty ());
   OUnit2.assert_equal None (Jetstream.resolve_archive_token ~getenv:empty ());
@@ -388,11 +390,8 @@ let test_archive_token_env _ =
   in
   OUnit2.assert_bool "Bearer from injected token"
     (List.mem ("Authorization", "Bearer " ^ fixture) pairs);
-  OUnit2.assert_bool "Range preserved"
-    (List.mem ("Range", "bytes=1024-") pairs);
-  let from_official =
-    getenv_of [ (Jetstream.archive_api_key_env, fixture) ]
-  in
+  OUnit2.assert_bool "Range preserved" (List.mem ("Range", "bytes=1024-") pairs);
+  let from_official = getenv_of [ (Jetstream.archive_api_key_env, fixture) ] in
   OUnit2.assert_equal (Some fixture)
     (Jetstream.archive_token_from_env ~getenv:from_official ());
   (match Jetstream.archive_authorization ~getenv:from_official () with
