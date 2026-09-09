@@ -1780,7 +1780,8 @@ let () =
   ignore Actor.search_actors;
   ignore Actor.search_actors_typeahead;
   assert (
-    Feed.get_author_feed_body ~actor:"alice.test" () = [ ("actor", "alice.test") ]);
+    Feed.get_author_feed_body ~actor:"alice.test" ()
+    = [ ("actor", "alice.test") ]);
   assert (
     Feed.get_author_feed_body ~actor:"alice.test" ~limit:5 ()
     = [ ("actor", "alice.test"); ("limit", "5") ]);
