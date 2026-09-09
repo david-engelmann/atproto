@@ -11,15 +11,18 @@ open Tid
 
     This is not a hosted Tap service. An indexer wires:
 
-    - open / verify a repo CAR ({!open_car} / {!verify_snapshot})
-    - walk records ({!walk} / {!walk_json} / {!record_json})
-    - [getRecord] inclusion proof ({!export_record_proof} /
-      {!verify_record_proof})
-    - firehose [#commit] apply ({!process_commit} / {!apply_commit_tree})
-    - [#sync] desync ({!process_sync}) then {!resync_from_car} /
-      {!backfill}
-    - Sync 1.1 export ({!export_car} / {!export_subset})
-    - offline signed repo ({!write_signed_repo})
+    - open / verify a repo CAR ({!Repo_sync.open_car} /
+      {!Repo_sync.verify_snapshot})
+    - walk records ({!Repo_sync.walk} / {!Repo_sync.walk_json} /
+      {!Repo_sync.record_json})
+    - [getRecord] inclusion proof ({!Repo_sync.export_record_proof} /
+      {!Repo_sync.verify_record_proof})
+    - firehose [#commit] apply ({!Repo_sync.process_commit} /
+      {!Repo_sync.apply_commit_tree})
+    - [#sync] desync ({!Repo_sync.process_sync}) then
+      {!Repo_sync.resync_from_car} / {!Repo_sync.backfill}
+    - Sync 1.1 export ({!Repo_sync.export_car} / {!Repo_sync.export_subset})
+    - offline signed repo ({!Repo_sync.write_signed_repo})
 
     Spec:
     https://atproto.com/specs/sync#record-level-synchronization
