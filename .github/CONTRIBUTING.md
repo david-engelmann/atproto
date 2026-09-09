@@ -1,8 +1,9 @@
 # Contributing
 
-Pull requests are welcome. This package is **not** on
-[opam-repository](https://github.com/ocaml/opam-repository); depend on it by
-pinning the GitHub repository.
+Pull requests are welcome. This package is published on
+[opam-repository](https://github.com/ocaml/opam-repository)
+(`opam install atproto`; pending merge of the opam-repository PR).
+Pin the GitHub repository for development.
 
 ## Toolchain
 
