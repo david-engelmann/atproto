@@ -539,10 +539,13 @@ module Feed = struct
     in
     { uri; cid; reposted_by; cursor }
 
-  (** Query-string pairs for [app.bsky.feed.getAuthorFeed]. *)
-  let get_author_feed_body ~actor ~limit ?filter ?include_pins () :
+  (** Query-string pairs for [app.bsky.feed.getAuthorFeed]. Currently sent
+      fields only: required [actor], optional [limit] / [cursor] /
+      [filter] / [includePins]. *)
+  let get_author_feed_body ~actor ?limit ?cursor ?filter ?include_pins () :
       (string * string) list =
-    [ ("actor", actor); ("limit", string_of_int limit) ]
+    (("actor", actor) :: Client.Client.opt_int "limit" limit)
+    @ Client.Client.opt_pair "cursor" cursor
     @ Client.Client.opt_pair "filter" filter
     @ Client.Client.opt_bool "includePins" include_pins
 
@@ -567,9 +570,11 @@ module Feed = struct
   let get_timeline_body ~algorithm ~limit : (string * string) list =
     [ ("algorithm", algorithm); ("limit", string_of_int limit) ]
 
-  (** Query-string pairs for [app.bsky.feed.getFeedSkeleton]. *)
-  let get_feed_skeleton_body ~feed ~limit : (string * string) list =
-    [ ("feed", feed); ("limit", string_of_int limit) ]
+  (** Query-string pairs for [app.bsky.feed.getFeedSkeleton]. Currently
+      sent fields only: required [feed], optional [limit] / [cursor]. *)
+  let get_feed_skeleton_body ~feed ?limit ?cursor () : (string * string) list =
+    (("feed", feed) :: Client.Client.opt_int "limit" limit)
+    @ Client.Client.opt_pair "cursor" cursor
 
   (** Author feed via [app.bsky.feed.getAuthorFeed] (session required).
       Prefer [get_author_feed_page] for public AppView + cursor. *)
@@ -619,7 +624,7 @@ module Feed = struct
   let get_feed_skeleton (s : Session.session) (feed : string) (limit : int) :
       string =
     Client.Client.get_text ~session:s "app.bsky.feed.getFeedSkeleton"
-      (get_feed_skeleton_body ~feed ~limit)
+      (get_feed_skeleton_body ~feed ~limit ())
 
   (* ---- feed generators, search, quotes, interactions ------------------- *)
 
@@ -1095,10 +1100,7 @@ module Feed = struct
   let get_author_feed_page ?session ?host ~actor ?limit ?cursor ?filter
       ?include_pins () : timeline =
     Client.Client.get_json ?session ?host "app.bsky.feed.getAuthorFeed"
-      ((("actor", actor) :: Client.Client.opt_int "limit" limit)
-      @ Client.Client.opt_pair "cursor" cursor
-      @ Client.Client.opt_pair "filter" filter
-      @ Client.Client.opt_bool "includePins" include_pins)
+      (get_author_feed_body ~actor ?limit ?cursor ?filter ?include_pins ())
     |> parse_timeline
 
   (** Posts from list [list] (AT URI) via [app.bsky.feed.getListFeed]. *)
@@ -1113,8 +1115,7 @@ module Feed = struct
   let get_feed_skeleton_parsed ?session ?host ~feed ?limit ?cursor () :
       feed_skeleton =
     Client.Client.get_json ?session ?host "app.bsky.feed.getFeedSkeleton"
-      ((("feed", feed) :: Client.Client.opt_int "limit" limit)
-      @ Client.Client.opt_pair "cursor" cursor)
+      (get_feed_skeleton_body ~feed ?limit ?cursor ())
     |> parse_feed_skeleton
 
   (** Policies and feed URIs via [app.bsky.feed.describeFeedGenerator].

@@ -9,16 +9,20 @@ let create_test_session _ =
 
 let test_feed_query_bodies _ =
   OUnit2.assert_equal
+    [ ("actor", "alice.test") ]
+    (Feed.get_author_feed_body ~actor:"alice.test" ());
+  OUnit2.assert_equal
     [ ("actor", "alice.test"); ("limit", "5") ]
     (Feed.get_author_feed_body ~actor:"alice.test" ~limit:5 ());
   OUnit2.assert_equal
     [
       ("actor", "alice.test");
       ("limit", "5");
+      ("cursor", "c1");
       ("filter", Feed.filter_posts_no_replies);
       ("includePins", "true");
     ]
-    (Feed.get_author_feed_body ~actor:"alice.test" ~limit:5
+    (Feed.get_author_feed_body ~actor:"alice.test" ~limit:5 ~cursor:"c1"
        ~filter:Feed.filter_posts_no_replies ~include_pins:true ());
   OUnit2.assert_equal
     [
@@ -47,11 +51,18 @@ let test_feed_query_bodies _ =
     [ ("algorithm", "reverse-chronological"); ("limit", "2") ]
     (Feed.get_timeline_body ~algorithm:"reverse-chronological" ~limit:2);
   OUnit2.assert_equal
+    [ ("feed", "at://did:plc:alice/app.bsky.feed.generator/hot") ]
+    (Feed.get_feed_skeleton_body
+       ~feed:"at://did:plc:alice/app.bsky.feed.generator/hot" ());
+  OUnit2.assert_equal
     [
-      ("feed", "at://did:plc:alice/app.bsky.feed.generator/hot"); ("limit", "3");
+      ("feed", "at://did:plc:alice/app.bsky.feed.generator/hot");
+      ("limit", "3");
+      ("cursor", "sk1");
     ]
     (Feed.get_feed_skeleton_body
-       ~feed:"at://did:plc:alice/app.bsky.feed.generator/hot" ~limit:3);
+       ~feed:"at://did:plc:alice/app.bsky.feed.generator/hot" ~limit:3
+       ~cursor:"sk1" ());
   OUnit2.assert_equal
     [ ("feed", "at://did:plc:alice/app.bsky.feed.generator/hot") ]
     (Feed.get_feed_body ~feed:"at://did:plc:alice/app.bsky.feed.generator/hot"
