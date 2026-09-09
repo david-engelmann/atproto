@@ -1682,6 +1682,18 @@ let () =
   assert (
     Jetstream.zstd_dictionary_id Jetstream.embedded_zstd_dictionary
     = Some 20260811);
+  assert (Jetstream.archive_api_key_env = "JETSTREAM_API_KEY");
+  assert (Jetstream.archive_token_env = "JETSTREAM_ARCHIVE_TOKEN");
+  let js_empty _name = None in
+  assert (Jetstream.archive_token_from_env ~getenv:js_empty () = None);
+  assert (
+    match
+      Jetstream.archive_authorization
+        ~token:"fixture-operator-key-not-a-real-credential" ~getenv:js_empty ()
+    with
+    | Some ("Authorization", v) ->
+        v = "Bearer fixture-operator-key-not-a-real-credential"
+    | _ -> false);
   let optout =
     Records.referencelistoptout
       ~subject:"at://did:plc:abc123xyz0001112223333/app.bsky.graph.list/3k"

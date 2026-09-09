@@ -20,6 +20,10 @@ not run a transcoder. Official TestNetwork does not start one.
 path (open/verify repo CAR, walk records as IPLD JSON, getRecord
 inclusion proof, firehose [#commit] / [#sync], Sync 1.1 export,
 offline [write_signed_repo]). It is not a hosted Tap service.
+{!Atproto.Jetstream} archive HTTP reads an operator API key from
+[JETSTREAM_API_KEY] / [JETSTREAM_ARCHIVE_TOKEN] (or [~token]) and
+sends [Authorization: Bearer]. It does not invent a key. Live
+[subscribe] stays unauthenticated.
 
 {1 Install}
 

@@ -19,9 +19,14 @@ open Websocket
     from [network.bsky.jetstream.getZstdDictionary]; a checked-in copy of
     the production blob (id 20260811) is the fallback if that GET fails.
 
-    Network Replay / snapshot HTTP methods are typed here but are not called
-    live (public instances gate the archive; this library does not invent a
-    token). *)
+    Network Replay / snapshot HTTP methods send [Authorization: Bearer]
+    when the operator supplies a key: explicit [~token], else
+    [JETSTREAM_API_KEY] (official SDK name), else
+    [JETSTREAM_ARCHIVE_TOKEN]. Create a key at
+    {{:https://bsky.network/account}bsky.network/account}. This library
+    never invents one. Live [subscribe] stays unauthenticated. Self-hosted
+    or public archives may omit the key; Bluesky-hosted replay HTTP
+    returns 401 without it. *)
 module Jetstream = struct
   let v2_west_host = "jetstream.us-west.bsky.network"
   let v2_east_host = "jetstream.us-east.bsky.network"
@@ -804,26 +809,96 @@ module Jetstream = struct
     | `Commit c -> c.operation = "delete"
     | `Identity _ | `Info _ | `Unknown _ -> false
 
-  (* Live archive HTTP. Public hosts gate this; pass [token] only if the
-     operator already has one. This library never invents a token. Live tail
-     ([subscribe]) stays unauthenticated. *)
+  (* Live archive HTTP. Public Bluesky-hosted instances gate this; pass
+     [~token] or set [JETSTREAM_API_KEY] / [JETSTREAM_ARCHIVE_TOKEN] only
+     if the operator already has a key from bsky.network/account. This
+     library never invents a token. Live tail ([subscribe]) stays
+     unauthenticated. Self-hosted / public archives may omit the key. *)
   exception Snapshot_gated of int * string
   exception Snapshot_http of int * string
   exception Snapshot_rate_limited of int * string
 
+  (** Raised by [require_archive_token] / [~require_token:true] when no
+      explicit token and no [JETSTREAM_API_KEY] /
+      [JETSTREAM_ARCHIVE_TOKEN] is set. This is not an invented key. *)
+  exception Archive_token_required of string
+
   type snapshot_fetch =
     [ `Plan of snapshot_plan | `Bytes of string | `Gated of int * string ]
 
-  let snapshot_headers ?token ?range () =
-    let pairs =
-      Cohttp_client.Cohttp_client.application_json_setting_tuple
-      ::
-      (match token with
-      | Some t when t <> "" -> [ ("Authorization", "Bearer " ^ t) ]
-      | _ -> [])
-      @ match range with Some (k, v) -> [ (k, v) ] | None -> []
-    in
-    Cohttp_client.Cohttp_client.create_headers_from_pairs pairs
+  (** Official Jetstream SDK env name ([process.env.JETSTREAM_API_KEY] /
+      [os.Getenv("JETSTREAM_API_KEY")]). Raw API key, no [Bearer ]
+      prefix. See {{:https://bsky.network/docs/jetstream-replay/}Network
+      Replay}. *)
+  let archive_api_key_env = "JETSTREAM_API_KEY"
+
+  (** Alias for operators who think in this library's "token" wording.
+      [JETSTREAM_API_KEY] wins when both are set. *)
+  let archive_token_env = "JETSTREAM_ARCHIVE_TOKEN"
+
+  (** Text of [Archive_token_required]. Operators set
+      [JETSTREAM_API_KEY] rather than inventing a key. *)
+  let archive_token_required_message =
+    "Jetstream archive HTTP on Bluesky-hosted instances needs an operator \
+     API key. Set JETSTREAM_API_KEY (official SDK name) or \
+     JETSTREAM_ARCHIVE_TOKEN from https://bsky.network/account. Pass the \
+     raw key; this library sends Authorization: Bearer. This library does \
+     not invent a key. Self-hosted or public archives may omit it; live \
+     subscribeEvents stays unauthenticated."
+
+  let nonempty_env_value = function
+    | None -> None
+    | Some s ->
+        let s = String.trim s in
+        if s = "" then None else Some s
+
+  (** Read the operator archive key from the environment. Prefers
+      [JETSTREAM_API_KEY], then [JETSTREAM_ARCHIVE_TOKEN]. Empty or unset
+      is [None] — never a fabricated value. Optional [getenv] is a test
+      seam (defaults to [Sys.getenv_opt]). *)
+  let archive_token_from_env ?(getenv = Sys.getenv_opt) () : string option =
+    match nonempty_env_value (getenv archive_api_key_env) with
+    | Some t -> Some t
+    | None -> nonempty_env_value (getenv archive_token_env)
+
+  (** Explicit [~token] (non-empty) wins; otherwise [archive_token_from_env]. *)
+  let resolve_archive_token ?token ?(getenv = Sys.getenv_opt) () :
+      string option =
+    match nonempty_env_value token with
+    | Some t -> Some t
+    | None -> archive_token_from_env ~getenv ()
+
+  (** Fail fast when a Bluesky-hosted archive call needs a key the
+      operator has not supplied. *)
+  let require_archive_token ?token ?getenv () : string =
+    match resolve_archive_token ?token ?getenv () with
+    | Some t -> t
+    | None -> raise (Archive_token_required archive_token_required_message)
+
+  let resolved_archive_token ~require_token ?token ?getenv () : string option =
+    if require_token then Some (require_archive_token ?token ?getenv ())
+    else resolve_archive_token ?token ?getenv ()
+
+  (** [Authorization: Bearer <key>] when a token is resolved; [None] when
+      the unauthenticated / self-hosted path is in use. *)
+  let archive_authorization ?token ?getenv () : (string * string) option =
+    match resolve_archive_token ?token ?getenv () with
+    | Some t -> Some ("Authorization", "Bearer " ^ t)
+    | None -> None
+
+  (** Header pairs for archive HTTP: [Content-Type: application/json],
+      optional Bearer from [~token] / env, optional [Range]. *)
+  let snapshot_header_pairs ?token ?range ?getenv () : (string * string) list =
+    Cohttp_client.Cohttp_client.application_json_setting_tuple
+    ::
+    (match archive_authorization ?token ?getenv () with
+    | Some hv -> [ hv ]
+    | None -> [])
+    @ match range with Some (k, v) -> [ (k, v) ] | None -> []
+
+  let snapshot_headers ?token ?range ?getenv () =
+    Cohttp_client.Cohttp_client.create_headers_from_pairs
+      (snapshot_header_pairs ?token ?range ?getenv ())
 
   let classify_snapshot_status code body =
     if code = 401 || code = 403 then raise (Snapshot_gated (code, body))
@@ -831,8 +906,13 @@ module Jetstream = struct
     else if code >= 400 then raise (Snapshot_http (code, body))
     else body
 
-  let try_plan_snapshot ?host ?token ?kinds ?dids ?collections ?after_seq
-      ?before_seq () : snapshot_plan =
+  (** [POST planSnapshot]. Uses [~token] or the archive env vars for
+      Bearer. Default is unauthenticated (self-hosted / skippable live
+      probe). [~require_token:true] raises [Archive_token_required]
+      before HTTP when no key is available. *)
+  let try_plan_snapshot ?host ?token ?(require_token = false) ?getenv ?kinds
+      ?dids ?collections ?after_seq ?before_seq () : snapshot_plan =
+    let token = resolved_archive_token ~require_token ?token ?getenv () in
     let url = plan_snapshot_url ?host () in
     let headers = snapshot_headers ?token () in
     let data =
@@ -846,7 +926,12 @@ module Jetstream = struct
     parse_snapshot_plan
       (Yojson.Safe.from_string (classify_snapshot_status code body))
 
-  let try_get_segment ?host ?token ?range ~name () : string =
+  (** [GET getSegment]. Same token / env / [~require_token] rules as
+      [try_plan_snapshot]. Optional [Range] resume after a mid-download
+      429. *)
+  let try_get_segment ?host ?token ?(require_token = false) ?getenv ?range
+      ~name () : string =
+    let token = resolved_archive_token ~require_token ?token ?getenv () in
     let url = get_segment_url ?host ~name () in
     let headers = snapshot_headers ?token ?range () in
     let code, body =
@@ -854,7 +939,11 @@ module Jetstream = struct
     in
     classify_snapshot_status code body
 
-  let try_get_block ?host ?token ~name ~index () : string =
+  (** [GET getBlock]. Same token / env / [~require_token] rules as
+      [try_plan_snapshot]. *)
+  let try_get_block ?host ?token ?(require_token = false) ?getenv ~name ~index
+      () : string =
+    let token = resolved_archive_token ~require_token ?token ?getenv () in
     let url = get_block_url ?host ~name ~index () in
     let headers = snapshot_headers ?token () in
     let code, body =
@@ -862,7 +951,11 @@ module Jetstream = struct
     in
     classify_snapshot_status code body
 
-  let try_list_segments ?host ?token ?cursor () : list_segments =
+  (** [GET listSegments]. Same token / env / [~require_token] rules as
+      [try_plan_snapshot]. *)
+  let try_list_segments ?host ?token ?(require_token = false) ?getenv ?cursor
+      () : list_segments =
+    let token = resolved_archive_token ~require_token ?token ?getenv () in
     let url = list_segments_url ?host ?cursor () in
     let headers = snapshot_headers ?token () in
     let code, body =
@@ -871,8 +964,11 @@ module Jetstream = struct
     parse_list_segments
       (Yojson.Safe.from_string (classify_snapshot_status code body))
 
-  let try_plan_backfill ?host ?token ?kinds ?dids ?collections ?after_seq
-      ?before_seq () : snapshot_plan =
+  (** [POST planBackfill]. Same token / env / [~require_token] rules as
+      [try_plan_snapshot]. *)
+  let try_plan_backfill ?host ?token ?(require_token = false) ?getenv ?kinds
+      ?dids ?collections ?after_seq ?before_seq () : snapshot_plan =
+    let token = resolved_archive_token ~require_token ?token ?getenv () in
     let url = plan_backfill_url ?host () in
     let headers = snapshot_headers ?token () in
     let data =

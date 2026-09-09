@@ -1,7 +1,11 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#233](https://github.com/david-engelmann/atproto/pull/233):
+shipped through Jetstream archive operator-token env
+(`JETSTREAM_API_KEY` / `JETSTREAM_ARCHIVE_TOKEN` →
+`Authorization: Bearer`; `require_archive_token` /
+`examples/jetstream_archive.ml`; no invented key)
+on top of [#233](https://github.com/david-engelmann/atproto/pull/233):
 TAP-like indexer / backfill usability
 (`Repo_sync.export_record_proof` / `export_record_proof_bytes` /
 `walk_json` / `record_json` / `status_to_string`;
@@ -1725,6 +1729,19 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   Sync 1.1 export, `write_signed_repo`). Library-ready indexer
   path; this package still does not fake a hosted Tap. No lexicon
   pin bump
+- Jetstream archive HTTP operator-token env. Official SDK name
+  `JETSTREAM_API_KEY`, alias `JETSTREAM_ARCHIVE_TOKEN`, or
+  explicit `~token` become `Authorization: Bearer` on
+  `planSnapshot` / `planBackfill` / `listSegments` / `getSegment` /
+  `getBlock`. `require_archive_token` / `~require_token:true` raise
+  `Archive_token_required` when a hosted download needs a key the
+  operator has not supplied. Default `try_*` stay unauthenticated
+  so public / self-hosted / CI probes remain skippable
+  (`Snapshot_gated`). Injectable `~getenv` proves header/env
+  wiring without a real key. `examples/jetstream_archive.ml` is
+  offline wiring, not a live archive download. This library does
+  not invent a key. Live `subscribeEvents` stays unauthenticated.
+  No lexicon pin bump
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
@@ -1745,6 +1762,9 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
 - Newly published official lexicons after bluesky-social/atproto
   `f0d4877a` — the coverage gate fails until the pin
   snapshot and bindings (or an explicit skip) are updated
-- Jetstream archive HTTP download still needs an operator token this
-  library does not invent (live compressed `subscribeEvents` and
-  `xrpc.v1.json` subprotocol negotiation are implemented)
+- Jetstream archive HTTP download on Bluesky-hosted instances still
+  requires the operator to supply an API key (`JETSTREAM_API_KEY` /
+  `JETSTREAM_ARCHIVE_TOKEN`, or `~token`). The library reads that
+  env and sends `Authorization: Bearer`. It does not invent a key.
+  Live compressed `subscribeEvents` and `xrpc.v1.json` are
+  implemented. Self-hosted archives may omit the key.
