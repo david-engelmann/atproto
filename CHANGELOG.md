@@ -1,7 +1,13 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#227](https://github.com/david-engelmann/atproto/pull/227):
+shipped through [#228](https://github.com/david-engelmann/atproto/pull/228):
+opam-repository publish prep (package description / README / CONTRIBUTING /
+odoc landing say the package is published on opam-repository;
+`opam install atproto` after the opam-repository PR merges; GitHub pin
+still works for development)
+on top of
+[#227](https://github.com/david-engelmann/atproto/pull/227):
 Feed leftover getAuthorFeed / getFeedSkeleton query-pair helpers
 (`get_author_feed_body` / `get_feed_skeleton_body`;
 `get_author_feed` / `get_author_feed_page` / `get_feed_skeleton` /
@@ -299,16 +305,19 @@ and live leftover AppView / PDS `getPreferences` / `putPreferences`
 hops that assert `interestsPref.updatedAt` when present
 ([#184](https://github.com/david-engelmann/atproto/pull/184)).
 
-This package is **not** published to the public
-[opam-repository](https://github.com/ocaml/opam-repository). Depend on it by
-pinning the GitHub repository (see the README). Requires OCaml `>= 4.14.1`
-and `< 5.0`.
+This package is published on the public
+[opam-repository](https://github.com/ocaml/opam-repository)
+(`opam install atproto`; pending merge of the opam-repository PR).
+Pin the GitHub repository for development (see the README). Requires
+OCaml `>= 4.14.1` and `< 5.0`.
 
 ## 0.1.0 — 2026-09-03
 
 First installable opam package (`dune-project` / `atproto.opam` version
-`0.1.0`, OCaml `>= 4.14.1` and `< 5.0`). `opam pin add atproto git+https://github.com/david-engelmann/atproto.git`
-exposes `(libraries atproto)`. That pin is not an opam-repository publish.
+`0.1.0`, OCaml `>= 4.14.1` and `< 5.0`). `opam install atproto` is the
+published install once the opam-repository PR merges.
+`opam pin add atproto git+https://github.com/david-engelmann/atproto.git`
+exposes `(libraries atproto)` for development.
 
 ### Protocol client
 
@@ -1584,12 +1593,19 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   leftovers. On top of #226. Does not invent leftover unused
   getAuthorFeed / getFeedSkeleton fields. Hosted-only chat / video /
   Tap / phone / contacts / push stay listed not faked
+- [#228](https://github.com/david-engelmann/atproto/pull/228):
+  opam-repository publish prep. `dune-project` package description /
+  generated `atproto.opam` / README install + Remaining gaps /
+  CONTRIBUTING / `doc/index.mld` no longer say the package is not on
+  opam-repository. `opam install atproto` after the opam-repository
+  PR merges; GitHub pin still works for development. Hosted-only
+  chat / video / Tap / phone / contacts / push stay listed not faked.
+  No lexicon pin bump
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
 ### Not in this release
 
-- Public opam-repository publish
 - Hosted public HTTPS client-metadata / production browser login against a
   remote PDS
 - Hosted Tap service or video transcoder

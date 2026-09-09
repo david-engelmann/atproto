@@ -10,10 +10,13 @@ or Tap in this package).
 
 {1 Install}
 
-Not on the public opam-repository. Pin the GitHub repo (OCaml
-[>= 4.14.1] and [< 5.0]; CI tests 4.14.1):
+Published on the public opam-repository (`opam install atproto`;
+pending merge of the opam-repository PR). Pin the GitHub repo for
+development (OCaml [>= 4.14.1] and [< 5.0]; CI tests 4.14.1):
 
 {[
+opam install atproto
+(* development pin *)
 opam pin add atproto git+https://github.com/david-engelmann/atproto.git
 ]}
 
