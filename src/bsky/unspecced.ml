@@ -145,22 +145,49 @@ module Unspecced = struct
       feeds = List.map parse_generator_view (Client.list_member json "feeds");
     }
 
+  (** Query-string pairs for [app.bsky.unspecced.searchPostsSkeleton].
+      Currently sent fields only: required [q], optional [sort] / [since] /
+      [until] / [mentions] / [author] / [lang] / [domain] / [url] /
+      [viewer] / [limit] / [cursor]. *)
+  let search_posts_skeleton_body ~q ?sort ?since ?until ?mentions ?author ?lang
+      ?domain ?url ?viewer ?limit ?cursor () : (string * string) list =
+    (("q", q) :: Client.opt_pair "sort" sort)
+    @ Client.opt_pair "since" since
+    @ Client.opt_pair "until" until
+    @ Client.opt_pair "mentions" mentions
+    @ Client.opt_pair "author" author
+    @ Client.opt_pair "lang" lang
+    @ Client.opt_pair "domain" domain
+    @ Client.opt_pair "url" url
+    @ Client.opt_pair "viewer" viewer
+    @ Client.opt_int "limit" limit
+    @ Client.opt_pair "cursor" cursor
+
+  (** Query-string pairs for [app.bsky.unspecced.searchActorsSkeleton].
+      Currently sent fields only: required [q], optional [viewer] /
+      [typeahead] / [limit] / [cursor]. *)
+  let search_actors_skeleton_body ~q ?viewer ?typeahead ?limit ?cursor () :
+      (string * string) list =
+    (("q", q) :: Client.opt_pair "viewer" viewer)
+    @ Client.opt_bool "typeahead" typeahead
+    @ Client.opt_int "limit" limit
+    @ Client.opt_pair "cursor" cursor
+
+  (** Query-string pairs for
+      [app.bsky.unspecced.searchStarterPacksSkeleton]. Currently sent
+      fields only: required [q], optional [viewer] / [limit] / [cursor]. *)
+  let search_starter_packs_skeleton_body ~q ?viewer ?limit ?cursor () :
+      (string * string) list =
+    (("q", q) :: Client.opt_pair "viewer" viewer)
+    @ Client.opt_int "limit" limit
+    @ Client.opt_pair "cursor" cursor
+
   (** Post search skeleton via [app.bsky.unspecced.searchPostsSkeleton]. *)
   let search_posts_skeleton ?session ?host ~q ?sort ?since ?until ?mentions
       ?author ?lang ?domain ?url ?viewer ?limit ?cursor () : skeleton_posts =
     Client.get_json ?session ?host "app.bsky.unspecced.searchPostsSkeleton"
-      ([ ("q", q) ]
-      @ Client.opt_pair "sort" sort
-      @ Client.opt_pair "since" since
-      @ Client.opt_pair "until" until
-      @ Client.opt_pair "mentions" mentions
-      @ Client.opt_pair "author" author
-      @ Client.opt_pair "lang" lang
-      @ Client.opt_pair "domain" domain
-      @ Client.opt_pair "url" url
-      @ Client.opt_pair "viewer" viewer
-      @ Client.opt_int "limit" limit
-      @ Client.opt_pair "cursor" cursor)
+      (search_posts_skeleton_body ~q ?sort ?since ?until ?mentions ?author ?lang
+         ?domain ?url ?viewer ?limit ?cursor ())
     |> parse_skeleton_posts
 
   (** Actor search skeleton via [app.bsky.unspecced.searchActorsSkeleton].
@@ -169,11 +196,7 @@ module Unspecced = struct
   let search_actors_skeleton ?session ?host ~q ?viewer ?typeahead ?limit ?cursor
       () : skeleton_actors =
     Client.get_json ?session ?host "app.bsky.unspecced.searchActorsSkeleton"
-      ([ ("q", q) ]
-      @ Client.opt_pair "viewer" viewer
-      @ Client.opt_bool "typeahead" typeahead
-      @ Client.opt_int "limit" limit
-      @ Client.opt_pair "cursor" cursor)
+      (search_actors_skeleton_body ~q ?viewer ?typeahead ?limit ?cursor ())
     |> parse_skeleton_actors
 
   (** Starter pack search skeleton via
@@ -184,10 +207,7 @@ module Unspecced = struct
       : skeleton_starter_packs =
     Client.get_json ?session ?host
       "app.bsky.unspecced.searchStarterPacksSkeleton"
-      ([ ("q", q) ]
-      @ Client.opt_pair "viewer" viewer
-      @ Client.opt_int "limit" limit
-      @ Client.opt_pair "cursor" cursor)
+      (search_starter_packs_skeleton_body ~q ?viewer ?limit ?cursor ())
     |> parse_skeleton_starter_packs
 
   (** Trending topics via [app.bsky.unspecced.getTrendingTopics]. *)

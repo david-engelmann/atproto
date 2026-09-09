@@ -1070,6 +1070,27 @@ let () =
       (`Assoc [ ("status", `String "unknown") ])
   in
   assert (String.length ua_aa.status >= 0);
+  assert (
+    Unspecced.search_posts_skeleton_body ~q:"atproto" () = [ ("q", "atproto") ]);
+  assert (
+    Unspecced.search_posts_skeleton_body ~q:"atproto" ~sort:"latest"
+      ~viewer:"did:plc:abc123xyz0001112223333" ~limit:5 ~cursor:"s1" ()
+    = [
+        ("q", "atproto");
+        ("sort", "latest");
+        ("viewer", "did:plc:abc123xyz0001112223333");
+        ("limit", "5");
+        ("cursor", "s1");
+      ]);
+  assert (
+    Unspecced.search_actors_skeleton_body ~q:"alice" ~typeahead:true ~limit:3 ()
+    = [ ("q", "alice"); ("typeahead", "true"); ("limit", "3") ]);
+  assert (
+    Unspecced.search_starter_packs_skeleton_body ~q:"bluesky" ~limit:5 ()
+    = [ ("q", "bluesky"); ("limit", "5") ]);
+  ignore Unspecced.search_posts_skeleton;
+  ignore Unspecced.search_actors_skeleton;
+  ignore Unspecced.search_starter_packs_skeleton;
   let contact_status = Contact.parse_sync_status_opt (`Assoc []) in
   assert (contact_status.sync_status = None);
   (match

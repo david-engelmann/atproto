@@ -12,6 +12,57 @@ let with_public_timeout ?(seconds = 20) f =
       Sys.set_signal Sys.sigalrm old)
     f
 
+let test_search_skeleton_bodies _ =
+  OUnit2.assert_equal
+    [ ("q", "atproto") ]
+    (Unspecced.search_posts_skeleton_body ~q:"atproto" ());
+  OUnit2.assert_equal
+    [
+      ("q", "atproto");
+      ("sort", "latest");
+      ("since", "2024-01-01T00:00:00.000Z");
+      ("until", "2024-02-01T00:00:00.000Z");
+      ("mentions", "alice.test");
+      ("author", "bob.test");
+      ("lang", "en");
+      ("domain", "bsky.app");
+      ("url", "https://atproto.com");
+      ("viewer", "did:plc:abc123xyz0001112223333");
+      ("limit", "5");
+      ("cursor", "s1");
+    ]
+    (Unspecced.search_posts_skeleton_body ~q:"atproto" ~sort:"latest"
+       ~since:"2024-01-01T00:00:00.000Z" ~until:"2024-02-01T00:00:00.000Z"
+       ~mentions:"alice.test" ~author:"bob.test" ~lang:"en" ~domain:"bsky.app"
+       ~url:"https://atproto.com" ~viewer:"did:plc:abc123xyz0001112223333"
+       ~limit:5 ~cursor:"s1" ());
+  OUnit2.assert_equal
+    [ ("q", "alice") ]
+    (Unspecced.search_actors_skeleton_body ~q:"alice" ());
+  OUnit2.assert_equal
+    [
+      ("q", "alice");
+      ("viewer", "did:plc:abc123xyz0001112223333");
+      ("typeahead", "true");
+      ("limit", "3");
+      ("cursor", "a1");
+    ]
+    (Unspecced.search_actors_skeleton_body ~q:"alice"
+       ~viewer:"did:plc:abc123xyz0001112223333" ~typeahead:true ~limit:3
+       ~cursor:"a1" ());
+  OUnit2.assert_equal
+    [ ("q", "bluesky") ]
+    (Unspecced.search_starter_packs_skeleton_body ~q:"bluesky" ());
+  OUnit2.assert_equal
+    [
+      ("q", "bluesky");
+      ("viewer", "did:plc:abc123xyz0001112223333");
+      ("limit", "5");
+      ("cursor", "p1");
+    ]
+    (Unspecced.search_starter_packs_skeleton_body ~q:"bluesky"
+       ~viewer:"did:plc:abc123xyz0001112223333" ~limit:5 ~cursor:"p1" ())
+
 let test_parse_skeleton_posts _ =
   let json =
     `Assoc
@@ -368,6 +419,7 @@ let test_search_posts_skeleton_live _ =
 let suite =
   "unspecced"
   >::: [
+         "test_search_skeleton_bodies" >:: test_search_skeleton_bodies;
          "test_parse_skeleton_posts" >:: test_parse_skeleton_posts;
          "test_parse_trending" >:: test_parse_trending;
          "test_parse_popular" >:: test_parse_popular;
