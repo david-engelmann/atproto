@@ -46,8 +46,8 @@ let () =
   | _ -> ());
   let authorize =
     Oauth.authorize_redirect_url
-      ~authorization_endpoint:"https://bsky.social/oauth/authorize"
-      ~client_id ~request_uri:"urn:ietf:params:oauth:request_uri:demo"
+      ~authorization_endpoint:"https://bsky.social/oauth/authorize" ~client_id
+      ~request_uri:"urn:ietf:params:oauth:request_uri:demo"
   in
   assert (String.contains authorize '?');
   (match

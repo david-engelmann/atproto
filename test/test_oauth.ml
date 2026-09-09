@@ -914,8 +914,8 @@ let test_https_client_id_helpers _ =
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "https://app.example.com/client-metadata.json"
-    (Oauth.https_client_id ~host:"app.example.com"
-       ~path:"/client-metadata.json" ());
+    (Oauth.https_client_id ~host:"app.example.com" ~path:"/client-metadata.json"
+       ());
   OUnit2.assert_bool "port in host accepted"
     (fails_with "port" (fun () ->
          ignore (Oauth.https_client_id ~host:"client.example:8443" ())));
@@ -928,7 +928,8 @@ let test_https_client_id_helpers _ =
        (Oauth.is_https_client_id
           "https://client.example/client-metadata.json?x=1"));
   OUnit2.assert_bool "http public"
-    (not (Oauth.is_https_client_id "http://client.example/client-metadata.json"));
+    (not
+       (Oauth.is_https_client_id "http://client.example/client-metadata.json"));
   OUnit2.assert_bool "loopback http uri"
     (Oauth.is_loopback_http_uri "http://127.0.0.1:9/client-metadata.json");
   OUnit2.assert_bool "loopback ip redirect"
@@ -940,7 +941,8 @@ let test_https_metadata_public _ =
   let client_id = Oauth.https_client_id ~host:"client.example" () in
   let meta =
     Oauth.public_https_metadata ~client_id
-      ~redirect_uris:[ "https://client.example/cb" ] ~client_name:"Example" ()
+      ~redirect_uris:[ "https://client.example/cb" ]
+      ~client_name:"Example" ()
   in
   Oauth.validate_https_metadata meta;
   OUnit2.assert_equal ~printer:(fun x -> x) client_id meta.client_id;
@@ -968,7 +970,8 @@ let test_https_metadata_rejects_shapes _ =
          Oauth.validate_metadata
            (Oauth.public_metadata
               ~client_id:"http://client.example/client-metadata.json"
-              ~redirect_uris:[ "https://client.example/cb" ] ())));
+              ~redirect_uris:[ "https://client.example/cb" ]
+              ())));
   OUnit2.assert_bool "client_id port accepted"
     (fails_with "port" (fun () ->
          Oauth.validate_https_client_id
@@ -978,19 +981,22 @@ let test_https_metadata_rejects_shapes _ =
          Oauth.validate_metadata
            (Oauth.public_metadata
               ~client_id:"https://client.example/client-metadata.json"
-              ~redirect_uris:[ "http://client.example/cb" ] ())));
+              ~redirect_uris:[ "http://client.example/cb" ]
+              ())));
   OUnit2.assert_bool "cross-origin https redirect accepted"
     (fails_with "origin" (fun () ->
          Oauth.validate_metadata
            (Oauth.public_metadata
               ~client_id:"https://client.example/client-metadata.json"
-              ~redirect_uris:[ "https://other.example/cb" ] ())));
+              ~redirect_uris:[ "https://other.example/cb" ]
+              ())));
   OUnit2.assert_bool "default https port accepted"
     (fails_with "default" (fun () ->
          Oauth.validate_metadata
            (Oauth.public_metadata
               ~client_id:"https://client.example/client-metadata.json"
-              ~redirect_uris:[ "https://client.example:443/cb" ] ())));
+              ~redirect_uris:[ "https://client.example:443/cb" ]
+              ())));
   OUnit2.assert_bool "http logo_uri accepted"
     (fails_with "logo_uri" (fun () ->
          Oauth.validate_metadata
@@ -1006,42 +1012,48 @@ let test_https_metadata_rejects_shapes _ =
               ~redirect_uris:[ "https://client.example/cb" ]
               ~client_uri:"https://other.example/" ())));
   let loopback_hosted =
-    Oauth.public_metadata
-      ~client_id:"http://127.0.0.1:9/client-metadata.json"
-      ~redirect_uris:[ "http://127.0.0.1:9/cb" ] ~application_type:"native" ()
+    Oauth.public_metadata ~client_id:"http://127.0.0.1:9/client-metadata.json"
+      ~redirect_uris:[ "http://127.0.0.1:9/cb" ]
+      ~application_type:"native" ()
   in
   Oauth.validate_metadata loopback_hosted;
   OUnit2.assert_bool "loopback hosted passed https validator"
-    (fails_with "https" (fun () -> Oauth.validate_https_metadata loopback_hosted))
+    (fails_with "https" (fun () ->
+         Oauth.validate_https_metadata loopback_hosted))
 
 let test_https_native_redirects _ =
   let client_id = "https://app.example.com/oauth-client-metadata.json" in
   let loopback =
     Oauth.public_https_metadata ~client_id ~application_type:"native"
-      ~redirect_uris:[ "http://127.0.0.1:8080/cb" ] ()
+      ~redirect_uris:[ "http://127.0.0.1:8080/cb" ]
+      ()
   in
   Oauth.validate_https_metadata loopback;
   let custom =
     Oauth.public_https_metadata ~client_id ~application_type:"native"
-      ~redirect_uris:[ "com.example.app:/callback" ] ()
+      ~redirect_uris:[ "com.example.app:/callback" ]
+      ()
   in
   Oauth.validate_https_metadata custom;
   OUnit2.assert_bool "localhost hostname native redirect accepted"
     (fails_with "redirect_uri" (fun () ->
          ignore
            (Oauth.public_https_metadata ~client_id ~application_type:"native"
-              ~redirect_uris:[ "http://localhost:8080/cb" ] ())));
+              ~redirect_uris:[ "http://localhost:8080/cb" ]
+              ())));
   OUnit2.assert_bool "wrong custom scheme accepted"
     (fails_with "redirect_uri" (fun () ->
          ignore
            (Oauth.public_https_metadata ~client_id ~application_type:"native"
-              ~redirect_uris:[ "com.other.app:/callback" ] ())))
+              ~redirect_uris:[ "com.other.app:/callback" ]
+              ())))
 
 let test_fetch_client_metadata _ =
   let client_id = "https://client.example/oauth-client-metadata.json" in
   let meta =
     Oauth.public_https_metadata ~client_id
-      ~redirect_uris:[ "https://client.example/cb" ] ()
+      ~redirect_uris:[ "https://client.example/cb" ]
+      ()
   in
   let served = Oauth.metadata_http_response meta in
   let http ~url ~headers:_ =
@@ -1064,8 +1076,7 @@ let test_fetch_client_metadata _ =
   let http_mismatch ~url:_ ~headers:_ = mismatch in
   OUnit2.assert_bool "mismatched client_id accepted"
     (fails_with "exactly match" (fun () ->
-         ignore
-           (Oauth.fetch_client_metadata ~http:http_mismatch ~client_id ())));
+         ignore (Oauth.fetch_client_metadata ~http:http_mismatch ~client_id ())));
   let http_201 ~url:_ ~headers:_ = { served with status = 201 } in
   OUnit2.assert_bool "HTTP 201 accepted"
     (fails_with "must be 200" (fun () ->
@@ -1137,9 +1148,8 @@ let test_start_complete_browser_login _ =
     (let needle = "request_uri=" in
      let rec find i =
        i + String.length needle <= String.length login.authorize_url
-       &&
-       (String.sub login.authorize_url i (String.length needle) = needle
-       || find (i + 1))
+       && (String.sub login.authorize_url i (String.length needle) = needle
+          || find (i + 1))
      in
      find 0);
   let redirect =
@@ -1150,7 +1160,8 @@ let test_start_complete_browser_login _ =
     Oauth.complete_browser_login ~http:http_post ~priv ~pub ~login ~redirect ()
   in
   OUnit2.assert_equal ~printer:(fun x -> x) "tok" token.access_token;
-  OUnit2.assert_equal ~printer:(fun x -> x)
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
     "did:plc:abc123xyz0001112223333" token.sub;
   OUnit2.assert_bool "public http start accepted"
     (fails_with "https" (fun () ->
@@ -1158,8 +1169,7 @@ let test_start_complete_browser_login _ =
            (Oauth.start_browser_login ~http_get ~http_post ~priv ~pub
               ~pds_origin:"https://bsky.social"
               ~client_id:"http://client.example/client-metadata.json"
-              ~redirect_uri ()
-              )))
+              ~redirect_uri ())))
 
 let test_provider_api_and_cookies _ =
   OUnit2.assert_equal
