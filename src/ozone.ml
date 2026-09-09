@@ -1048,16 +1048,21 @@ module Ozone = struct
       (Client.repeat_param "subjects" subjects)
     |> parse_subjects
 
+  (** Query-string pairs for [tools.ozone.moderation.searchRepos]. Currently
+      sent fields only: optional [q] / [term] / [limit] / [cursor]. *)
+  let search_repos_body ?q ?term ?limit ?cursor () : (string * string) list =
+    Client.opt_pair "q" q
+    @ Client.opt_pair "term" term
+    @ Client.opt_int "limit" limit
+    @ Client.opt_pair "cursor" cursor
+
   (** Search repos via [tools.ozone.moderation.searchRepos] ([q] or [term]). *)
   let search_repos (s : Session.session) ~proxy ?q ?term ?limit ?cursor () :
       repo_view list * string option =
     let json =
       Client.get_json ~session:s ~extra:(proxy_headers proxy)
         "tools.ozone.moderation.searchRepos"
-        (Client.opt_pair "q" q
-        @ Client.opt_pair "term" term
-        @ Client.opt_int "limit" limit
-        @ Client.opt_pair "cursor" cursor)
+        (search_repos_body ?q ?term ?limit ?cursor ())
     in
     ( List.map parse_repo (Client.list_member json "repos"),
       Client.string_opt json "cursor" )
@@ -2539,6 +2544,30 @@ module Ozone = struct
       ~activity:(report_activity_to_json activity)
       ?report_id ?event_id ?internal_note ?public_note ?is_automated ()
 
+  (** Query-string pairs for [tools.ozone.report.queryReports]. Currently
+      sent fields only: required [status], optional [queueId] /
+      [reportTypes] / [subject] / [did] / [subjectType] / [collections] /
+      [reportedAfter] / [reportedBefore] / [isMuted] / [assignedTo] /
+      [sortField] / [sortDirection] / [limit] / [cursor]. *)
+  let query_reports_body ~status ?queue_id ?(report_types = []) ?subject ?did
+      ?subject_type ?(collections = []) ?reported_after ?reported_before
+      ?is_muted ?assigned_to ?sort_field ?sort_direction ?limit ?cursor () :
+      (string * string) list =
+    (("status", status) :: Client.opt_int "queueId" queue_id)
+    @ Client.repeat_param "reportTypes" report_types
+    @ Client.opt_pair "subject" subject
+    @ Client.opt_pair "did" did
+    @ Client.opt_pair "subjectType" subject_type
+    @ Client.repeat_param "collections" collections
+    @ Client.opt_pair "reportedAfter" reported_after
+    @ Client.opt_pair "reportedBefore" reported_before
+    @ Client.opt_bool "isMuted" is_muted
+    @ Client.opt_pair "assignedTo" assigned_to
+    @ Client.opt_pair "sortField" sort_field
+    @ Client.opt_pair "sortDirection" sort_direction
+    @ Client.opt_int "limit" limit
+    @ Client.opt_pair "cursor" cursor
+
   (** Reports via [tools.ozone.report.queryReports] ([status] required). *)
   let query_reports (s : Session.session) ~proxy ~status ?queue_id
       ?(report_types = []) ?subject ?did ?subject_type ?(collections = [])
@@ -2546,20 +2575,9 @@ module Ozone = struct
       ?sort_direction ?limit ?cursor () : reports =
     Client.get_json ~session:s ~extra:(proxy_headers proxy)
       "tools.ozone.report.queryReports"
-      ((("status", status) :: Client.opt_int "queueId" queue_id)
-      @ Client.repeat_param "reportTypes" report_types
-      @ Client.opt_pair "subject" subject
-      @ Client.opt_pair "did" did
-      @ Client.opt_pair "subjectType" subject_type
-      @ Client.repeat_param "collections" collections
-      @ Client.opt_pair "reportedAfter" reported_after
-      @ Client.opt_pair "reportedBefore" reported_before
-      @ Client.opt_bool "isMuted" is_muted
-      @ Client.opt_pair "assignedTo" assigned_to
-      @ Client.opt_pair "sortField" sort_field
-      @ Client.opt_pair "sortDirection" sort_direction
-      @ Client.opt_int "limit" limit
-      @ Client.opt_pair "cursor" cursor)
+      (query_reports_body ~status ?queue_id ~report_types ?subject ?did
+         ?subject_type ~collections ?reported_after ?reported_before ?is_muted
+         ?assigned_to ?sort_field ?sort_direction ?limit ?cursor ())
     |> parse_reports
 
   (** Report [id] via [tools.ozone.report.getReport]. *)

@@ -1,7 +1,12 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#224](https://github.com/david-engelmann/atproto/pull/224):
+shipped through [#225](https://github.com/david-engelmann/atproto/pull/225):
+Ozone leftover query_reports / search_repos query-pair helpers
+(`query_reports_body` / `search_repos_body`;
+`query_reports` / `search_repos` share those pairs)
+on top of
+[#224](https://github.com/david-engelmann/atproto/pull/224):
 Unspecced leftover getSuggestionsSkeleton / getPostThreadV2 /
 suggested-users query-pair helpers
 (`get_suggestions_skeleton_body` / `get_post_thread_v2_body` /
@@ -899,6 +904,24 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   getPostThreadOtherV2 `[("anchor", ...)]`. No leftover live hop
   (live getPostThreadV2 already exists). No lexicon pin bump. No
   hosted chat / video / Tap / phone / contacts / push faked
+- [#225](https://github.com/david-engelmann/atproto/pull/225): Ozone
+  leftover query_reports / search_repos query-pair helpers
+  (`query_reports_body` / `search_repos_body`). Currently sent
+  fields only: required `status`, optional `queueId` / `reportTypes`
+  / `subject` / `did` / `subjectType` / `collections` /
+  `reportedAfter` / `reportedBefore` / `isMuted` / `assignedTo` /
+  `sortField` / `sortDirection` / `limit` / `cursor` for
+  queryReports; optional `q` / `term` / `limit` / `cursor` for
+  searchRepos (pin `f0d4877a03`). Existing `query_reports` /
+  `search_repos` share those pairs. Distinct from #219
+  `query_events_body` / `query_statuses_body` and #214 report POST
+  leftovers. On top of #224. Does not invent leftover unused
+  queryReports / searchRepos fields. Skips thin Ozone GET
+  one-liners (`get_event` / `get_repo` / `get_report` /
+  `get_latest_report`) and leftover Admin GET pairs. No leftover
+  live hop (live queryReports / searchRepos already exist). No
+  lexicon pin bump. No hosted chat / video / Tap / phone /
+  contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -1498,6 +1521,14 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   invent leftover unused getSuggestionsSkeleton / getPostThreadV2 /
   getSuggestedUsers fields. Hosted-only chat / video / Tap / phone /
   contacts / push stay listed not faked
+- [#225](https://github.com/david-engelmann/atproto/pull/225): Ozone
+  leftover query_reports / search_repos query-pair helpers
+  (`query_reports_body` / `search_repos_body`). Currently sent
+  fields only. `query_reports` / `search_repos` share those pairs.
+  Distinct from #219 `query_events_body` / `query_statuses_body`
+  and #214 report POST leftovers. On top of #224. Does not invent
+  leftover unused queryReports / searchRepos fields. Hosted-only
+  chat / video / Tap / phone / contacts / push stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
