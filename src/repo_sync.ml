@@ -9,7 +9,22 @@ open Tid
 (** Library-shaped TAP helpers: backfill a repo CAR, walk records, apply
     firehose ops, and re-sync when the commit chain breaks.
 
-    This is not a hosted Tap service. Spec:
+    This is not a hosted Tap service. An indexer wires:
+
+    - open / verify a repo CAR ({!Repo_sync.open_car} /
+      {!Repo_sync.verify_snapshot})
+    - walk records ({!Repo_sync.walk} / {!Repo_sync.walk_json} /
+      {!Repo_sync.record_json})
+    - [getRecord] inclusion proof ({!Repo_sync.export_record_proof} /
+      {!Repo_sync.verify_record_proof})
+    - firehose [#commit] apply ({!Repo_sync.process_commit} /
+      {!Repo_sync.apply_commit_tree})
+    - [#sync] desync ({!Repo_sync.process_sync}) then
+      {!Repo_sync.resync_from_car} / {!Repo_sync.backfill}
+    - Sync 1.1 export ({!Repo_sync.export_car} / {!Repo_sync.export_subset})
+    - offline signed repo ({!Repo_sync.write_signed_repo})
+
+    Spec:
     https://atproto.com/specs/sync#record-level-synchronization
     https://atproto.com/blog/introducing-tap *)
 module Repo_sync = struct
@@ -18,6 +33,13 @@ module Repo_sync = struct
   let fail msg = raise (Error msg)
 
   type status = Desynchronized | In_progress | Synchronized
+
+  (** Lowercase status label for logs ([desynchronized] / [in_progress]
+      / [synchronized]). *)
+  let status_to_string = function
+    | Desynchronized -> "desynchronized"
+    | In_progress -> "in_progress"
+    | Synchronized -> "synchronized"
 
   type snapshot = {
     did : string;
@@ -130,6 +152,46 @@ module Repo_sync = struct
     | Some b ->
         ignore (Cid.verify_block ~expected:cid ~codec:cid.codec b.data);
         b.data
+
+  (** DAG-CBOR record bytes as IPLD JSON. *)
+  let record_json (bytes : string) : Yojson.Safe.t =
+    Dag_cbor.to_yojson (Dag_cbor.decode bytes)
+
+  (** [walk] plus IPLD JSON for each record block in [snap.car]. *)
+  let walk_json (snap : snapshot) : (string * Cid.t * Yojson.Safe.t) list =
+    List.map
+      (fun (path, cid) -> (path, cid, record_json (record_block snap.car cid)))
+      (walk snap)
+
+  (** Partial getRecord proof CAR: commit + MST covering path + record. *)
+  let export_record_proof (snap : snapshot) ~(path : string) : Car.t =
+    if not (Syntax.Syntax.is_valid_repo_path path) then
+      fail ("invalid repo path " ^ path);
+    (match Mst.get snap.tree path with
+    | None -> fail ("record path not in MST: " ^ path)
+    | Some _ -> ());
+    let commit_block =
+      match Car.find_block snap.car snap.commit_cid with
+      | Some b -> b
+      | None -> fail "commit block missing from snapshot"
+    in
+    let proof_blocks = Mst.covering_proof snap.tree path in
+    let all = commit_block :: proof_blocks in
+    let expected =
+      Car.first_occurrences (List.map (fun (b : Car.block) -> b.cid) all)
+    in
+    {
+      Car.roots = [ snap.commit_cid ];
+      blocks =
+        List.filter_map
+          (fun cid ->
+            List.find_opt (fun (b : Car.block) -> Cid.equal b.cid cid) all)
+          expected;
+    }
+
+  (** CARv1 bytes of [export_record_proof]. *)
+  let export_record_proof_bytes snap ~path =
+    Car.encode (export_record_proof snap ~path)
 
   (** Partial getRecord proof CAR: return path CID and record bytes. *)
   let verify_record_proof ~(car : Car.t) ~(path : string) : Cid.t * string =

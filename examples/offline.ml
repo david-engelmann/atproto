@@ -45,6 +45,7 @@ open Atproto.Label
 open Atproto.Labeler
 open Atproto.Firehose
 open Atproto.Sync
+open Atproto.Dag_cbor
 
 let () =
   (* TID used as record keys and commit revs *)
@@ -1544,6 +1545,12 @@ let () =
       ~collections:[ "app.bsky.feed.post" ] ()
   in
   assert (acct.status = Repo_sync.Desynchronized);
+  assert (Repo_sync.status_to_string acct.status = "desynchronized");
+  ignore Repo_sync.export_record_proof;
+  ignore Repo_sync.export_record_proof_bytes;
+  ignore Repo_sync.walk_json;
+  ignore Repo_sync.record_json;
+  ignore Dag_cbor.to_yojson;
   assert (Syntax.is_valid_repo_path "app.bsky.feed.post/3jzfcijpj2z2a");
   assert (Cid.is_blessed (Cid.create "{\"v\":1}"));
   let start, finish = Mst.collection_range "app.bsky.feed.post" in

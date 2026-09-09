@@ -53,3 +53,15 @@
  (alias runtest)
  (action
   (run %{exe:video_production.exe})))
+
+(executable
+ (name repo_sync_indexer)
+ (flags
+  (:standard -w +33 -warn-error +33))
+ (libraries atproto yojson)
+ (modules repo_sync_indexer))
+
+(rule
+ (alias runtest)
+ (action
+  (run %{exe:repo_sync_indexer.exe})))

@@ -312,6 +312,25 @@ module Dag_cbor = struct
   (** [None] for [Null], otherwise {!as_cid}. *)
   let as_cid_opt = function Null -> None | v -> Some (as_cid v)
 
+  (** DAG-CBOR to IPLD JSON. [Cid] becomes [{ "$link" }], [Bytes]
+      becomes [{ "$bytes" }] (standard base64). Other tags fail. *)
+  let rec to_yojson (v : value) : Yojson.Safe.t =
+    match v with
+    | Null -> `Null
+    | Bool b -> `Bool b
+    | Int n -> `Int n
+    | Int64 n ->
+        if n >= Int64.of_int min_int && n <= Int64.of_int max_int then
+          `Int (Int64.to_int n)
+        else `Intlit (Int64.to_string n)
+    | Bytes b ->
+        `Assoc [ ("$bytes", `String (Base64url.Base64url.encode_std b)) ]
+    | Text t -> `String t
+    | Array xs -> `List (List.map to_yojson xs)
+    | Map fields -> `Assoc (List.map (fun (k, x) -> (k, to_yojson x)) fields)
+    | Cid c -> `Assoc [ ("$link", `String (Cid.to_string c)) ]
+    | Tag (n, _) -> fail (Printf.sprintf "DAG-CBOR tag %d is not IPLD JSON" n)
+
   (** IPLD JSON to DAG-CBOR. Official [$link] / [$bytes] objects become
       [Cid] and [Bytes]. *)
   let rec of_yojson (json : Yojson.Safe.t) : value =
