@@ -300,8 +300,17 @@ let () =
       ~name:"clip.mp4" ()
   in
   assert (String.length url > 0);
+  assert (
+    Video.upload_video_body ~did:"did:plc:abc123xyz0001112223333"
+      ~name:"clip.mp4" ()
+    = [ ("did", "did:plc:abc123xyz0001112223333"); ("name", "clip.mp4") ]);
+  assert (Video.get_job_status_body ~job_id:"job-1" () = [ ("jobId", "job-1") ]);
   let exp = Video.recommended_exp ~now:1_700_000_000.0 () in
   assert (exp = Int64.add 1_700_000_000L Video.recommended_exp_seconds);
+  ignore Video.get_upload_limits_service;
+  ignore Video.embed_of_job;
+  ignore Video.part_slice;
+  ignore Video.host_from_env;
   let blob =
     `Assoc
       [
@@ -352,6 +361,9 @@ let () =
            ("alt", `String "demo");
          ])
    with
+  | `Video _ -> ()
+  | _ -> assert false);
+  (match Video.embed_of_blob ~alt:"demo" blob with
   | `Video _ -> ()
   | _ -> assert false);
   let facet =

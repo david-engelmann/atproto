@@ -1,16 +1,25 @@
 open Session
 open Client
+open Embed
 
-(** app.bsky.video — upload limits, raw-byte upload, and processing job status.
+(** app.bsky.video — hosted Bluesky video client ([video.bsky.app]).
 
-    This is a client for the hosted video service (default [video.bsky.app]).
-    It does not run a transcoding service. The recommended flow is:
+    This is a client for the hosted video service. It does not run a
+    transcoder. Official TestNetwork does not start one. The
+    production path is:
 
-    1. mint a PDS-scoped service-auth token ([pds_audience] +
-       [upload_blob_lxm], ~30 min [recommended_exp])
-    2. POST the bytes to [upload_video]
-    3. poll [get_job_status] until a blob ref is present
-    4. embed the blob with [video_embed_json] *)
+    1. mint a PDS-scoped service-auth token ([pds_audience] from the
+       session DID document [#atproto_pds] host, else [s.atp_host];
+       [lxm] = [upload_blob_lxm]; ~30 min [recommended_exp])
+    2. optionally [get_upload_limits_service] on the video host with
+       that JWT (not the PDS [at+jwt])
+    3. POST bytes to [upload_video], or multipart
+       [start_upload] / [upload_part] / [finish_upload]
+    4. poll [get_job_status] / [ensure_blob] until a blob ref is present
+       ([already_exists] is not a hard failure when a blob is present)
+    5. embed the blob with [video_embed_json] / [embed_of_job] on
+       [Records.post] — the create embed is the blob ref, not the
+       later [app.bsky.embed.video#view] playlist *)
 module Video = struct
   (** Hosted video service hostname (["video.bsky.app"]). *)
   let default_host = "video.bsky.app"
@@ -62,10 +71,27 @@ module Video = struct
     | None -> rest
     | Some i -> String.sub rest 0 i
 
+  let pds_host_of_did_doc (json : Yojson.Safe.t) : string option =
+    try
+      match
+        Did_plc.Did_plc.pds_endpoint (Did_plc.Did_plc.parse_document json)
+      with
+      | Some ep -> Some (host_of_endpoint ep)
+      | None -> None
+    with _ -> None
+
   (** PDS service-auth audience ([did:web:<pds-host>]). Optional [host]
-      overrides [s.atp_host]. *)
+      wins; else the session DID document [#atproto_pds] endpoint
+      (entryway [s.atp_host] is often [bsky.social], not the PDS). *)
   let pds_audience ?host (s : Session.session) : string =
-    let raw = match host with Some h -> h | None -> s.Session.atp_host in
+    let raw =
+      match host with
+      | Some h -> h
+      | None -> (
+          match Option.bind s.Session.did_doc pds_host_of_did_doc with
+          | Some h -> h
+          | None -> s.Session.atp_host)
+    in
     "did:web:" ^ host_of_endpoint raw
 
   (** Unix expiry for a video upload token ([now] plus
@@ -73,8 +99,51 @@ module Video = struct
   let recommended_exp ?(now = Unix.gettimeofday ()) () : int64 =
     Int64.add (Int64.of_float now) recommended_exp_seconds
 
-  (** Hosted video hostname ([host], or [default_host]). *)
-  let video_host ?host () = Option.value host ~default:default_host
+  (** Video host from [ATP_VIDEO_HOST], else [default_host]. *)
+  let host_from_env : string =
+    match Sys.getenv_opt "ATP_VIDEO_HOST" with
+    | Some h ->
+        let h = String.trim h in
+        if h = "" then default_host else h
+    | None -> default_host
+
+  (** Hosted video hostname ([host], or [ATP_VIDEO_HOST] /
+      [default_host]). *)
+  let video_host ?host () = match host with Some h -> h | None -> host_from_env
+
+  (** Query pairs for [com.atproto.server.getServiceAuth] on the video
+      upload path ([pds_audience] + [upload_blob_lxm] +
+      [recommended_exp]). *)
+  let upload_service_auth_body ?pds_host ?exp (s : Session.session) :
+      (string * string) list =
+    let exp = match exp with Some e -> e | None -> recommended_exp () in
+    Server.Server.get_service_auth_body
+      ~aud:(pds_audience ?host:pds_host s)
+      ~lxm:upload_blob_lxm ~exp ()
+
+  (** Mint a PDS-scoped service-auth JWT ([pds_audience] +
+      [upload_blob_lxm], [recommended_exp]). Password [at+jwt]
+      sessions. OAuth DPoP uses [Oauth.get_service_auth] with the same
+      aud / lxm / exp. *)
+  let mint_upload_token (s : Session.session) ?pds_host ?exp () : string =
+    let aud = pds_audience ?host:pds_host s in
+    let exp = match exp with Some e -> e | None -> recommended_exp () in
+    (Server.Server.get_service_auth s ~aud ~lxm:upload_blob_lxm ~exp ()).token
+
+  (** Query pairs for [app.bsky.video.getJobStatus]. [get_job_status]
+      shares this. *)
+  let get_job_status_body ~job_id () : (string * string) list =
+    [ ("jobId", job_id) ]
+
+  (** Query pairs for [app.bsky.video.getUploadStatus].
+      [get_upload_status] shares this. *)
+  let get_upload_status_body ~job_id () : (string * string) list =
+    [ ("jobId", job_id) ]
+
+  (** Query pairs for [app.bsky.video.uploadVideo] ([did] / [name]).
+      [upload_video_url] shares this. *)
+  let upload_video_body ~did ~name () : (string * string) list =
+    [ ("did", did); ("name", name) ]
 
   let parse_job_status json : job_status =
     {
@@ -162,26 +231,38 @@ module Video = struct
     else st
 
   (** Job status via [app.bsky.video.getJobStatus]. Hosted video
-      service (default [video.bsky.app]); client poll only. *)
+      service (default [video.bsky.app]); client poll only. Shares
+      [get_job_status_body]. *)
   let get_job_status ?session ?host ~job_id () : job_status =
     Client.get_json ?session ~host:(video_host ?host ())
-      "app.bsky.video.getJobStatus"
-      [ ("jobId", job_id) ]
+      "app.bsky.video.getJobStatus" (get_job_status_body ~job_id ())
     |> parse_job_status_response
 
-  (** Daily upload limits via [app.bsky.video.getUploadLimits]. *)
-  let get_upload_limits (s : Session.session) : upload_limits =
-    Client.get_json ~session:s "app.bsky.video.getUploadLimits" []
+  (** Daily upload limits via [app.bsky.video.getUploadLimits] on the
+      video host with a service-auth [token] (same JWT as
+      [upload_video]). Not the PDS [at+jwt]. *)
+  let get_upload_limits_service ?host ~token () : upload_limits =
+    Client.get_json ~host:(video_host ?host ()) ~bearer:token
+      "app.bsky.video.getUploadLimits" []
     |> parse_upload_limits
+
+  (** Daily upload limits on the hosted video service. Mints
+      [mint_upload_token] unless [token] is given. *)
+  let get_upload_limits ?host ?token (s : Session.session) : upload_limits =
+    let token =
+      match token with Some t -> t | None -> mint_upload_token s ()
+    in
+    get_upload_limits_service ?host ~token ()
 
   (** XRPC URL for [app.bsky.video.uploadVideo] on the hosted video
       service (default [video.bsky.app]). Query params are [did] and
-      [name]. Client URL helper only — this is not a local transcoder. *)
+      [name]. Shares [upload_video_body]. Client URL helper only —
+      this is not a local transcoder. *)
   let upload_video_url ?host ~did ~name () =
     let base = Client.nsid_url ~host:(video_host ?host ()) upload_nsid in
     let qs =
       Cohttp_client.Cohttp_client.create_body_from_pairs
-        [ ("did", did); ("name", name) ]
+        (upload_video_body ~did ~name ())
     in
     if qs = "" then base else base ^ "?" ^ qs
 
@@ -233,13 +314,6 @@ module Video = struct
     else if st.job_id = "" then st
     else poll_job_status ?get_status ?sleep ?session ?host ~job_id:st.job_id ()
 
-  (** Mint a PDS-scoped service-auth JWT ([pds_audience] +
-      [upload_blob_lxm], [recommended_exp]). *)
-  let mint_upload_token (s : Session.session) ?pds_host ?exp () : string =
-    let aud = pds_audience ?host:pds_host s in
-    let exp = match exp with Some e -> e | None -> recommended_exp () in
-    (Server.Server.get_service_auth s ~aud ~lxm:upload_blob_lxm ~exp ()).token
-
   (** JSON [width] / [height] for [app.bsky.embed.video] aspectRatio. *)
   let aspect_ratio_json (ar : aspect_ratio) : Yojson.Safe.t =
     `Assoc [ ("width", `Int ar.width); ("height", `Int ar.height) ]
@@ -260,6 +334,20 @@ module Video = struct
       | None -> []
     in
     `Assoc fields
+
+  (** [app.bsky.embed.video] as an [Embed.embed] for [Records.post].
+      [video] is the job blob ref, not a playlist URL. *)
+  let embed_of_blob ?alt ?aspect_ratio ?presentation (video : Yojson.Safe.t) :
+      Embed.embed =
+    Embed.parse_embed
+      (video_embed_json ~video ?alt ?aspect_ratio ?presentation ())
+
+  (** [embed_of_blob] when [st] already has a blob ref. *)
+  let embed_of_job ?alt ?aspect_ratio ?presentation (st : job_status) :
+      Embed.embed option =
+    match st.blob with
+    | None -> None
+    | Some video -> Some (embed_of_blob ?alt ?aspect_ratio ?presentation video)
 
   (* Multipart upload — start / part / finish / abort / status.
      Client only; the hosted transcoder still lives on video.bsky.app. *)
@@ -455,21 +543,37 @@ module Video = struct
     |> parse_abort_result
 
   (** Multipart session status via [app.bsky.video.getUploadStatus].
-      Hosted video service; client poll only. *)
+      Hosted video service; client poll only. Shares
+      [get_upload_status_body]. *)
   let get_upload_status ?session ?host ?token ~job_id () : upload_status =
     Client.get_json ?session ~host:(video_host ?host ())
       ~extra:(bearer_extra ?token ()) "app.bsky.video.getUploadStatus"
-      [ ("jobId", job_id) ]
+      (get_upload_status_body ~job_id ())
     |> parse_upload_status
 
   (** Expected byte size for [part_number] in [sess], or [None] if out
-      of range. The last part may be shorter. *)
+      of range. Without [total_bytes] the last part is reported as
+      [part_size_bytes]; use [part_slice] when the file size is known. *)
   let expected_part_size (sess : upload_session) ~part_number : int option =
     if part_number < 1 || part_number > sess.part_count then None
-    else if part_number < sess.part_count then Some sess.part_size_bytes
+    else Some sess.part_size_bytes
+
+  (** Byte [offset] and [length] for 1-based [part_number] given
+      [total_bytes]. The last part may be shorter. *)
+  let part_slice ~total_bytes (sess : upload_session) ~part_number :
+      (int * int) option =
+    if part_number < 1 || part_number > sess.part_count || total_bytes < 0 then
+      None
     else
-      (* last part may be shorter; callers that know the total size can compute it *)
-      Some sess.part_size_bytes
+      let offset = (part_number - 1) * sess.part_size_bytes in
+      if offset >= total_bytes then None
+      else
+        let remaining = total_bytes - offset in
+        let len =
+          if part_number = sess.part_count then remaining
+          else min sess.part_size_bytes remaining
+        in
+        Some (offset, len)
 
   (** 1-based part numbers not yet in [st.received_parts]. *)
   let missing_parts (st : upload_status) : int list =

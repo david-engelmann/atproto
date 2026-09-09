@@ -41,3 +41,15 @@
  (alias runtest)
  (action
   (run %{exe:chat_production.exe})))
+
+(executable
+ (name video_production)
+ (flags
+  (:standard -w +33 -warn-error +33))
+ (libraries atproto yojson)
+ (modules video_production))
+
+(rule
+ (alias runtest)
+ (action
+  (run %{exe:video_production.exe})))

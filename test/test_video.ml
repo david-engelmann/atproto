@@ -1,6 +1,7 @@
 open OUnit2
 open Atproto.Video
 open Atproto.Auth
+open Atproto.Records
 
 let sample_blob =
   `Assoc
@@ -16,6 +17,25 @@ let sample_blob =
       ("mimeType", `String "video/mp4");
       ("size", `Int 2048);
     ]
+
+let dummy_session ?(atp_host = "bsky.social") ?(did_doc = None) () :
+    Atproto.Session.Session.session =
+  {
+    username = "x";
+    password = "y";
+    atp_host;
+    auth =
+      {
+        exp = 0;
+        iat = 0;
+        scope = "com.atproto.access";
+        did = "did:plc:abc123xyz0001112223333";
+        jti = None;
+        token = "t";
+        refresh_token = None;
+      };
+    did_doc;
+  }
 
 let test_parse_job_status _ =
   let json =
@@ -88,43 +108,36 @@ let test_pds_audience _ =
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "did:web:bsky.social"
-    (Video.pds_audience
-       {
-         username = "x";
-         password = "y";
-         atp_host = "bsky.social";
-         auth =
-           {
-             exp = 0;
-             iat = 0;
-             scope = "com.atproto.access";
-             did = "did:plc:abc123xyz0001112223333";
-             jti = None;
-             token = "t";
-             refresh_token = None;
-           };
-         did_doc = None;
-       });
+    (Video.pds_audience (dummy_session ()));
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "did:web:pds.example"
-    (Video.pds_audience ~host:"https://pds.example/xrpc"
-       {
-         username = "x";
-         password = "y";
-         atp_host = "bsky.social";
-         auth =
-           {
-             exp = 0;
-             iat = 0;
-             scope = "com.atproto.access";
-             did = "did:plc:abc123xyz0001112223333";
-             jti = None;
-             token = "t";
-             refresh_token = None;
-           };
-         did_doc = None;
-       })
+    (Video.pds_audience ~host:"https://pds.example/xrpc" (dummy_session ()));
+  let did_doc =
+    `Assoc
+      [
+        ("id", `String "did:plc:abc123xyz0001112223333");
+        ( "service",
+          `List
+            [
+              `Assoc
+                [
+                  ("id", `String "#atproto_pds");
+                  ("type", `String "AtprotoPersonalDataServer");
+                  ("serviceEndpoint", `String "https://pds.example.com");
+                ];
+            ] );
+      ]
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:web:pds.example.com"
+    (Video.pds_audience (dummy_session ~did_doc:(Some did_doc) ()));
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:web:override.pds"
+    (Video.pds_audience ~host:"override.pds"
+       (dummy_session ~did_doc:(Some did_doc) ()))
 
 let test_recommended_exp _ =
   let exp = Video.recommended_exp ~now:1_700_000_000.0 () in
@@ -244,7 +257,60 @@ let test_video_embed_json _ =
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "gif"
-    (embed |> member "presentation" |> to_string)
+    (embed |> member "presentation" |> to_string);
+  match Video.embed_of_blob ~alt:"demo" sample_blob with
+  | `Video v ->
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "demo"
+        (Option.value ~default:"" v.alt)
+  | _ -> OUnit2.assert_failure "expected Video embed";
+  let ready =
+    Video.parse_job_status
+      (`Assoc
+        [
+          ("jobId", `String "job-e");
+          ("did", `String "did:plc:abc123xyz0001112223333");
+          ("state", `String "JOB_STATE_COMPLETED");
+          ("blob", sample_blob);
+        ])
+  in
+  (match Video.embed_of_job ~alt:"clip" ready with
+  | Some (`Video _) -> ()
+  | _ -> OUnit2.assert_failure "expected embed_of_job");
+  let post =
+    Records.post ~text:"clip" ~created_at:"2024-01-01T00:00:00.000Z"
+      ~embed:(Video.embed_of_blob ~alt:"demo" sample_blob)
+      ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "app.bsky.embed.video"
+    (post |> member "embed" |> member "$type" |> to_string)
+
+let test_query_pair_helpers _ =
+  OUnit2.assert_equal
+    [ ("jobId", "job-1") ]
+    (Video.get_job_status_body ~job_id:"job-1" ());
+  OUnit2.assert_equal
+    [ ("jobId", "job-m") ]
+    (Video.get_upload_status_body ~job_id:"job-m" ());
+  OUnit2.assert_equal
+    [ ("did", "did:plc:abc123xyz0001112223333"); ("name", "clip.mp4") ]
+    (Video.upload_video_body ~did:"did:plc:abc123xyz0001112223333"
+       ~name:"clip.mp4" ());
+  let pairs =
+    Video.upload_service_auth_body ~exp:1_700_001_800L (dummy_session ())
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:web:bsky.social" (List.assoc "aud" pairs);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "com.atproto.repo.uploadBlob" (List.assoc "lxm" pairs);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "1700001800" (List.assoc "exp" pairs)
 
 let test_upload_headers _ =
   let pairs =
@@ -269,6 +335,12 @@ let test_multipart_parsers _ =
   OUnit2.assert_equal (Some 5_242_880)
     (Video.expected_part_size sess ~part_number:1);
   OUnit2.assert_equal None (Video.expected_part_size sess ~part_number:9);
+  OUnit2.assert_equal (Some (0, 5_242_880))
+    (Video.part_slice ~total_bytes:10_485_761 sess ~part_number:1);
+  OUnit2.assert_equal (Some (10_485_760, 1))
+    (Video.part_slice ~total_bytes:10_485_761 sess ~part_number:3);
+  OUnit2.assert_equal None
+    (Video.part_slice ~total_bytes:10_485_761 sess ~part_number:9);
   let body =
     Video.start_upload_body ~size_bytes:10_000 ~mime_type:"video/mp4"
       ~name:"clip.mp4" ~width:1920 ~height:1080 ()
@@ -346,6 +418,7 @@ let suite =
          "test_poll_until_blob" >:: test_poll_until_blob;
          "test_ensure_blob_short_circuit" >:: test_ensure_blob_short_circuit;
          "test_video_embed_json" >:: test_video_embed_json;
+         "test_query_pair_helpers" >:: test_query_pair_helpers;
          "test_upload_headers" >:: test_upload_headers;
          "test_multipart_parsers" >:: test_multipart_parsers;
          "test_upload_limits_auth_skipped" >:: test_upload_limits_auth_skipped;

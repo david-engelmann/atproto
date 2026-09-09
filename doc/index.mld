@@ -12,6 +12,10 @@ browser path; the application still hosts that document.
 {!Atproto.Chat} is a client for hosted [chat.bsky.*]
 ([atproto-proxy] or service-auth on [api.bsky.chat]; DPoP cannot be
 proxied). Official TestNetwork does not start chat.
+{!Atproto.Video} is a client for hosted [app.bsky.video.*] on
+[video.bsky.app] (service-auth [did:web:<pds>] + [uploadBlob];
+job poll; multipart; embed the blob, not the playlist). It does
+not run a transcoder. Official TestNetwork does not start one.
 
 {1 Install}
 

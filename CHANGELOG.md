@@ -1,7 +1,14 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#231](https://github.com/david-engelmann/atproto/pull/231):
+shipped through [#232](https://github.com/david-engelmann/atproto/pull/232):
+hosted video.bsky production path (`Video.pds_audience` from
+`#atproto_pds` / `upload_service_auth_body` / `mint_upload_token` /
+`get_upload_limits_service` / `get_job_status_body` /
+`upload_video_body` / `part_slice` / `embed_of_blob` /
+`embed_of_job`; `examples/video_production.ml`; no hosted
+transcoder faked)
+on top of [#231](https://github.com/david-engelmann/atproto/pull/231):
 hosted chat.bsky production path (`Oauth.default_chat_scope` /
 `Oauth_scope.has_chat` / `Chat.service_aud` / `list_convos_body` /
 `list_convos_service` / `get_messages_service` /
@@ -1678,6 +1685,24 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   chat product. Live DM tests stay skippable unless `ATP_AUTH` has
   a chat/DM scope or `ATP_CHAT=1`. Official TestNetwork still has
   no OSS chat backend. No lexicon pin bump
+- [#232](https://github.com/david-engelmann/atproto/pull/232):
+  Hosted video.bsky production path. `Video.pds_audience` prefers
+  the session DID document `#atproto_pds` host (entryway
+  `ATP_HOST` is often `bsky.social`). Service-auth `lxm` stays
+  `com.atproto.repo.uploadBlob` (`upload_service_auth_body` /
+  `mint_upload_token`; OAuth uses `Oauth.get_service_auth` with
+  the same aud / lxm / exp). `get_upload_limits_service` /
+  session `get_upload_limits` call the video host with that JWT,
+  not the PDS `at+jwt`. Query-pair helpers
+  (`get_job_status_body` / `get_upload_status_body` /
+  `upload_video_body`) are shared with the XRPC helpers.
+  `part_slice` gives multipart offset/length when `total_bytes`
+  is known. `embed_of_blob` / `embed_of_job` wrap the job blob
+  for `Records.post` (create embed is the blob ref, not the
+  `#view` playlist). `examples/video_production.ml` is offline
+  wiring, not a hosted transcoder. Live `getUploadLimits` stays
+  skippable unless `ATP_AUTH` is a real credential. Official
+  TestNetwork still has no video service. No lexicon pin bump
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
@@ -1687,7 +1712,9 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   and receive the browser redirect (this library builds/validates
   the document and drives authorize → code → token; it does not
   host them or a login UI)
-- Hosted Tap service or video transcoder
+- Hosted Tap service. Hosted video transcoder (the production
+  client path is documented and library-ready; this package still
+  does not fake a local transcoder)
 - Official OSS chat backend (TestNetwork does not start one).
   The production hosted path is documented and library-ready;
   this package still does not fake a local chat service
