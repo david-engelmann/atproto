@@ -1,7 +1,8 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through TAP-like indexer / backfill usability
+shipped through [#233](https://github.com/david-engelmann/atproto/pull/233):
+TAP-like indexer / backfill usability
 (`Repo_sync.export_record_proof` / `export_record_proof_bytes` /
 `walk_json` / `record_json` / `status_to_string`;
 `Dag_cbor.to_yojson`; `examples/repo_sync_indexer.ml`;
@@ -1711,7 +1712,8 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   wiring, not a hosted transcoder. Live `getUploadLimits` stays
   skippable unless `ATP_AUTH` is a real credential. Official
   TestNetwork still has no video service. No lexicon pin bump
-- TAP-like indexer / backfill usability. `Repo_sync.export_record_proof`
+- [#233](https://github.com/david-engelmann/atproto/pull/233):
+  TAP-like indexer / backfill usability. `Repo_sync.export_record_proof`
   / `export_record_proof_bytes` emit a getRecord-style partial CAR
   (commit + MST covering path + record) from a local snapshot;
   `verify_record_proof` still accepts that shape.
