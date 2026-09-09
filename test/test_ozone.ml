@@ -830,6 +830,50 @@ let test_query_statuses_body _ =
     pairs;
   OUnit2.assert_equal [] (Ozone.query_statuses_body ())
 
+let test_query_reports_body _ =
+  OUnit2.assert_equal [ ("status", "open") ]
+    (Ozone.query_reports_body ~status:"open" ());
+  OUnit2.assert_equal [ ("status", "open") ]
+    (Ozone.query_reports_body ~status:"open" ~report_types:[] ~collections:[] ());
+  let pairs =
+    Ozone.query_reports_body ~status:"escalated" ~queue_id:3
+      ~report_types:[ "com.atproto.moderation.defs#reasonSpam" ]
+      ~subject:"at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3abc"
+      ~did:"did:plc:abc123xyz0001112223333" ~subject_type:"record"
+      ~collections:[ "app.bsky.feed.post" ]
+      ~reported_after:"2024-01-01T00:00:00.000Z"
+      ~reported_before:"2024-02-01T00:00:00.000Z" ~is_muted:false
+      ~assigned_to:"did:plc:mod000111222333444555666" ~sort_field:"reportedAt"
+      ~sort_direction:"desc" ~limit:25 ~cursor:"r1" ()
+  in
+  OUnit2.assert_equal
+    [
+      ("status", "escalated");
+      ("queueId", "3");
+      ("reportTypes", "com.atproto.moderation.defs#reasonSpam");
+      ( "subject",
+        "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3abc" );
+      ("did", "did:plc:abc123xyz0001112223333");
+      ("subjectType", "record");
+      ("collections", "app.bsky.feed.post");
+      ("reportedAfter", "2024-01-01T00:00:00.000Z");
+      ("reportedBefore", "2024-02-01T00:00:00.000Z");
+      ("isMuted", "false");
+      ("assignedTo", "did:plc:mod000111222333444555666");
+      ("sortField", "reportedAt");
+      ("sortDirection", "desc");
+      ("limit", "25");
+      ("cursor", "r1");
+    ]
+    pairs
+
+let test_search_repos_body _ =
+  OUnit2.assert_equal [] (Ozone.search_repos_body ());
+  OUnit2.assert_equal
+    [ ("q", "alice"); ("term", "alice.test"); ("limit", "10"); ("cursor", "s1") ]
+    (Ozone.search_repos_body ~q:"alice" ~term:"alice.test" ~limit:10
+       ~cursor:"s1" ())
+
 let test_parse_typed_event_and_subject _ =
   let ev =
     Ozone.parse_mod_event
@@ -1679,6 +1723,8 @@ let suite =
          "test_close_reports_body" >:: test_close_reports_body;
          "test_query_events_body" >:: test_query_events_body;
          "test_query_statuses_body" >:: test_query_statuses_body;
+         "test_query_reports_body" >:: test_query_reports_body;
+         "test_search_repos_body" >:: test_search_repos_body;
          "test_parse_typed_event_and_subject"
          >:: test_parse_typed_event_and_subject;
          "test_parse_leftover_event_and_status"
