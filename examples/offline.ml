@@ -1780,8 +1780,34 @@ let () =
   ignore Actor.search_actors;
   ignore Actor.search_actors_typeahead;
   assert (
+    Feed.get_author_feed_body ~actor:"alice.test" ()
+    = [ ("actor", "alice.test") ]);
+  assert (
     Feed.get_author_feed_body ~actor:"alice.test" ~limit:5 ()
     = [ ("actor", "alice.test"); ("limit", "5") ]);
+  assert (
+    Feed.get_author_feed_body ~actor:"alice.test" ~limit:5 ~cursor:"c1"
+      ~filter:Feed.filter_posts_no_replies ~include_pins:true ()
+    = [
+        ("actor", "alice.test");
+        ("limit", "5");
+        ("cursor", "c1");
+        ("filter", Feed.filter_posts_no_replies);
+        ("includePins", "true");
+      ]);
+  assert (
+    Feed.get_feed_skeleton_body
+      ~feed:"at://did:plc:alice/app.bsky.feed.generator/hot" ()
+    = [ ("feed", "at://did:plc:alice/app.bsky.feed.generator/hot") ]);
+  assert (
+    Feed.get_feed_skeleton_body
+      ~feed:"at://did:plc:alice/app.bsky.feed.generator/hot" ~limit:3
+      ~cursor:"sk1" ()
+    = [
+        ("feed", "at://did:plc:alice/app.bsky.feed.generator/hot");
+        ("limit", "3");
+        ("cursor", "sk1");
+      ]);
   assert (
     Feed.get_likes_body ~uri:"at://did:plc:alice/app.bsky.feed.post/3abc"
       ~cid:"bafy" ~limit:10
@@ -1797,12 +1823,14 @@ let () =
     Feed.get_timeline_body ~algorithm:"reverse-chronological" ~limit:2
     = [ ("algorithm", "reverse-chronological"); ("limit", "2") ]);
   ignore Feed.get_author_feed;
+  ignore Feed.get_author_feed_page;
   ignore Feed.get_likes;
   ignore Feed.get_post_thread;
   ignore Feed.get_posts;
   ignore Feed.get_reposted_by;
   ignore Feed.get_timeline;
   ignore Feed.get_feed_skeleton;
+  ignore Feed.get_feed_skeleton_parsed;
   assert (
     Feed.get_feed_body ~feed:"at://did:plc:alice/app.bsky.feed.generator/hot" ()
     = [ ("feed", "at://did:plc:alice/app.bsky.feed.generator/hot") ]);

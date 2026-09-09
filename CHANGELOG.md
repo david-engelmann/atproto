@@ -1,7 +1,13 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#226](https://github.com/david-engelmann/atproto/pull/226):
+shipped through [#227](https://github.com/david-engelmann/atproto/pull/227):
+Feed leftover getAuthorFeed / getFeedSkeleton query-pair helpers
+(`get_author_feed_body` / `get_feed_skeleton_body`;
+`get_author_feed` / `get_author_feed_page` / `get_feed_skeleton` /
+`get_feed_skeleton_parsed` share those pairs)
+on top of
+[#226](https://github.com/david-engelmann/atproto/pull/226):
 Notification leftover list_notifications query-pair helpers
 (`list_notifications_body`;
 `list_notifications` / `list_notifications_page` share those pairs)
@@ -927,6 +933,32 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   live hop (live queryReports / searchRepos already exist). No
   lexicon pin bump. No hosted chat / video / Tap / phone /
   contacts / push faked
+- [#226](https://github.com/david-engelmann/atproto/pull/226):
+  Notification leftover list_notifications query-pair helpers
+  (`list_notifications_body`). Currently sent fields only: optional
+  `reasons` / `priority` / `cursor` / `seenAt` / `limit` (pin
+  `f0d4877a03`). Existing `list_notifications` /
+  `list_notifications_page` share those pairs. Distinct from #210
+  putPreferences / putActivitySubscription POST leftovers and #203
+  getUnreadCount / updateSeen. On top of #225. Does not invent
+  leftover unused listNotifications fields. Skips thin
+  `list_activity_subscriptions` limit/cursor. No leftover live hop
+  (live listNotifications already exists). No lexicon pin bump. No
+  hosted chat / video / Tap / phone / contacts / push faked
+- [#227](https://github.com/david-engelmann/atproto/pull/227): Feed
+  leftover getAuthorFeed / getFeedSkeleton query-pair helpers
+  (`get_author_feed_body` / `get_feed_skeleton_body`). Currently sent
+  fields only: required `actor`, optional `limit` / `cursor` /
+  `filter` / `includePins` for getAuthorFeed; required `feed`,
+  optional `limit` / `cursor` for getFeedSkeleton (pin `f0d4877a03`).
+  Existing `get_author_feed` / `get_author_feed_page` /
+  `get_feed_skeleton` / `get_feed_skeleton_parsed` share those pairs.
+  Distinct from #202 session leftovers and #220 / #222 AppView
+  leftovers. On top of #226. Does not invent leftover unused
+  getAuthorFeed / getFeedSkeleton fields. No leftover live hop
+  (live getAuthorFeed / getFeedSkeleton already exist). No lexicon
+  pin bump. No hosted chat / video / Tap / phone / contacts / push
+  faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -1534,6 +1566,24 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   and #214 report POST leftovers. On top of #224. Does not invent
   leftover unused queryReports / searchRepos fields. Hosted-only
   chat / video / Tap / phone / contacts / push stay listed not faked
+- [#226](https://github.com/david-engelmann/atproto/pull/226):
+  Notification leftover list_notifications query-pair helpers
+  (`list_notifications_body`). Currently sent fields only.
+  `list_notifications` / `list_notifications_page` share those pairs.
+  Distinct from #210 putPreferences / putActivitySubscription POST
+  leftovers and #203 getUnreadCount / updateSeen. On top of #225.
+  Does not invent leftover unused listNotifications fields.
+  Hosted-only chat / video / Tap / phone / contacts / push stay
+  listed not faked
+- [#227](https://github.com/david-engelmann/atproto/pull/227): Feed
+  leftover getAuthorFeed / getFeedSkeleton query-pair helpers
+  (`get_author_feed_body` / `get_feed_skeleton_body`). Currently sent
+  fields only. `get_author_feed` / `get_author_feed_page` /
+  `get_feed_skeleton` / `get_feed_skeleton_parsed` share those pairs.
+  Distinct from #202 session leftovers and #220 / #222 AppView
+  leftovers. On top of #226. Does not invent leftover unused
+  getAuthorFeed / getFeedSkeleton fields. Hosted-only chat / video /
+  Tap / phone / contacts / push stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
