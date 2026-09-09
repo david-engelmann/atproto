@@ -1,8 +1,64 @@
 open Session
 open Actor
+open Xrpc
 
-(** [app.bsky.notification] — list, prefs, activity subscriptions, and push. *)
+(** [app.bsky.notification] — list, prefs, activity subscriptions, and
+    push.
+
+    List / prefs / activity subscriptions are AppView session XRPC.
+    [registerPush] / [unregisterPush] are clients for a hosted push
+    service: the caller supplies [serviceDid] plus a device token.
+    Official Bluesky push is closed to the official app. Third-party
+    clients host their own gateway. This library does not send APNs /
+    FCM and does not invent a [serviceDid] or token.
+
+    Optional [atproto-proxy] ([effective_push_proxy]: explicit [proxy],
+    else [ATP_PUSH_DID]) is needed when the PDS does not route
+    [unregisterPush] to [\#bsky_notif] itself. [Xrpc.notif_proxy] is
+    the public official fragment, not a default credential.
+
+    Live register/unregister hops stay skippable unless [ATP_PUSH] is
+    set. *)
 module Notification = struct
+  let env_truthy name =
+    match Sys.getenv_opt name with
+    | Some v ->
+        let v = String.lowercase_ascii (String.trim v) in
+        List.mem v [ "1"; "true"; "yes"; "on" ]
+    | None -> false
+
+  (** True when live hosted-push hops may run ([ATP_PUSH] is truthy).
+      Default off so CI never registers a device token. *)
+  let push_live_enabled : bool = env_truthy "ATP_PUSH"
+
+  (** Lexicon [platform] knownValues. *)
+  let platform_ios = "ios"
+
+  let platform_android = "android"
+  let platform_web = "web"
+
+  let proxy_of_push_did_string (d : string) : Xrpc.proxy option =
+    let d = String.trim d in
+    if d = "" then None
+    else if String.contains d '#' then Some (Xrpc.parse_proxy d)
+    else Some { did = d; service = "bsky_notif" }
+
+  let push_did_from_env () : Xrpc.proxy option =
+    match Sys.getenv_opt "ATP_PUSH_DID" with
+    | Some d -> proxy_of_push_did_string d
+    | None -> None
+
+  (** [atproto-proxy] for push XRPC: explicit [proxy], else
+      [ATP_PUSH_DID]. No invented official default — third-party
+      clients must supply their gateway DID. *)
+  let effective_push_proxy ?proxy () : Xrpc.proxy option =
+    match proxy with Some p -> Some p | None -> push_did_from_env ()
+
+  let push_proxy_headers ?proxy () =
+    match effective_push_proxy ?proxy () with
+    | Some p -> [ Xrpc.proxy_header p ]
+    | None -> []
+
   type strong_ref = { uri : string; cid : string }
 
   type like_record = {
@@ -559,15 +615,22 @@ module Notification = struct
         | _ -> []);
     }
 
+  (** Query-string pairs for
+      [app.bsky.notification.listActivitySubscriptions]. Currently
+      sent fields only: optional [limit] / [cursor]. *)
+  let list_activity_subscriptions_body ?limit ?cursor () :
+      (string * string) list =
+    Client.Client.opt_int "limit" limit @ Client.Client.opt_pair "cursor" cursor
+
   (** Activity subscriptions via
       [app.bsky.notification.listActivitySubscriptions]. Optional
-      [limit] / [cursor] map to the lexicon query. *)
+      [limit] / [cursor] map to the lexicon query. Shares
+      [list_activity_subscriptions_body]. *)
   let list_activity_subscriptions (s : Session.session) ?limit ?cursor () :
       activity_subscription_page =
     Client.Client.get_json ~session:s
       "app.bsky.notification.listActivitySubscriptions"
-      (Client.Client.opt_int "limit" limit
-      @ Client.Client.opt_pair "cursor" cursor)
+      (list_activity_subscriptions_body ?limit ?cursor ())
     |> parse_activity_subscription_page
 
   (** Put an activity subscription for [subject] via
@@ -587,12 +650,11 @@ module Notification = struct
       | `Assoc _ as a -> Some (parse_activity_subscription a)
       | _ -> None )
 
-  (** Register a push token via [app.bsky.notification.registerPush].
-      Client wrapper for a hosted push service; this library does not
-      send push or fake a live hop. Optional [age_restricted] maps to
-      the lexicon body. *)
-  let register_push (s : Session.session) ~service_did ~token ~platform ~app_id
-      ?age_restricted () : unit =
+  (** JSON body for [app.bsky.notification.registerPush]. Required
+      [serviceDid] / [token] / [platform] / [appId]; optional
+      [ageRestricted]. *)
+  let register_push_body ~service_did ~token ~platform ~app_id ?age_restricted
+      () : Yojson.Safe.t =
     let fields =
       [
         ("serviceDid", `String service_did);
@@ -605,23 +667,46 @@ module Notification = struct
       | Some b -> [ ("ageRestricted", `Bool b) ]
       | None -> []
     in
+    `Assoc fields
+
+  (** JSON body for [app.bsky.notification.unregisterPush]. *)
+  let unregister_push_body ~service_did ~token ~platform ~app_id () :
+      Yojson.Safe.t =
+    `Assoc
+      [
+        ("serviceDid", `String service_did);
+        ("token", `String token);
+        ("platform", `String platform);
+        ("appId", `String app_id);
+      ]
+
+  (** Register a push token via [app.bsky.notification.registerPush].
+      Client wrapper for a hosted push service; this library does not
+      send APNs/FCM or invent a [serviceDid]. Optional [age_restricted]
+      maps to the lexicon body. Optional [proxy] / [ATP_PUSH_DID] send
+      [atproto-proxy]. Shares [register_push_body]. *)
+  let register_push (s : Session.session) ?proxy ~service_did ~token ~platform
+      ~app_id ?age_restricted () : unit =
     ignore
-      (Client.Client.post_json ~session:s "app.bsky.notification.registerPush"
-         (Yojson.Safe.to_string (`Assoc fields)))
+      (Client.Client.post_json ~session:s
+         ~extra:(push_proxy_headers ?proxy ())
+         "app.bsky.notification.registerPush"
+         (Yojson.Safe.to_string
+            (register_push_body ~service_did ~token ~platform ~app_id
+               ?age_restricted ())))
 
   (** Unregister a push token via [app.bsky.notification.unregisterPush].
       Client wrapper for a hosted push service; this library does not
-      send push or fake a live hop. *)
-  let unregister_push (s : Session.session) ~service_did ~token ~platform
+      send push or fake a live hop. Optional [proxy] / [ATP_PUSH_DID]
+      send [atproto-proxy] (some PDS builds do not route
+      [unregisterPush] to [\#bsky_notif] themselves). Shares
+      [unregister_push_body]. *)
+  let unregister_push (s : Session.session) ?proxy ~service_did ~token ~platform
       ~app_id () : unit =
     ignore
-      (Client.Client.post_json ~session:s "app.bsky.notification.unregisterPush"
+      (Client.Client.post_json ~session:s
+         ~extra:(push_proxy_headers ?proxy ())
+         "app.bsky.notification.unregisterPush"
          (Yojson.Safe.to_string
-            (`Assoc
-              [
-                ("serviceDid", `String service_did);
-                ("token", `String token);
-                ("platform", `String platform);
-                ("appId", `String app_id);
-              ])))
+            (unregister_push_body ~service_did ~token ~platform ~app_id ())))
 end

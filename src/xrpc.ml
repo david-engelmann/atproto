@@ -70,6 +70,13 @@ module Xrpc = struct
   let appview_proxy : proxy =
     { did = "did:web:api.bsky.app"; service = "bsky_appview" }
 
+  (** Official notification-service fragment
+      ([did:web:api.bsky.app#bsky_notif]). Public service id only —
+      official Bluesky push is closed to the official app. Third-party
+      clients supply their own [serviceDid]. This is not a credential. *)
+  let notif_proxy : proxy =
+    { did = "did:web:api.bsky.app"; service = "bsky_notif" }
+
   (* ---- atproto-accept-labelers / atproto-content-labelers -------------- *)
 
   type labeler = { did : string; redact : bool }

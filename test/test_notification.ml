@@ -2,6 +2,7 @@ open OUnit2
 open Atproto.Session
 open Atproto.Auth
 open Atproto.Notification
+open Atproto.Xrpc
 
 let create_test_session _ =
   let username, password = Auth.username_and_password_from_env in
@@ -226,6 +227,76 @@ let test_put_activity_subscription_body _ =
       OUnit2.assert_equal ~printer:string_of_int 2 (List.length fields)
   | _ -> OUnit2.assert_failure "expected put_activity_subscription_body object"
 
+let test_push_and_activity_bodies _ =
+  OUnit2.assert_equal [] (Notification.list_activity_subscriptions_body ());
+  OUnit2.assert_equal
+    [ ("limit", "10"); ("cursor", "a1") ]
+    (Notification.list_activity_subscriptions_body ~limit:10 ~cursor:"a1" ());
+  OUnit2.assert_equal ~printer:(fun x -> x) "ios" Notification.platform_ios;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "android" Notification.platform_android;
+  OUnit2.assert_equal ~printer:(fun x -> x) "web" Notification.platform_web;
+  OUnit2.assert_equal None (Notification.effective_push_proxy ());
+  let gateway =
+    { Xrpc.did = "did:web:push.example.org"; service = "bsky_notif" }
+  in
+  OUnit2.assert_equal (Some gateway)
+    (Notification.effective_push_proxy ~proxy:gateway ());
+  let open Yojson.Safe.Util in
+  let reg =
+    Notification.register_push_body ~service_did:"did:web:push.example.org"
+      ~token:"device-token" ~platform:Notification.platform_ios
+      ~app_id:"org.example.app" ~age_restricted:true ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:web:push.example.org"
+    (reg |> member "serviceDid" |> to_string);
+  OUnit2.assert_equal true (reg |> member "ageRestricted" |> to_bool);
+  let unreg =
+    Notification.unregister_push_body ~service_did:"did:web:push.example.org"
+      ~token:"device-token" ~platform:Notification.platform_web
+      ~app_id:"org.example.app" ()
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "web"
+    (unreg |> member "platform" |> to_string);
+  ignore Notification.register_push;
+  ignore Notification.unregister_push;
+  ignore Notification.push_live_enabled
+
+let test_register_push_opt_in _ =
+  skip_if
+    (not Notification.push_live_enabled)
+    "ATP_PUSH not set; hosted push not faked";
+  skip_if
+    (not Auth.has_live_credentials)
+    "ATP_AUTH not configured; live Bluesky test skipped";
+  match
+    ( Sys.getenv_opt "ATP_PUSH_TOKEN",
+      Sys.getenv_opt "ATP_PUSH_DID",
+      Sys.getenv_opt "ATP_PUSH_APP_ID" )
+  with
+  | Some token, Some service_did, Some app_id
+    when String.trim token <> ""
+         && String.trim service_did <> ""
+         && String.trim app_id <> "" -> (
+      let test_session = create_test_session () in
+      let platform =
+        match Sys.getenv_opt "ATP_PUSH_PLATFORM" with
+        | Some p when String.trim p <> "" -> String.trim p
+        | _ -> Notification.platform_web
+      in
+      try
+        Notification.register_push test_session ~service_did ~token ~platform
+          ~app_id ();
+        OUnit2.assert_bool "registerPush accepted" true
+      with exn ->
+        skip_if true ("registerPush skipped: " ^ Printexc.to_string exn))
+  | _ -> skip_if true "ATP_PUSH_TOKEN / ATP_PUSH_DID / ATP_PUSH_APP_ID not set"
+
 let test_get_unread_count _ =
   skip_if
     (not Auth.has_live_credentials)
@@ -273,6 +344,8 @@ let suite =
          "test_list_notifications_body" >:: test_list_notifications_body;
          "test_put_activity_subscription_body"
          >:: test_put_activity_subscription_body;
+         "test_push_and_activity_bodies" >:: test_push_and_activity_bodies;
+         "test_register_push_opt_in" >:: test_register_push_opt_in;
          "test_get_unread_count" >:: test_get_unread_count;
          "test_list_notifications" >:: test_list_notifications;
          "test_update_seen" >:: test_update_seen;

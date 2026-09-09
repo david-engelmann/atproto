@@ -77,3 +77,15 @@
  (alias runtest)
  (action
   (run %{exe:jetstream_archive.exe})))
+
+(executable
+ (name contacts_production)
+ (flags
+  (:standard -w +33 -warn-error +33))
+ (libraries atproto yojson)
+ (modules contacts_production))
+
+(rule
+ (alias runtest)
+ (action
+  (run %{exe:contacts_production.exe})))

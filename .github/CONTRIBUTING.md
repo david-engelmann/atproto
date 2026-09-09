@@ -82,4 +82,4 @@ Five deprecated/internal NSIDs are skipped in
 `com.atproto.sync.getCheckout`, `com.atproto.sync.getHead`,
 `com.atproto.sync.notifyOfUpdate`, and `internal.bsky.actor.getProfiles`.
 Hosted-only servers (no OSS chat backend, no video transcoder, no Tap
-host) are not skip reasons.
+host, no SMS gateway, no APNs/FCM push backend) are not skip reasons.
