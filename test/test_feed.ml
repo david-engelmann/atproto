@@ -102,7 +102,78 @@ let test_feed_query_bodies _ =
     (Feed.search_posts_body ~q:"atproto" ~sort:"latest"
        ~since:"2024-01-01T00:00:00.000Z" ~until:"2024-02-01T00:00:00.000Z"
        ~mentions:"alice.test" ~author:"bob.test" ~lang:"en" ~domain:"bsky.app"
-       ~url:"https://atproto.com" ~limit:5 ~cursor:"s1" ())
+       ~url:"https://atproto.com" ~limit:5 ~cursor:"s1" ());
+  OUnit2.assert_equal [] (Feed.search_posts_v2_body ());
+  OUnit2.assert_equal
+    [ ("query", "atproto") ]
+    (Feed.search_posts_v2_body ~query:"atproto" ());
+  OUnit2.assert_equal
+    [
+      ("query", "atproto");
+      ("sort", "latest");
+      ("authors", "alice.test");
+      ("authors", "bob.test");
+      ("mentions", "carol.test");
+      ("domains", "bsky.app");
+      ("urls", "https://atproto.com");
+      ("embeddedAtUris", "at://did:plc:alice/app.bsky.feed.post/3abc");
+      ("hashtags", "ocaml");
+      ("excludeAuthors", "spam.test");
+      ("excludeMentions", "noise.test");
+      ("excludeDomains", "example.com");
+      ("excludeUrls", "https://example.com");
+      ("excludeEmbeddedAtUris", "at://did:plc:bob/app.bsky.feed.post/3def");
+      ("excludeHashtags", "nsfw");
+      ("since", "2024-01-01T00:00:00.000Z");
+      ("until", "2024-02-01T00:00:00.000Z");
+      ("allTime", "false");
+      ("languages", "en");
+      ("excludeLanguages", "fr");
+      ("hasMedia", "true");
+      ("hasVideo", "false");
+      ("replyParentUri", "at://did:plc:alice/app.bsky.feed.post/3abc");
+      ("threadRootUri", "at://did:plc:alice/app.bsky.feed.post/3root");
+      ("excludeReplies", "true");
+      ("repliesOnly", "false");
+      ("following", "true");
+      ("queryLanguage", "en");
+      ("limit", "5");
+      ("cursor", "v2");
+    ]
+    (Feed.search_posts_v2_body ~query:"atproto" ~sort:"latest"
+       ~authors:[ "alice.test"; "bob.test" ] ~mentions:[ "carol.test" ]
+       ~domains:[ "bsky.app" ] ~urls:[ "https://atproto.com" ]
+       ~embedded_at_uris:[ "at://did:plc:alice/app.bsky.feed.post/3abc" ]
+       ~hashtags:[ "ocaml" ] ~exclude_authors:[ "spam.test" ]
+       ~exclude_mentions:[ "noise.test" ] ~exclude_domains:[ "example.com" ]
+       ~exclude_urls:[ "https://example.com" ]
+       ~exclude_embedded_at_uris:
+         [ "at://did:plc:bob/app.bsky.feed.post/3def" ]
+       ~exclude_hashtags:[ "nsfw" ] ~since:"2024-01-01T00:00:00.000Z"
+       ~until:"2024-02-01T00:00:00.000Z" ~all_time:false ~languages:[ "en" ]
+       ~exclude_languages:[ "fr" ] ~has_media:true ~has_video:false
+       ~reply_parent_uri:"at://did:plc:alice/app.bsky.feed.post/3abc"
+       ~thread_root_uri:"at://did:plc:alice/app.bsky.feed.post/3root"
+       ~exclude_replies:true ~replies_only:false ~following:true
+       ~query_language:"en" ~limit:5 ~cursor:"v2" ());
+  OUnit2.assert_equal
+    [ ("uri", "at://did:plc:alice/app.bsky.feed.post/3abc") ]
+    (Feed.get_quotes_body ~uri:"at://did:plc:alice/app.bsky.feed.post/3abc" ());
+  OUnit2.assert_equal
+    [
+      ("uri", "at://did:plc:alice/app.bsky.feed.post/3abc");
+      ("cid", "bafy");
+      ("limit", "10");
+      ("cursor", "q1");
+    ]
+    (Feed.get_quotes_body ~uri:"at://did:plc:alice/app.bsky.feed.post/3abc"
+       ~cid:"bafy" ~limit:10 ~cursor:"q1" ());
+  OUnit2.assert_equal
+    [ ("actor", "alice.test") ]
+    (Feed.get_actor_likes_body ~actor:"alice.test" ());
+  OUnit2.assert_equal
+    [ ("actor", "alice.test"); ("limit", "8"); ("cursor", "l1") ]
+    (Feed.get_actor_likes_body ~actor:"alice.test" ~limit:8 ~cursor:"l1" ())
 
 let test_get_author_feed _ =
   skip_if

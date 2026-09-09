@@ -989,6 +989,67 @@ module Feed = struct
     @ Client.Client.opt_int "limit" limit
     @ Client.Client.opt_pair "cursor" cursor
 
+  (** Query-string pairs for [app.bsky.feed.searchPostsV2]. Currently sent
+      fields only: optional [query] / [sort] / repeated [authors] /
+      [mentions] / [domains] / [urls] / [embeddedAtUris] / [hashtags] /
+      [excludeAuthors] / [excludeMentions] / [excludeDomains] /
+      [excludeUrls] / [excludeEmbeddedAtUris] / [excludeHashtags] /
+      [since] / [until] / [allTime] / repeated [languages] /
+      [excludeLanguages] / [hasMedia] / [hasVideo] / [replyParentUri] /
+      [threadRootUri] / [excludeReplies] / [repliesOnly] / [following] /
+      [queryLanguage] / [limit] / [cursor]. *)
+  let search_posts_v2_body ?query ?sort ?(authors = []) ?(mentions = [])
+      ?(domains = []) ?(urls = []) ?(embedded_at_uris = []) ?(hashtags = [])
+      ?(exclude_authors = []) ?(exclude_mentions = []) ?(exclude_domains = [])
+      ?(exclude_urls = []) ?(exclude_embedded_at_uris = [])
+      ?(exclude_hashtags = []) ?since ?until ?all_time ?(languages = [])
+      ?(exclude_languages = []) ?has_media ?has_video ?reply_parent_uri
+      ?thread_root_uri ?exclude_replies ?replies_only ?following
+      ?query_language ?limit ?cursor () : (string * string) list =
+    Client.Client.opt_pair "query" query
+    @ Client.Client.opt_pair "sort" sort
+    @ Client.Client.repeat_param "authors" authors
+    @ Client.Client.repeat_param "mentions" mentions
+    @ Client.Client.repeat_param "domains" domains
+    @ Client.Client.repeat_param "urls" urls
+    @ Client.Client.repeat_param "embeddedAtUris" embedded_at_uris
+    @ Client.Client.repeat_param "hashtags" hashtags
+    @ Client.Client.repeat_param "excludeAuthors" exclude_authors
+    @ Client.Client.repeat_param "excludeMentions" exclude_mentions
+    @ Client.Client.repeat_param "excludeDomains" exclude_domains
+    @ Client.Client.repeat_param "excludeUrls" exclude_urls
+    @ Client.Client.repeat_param "excludeEmbeddedAtUris"
+        exclude_embedded_at_uris
+    @ Client.Client.repeat_param "excludeHashtags" exclude_hashtags
+    @ Client.Client.opt_pair "since" since
+    @ Client.Client.opt_pair "until" until
+    @ Client.Client.opt_bool "allTime" all_time
+    @ Client.Client.repeat_param "languages" languages
+    @ Client.Client.repeat_param "excludeLanguages" exclude_languages
+    @ Client.Client.opt_bool "hasMedia" has_media
+    @ Client.Client.opt_bool "hasVideo" has_video
+    @ Client.Client.opt_pair "replyParentUri" reply_parent_uri
+    @ Client.Client.opt_pair "threadRootUri" thread_root_uri
+    @ Client.Client.opt_bool "excludeReplies" exclude_replies
+    @ Client.Client.opt_bool "repliesOnly" replies_only
+    @ Client.Client.opt_bool "following" following
+    @ Client.Client.opt_pair "queryLanguage" query_language
+    @ Client.Client.opt_int "limit" limit
+    @ Client.Client.opt_pair "cursor" cursor
+
+  (** Query-string pairs for [app.bsky.feed.getQuotes]. Currently sent
+      fields only: required [uri], optional [cid] / [limit] / [cursor]. *)
+  let get_quotes_body ~uri ?cid ?limit ?cursor () : (string * string) list =
+    (("uri", uri) :: Client.Client.opt_pair "cid" cid)
+    @ Client.Client.opt_int "limit" limit
+    @ Client.Client.opt_pair "cursor" cursor
+
+  (** Query-string pairs for [app.bsky.feed.getActorLikes]. Currently sent
+      fields only: required [actor], optional [limit] / [cursor]. *)
+  let get_actor_likes_body ~actor ?limit ?cursor () : (string * string) list =
+    (("actor", actor) :: Client.Client.opt_int "limit" limit)
+    @ Client.Client.opt_pair "cursor" cursor
+
   (** Custom feed [feed] (AT URI) via [app.bsky.feed.getFeed]. Works
       without a session against public AppView. *)
   let get_feed ?session ?host ~feed ?limit ?cursor () : timeline =
@@ -1085,52 +1146,26 @@ module Feed = struct
       ?replies_only ?following ?query_language ?limit ?cursor () :
       search_posts_v2 =
     Client.Client.get_json ?session ?host "app.bsky.feed.searchPostsV2"
-      (Client.Client.opt_pair "query" query
-      @ Client.Client.opt_pair "sort" sort
-      @ Client.Client.repeat_param "authors" authors
-      @ Client.Client.repeat_param "mentions" mentions
-      @ Client.Client.repeat_param "domains" domains
-      @ Client.Client.repeat_param "urls" urls
-      @ Client.Client.repeat_param "embeddedAtUris" embedded_at_uris
-      @ Client.Client.repeat_param "hashtags" hashtags
-      @ Client.Client.repeat_param "excludeAuthors" exclude_authors
-      @ Client.Client.repeat_param "excludeMentions" exclude_mentions
-      @ Client.Client.repeat_param "excludeDomains" exclude_domains
-      @ Client.Client.repeat_param "excludeUrls" exclude_urls
-      @ Client.Client.repeat_param "excludeEmbeddedAtUris"
-          exclude_embedded_at_uris
-      @ Client.Client.repeat_param "excludeHashtags" exclude_hashtags
-      @ Client.Client.opt_pair "since" since
-      @ Client.Client.opt_pair "until" until
-      @ Client.Client.opt_bool "allTime" all_time
-      @ Client.Client.repeat_param "languages" languages
-      @ Client.Client.repeat_param "excludeLanguages" exclude_languages
-      @ Client.Client.opt_bool "hasMedia" has_media
-      @ Client.Client.opt_bool "hasVideo" has_video
-      @ Client.Client.opt_pair "replyParentUri" reply_parent_uri
-      @ Client.Client.opt_pair "threadRootUri" thread_root_uri
-      @ Client.Client.opt_bool "excludeReplies" exclude_replies
-      @ Client.Client.opt_bool "repliesOnly" replies_only
-      @ Client.Client.opt_bool "following" following
-      @ Client.Client.opt_pair "queryLanguage" query_language
-      @ Client.Client.opt_int "limit" limit
-      @ Client.Client.opt_pair "cursor" cursor)
+      (search_posts_v2_body ?query ?sort ~authors ~mentions ~domains ~urls
+         ~embedded_at_uris ~hashtags ~exclude_authors ~exclude_mentions
+         ~exclude_domains ~exclude_urls ~exclude_embedded_at_uris
+         ~exclude_hashtags ?since ?until ?all_time ~languages
+         ~exclude_languages ?has_media ?has_video ?reply_parent_uri
+         ?thread_root_uri ?exclude_replies ?replies_only ?following
+         ?query_language ?limit ?cursor ())
     |> parse_search_posts_v2
 
   (** Quotes of [uri] via [app.bsky.feed.getQuotes]. Works without a
       session against public AppView. *)
   let get_quotes ?session ?host ~uri ?cid ?limit ?cursor () : quotes =
     Client.Client.get_json ?session ?host "app.bsky.feed.getQuotes"
-      ((("uri", uri) :: Client.Client.opt_pair "cid" cid)
-      @ Client.Client.opt_int "limit" limit
-      @ Client.Client.opt_pair "cursor" cursor)
+      (get_quotes_body ~uri ?cid ?limit ?cursor ())
     |> parse_quotes
 
   (** Posts liked by [actor] via [app.bsky.feed.getActorLikes]. *)
   let get_actor_likes ?session ?host ~actor ?limit ?cursor () : timeline =
     Client.Client.get_json ?session ?host "app.bsky.feed.getActorLikes"
-      ((("actor", actor) :: Client.Client.opt_int "limit" limit)
-      @ Client.Client.opt_pair "cursor" cursor)
+      (get_actor_likes_body ~actor ?limit ?cursor ())
     |> parse_timeline
 
   (** Send ranking interactions via [app.bsky.feed.sendInteractions]
