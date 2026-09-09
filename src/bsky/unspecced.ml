@@ -770,8 +770,7 @@ module Unspecced = struct
   let get_post_thread_v2 ?session ?host ~anchor ?above ?below ?branching_factor
       ?sort () : thread_v2 =
     Client.get_json ?session ?host "app.bsky.unspecced.getPostThreadV2"
-      (get_post_thread_v2_body ~anchor ?above ?below ?branching_factor ?sort
-         ())
+      (get_post_thread_v2_body ~anchor ?above ?below ?branching_factor ?sort ())
     |> parse_thread_v2
 
   (** Additional thread replies (v2) via
