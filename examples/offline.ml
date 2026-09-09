@@ -501,6 +501,31 @@ let () =
   ignore Graph.unmute_actor_list;
   ignore Graph.mute_thread;
   ignore Graph.unmute_thread;
+  assert (
+    Graph.get_list_body ~list:list_uri ~limit:10 ()
+    = [ ("list", list_uri); ("limit", "10") ]);
+  assert (
+    Graph.get_lists_body ~actor:"alice.test" ~limit:2 ~cursor:"c1" ()
+    = [ ("actor", "alice.test"); ("limit", "2"); ("cursor", "c1") ]);
+  assert (
+    Graph.get_actor_starter_packs_body ~actor:"alice.test" ()
+    = [ ("actor", "alice.test") ]);
+  assert (
+    Graph.search_starter_packs_body ~q:"bluesky" ~limit:5 ()
+    = [ ("q", "bluesky"); ("limit", "5") ]);
+  assert (
+    Graph.get_relationships_body ~actor:"alice.test" ~others:[ "bob.test" ] ()
+    = [ ("actor", "alice.test"); ("others", "bob.test") ]);
+  assert (
+    Graph.get_known_followers_body ~actor:"alice.test" ~limit:8 ()
+    = [ ("actor", "alice.test"); ("limit", "8") ]);
+  ignore Graph.get_list;
+  ignore Graph.get_lists;
+  ignore Graph.get_actor_starter_packs;
+  ignore Graph.search_starter_packs;
+  ignore Graph.search_starter_packs_v2;
+  ignore Graph.get_relationships;
+  ignore Graph.get_known_followers;
   assert (Feed.filter_posts_with_replies = "posts_with_replies");
   assert (Feed.filter_posts_no_replies = "posts_no_replies");
   assert (Feed.filter_posts_with_media = "posts_with_media");

@@ -168,6 +168,56 @@ let test_unmute_thread_body _ =
        ~root:"at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k2b")
     "root" "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3k2b"
 
+let test_graph_appview_query_bodies _ =
+  OUnit2.assert_equal
+    [ ("list", "at://did:plc:alice/app.bsky.graph.list/mods") ]
+    (Graph.get_list_body ~list:"at://did:plc:alice/app.bsky.graph.list/mods" ());
+  OUnit2.assert_equal
+    [
+      ("list", "at://did:plc:alice/app.bsky.graph.list/mods");
+      ("limit", "10");
+      ("cursor", "next");
+    ]
+    (Graph.get_list_body ~list:"at://did:plc:alice/app.bsky.graph.list/mods"
+       ~limit:10 ~cursor:"next" ());
+  OUnit2.assert_equal
+    [ ("actor", "alice.test") ]
+    (Graph.get_lists_body ~actor:"alice.test" ());
+  OUnit2.assert_equal
+    [ ("actor", "alice.test"); ("limit", "2"); ("cursor", "c1") ]
+    (Graph.get_lists_body ~actor:"alice.test" ~limit:2 ~cursor:"c1" ());
+  OUnit2.assert_equal
+    [ ("actor", "alice.test") ]
+    (Graph.get_actor_starter_packs_body ~actor:"alice.test" ());
+  OUnit2.assert_equal
+    [ ("actor", "alice.test"); ("limit", "5"); ("cursor", "p1") ]
+    (Graph.get_actor_starter_packs_body ~actor:"alice.test" ~limit:5
+       ~cursor:"p1" ());
+  OUnit2.assert_equal
+    [ ("q", "bluesky") ]
+    (Graph.search_starter_packs_body ~q:"bluesky" ());
+  OUnit2.assert_equal
+    [ ("q", "bluesky"); ("limit", "3"); ("cursor", "s1") ]
+    (Graph.search_starter_packs_body ~q:"bluesky" ~limit:3 ~cursor:"s1" ());
+  OUnit2.assert_equal
+    [ ("actor", "alice.test") ]
+    (Graph.get_relationships_body ~actor:"alice.test" ());
+  OUnit2.assert_equal
+    [
+      ("actor", "alice.test");
+      ("others", "bob.test");
+      ("others", "did:plc:abc123xyz0001112223333");
+    ]
+    (Graph.get_relationships_body ~actor:"alice.test"
+       ~others:[ "bob.test"; "did:plc:abc123xyz0001112223333" ]
+       ());
+  OUnit2.assert_equal
+    [ ("actor", "alice.test") ]
+    (Graph.get_known_followers_body ~actor:"alice.test" ());
+  OUnit2.assert_equal
+    [ ("actor", "alice.test"); ("limit", "8"); ("cursor", "k1") ]
+    (Graph.get_known_followers_body ~actor:"alice.test" ~limit:8 ~cursor:"k1" ())
+
 let test_follow_page_sort_and_cursor _ =
   OUnit2.assert_equal ~printer:(fun x -> x) "latest" Graph.sort_latest;
   OUnit2.assert_equal ~printer:(fun x -> x) "top" Graph.sort_top;
@@ -696,6 +746,7 @@ let suite =
          "test_unmute_actor_list_body" >:: test_unmute_actor_list_body;
          "test_mute_thread_body" >:: test_mute_thread_body;
          "test_unmute_thread_body" >:: test_unmute_thread_body;
+         "test_graph_appview_query_bodies" >:: test_graph_appview_query_bodies;
          "test_follow_page_sort_and_cursor" >:: test_follow_page_sort_and_cursor;
          "test_parse_list" >:: test_parse_list;
          "test_parse_list_opt_out_fields" >:: test_parse_list_opt_out_fields;

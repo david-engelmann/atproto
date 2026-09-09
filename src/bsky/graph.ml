@@ -611,19 +611,57 @@ module Graph = struct
           | _ -> []);
     }
 
+  (** Query-string pairs for [app.bsky.graph.getList]. Currently sent
+      fields only: required [list], optional [limit] / [cursor]. *)
+  let get_list_body ~list ?limit ?cursor () : (string * string) list =
+    (("list", list) :: Client.Client.opt_int "limit" limit)
+    @ Client.Client.opt_pair "cursor" cursor
+
+  (** Query-string pairs for [app.bsky.graph.getLists]. Currently sent
+      fields only: required [actor], optional [limit] / [cursor]. *)
+  let get_lists_body ~actor ?limit ?cursor () : (string * string) list =
+    (("actor", actor) :: Client.Client.opt_int "limit" limit)
+    @ Client.Client.opt_pair "cursor" cursor
+
+  (** Query-string pairs for [app.bsky.graph.getActorStarterPacks].
+      Currently sent fields only: required [actor], optional [limit] /
+      [cursor]. *)
+  let get_actor_starter_packs_body ~actor ?limit ?cursor () :
+      (string * string) list =
+    (("actor", actor) :: Client.Client.opt_int "limit" limit)
+    @ Client.Client.opt_pair "cursor" cursor
+
+  (** Query-string pairs for [app.bsky.graph.searchStarterPacks] and
+      [app.bsky.graph.searchStarterPacksV2]. Currently sent fields only:
+      required [q], optional [limit] / [cursor]. *)
+  let search_starter_packs_body ~q ?limit ?cursor () : (string * string) list =
+    (("q", q) :: Client.Client.opt_int "limit" limit)
+    @ Client.Client.opt_pair "cursor" cursor
+
+  (** Query-string pairs for [app.bsky.graph.getRelationships]. Currently
+      sent fields only: required [actor], optional repeated [others]. *)
+  let get_relationships_body ~actor ?others () : (string * string) list =
+    ("actor", actor)
+    :: Client.Client.repeat_param "others" (Option.value others ~default:[])
+
+  (** Query-string pairs for [app.bsky.graph.getKnownFollowers]. Currently
+      sent fields only: required [actor], optional [limit] / [cursor]. *)
+  let get_known_followers_body ~actor ?limit ?cursor () : (string * string) list
+      =
+    (("actor", actor) :: Client.Client.opt_int "limit" limit)
+    @ Client.Client.opt_pair "cursor" cursor
+
   (** List view and items for [list] (AT URI) via [app.bsky.graph.getList].
       Works without a session against public AppView. *)
   let get_list ?session ?host ~list ?limit ?cursor () : list_page =
     Client.Client.get_json ?session ?host "app.bsky.graph.getList"
-      ((("list", list) :: Client.Client.opt_int "limit" limit)
-      @ Client.Client.opt_pair "cursor" cursor)
+      (get_list_body ~list ?limit ?cursor ())
     |> parse_list_page
 
   (** Lists created by [actor] via [app.bsky.graph.getLists]. *)
   let get_lists ?session ?host ~actor ?limit ?cursor () : lists =
     Client.Client.get_json ?session ?host "app.bsky.graph.getLists"
-      ((("actor", actor) :: Client.Client.opt_int "limit" limit)
-      @ Client.Client.opt_pair "cursor" cursor)
+      (get_lists_body ~actor ?limit ?cursor ())
     |> parse_lists
 
   (** Lists the session mutes via [app.bsky.graph.getListMutes]. Optional
@@ -708,8 +746,7 @@ module Graph = struct
   let get_actor_starter_packs ?session ?host ~actor ?limit ?cursor () :
       starter_packs =
     Client.Client.get_json ?session ?host "app.bsky.graph.getActorStarterPacks"
-      ((("actor", actor) :: Client.Client.opt_int "limit" limit)
-      @ Client.Client.opt_pair "cursor" cursor)
+      (get_actor_starter_packs_body ~actor ?limit ?cursor ())
     |> parse_starter_packs
 
   (** Search starter packs for [q] via [app.bsky.graph.searchStarterPacks].
@@ -717,8 +754,7 @@ module Graph = struct
       session against public AppView. *)
   let search_starter_packs ?session ?host ~q ?limit ?cursor () : starter_packs =
     Client.Client.get_json ?session ?host "app.bsky.graph.searchStarterPacks"
-      ((("q", q) :: Client.Client.opt_int "limit" limit)
-      @ Client.Client.opt_pair "cursor" cursor)
+      (search_starter_packs_body ~q ?limit ?cursor ())
     |> parse_starter_packs
 
   (** Search starter packs for [q] via [app.bsky.graph.searchStarterPacksV2].
@@ -727,8 +763,7 @@ module Graph = struct
   let search_starter_packs_v2 ?session ?host ~q ?limit ?cursor () :
       starter_packs =
     Client.Client.get_json ?session ?host "app.bsky.graph.searchStarterPacksV2"
-      ((("q", q) :: Client.Client.opt_int "limit" limit)
-      @ Client.Client.opt_pair "cursor" cursor)
+      (search_starter_packs_body ~q ?limit ?cursor ())
     |> parse_starter_packs
 
   (** [actor]'s lists plus the session's membership via
@@ -757,8 +792,7 @@ module Graph = struct
       [app.bsky.graph.getRelationships]. *)
   let get_relationships ?session ?host ~actor ?others () : relationships =
     Client.Client.get_json ?session ?host "app.bsky.graph.getRelationships"
-      (("actor", actor)
-      :: Client.Client.repeat_param "others" (Option.value others ~default:[]))
+      (get_relationships_body ~actor ?others ())
     |> parse_relationships
 
   (** Followers of [actor] that the session also follows via
@@ -766,8 +800,7 @@ module Graph = struct
       to the lexicon query. *)
   let get_known_followers ?session ?host ~actor ?limit ?cursor () : followers =
     Client.Client.get_json ?session ?host "app.bsky.graph.getKnownFollowers"
-      ((("actor", actor) :: Client.Client.opt_int "limit" limit)
-      @ Client.Client.opt_pair "cursor" cursor)
+      (get_known_followers_body ~actor ?limit ?cursor ())
     |> parse_followers
 
   let parse_suggested_follow_subject json : list_item_subject =
