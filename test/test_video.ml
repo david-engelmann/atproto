@@ -258,13 +258,13 @@ let test_video_embed_json _ =
     ~printer:(fun x -> x)
     "gif"
     (embed |> member "presentation" |> to_string);
-  match Video.embed_of_blob ~alt:"demo" sample_blob with
+  (match Video.embed_of_blob ~alt:"demo" sample_blob with
   | `Video v ->
       OUnit2.assert_equal
         ~printer:(fun x -> x)
         "demo"
         (Option.value ~default:"" v.alt)
-  | _ -> OUnit2.assert_failure "expected Video embed";
+  | _ -> OUnit2.assert_failure "expected Video embed");
   let ready =
     Video.parse_job_status
       (`Assoc
@@ -335,9 +335,11 @@ let test_multipart_parsers _ =
   OUnit2.assert_equal (Some 5_242_880)
     (Video.expected_part_size sess ~part_number:1);
   OUnit2.assert_equal None (Video.expected_part_size sess ~part_number:9);
-  OUnit2.assert_equal (Some (0, 5_242_880))
+  OUnit2.assert_equal
+    (Some (0, 5_242_880))
     (Video.part_slice ~total_bytes:10_485_761 sess ~part_number:1);
-  OUnit2.assert_equal (Some (10_485_760, 1))
+  OUnit2.assert_equal
+    (Some (10_485_760, 1))
     (Video.part_slice ~total_bytes:10_485_761 sess ~part_number:3);
   OUnit2.assert_equal None
     (Video.part_slice ~total_bytes:10_485_761 sess ~part_number:9);

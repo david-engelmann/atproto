@@ -109,7 +109,8 @@ module Video = struct
 
   (** Hosted video hostname ([host], or [ATP_VIDEO_HOST] /
       [default_host]). *)
-  let video_host ?host () = match host with Some h -> h | None -> host_from_env
+  let video_host ?host () =
+    match host with Some h -> h | None -> host_from_env
 
   (** Query pairs for [com.atproto.server.getServiceAuth] on the video
       upload path ([pds_audience] + [upload_blob_lxm] +
@@ -235,7 +236,8 @@ module Video = struct
       [get_job_status_body]. *)
   let get_job_status ?session ?host ~job_id () : job_status =
     Client.get_json ?session ~host:(video_host ?host ())
-      "app.bsky.video.getJobStatus" (get_job_status_body ~job_id ())
+      "app.bsky.video.getJobStatus"
+      (get_job_status_body ~job_id ())
     |> parse_job_status_response
 
   (** Daily upload limits via [app.bsky.video.getUploadLimits] on the
