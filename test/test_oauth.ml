@@ -895,6 +895,282 @@ let test_provider_html_and_browser_headers _ =
   OUnit2.assert_equal Oauth.Not_html
     (Oauth.parse_provider_html {|{"error":"nope"}|})
 
+let fails_with needle f =
+  try
+    f ();
+    false
+  with Failure msg ->
+    let rec find i =
+      i + String.length needle <= String.length msg
+      && (String.sub msg i (String.length needle) = needle || find (i + 1))
+    in
+    find 0
+
+let test_https_client_id_helpers _ =
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "https://client.example/oauth-client-metadata.json"
+    (Oauth.https_client_id ~host:"client.example" ());
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "https://app.example.com/client-metadata.json"
+    (Oauth.https_client_id ~host:"app.example.com" ~path:"/client-metadata.json"
+       ());
+  OUnit2.assert_bool "port in host accepted"
+    (fails_with "port" (fun () ->
+         ignore (Oauth.https_client_id ~host:"client.example:8443" ())));
+  OUnit2.assert_bool "https client_id"
+    (Oauth.is_https_client_id "https://client.example/client-metadata.json");
+  OUnit2.assert_bool "https with port"
+    (not (Oauth.is_https_client_id "https://client.example:8443/meta.json"));
+  OUnit2.assert_bool "https with query"
+    (not
+       (Oauth.is_https_client_id
+          "https://client.example/client-metadata.json?x=1"));
+  OUnit2.assert_bool "http public"
+    (not
+       (Oauth.is_https_client_id "http://client.example/client-metadata.json"));
+  OUnit2.assert_bool "loopback http uri"
+    (Oauth.is_loopback_http_uri "http://127.0.0.1:9/client-metadata.json");
+  OUnit2.assert_bool "loopback ip redirect"
+    (Oauth.is_loopback_http_redirect "http://127.0.0.1:8080/cb");
+  OUnit2.assert_bool "localhost hostname redirect"
+    (not (Oauth.is_loopback_http_redirect "http://localhost:8080/cb"))
+
+let test_https_metadata_public _ =
+  let client_id = Oauth.https_client_id ~host:"client.example" () in
+  let meta =
+    Oauth.public_https_metadata ~client_id
+      ~redirect_uris:[ "https://client.example/cb" ]
+      ~client_name:"Example" ()
+  in
+  Oauth.validate_https_metadata meta;
+  OUnit2.assert_equal ~printer:(fun x -> x) client_id meta.client_id;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "application/json" Oauth.metadata_content_type;
+  let served = Oauth.metadata_http_response ~pretty:true meta in
+  OUnit2.assert_equal 200 served.status;
+  OUnit2.assert_equal (Some "application/json")
+    (List.assoc_opt "Content-Type" served.headers);
+  let parsed = Oauth.metadata_of_json (Yojson.Safe.from_string served.body) in
+  OUnit2.assert_equal ~printer:(fun x -> x) client_id parsed.client_id;
+  Oauth.expect_declared_redirect meta "https://client.example/cb";
+  Oauth.expect_declared_scope meta ~requested:"atproto";
+  OUnit2.assert_bool "undeclared redirect accepted"
+    (fails_with "redirect_uri" (fun () ->
+         Oauth.expect_declared_redirect meta "https://evil.example/cb"));
+  OUnit2.assert_bool "undeclared scope accepted"
+    (fails_with "scope" (fun () ->
+         Oauth.expect_declared_scope meta ~requested:"atproto transition:email"))
+
+let test_https_metadata_rejects_shapes _ =
+  OUnit2.assert_bool "public http client_id accepted"
+    (fails_with "https" (fun () ->
+         Oauth.validate_metadata
+           (Oauth.public_metadata
+              ~client_id:"http://client.example/client-metadata.json"
+              ~redirect_uris:[ "https://client.example/cb" ]
+              ())));
+  OUnit2.assert_bool "client_id port accepted"
+    (fails_with "port" (fun () ->
+         Oauth.validate_https_client_id
+           "https://client.example:8443/client-metadata.json"));
+  OUnit2.assert_bool "web http redirect accepted"
+    (fails_with "https" (fun () ->
+         Oauth.validate_metadata
+           (Oauth.public_metadata
+              ~client_id:"https://client.example/client-metadata.json"
+              ~redirect_uris:[ "http://client.example/cb" ]
+              ())));
+  OUnit2.assert_bool "cross-origin https redirect accepted"
+    (fails_with "origin" (fun () ->
+         Oauth.validate_metadata
+           (Oauth.public_metadata
+              ~client_id:"https://client.example/client-metadata.json"
+              ~redirect_uris:[ "https://other.example/cb" ]
+              ())));
+  OUnit2.assert_bool "default https port accepted"
+    (fails_with "default" (fun () ->
+         Oauth.validate_metadata
+           (Oauth.public_metadata
+              ~client_id:"https://client.example/client-metadata.json"
+              ~redirect_uris:[ "https://client.example:443/cb" ]
+              ())));
+  OUnit2.assert_bool "http logo_uri accepted"
+    (fails_with "logo_uri" (fun () ->
+         Oauth.validate_metadata
+           (Oauth.public_metadata
+              ~client_id:"https://client.example/client-metadata.json"
+              ~redirect_uris:[ "https://client.example/cb" ]
+              ~logo_uri:"http://client.example/logo.png" ())));
+  OUnit2.assert_bool "client_uri host mismatch accepted"
+    (fails_with "hostname" (fun () ->
+         Oauth.validate_metadata
+           (Oauth.public_metadata
+              ~client_id:"https://client.example/client-metadata.json"
+              ~redirect_uris:[ "https://client.example/cb" ]
+              ~client_uri:"https://other.example/" ())));
+  let loopback_hosted =
+    Oauth.public_metadata ~client_id:"http://127.0.0.1:9/client-metadata.json"
+      ~redirect_uris:[ "http://127.0.0.1:9/cb" ]
+      ~application_type:"native" ()
+  in
+  Oauth.validate_metadata loopback_hosted;
+  OUnit2.assert_bool "loopback hosted passed https validator"
+    (fails_with "https" (fun () ->
+         Oauth.validate_https_metadata loopback_hosted))
+
+let test_https_native_redirects _ =
+  let client_id = "https://app.example.com/oauth-client-metadata.json" in
+  let loopback =
+    Oauth.public_https_metadata ~client_id ~application_type:"native"
+      ~redirect_uris:[ "http://127.0.0.1:8080/cb" ]
+      ()
+  in
+  Oauth.validate_https_metadata loopback;
+  let custom =
+    Oauth.public_https_metadata ~client_id ~application_type:"native"
+      ~redirect_uris:[ "com.example.app:/callback" ]
+      ()
+  in
+  Oauth.validate_https_metadata custom;
+  OUnit2.assert_bool "localhost hostname native redirect accepted"
+    (fails_with "redirect_uri" (fun () ->
+         ignore
+           (Oauth.public_https_metadata ~client_id ~application_type:"native"
+              ~redirect_uris:[ "http://localhost:8080/cb" ]
+              ())));
+  OUnit2.assert_bool "wrong custom scheme accepted"
+    (fails_with "redirect_uri" (fun () ->
+         ignore
+           (Oauth.public_https_metadata ~client_id ~application_type:"native"
+              ~redirect_uris:[ "com.other.app:/callback" ]
+              ())))
+
+let test_fetch_client_metadata _ =
+  let client_id = "https://client.example/oauth-client-metadata.json" in
+  let meta =
+    Oauth.public_https_metadata ~client_id
+      ~redirect_uris:[ "https://client.example/cb" ]
+      ()
+  in
+  let served = Oauth.metadata_http_response meta in
+  let http ~url ~headers:_ =
+    if url = client_id then served
+    else { Oauth.status = 404; headers = []; body = "missing" }
+  in
+  let fetched = Oauth.fetch_client_metadata ~http ~client_id () in
+  OUnit2.assert_equal ~printer:(fun x -> x) client_id fetched.client_id;
+  let mismatch =
+    {
+      served with
+      body =
+        Oauth.metadata_document
+          {
+            meta with
+            client_id = "https://other.example/oauth-client-metadata.json";
+          };
+    }
+  in
+  let http_mismatch ~url:_ ~headers:_ = mismatch in
+  OUnit2.assert_bool "mismatched client_id accepted"
+    (fails_with "exactly match" (fun () ->
+         ignore (Oauth.fetch_client_metadata ~http:http_mismatch ~client_id ())));
+  let http_201 ~url:_ ~headers:_ = { served with status = 201 } in
+  OUnit2.assert_bool "HTTP 201 accepted"
+    (fails_with "must be 200" (fun () ->
+         ignore (Oauth.fetch_client_metadata ~http:http_201 ~client_id ())));
+  let http_no_ct ~url:_ ~headers:_ = { served with headers = [] } in
+  OUnit2.assert_bool "missing Content-Type accepted"
+    (fails_with "Content-Type" (fun () ->
+         ignore (Oauth.fetch_client_metadata ~http:http_no_ct ~client_id ())))
+
+let test_start_complete_browser_login _ =
+  let priv, pub = p256_pair () in
+  let client_id = "https://client.example/oauth-client-metadata.json" in
+  let redirect_uri = "https://client.example/cb" in
+  let http_get ~url ~headers:_ =
+    if
+      Oauth.starts_with url
+        "https://bsky.social/.well-known/oauth-protected-resource"
+    then
+      {
+        Oauth.status = 200;
+        headers = [ ("Content-Type", "application/json") ];
+        body =
+          Yojson.Safe.to_string
+            (`Assoc
+              [
+                ( "authorization_servers",
+                  `List [ `String "https://bsky.social" ] );
+              ]);
+      }
+    else if
+      Oauth.starts_with url
+        "https://bsky.social/.well-known/oauth-authorization-server"
+    then
+      {
+        Oauth.status = 200;
+        headers = [ ("Content-Type", "application/json") ];
+        body = Yojson.Safe.to_string sample_as_json;
+      }
+    else failwith ("unexpected GET " ^ url)
+  in
+  let http_post ~url ~headers:_ ~body:_ =
+    if Oauth.starts_with url "https://bsky.social/oauth/par" then
+      {
+        Oauth.status = 201;
+        headers = [ ("Content-Type", "application/json") ];
+        body =
+          {|{"request_uri":"urn:ietf:params:oauth:request_uri:demo","expires_in":60}|};
+      }
+    else if Oauth.starts_with url "https://bsky.social/oauth/token" then
+      {
+        Oauth.status = 200;
+        headers = [ ("Content-Type", "application/json") ];
+        body =
+          {|{"access_token":"tok","token_type":"DPoP","scope":"atproto transition:generic","sub":"did:plc:abc123xyz0001112223333"}|};
+      }
+    else failwith ("unexpected POST " ^ url)
+  in
+  let login =
+    Oauth.start_browser_login ~http_get ~http_post ~priv ~pub
+      ~pds_origin:"https://bsky.social" ~client_id ~redirect_uri ()
+  in
+  OUnit2.assert_equal ~printer:(fun x -> x) client_id login.client_id;
+  OUnit2.assert_equal ~printer:(fun x -> x) redirect_uri login.redirect_uri;
+  OUnit2.assert_equal ~printer:(fun x -> x) "https://bsky.social" login.issuer;
+  OUnit2.assert_bool "authorize URL"
+    (Oauth.starts_with login.authorize_url
+       "https://bsky.social/oauth/authorize?");
+  OUnit2.assert_bool "request_uri"
+    (let needle = "request_uri=" in
+     let rec find i =
+       i + String.length needle <= String.length login.authorize_url
+       && (String.sub login.authorize_url i (String.length needle) = needle
+          || find (i + 1))
+     in
+     find 0);
+  let redirect =
+    Printf.sprintf "%s?code=splendid&state=%s&iss=https%%3A%%2F%%2Fbsky.social"
+      redirect_uri login.state
+  in
+  let token, _ =
+    Oauth.complete_browser_login ~http:http_post ~priv ~pub ~login ~redirect ()
+  in
+  OUnit2.assert_equal ~printer:(fun x -> x) "tok" token.access_token;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:abc123xyz0001112223333" token.sub;
+  OUnit2.assert_bool "public http start accepted"
+    (fails_with "https" (fun () ->
+         ignore
+           (Oauth.start_browser_login ~http_get ~http_post ~priv ~pub
+              ~pds_origin:"https://bsky.social"
+              ~client_id:"http://client.example/client-metadata.json"
+              ~redirect_uri ())))
+
 let test_provider_api_and_cookies _ =
   OUnit2.assert_equal
     ~printer:(fun x -> x)
@@ -1034,6 +1310,14 @@ let suite =
          "test_provider_html_and_browser_headers"
          >:: test_provider_html_and_browser_headers;
          "test_provider_api_and_cookies" >:: test_provider_api_and_cookies;
+         "test_https_client_id_helpers" >:: test_https_client_id_helpers;
+         "test_https_metadata_public" >:: test_https_metadata_public;
+         "test_https_metadata_rejects_shapes"
+         >:: test_https_metadata_rejects_shapes;
+         "test_https_native_redirects" >:: test_https_native_redirects;
+         "test_fetch_client_metadata" >:: test_fetch_client_metadata;
+         "test_start_complete_browser_login"
+         >:: test_start_complete_browser_login;
        ]
 
 let () = run_test_tt_main suite

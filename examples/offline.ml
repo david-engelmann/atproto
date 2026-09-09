@@ -51,14 +51,17 @@ let () =
   assert (Tid.is_valid "3jzfcijpj2z2a");
   (* MST layer for a repo key — official vector *)
   assert (Mst.layer_for_key "blue" = 1);
-  (* OAuth client metadata (no hosted client required) *)
+  (* OAuth client metadata (app still hosts the HTTPS document) *)
   let meta =
-    Oauth.public_metadata
-      ~client_id:"https://client.example/client-metadata.json"
+    Oauth.public_https_metadata
+      ~client_id:"https://client.example/oauth-client-metadata.json"
       ~redirect_uris:[ "https://client.example/cb" ]
       ()
   in
-  Oauth.validate_metadata meta;
+  Oauth.validate_https_metadata meta;
+  ignore (Oauth.metadata_document meta);
+  ignore (Oauth.metadata_http_response meta);
+  ignore (Oauth.https_client_id ~host:"client.example" ());
   let loopback =
     Oauth.loopback_client_id ~redirect_uri:"http://127.0.0.1:8080/cb"
       ~scope:"atproto transition:generic" ()

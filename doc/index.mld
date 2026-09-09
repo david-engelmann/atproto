@@ -6,7 +6,9 @@ AppView, Ozone, and a chat client. Official lexicons are pinned at
 bluesky-social/atproto
 {{:https://github.com/bluesky-social/atproto/commit/f0d4877a03dc8ede0d3e9a36d5b72ada63b5d2e0}[f0d4877a03]}.
 Leftovers are hosted-only (no PDS, OSS chat backend, video transcoder,
-or Tap in this package).
+or Tap in this package). {!Atproto.Oauth} builds and validates a public
+HTTPS client-metadata document and the authorize → code → token
+browser path; the application still hosts that document.
 
 {1 Install}
 

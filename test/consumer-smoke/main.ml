@@ -11,10 +11,11 @@ let () =
   assert (Syntax.is_valid_handle "alice.test");
   assert (Syntax.is_valid_did "did:plc:abc123xyz0001112223333");
   let meta =
-    Oauth.public_metadata
-      ~client_id:"https://client.example/client-metadata.json"
+    Oauth.public_https_metadata
+      ~client_id:"https://client.example/oauth-client-metadata.json"
       ~redirect_uris:[ "https://client.example/cb" ]
       ()
   in
-  Oauth.validate_metadata meta;
+  Oauth.validate_https_metadata meta;
+  ignore (Oauth.metadata_http_response meta);
   print_endline "consumer-smoke: installed atproto package links"
