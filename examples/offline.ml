@@ -284,9 +284,7 @@ let () =
   assert (List.mem ("did", "did:plc:abc123xyz0001112223333") ozone_reports_q);
   assert (List.mem ("limit", "10") ozone_reports_q);
   ignore Ozone.query_reports;
-  let ozone_search_repos_q =
-    Ozone.search_repos_body ~q:"alice" ~limit:10 ()
-  in
+  let ozone_search_repos_q = Ozone.search_repos_body ~q:"alice" ~limit:10 () in
   assert (List.mem ("q", "alice") ozone_search_repos_q);
   assert (List.mem ("limit", "10") ozone_search_repos_q);
   ignore Ozone.search_repos;

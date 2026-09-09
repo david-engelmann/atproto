@@ -831,11 +831,12 @@ let test_query_statuses_body _ =
   OUnit2.assert_equal [] (Ozone.query_statuses_body ())
 
 let test_query_reports_body _ =
-  OUnit2.assert_equal [ ("status", "open") ]
+  OUnit2.assert_equal
+    [ ("status", "open") ]
     (Ozone.query_reports_body ~status:"open" ());
-  OUnit2.assert_equal [ ("status", "open") ]
-    (Ozone.query_reports_body ~status:"open" ~report_types:[] ~collections:[]
-       ());
+  OUnit2.assert_equal
+    [ ("status", "open") ]
+    (Ozone.query_reports_body ~status:"open" ~report_types:[] ~collections:[] ());
   let pairs =
     Ozone.query_reports_body ~status:"escalated" ~queue_id:3
       ~report_types:[ "com.atproto.moderation.defs#reasonSpam" ]
@@ -852,8 +853,7 @@ let test_query_reports_body _ =
       ("status", "escalated");
       ("queueId", "3");
       ("reportTypes", "com.atproto.moderation.defs#reasonSpam");
-      ( "subject",
-        "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3abc" );
+      ("subject", "at://did:plc:abc123xyz0001112223333/app.bsky.feed.post/3abc");
       ("did", "did:plc:abc123xyz0001112223333");
       ("subjectType", "record");
       ("collections", "app.bsky.feed.post");
@@ -872,10 +872,7 @@ let test_search_repos_body _ =
   OUnit2.assert_equal [] (Ozone.search_repos_body ());
   OUnit2.assert_equal
     [
-      ("q", "alice");
-      ("term", "alice.test");
-      ("limit", "10");
-      ("cursor", "s1");
+      ("q", "alice"); ("term", "alice.test"); ("limit", "10"); ("cursor", "s1");
     ]
     (Ozone.search_repos_body ~q:"alice" ~term:"alice.test" ~limit:10
        ~cursor:"s1" ())
