@@ -132,6 +132,44 @@ let test_official_permission_sets _ =
              && List.mem ("action", "delete") s.Oauth_scope.params)
            scopes)
 
+let test_chat_scopes _ =
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "atproto transition:generic transition:chat.bsky"
+    Oauth_scope.default_chat_scope;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "atproto include:chat.bsky.authFullChatClient"
+    Oauth_scope.full_chat_client_scope;
+  ignore (Oauth_scope.parse_and_require Oauth_scope.default_chat_scope);
+  ignore (Oauth_scope.parse_and_require Oauth_scope.full_chat_client_scope);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    Oauth_scope.default_chat_scope Atproto.Oauth.Oauth.default_chat_scope;
+  OUnit2.assert_bool "transition chat"
+    (Oauth_scope.has_chat Oauth_scope.transition_chat);
+  OUnit2.assert_bool "include full chat"
+    (Oauth_scope.has_chat Oauth_scope.include_full_chat_client);
+  OUnit2.assert_bool "default chat scope"
+    (Oauth_scope.has_chat Oauth_scope.default_chat_scope);
+  OUnit2.assert_bool "generic is not chat"
+    (not (Oauth_scope.has_chat "atproto transition:generic"));
+  match Oauth_scope.expand_include_nsid Oauth_scope.full_chat_client_nsid with
+  | None -> OUnit2.assert_failure "expected bundled authFullChatClient"
+  | Some scopes ->
+      OUnit2.assert_bool "expands listConvos"
+        (List.exists
+           (fun s ->
+             s.Oauth_scope.resource = Oauth_scope.Rpc
+             && s.Oauth_scope.positional = Some "chat.bsky.convo.listConvos")
+           scopes);
+      OUnit2.assert_bool "expands sendMessage"
+        (List.exists
+           (fun s ->
+             s.Oauth_scope.resource = Oauth_scope.Rpc
+             && s.Oauth_scope.positional = Some "chat.bsky.convo.sendMessage")
+           scopes)
+
 let suite =
   "oauth_scope"
   >::: [
@@ -145,6 +183,7 @@ let suite =
          "test_subset_and_require" >:: test_subset_and_require;
          "test_metadata_parses_granular" >:: test_metadata_parses_granular;
          "test_official_permission_sets" >:: test_official_permission_sets;
+         "test_chat_scopes" >:: test_chat_scopes;
        ]
 
 let () = run_test_tt_main suite

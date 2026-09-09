@@ -186,8 +186,8 @@ module Client = struct
      and pass it here as ~bearer — Client cannot depend on Oauth. *)
 
   (** Mint [com.atproto.server.getServiceAuth] for [aud] / [lxm] using
-      the session [at+jwt]. AppView and Ozone want this JWT, not the
-      PDS access token. *)
+      the session [at+jwt]. AppView, Ozone, and hosted chat want this
+      JWT, not the PDS access token. Chat [aud] is [Chat.service_aud]. *)
   let get_service_auth (s : Auth.session) ~aud ~lxm () : string =
     let json =
       get_json ~session:s "com.atproto.server.getServiceAuth"

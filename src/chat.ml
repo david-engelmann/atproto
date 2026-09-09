@@ -9,10 +9,40 @@ open Firehose
 open Dag_cbor
 open Websocket
 
-(** chat.bsky.convo — DMs. Requests must include atproto-proxy for the chat service. *)
+(** chat.bsky.* — hosted Bluesky DMs.
+    Password [at+jwt] sessions send [atproto-proxy] through the PDS
+    ([effective_proxy]: explicit [proxy], else session [did_doc]
+    [#bsky_chat], else [ATP_CHAT_DID], else
+    [did:web:api.bsky.chat#bsky_chat]).
+    OAuth DPoP cannot be proxied: mint [getServiceAuth]
+    ([aud] = [service_aud], [lxm] = the XRPC) and call the chat host
+    ([default_host] / [ATP_CHAT_HOST]) with that JWT
+    ([list_convos_service] / [get_convo_service] /
+    [get_messages_service] / [send_message_service]).
+    This is a client for the hosted chat service, not an OSS chat
+    backend. Official TestNetwork does not start chat. *)
 module Chat = struct
   let default_proxy : Xrpc.proxy =
     { did = "did:web:api.bsky.chat"; service = "bsky_chat" }
+
+  (** Hosted chat XRPC host ([api.bsky.chat]). Not started by
+      TestNetwork. *)
+  let default_host = "api.bsky.chat"
+
+  (** Chat host from [ATP_CHAT_HOST], else [default_host]. *)
+  let host_from_env : string =
+    match Sys.getenv_opt "ATP_CHAT_HOST" with
+    | Some h ->
+        let h = String.trim h in
+        if h = "" then default_host else h
+    | None -> default_host
+
+  let service_host ?host () =
+    match host with Some h -> h | None -> host_from_env
+
+  (** [getServiceAuth] audience DID for [proxy] (the DID, not
+      [did#service]). Default [did:web:api.bsky.chat]. *)
+  let service_aud ?(proxy = default_proxy) () : string = proxy.did
 
   let proxy_of_chat_did_string (d : string) : Xrpc.proxy option =
     let d = String.trim d in
@@ -80,19 +110,11 @@ module Chat = struct
   let session_proxy_headers ?proxy (s : Session.session) =
     proxy_headers ?proxy ?did_doc:s.did_doc ()
 
+  (** True when [scope] is a chat/DM grant ([chat.bsky], [bsky_chat],
+      or [authFullChatClient]). Same predicate as
+      [Oauth_scope.has_chat]. *)
   let scope_has_chat (scope : string) : bool =
-    let s = String.lowercase_ascii scope in
-    let contains needle =
-      let n = String.length s and m = String.length needle in
-      let rec aux i =
-        if i + m > n then false
-        else if String.sub s i m = needle then true
-        else aux (i + 1)
-      in
-      aux 0
-    in
-    contains "chat.bsky" || contains "bsky_chat"
-    || contains "authfullchatclient"
+    Oauth_scope.Oauth_scope.has_chat scope
 
   let env_truthy name =
     match Sys.getenv_opt name with
@@ -101,6 +123,10 @@ module Chat = struct
         List.mem v [ "1"; "true"; "yes"; "on" ]
     | None -> false
 
+  (** True when live DM tests / privileged chat may run: [ATP_CHAT]
+      is truthy ([1] / [true] / [yes] / [on]), or the session JWT
+      [scope] looks like a chat/DM grant. Regular [createSession]
+      app-passwords are not enough unless they are privileged. *)
   let session_has_chat_scope (s : Session.session) : bool =
     env_truthy "ATP_CHAT" || scope_has_chat s.auth.scope
 
@@ -544,18 +570,39 @@ module Chat = struct
     in
     `Assoc fields
 
-  (** Conversations via [chat.bsky.convo.listConvos]. Always sends
-      [atproto-proxy] ([effective_proxy]). *)
+  (** Query pairs for [chat.bsky.convo.listConvos]. [list_convos] /
+      [list_convos_service] share this. *)
+  let list_convos_body ?limit ?cursor ?read_state ?status ?kind () :
+      (string * string) list =
+    Client.opt_int "limit" limit
+    @ Client.opt_pair "cursor" cursor
+    @ Client.opt_pair "readState" read_state
+    @ Client.opt_pair "status" status
+    @ Client.opt_pair "kind" kind
+
+  (** Query pairs for [chat.bsky.convo.getConvo]. *)
+  let get_convo_body ~convo_id () : (string * string) list =
+    [ ("convoId", convo_id) ]
+
+  (** Query pairs for [chat.bsky.convo.getConvoForMembers]. *)
+  let get_convo_for_members_body ~members () : (string * string) list =
+    Client.repeat_param "members" members
+
+  (** Query pairs for [chat.bsky.convo.getMessages]. [get_messages] /
+      [get_messages_service] share this. *)
+  let get_messages_body ~convo_id ?limit ?cursor () : (string * string) list =
+    [ ("convoId", convo_id) ]
+    @ Client.opt_int "limit" limit
+    @ Client.opt_pair "cursor" cursor
+
+  (** Conversations via [chat.bsky.convo.listConvos]. Password
+      [at+jwt] sessions send [atproto-proxy] ([effective_proxy]). *)
   let list_convos (s : Session.session) ?proxy ?limit ?cursor ?read_state
       ?status ?kind () : convos =
     Client.get_json ~session:s
       ~extra:(session_proxy_headers ?proxy s)
       "chat.bsky.convo.listConvos"
-      (Client.opt_int "limit" limit
-      @ Client.opt_pair "cursor" cursor
-      @ Client.opt_pair "readState" read_state
-      @ Client.opt_pair "status" status
-      @ Client.opt_pair "kind" kind)
+      (list_convos_body ?limit ?cursor ?read_state ?status ?kind ())
     |> parse_convos
 
   (** Conversation [convo_id] via [chat.bsky.convo.getConvo]. Hosted
@@ -564,7 +611,7 @@ module Chat = struct
     Client.get_json ~session:s
       ~extra:(session_proxy_headers ?proxy s)
       "chat.bsky.convo.getConvo"
-      [ ("convoId", convo_id) ]
+      (get_convo_body ~convo_id ())
     |> fun json ->
     match Yojson.Safe.Util.member "convo" json with
     | `Assoc _ as c -> parse_convo c
@@ -576,7 +623,7 @@ module Chat = struct
     Client.get_json ~session:s
       ~extra:(session_proxy_headers ?proxy s)
       "chat.bsky.convo.getConvoForMembers"
-      (Client.repeat_param "members" members)
+      (get_convo_for_members_body ~members ())
     |> fun json ->
     match Yojson.Safe.Util.member "convo" json with
     | `Assoc _ as c -> parse_convo c
@@ -589,9 +636,7 @@ module Chat = struct
     Client.get_json ~session:s
       ~extra:(session_proxy_headers ?proxy s)
       "chat.bsky.convo.getMessages"
-      ([ ("convoId", convo_id) ]
-      @ Client.opt_int "limit" limit
-      @ Client.opt_pair "cursor" cursor)
+      (get_messages_body ~convo_id ?limit ?cursor ())
     |> parse_messages
 
   (** Send [text] via [chat.bsky.convo.sendMessage]. Hosted chat
@@ -600,6 +645,46 @@ module Chat = struct
       ?reply_to () : message =
     Client.post_json ~session:s
       ~extra:(session_proxy_headers ?proxy s)
+      "chat.bsky.convo.sendMessage"
+      (Yojson.Safe.to_string
+         (send_message_body ~convo_id ~text ?facets ?embed ?reply_to ()))
+    |> parse_message
+
+  (** Conversations via [chat.bsky.convo.listConvos] on the chat host
+      with a PDS-minted service-auth JWT (OAuth DPoP [getServiceAuth]).
+      No [atproto-proxy] — DPoP cannot be proxied. *)
+  let list_convos_service ~bearer ?host ?limit ?cursor ?read_state ?status ?kind
+      () : convos =
+    Client.get_json ~bearer ~host:(service_host ?host ())
+      "chat.bsky.convo.listConvos"
+      (list_convos_body ?limit ?cursor ?read_state ?status ?kind ())
+    |> parse_convos
+
+  (** Conversation [convo_id] via [chat.bsky.convo.getConvo] on the chat
+      host with a service-auth JWT (no [atproto-proxy]). *)
+  let get_convo_service ~bearer ?host ~convo_id () : convo =
+    Client.get_json ~bearer ~host:(service_host ?host ())
+      "chat.bsky.convo.getConvo"
+      (get_convo_body ~convo_id ())
+    |> fun json ->
+    match Yojson.Safe.Util.member "convo" json with
+    | `Assoc _ as c -> parse_convo c
+    | _ -> parse_convo json
+
+  (** Messages in [convo_id] via [chat.bsky.convo.getMessages] on the
+      chat host with a service-auth JWT (no [atproto-proxy]). *)
+  let get_messages_service ~bearer ?host ~convo_id ?limit ?cursor () : messages
+      =
+    Client.get_json ~bearer ~host:(service_host ?host ())
+      "chat.bsky.convo.getMessages"
+      (get_messages_body ~convo_id ?limit ?cursor ())
+    |> parse_messages
+
+  (** Send [text] via [chat.bsky.convo.sendMessage] on the chat host
+      with a service-auth JWT (no [atproto-proxy]). *)
+  let send_message_service ~bearer ?host ~convo_id ~text ?facets ?embed
+      ?reply_to () : message =
+    Client.post_json ~bearer ~host:(service_host ?host ())
       "chat.bsky.convo.sendMessage"
       (Yojson.Safe.to_string
          (send_message_body ~convo_id ~text ?facets ?embed ?reply_to ()))

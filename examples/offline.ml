@@ -1219,6 +1219,12 @@ let () =
   assert (
     Xrpc.proxy_to_string (Chat.effective_proxy ())
     = "did:web:api.bsky.chat#bsky_chat");
+  assert (Chat.default_host = "api.bsky.chat");
+  assert (Chat.service_aud () = "did:web:api.bsky.chat");
+  assert (Oauth.default_chat_scope = Oauth_scope.default_chat_scope);
+  assert (Oauth_scope.has_chat Oauth.default_chat_scope);
+  assert (List.assoc "limit" (Chat.list_convos_body ~limit:10 ()) = "10");
+  assert (List.assoc "convoId" (Chat.get_messages_body ~convo_id:"c1" ()) = "c1");
   let member_leftover =
     Chat.parse_member
       (`Assoc

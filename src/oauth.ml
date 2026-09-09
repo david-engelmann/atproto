@@ -9,10 +9,12 @@ let ensure_rng = lazy (Mirage_crypto_rng_unix.use_default ())
     discovery / PAR / DPoP, then the oauth-provider ~api sign-in + consent
     (real authorize cookies) through token / refresh / RFC 7009 revoke.
     DPoP resource helpers mint [com.atproto.server.getServiceAuth]
-    ([aud]=AppView or Ozone DID) so authed [app.bsky.*] / [tools.ozone.*]
-    calls use a service-auth JWT, not the DPoP access token and not a
-    [createSession] at+jwt. DPoP cannot be sent through [atproto-proxy];
-    Ozone privileged writes go to the Ozone host with that JWT.
+    ([aud]=AppView, Ozone, or hosted chat DID) so authed [app.bsky.*] /
+    [tools.ozone.*] / [chat.bsky.*] calls use a service-auth JWT, not
+    the DPoP access token and not a [createSession] at+jwt. DPoP cannot
+    be sent through [atproto-proxy]; Ozone privileged writes and
+    hosted chat go to those hosts with that JWT
+    ([Chat.list_convos_service] / …).
     Public HTTPS [client_id] helpers build, validate, and serialize a
     client-metadata document plus the authorize-redirect → code → token
     browser path. The application still hosts that document over HTTPS
@@ -244,6 +246,12 @@ module Oauth = struct
      PAR request uses them. oauth-provider checks PAR [scope] against this
      string ([Scope "…" is not declared in the client metadata]). *)
   let default_scope = "atproto transition:generic"
+
+  (** Same as [Oauth_scope.default_chat_scope]: [default_scope] plus
+      [transition:chat.bsky]. Pass this to [public_https_metadata] /
+      [start_browser_login] when the client will call hosted
+      [chat.bsky.*]. [default_scope] alone is not enough for DMs. *)
+  let default_chat_scope = Oauth_scope.Oauth_scope.default_chat_scope
 
   let pushed_authorization_body ~client_id ~redirect_uri ~code_challenge ~state
       ?(scope = default_scope) ?login_hint ?prompt ?dpop_jkt ?client_assertion
@@ -1870,9 +1878,10 @@ module Oauth = struct
     post_json_dpop ~http ~priv ~pub ~url ~access_token ~body ?nonce ~extra ()
 
   (** Mint [com.atproto.server.getServiceAuth] with the DPoP access
-      token. AppView and Ozone want this JWT ([aud] = service DID,
-      [lxm] = NSID), not the OAuth token and not a [createSession]
-      at+jwt. *)
+      token. AppView, Ozone, and hosted chat want this JWT
+      ([aud] = service DID, [lxm] = NSID), not the OAuth token and
+      not a [createSession] at+jwt. Chat [aud] is
+      [Chat.service_aud] ([did:web:api.bsky.chat]). *)
   let get_service_auth ~(http : http_request) ~priv ~pub ~pds_origin
       ~access_token ~aud ?lxm ?exp ?nonce () : string * string option =
     let pairs =

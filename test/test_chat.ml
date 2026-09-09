@@ -160,6 +160,58 @@ let test_send_message_body _ =
     "hi"
     (body |> member "message" |> member "text" |> to_string)
 
+let test_production_query_bodies _ =
+  let list = Chat.list_convos_body ~limit:5 ~cursor:"c" ~status:"accepted" () in
+  OUnit2.assert_equal ~printer:(fun x -> x) "5" (List.assoc "limit" list);
+  OUnit2.assert_equal ~printer:(fun x -> x) "c" (List.assoc "cursor" list);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "accepted" (List.assoc "status" list);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "c1"
+    (List.assoc "convoId" (Chat.get_convo_body ~convo_id:"c1" ()));
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:plc:abc123xyz0001112223333"
+    (List.assoc "members"
+       (Chat.get_convo_for_members_body
+          ~members:[ "did:plc:abc123xyz0001112223333" ]
+          ()));
+  let msgs = Chat.get_messages_body ~convo_id:"c2" ~limit:20 () in
+  OUnit2.assert_equal ~printer:(fun x -> x) "c2" (List.assoc "convoId" msgs);
+  OUnit2.assert_equal ~printer:(fun x -> x) "20" (List.assoc "limit" msgs)
+
+let test_service_aud_and_host _ =
+  OUnit2.assert_equal ~printer:(fun x -> x) "api.bsky.chat" Chat.default_host;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:web:api.bsky.chat" (Chat.service_aud ());
+  let override =
+    { Xrpc.did = "did:web:chat.example.com"; service = "bsky_chat" }
+  in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:web:chat.example.com"
+    (Chat.service_aud ~proxy:override ());
+  let body =
+    Xrpc.service_auth_body ~aud:(Chat.service_aud ())
+      ~lxm:"chat.bsky.convo.listConvos" ()
+  in
+  let open Yojson.Safe.Util in
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "did:web:api.bsky.chat"
+    (body |> member "aud" |> to_string)
+
+let test_scope_has_chat _ =
+  OUnit2.assert_bool "transition"
+    (Chat.scope_has_chat "atproto transition:chat.bsky");
+  OUnit2.assert_bool "include"
+    (Chat.scope_has_chat "atproto include:chat.bsky.authFullChatClient");
+  OUnit2.assert_bool "generic only"
+    (not (Chat.scope_has_chat "atproto transition:generic"))
+
 let test_parse_unread_and_logs _ =
   let counts =
     Chat.parse_unread_counts
@@ -1080,6 +1132,9 @@ let suite =
          >:: test_parse_messages_related_profiles;
          "test_parse_group_convo_extras" >:: test_parse_group_convo_extras;
          "test_send_message_body" >:: test_send_message_body;
+         "test_production_query_bodies" >:: test_production_query_bodies;
+         "test_service_aud_and_host" >:: test_service_aud_and_host;
+         "test_scope_has_chat" >:: test_scope_has_chat;
          "test_parse_unread_and_logs" >:: test_parse_unread_and_logs;
          "test_parse_message_facets_reactions_embed"
          >:: test_parse_message_facets_reactions_embed;
