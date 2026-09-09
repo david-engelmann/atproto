@@ -27,6 +27,7 @@ jobs:
 
         ocaml-compiler:
           - 4.14.1
+          - 5.3.0
 
     runs-on: ${{ matrix.os }}
 
@@ -63,7 +64,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: dune_runtest
+          name: dune_runtest-${{ matrix.ocaml-compiler }}
           path: dune_runtest.log
           if-no-files-found: warn
 
@@ -189,6 +190,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v5
 
+  # ocamlformat 0.25.1 requires OCaml < 5.2, so fmt stays on 4.14.1.
   lint-fmt:
     strategy:
       fail-fast: false
@@ -282,6 +284,8 @@ jobs:
       - name: Install libzstd
         run: sudo apt-get update && sudo apt-get install -y libzstd-dev
 
+      # Integration job stays on 4.14.1 (cost). The build matrix
+      # already compiles and unit-tests 5.3.0 with Jane Street v0.17.
       - name: Use OCaml 4.14.1
         uses: ocaml/setup-ocaml@v3
         with:

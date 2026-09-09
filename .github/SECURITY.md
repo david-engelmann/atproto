@@ -2,7 +2,9 @@
 
 ## Supported Versions
 
-**0.1.0** is the current release (OCaml **4.14.x**: `>= 4.14.1` and `< 5.0`).
+**0.1.0** is the current release (OCaml **>= 4.14.1** and **< 5.4**;
+CI tests **4.14.1** and **5.3.0**). Jane Street packages resolve to
+v0.16 on 4.14 and v0.17 on 5.1–5.3.
 
 ## Reporting a Vulnerability
 

@@ -7,8 +7,14 @@ Pin the GitHub repository for development.
 
 ## Toolchain
 
-- OCaml **4.14.x only** (`>= 4.14.1` and `< 5.0`). CI tests **4.14.1**.
-- ocamlformat **0.25.1** (see `.ocamlformat`). `lint-fmt` must stay green.
+- OCaml **>= 4.14.1 and < 5.4**. CI `build` tests **4.14.1** and **5.3.0**.
+  Jane Street `core` / `async` / `ppx_jane` / `zstandard` are
+  `>= v0.16.0` and `< v0.18~` (v0.16 on 4.14, v0.17 on 5.1–5.3).
+  Public Jane Street v0.17 does not support OCaml 5.4+.
+- ocamlformat **0.25.1** (see `.ocamlformat`). That release needs
+  OCaml `< 5.2`, so `lint-fmt` stays on **4.14.1**. `lint-fmt` must
+  stay green. A 0.27+ bump (and reformat) is a later hop.
+
 - System libzstd (Jane Street `zstandard` / Jetstream dict-zstd):
   Ubuntu/Debian `libzstd-dev`, macOS Homebrew `zstd` (headers ship
   with the formula). Required, not optional.
@@ -53,6 +59,8 @@ that or Homebrew `zstd` before the commands below.
 
 ```shell
 opam install . --deps-only --with-test
+# formatter is not a package dep (0.25.1 needs OCaml < 5.2)
+opam install ocamlformat.0.25.1
 dune build -p atproto
 dune runtest -p atproto
 opam lint atproto.opam

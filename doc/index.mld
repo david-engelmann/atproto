@@ -12,7 +12,9 @@ or Tap in this package).
 
 Published on the public opam-repository (`opam install atproto`;
 pending merge of the opam-repository PR). Pin the GitHub repo for
-development (OCaml [>= 4.14.1] and [< 5.0]; CI tests 4.14.1):
+development (OCaml [>= 4.14.1] and [< 5.4]; CI tests 4.14.1 and
+5.3.0). Jane Street [core] / [async] / [ppx_jane] / [zstandard] are
+[>= v0.16.0] and [< v0.18~] (v0.16 on 4.14, v0.17 on 5.1-5.3):
 
 {[
 opam install atproto
