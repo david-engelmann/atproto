@@ -159,6 +159,31 @@ let test_dag_cbor_of_yojson _ =
   | Dag_cbor.Bytes b -> OUnit2.assert_equal ~printer:(fun x -> x) "car" b
   | _ -> OUnit2.assert_failure "expected $bytes"
 
+let test_dag_cbor_to_yojson _ =
+  let cid = Cid.create "x" in
+  let json =
+    `Assoc
+      [
+        ("$type", `String "app.bsky.feed.post");
+        ("text", `String "hello");
+        ("n", `Int 3);
+        ("flag", `Bool true);
+        ("nested", `Assoc [ ("$link", `String (Cid.to_string cid)) ]);
+      ]
+  in
+  let back = Dag_cbor.to_yojson (Dag_cbor.of_yojson json) in
+  OUnit2.assert_equal ~printer:Yojson.Safe.to_string json back;
+  let bytes_json = `Assoc [ ("$bytes", `String "Y2Fy") ] in
+  OUnit2.assert_equal ~printer:Yojson.Safe.to_string bytes_json
+    (Dag_cbor.to_yojson (Dag_cbor.of_yojson bytes_json));
+  (match Dag_cbor.to_yojson (Dag_cbor.Int64 3L) with
+  | `Int 3 -> ()
+  | _ -> OUnit2.assert_failure "int64 that fits is JSON int");
+  try
+    ignore (Dag_cbor.to_yojson (Dag_cbor.Tag (1, Dag_cbor.Int 0)));
+    OUnit2.assert_failure "expected tag failure"
+  with Dag_cbor.Decode_error _ -> ()
+
 let suite =
   "car"
   >::: [
@@ -170,6 +195,7 @@ let suite =
          "test_dag_cbor_cid_tag" >:: test_dag_cbor_cid_tag;
          "test_dag_cbor_hard_types" >:: test_dag_cbor_hard_types;
          "test_dag_cbor_of_yojson" >:: test_dag_cbor_of_yojson;
+         "test_dag_cbor_to_yojson" >:: test_dag_cbor_to_yojson;
        ]
 
 let () = run_test_tt_main suite

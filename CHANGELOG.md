@@ -1,7 +1,12 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#232](https://github.com/david-engelmann/atproto/pull/232):
+shipped through TAP-like indexer / backfill usability
+(`Repo_sync.export_record_proof` / `export_record_proof_bytes` /
+`walk_json` / `record_json` / `status_to_string`;
+`Dag_cbor.to_yojson`; `examples/repo_sync_indexer.ml`;
+library-ready indexer path, not a hosted Tap)
+on top of [#232](https://github.com/david-engelmann/atproto/pull/232):
 hosted video.bsky production path (`Video.pds_audience` from
 `#atproto_pds` / `upload_service_auth_body` / `mint_upload_token` /
 `get_upload_limits_service` / `get_job_status_body` /
@@ -379,7 +384,10 @@ exposes `(libraries atproto)` for development.
   unless the 101 echoes that exact protocol. Unoffered connections (v1
   `/subscribe`, firehose) are unchanged. v2 stays server-push only (no
   client data frames; v1 `options_update` / `requireHello` are not sent)
-- TAP-like local repo sync helpers (`Repo_sync`) — not a hosted Tap
+- TAP-like local repo sync helpers (`Repo_sync`) — library-ready
+  indexer / backfill path (open/verify, walk as IPLD JSON, getRecord
+  proof export/verify, firehose apply, `#sync` desync, Sync 1.1
+  export, offline `write_signed_repo`); not a hosted Tap
 - `site.standard.*` and `com.germnetwork.declaration` record builders
 
 ### Local TestNetwork
@@ -1703,6 +1711,18 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   wiring, not a hosted transcoder. Live `getUploadLimits` stays
   skippable unless `ATP_AUTH` is a real credential. Official
   TestNetwork still has no video service. No lexicon pin bump
+- TAP-like indexer / backfill usability. `Repo_sync.export_record_proof`
+  / `export_record_proof_bytes` emit a getRecord-style partial CAR
+  (commit + MST covering path + record) from a local snapshot;
+  `verify_record_proof` still accepts that shape.
+  `walk_json` / `record_json` decode DAG-CBOR record bytes as IPLD
+  JSON via `Dag_cbor.to_yojson` (inverse of `of_yojson`; `$link` /
+  `$bytes`). `status_to_string` labels account status.
+  `examples/repo_sync_indexer.ml` is an offline fixture sketch
+  (open/verify, walk, proof, firehose apply, `#sync` desync,
+  Sync 1.1 export, `write_signed_repo`). Library-ready indexer
+  path; this package still does not fake a hosted Tap. No lexicon
+  pin bump
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
@@ -1712,7 +1732,9 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   and receive the browser redirect (this library builds/validates
   the document and drives authorize → code → token; it does not
   host them or a login UI)
-- Hosted Tap service. Hosted video transcoder (the production
+- Hosted Tap service (the indexer / backfill library path is
+  documented and library-ready; this package still does not fake
+  a Tap host). Hosted video transcoder (the production
   client path is documented and library-ready; this package still
   does not fake a local transcoder)
 - Official OSS chat backend (TestNetwork does not start one).

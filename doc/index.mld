@@ -16,6 +16,10 @@ proxied). Official TestNetwork does not start chat.
 [video.bsky.app] (service-auth [did:web:<pds>] + [uploadBlob];
 job poll; multipart; embed the blob, not the playlist). It does
 not run a transcoder. Official TestNetwork does not start one.
+{!Atproto.Repo_sync} is the TAP-like indexer / backfill library
+path (open/verify repo CAR, walk records as IPLD JSON, getRecord
+inclusion proof, firehose [#commit] / [#sync], Sync 1.1 export,
+offline [write_signed_repo]). It is not a hosted Tap service.
 
 {1 Install}
 
