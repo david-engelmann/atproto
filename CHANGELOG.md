@@ -20,7 +20,7 @@ stays **0.1.0**. Nothing in this section is a release.
 
 - No lexicon pin bump in this revision. Official lexicons stay
   bluesky-social/atproto [`f0d4877a`](https://github.com/bluesky-social/atproto/commit/f0d4877a03dc8ede0d3e9a36d5b72ada63b5d2e0).
-- Hosted-only products stay listed, not faked (see [0.1.0] Notes).
+- Hosted-only products stay listed, not faked (see the 0.1.0 Notes below).
 
 ## [0.1.0] - 2026-09-09
 
