@@ -1,7 +1,12 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#225](https://github.com/david-engelmann/atproto/pull/225):
+shipped through [#226](https://github.com/david-engelmann/atproto/pull/226):
+Notification leftover list_notifications query-pair helpers
+(`list_notifications_body`;
+`list_notifications` / `list_notifications_page` share those pairs)
+on top of
+[#225](https://github.com/david-engelmann/atproto/pull/225):
 Ozone leftover query_reports / search_repos query-pair helpers
 (`query_reports_body` / `search_repos_body`;
 `query_reports` / `search_repos` share those pairs)

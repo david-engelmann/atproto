@@ -1848,6 +1848,21 @@ let () =
   ignore Feed.search_posts_v2;
   ignore Feed.get_quotes;
   ignore Feed.get_actor_likes;
+  assert (Notification.list_notifications_body () = []);
+  assert (
+    Notification.list_notifications_body ~reasons:[ "like"; "mention" ]
+      ~priority:true ~cursor:"n1" ~seen_at:"2023-07-15T12:34:56.789012Z"
+      ~limit:10 ()
+    = [
+        ("limit", "10");
+        ("reasons", "like");
+        ("reasons", "mention");
+        ("priority", "true");
+        ("cursor", "n1");
+        ("seenAt", "2023-07-15T12:34:56.789012Z");
+      ]);
+  ignore Notification.list_notifications;
+  ignore Notification.list_notifications_page;
   let seen =
     Notification.update_seen_body ~seen_at:"2023-07-15T12:34:56.789012Z"
   in

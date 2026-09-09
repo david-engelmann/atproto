@@ -189,6 +189,25 @@ let test_put_preferences_body _ =
       OUnit2.assert_equal ~printer:string_of_int 1 (List.length fields)
   | _ -> OUnit2.assert_failure "expected put_preferences_body object"
 
+let test_list_notifications_body _ =
+  OUnit2.assert_equal [] (Notification.list_notifications_body ());
+  OUnit2.assert_equal [] (Notification.list_notifications_body ~reasons:[] ());
+  OUnit2.assert_equal
+    [ ("limit", "10") ]
+    (Notification.list_notifications_body ~limit:10 ());
+  OUnit2.assert_equal
+    [
+      ("limit", "25");
+      ("reasons", "like");
+      ("reasons", "mention");
+      ("priority", "true");
+      ("cursor", "n1");
+      ("seenAt", "2023-07-15T12:34:56.789012Z");
+    ]
+    (Notification.list_notifications_body ~reasons:[ "like"; "mention" ]
+       ~priority:true ~cursor:"n1" ~seen_at:"2023-07-15T12:34:56.789012Z"
+       ~limit:25 ())
+
 let test_put_activity_subscription_body _ =
   let body =
     Notification.put_activity_subscription_body ~subject:"did:plc:alice"
@@ -251,6 +270,7 @@ let suite =
          "test_parse_preferences" >:: test_parse_preferences;
          "test_update_seen_body" >:: test_update_seen_body;
          "test_put_preferences_body" >:: test_put_preferences_body;
+         "test_list_notifications_body" >:: test_list_notifications_body;
          "test_put_activity_subscription_body"
          >:: test_put_activity_subscription_body;
          "test_get_unread_count" >:: test_get_unread_count;
