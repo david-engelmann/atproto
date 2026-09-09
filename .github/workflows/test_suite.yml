@@ -293,7 +293,19 @@ jobs:
           opam-disable-sandboxing: true
 
       - name: Install package dependencies
-        run: opam install . --deps-only --with-test
+        run: |
+          set -euo pipefail
+          # GitHub release tarball 5xx (e.g. asn1-combinators) is transient.
+          n=0
+          until opam install . --deps-only --with-test; do
+            n=$((n + 1))
+            if [ "$n" -ge 4 ]; then
+              echo "opam install failed after ${n} attempts" >&2
+              exit 1
+            fi
+            echo "opam install failed (attempt ${n}); retrying fetch"
+            sleep $((n * 20))
+          done
 
       - name: Dune Build
         run: opam exec -- dune build -p atproto
