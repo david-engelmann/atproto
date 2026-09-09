@@ -320,18 +320,24 @@ module Notification = struct
     Client.Client.get_json ~session:s "app.bsky.notification.getUnreadCount" []
     |> parse_unread_count
 
+  (** Query-string pairs for [app.bsky.notification.listNotifications].
+      Currently sent fields only: optional [reasons] / [priority] /
+      [cursor] / [seenAt] / [limit]. *)
+  let list_notifications_body ?(reasons = []) ?priority ?cursor ?seen_at ?limit
+      () : (string * string) list =
+    Client.Client.opt_int "limit" limit
+    @ Client.Client.repeat_param "reasons" reasons
+    @ Client.Client.opt_bool "priority" priority
+    @ Client.Client.opt_pair "cursor" cursor
+    @ Client.Client.opt_pair "seenAt" seen_at
+
   (** Notifications for the session via
       [app.bsky.notification.listNotifications]. Optional [reasons] /
       [priority] / [cursor] / [seen_at] map to the lexicon query. *)
   let list_notifications (s : Session.session) ?reasons ?priority ?cursor
       ?seen_at (limit : int) : notification list =
     Client.Client.get_json ~session:s "app.bsky.notification.listNotifications"
-      (("limit", string_of_int limit)
-       :: Client.Client.repeat_param "reasons"
-            (Option.value reasons ~default:[])
-      @ Client.Client.opt_bool "priority" priority
-      @ Client.Client.opt_pair "cursor" cursor
-      @ Client.Client.opt_pair "seenAt" seen_at)
+      (list_notifications_body ?reasons ?priority ?cursor ?seen_at ~limit ())
     |> parse_notification_page
     |> fun (p : notification_page) -> p.notifications
 
@@ -342,11 +348,7 @@ module Notification = struct
   let list_notifications_page (s : Session.session) ?reasons ?priority ?cursor
       ?seen_at ?limit () : notification_page =
     Client.Client.get_json ~session:s "app.bsky.notification.listNotifications"
-      (Client.Client.opt_int "limit" limit
-      @ Client.Client.repeat_param "reasons" (Option.value reasons ~default:[])
-      @ Client.Client.opt_bool "priority" priority
-      @ Client.Client.opt_pair "cursor" cursor
-      @ Client.Client.opt_pair "seenAt" seen_at)
+      (list_notifications_body ?reasons ?priority ?cursor ?seen_at ?limit ())
     |> parse_notification_page
 
   (** Mark notifications seen at [seen_at] via
