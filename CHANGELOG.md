@@ -1,7 +1,8 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through hosted phone / contacts / push production path
+shipped through [#235](https://github.com/david-engelmann/atproto/pull/235):
+hosted phone / contacts / push production path
 (`Contact.get_matches_body` / `get_matches_appview` / `*_service`;
 `Notification.register_push_body` / `unregister_push_body` /
 `platform_ios` / `effective_push_proxy` / `Xrpc.notif_proxy`;
@@ -1750,7 +1751,8 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   offline wiring, not a live archive download. This library does
   not invent a key. Live `subscribeEvents` stays unauthenticated.
   No lexicon pin bump
-- Hosted phone / contacts / push production path.
+- [#235](https://github.com/david-engelmann/atproto/pull/235):
+  Hosted phone / contacts / push production path.
   `Contact.get_matches_body` (`limit` / `cursor`) is shared with
   `get_matches` / `get_matches_appview` / `get_matches_service`.
   AppView service-auth wrappers (`get_matches_appview` /
