@@ -1743,10 +1743,36 @@ let () =
   assert (
     Feed.search_posts_body ~q:"atproto" ~sort:"latest" ~limit:5 ()
     = [ ("q", "atproto"); ("sort", "latest"); ("limit", "5") ]);
+  assert (Feed.search_posts_v2_body () = []);
+  assert (
+    Feed.search_posts_v2_body ~query:"atproto" ~sort:"latest"
+      ~authors:[ "alice.test" ] ~hashtags:[ "ocaml" ] ~limit:5 ~cursor:"v2" ()
+    = [
+        ("query", "atproto");
+        ("sort", "latest");
+        ("authors", "alice.test");
+        ("hashtags", "ocaml");
+        ("limit", "5");
+        ("cursor", "v2");
+      ]);
+  assert (
+    Feed.get_quotes_body ~uri:"at://did:plc:alice/app.bsky.feed.post/3abc"
+      ~cid:"bafy" ~limit:10 ()
+    = [
+        ("uri", "at://did:plc:alice/app.bsky.feed.post/3abc");
+        ("cid", "bafy");
+        ("limit", "10");
+      ]);
+  assert (
+    Feed.get_actor_likes_body ~actor:"alice.test" ~limit:8 ~cursor:"l1" ()
+    = [ ("actor", "alice.test"); ("limit", "8"); ("cursor", "l1") ]);
   ignore Feed.get_feed;
   ignore Feed.get_list_feed;
   ignore Feed.get_actor_feeds;
   ignore Feed.search_posts;
+  ignore Feed.search_posts_v2;
+  ignore Feed.get_quotes;
+  ignore Feed.get_actor_likes;
   let seen =
     Notification.update_seen_body ~seen_at:"2023-07-15T12:34:56.789012Z"
   in

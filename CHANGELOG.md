@@ -1,7 +1,12 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#221](https://github.com/david-engelmann/atproto/pull/221):
+shipped through [#222](https://github.com/david-engelmann/atproto/pull/222):
+Feed leftover searchPostsV2 / getQuotes / getActorLikes query-pair helpers
+(`search_posts_v2_body` / `get_quotes_body` / `get_actor_likes_body`;
+`search_posts_v2` / `get_quotes` / `get_actor_likes` share those pairs)
+on top of
+[#221](https://github.com/david-engelmann/atproto/pull/221):
 Graph leftover AppView query-pair helpers
 (`get_list_body` / `get_lists_body` / `get_actor_starter_packs_body` /
 `search_starter_packs_body` / `get_relationships_body` /
@@ -811,6 +816,26 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   getActorStarterPacks / searchStarterPacks / getRelationships /
   getKnownFollowers already exist). No lexicon pin bump. No hosted
   chat / video / Tap / phone / contacts / push faked
+- [#222](https://github.com/david-engelmann/atproto/pull/222): Feed
+  leftover searchPostsV2 / getQuotes / getActorLikes query-pair helpers
+  (`search_posts_v2_body` / `get_quotes_body` / `get_actor_likes_body`).
+  Currently sent fields only: optional `query` / `sort` / repeated
+  `authors` / `mentions` / `domains` / `urls` / `embeddedAtUris` /
+  `hashtags` / `excludeAuthors` / `excludeMentions` / `excludeDomains` /
+  `excludeUrls` / `excludeEmbeddedAtUris` / `excludeHashtags` / `since`
+  / `until` / `allTime` / repeated `languages` / `excludeLanguages` /
+  `hasMedia` / `hasVideo` / `replyParentUri` / `threadRootUri` /
+  `excludeReplies` / `repliesOnly` / `following` / `queryLanguage` /
+  `limit` / `cursor` for searchPostsV2; `uri` / `cid` / `limit` /
+  `cursor` for getQuotes; `actor` / `limit` / `cursor` for
+  getActorLikes (pin `f0d4877a03`). Existing `search_posts_v2` /
+  `get_quotes` / `get_actor_likes` share those pairs. Siblings of #220
+  `get_feed_body` / `get_list_feed_body` / `get_actor_feeds_body` /
+  `search_posts_body`. On top of #221 → #220. Does not invent leftover
+  unused searchPostsV2 / getQuotes / getActorLikes fields. No leftover
+  live hop (live searchPostsV2 / getQuotes / getActorLikes already
+  exist). No lexicon pin bump. No hosted chat / video / Tap / phone /
+  contacts / push faked
 - `com.atproto.server.createAppPassword` POSTs official `{ "name" }`
   (optional `privileged`). This `@atproto/pds` 0.5.x TestNetwork build
   still 500s on that valid body; the local suite keeps an isolated assert
@@ -1375,6 +1400,14 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   getList / getLists / getActorStarterPacks / searchStarterPacks /
   getRelationships / getKnownFollowers fields. Hosted-only chat /
   video / Tap / phone / contacts / push stay listed not faked
+- [#222](https://github.com/david-engelmann/atproto/pull/222): Feed
+  leftover searchPostsV2 / getQuotes / getActorLikes query-pair helpers
+  (`search_posts_v2_body` / `get_quotes_body` / `get_actor_likes_body`).
+  Currently sent fields only. `search_posts_v2` / `get_quotes` /
+  `get_actor_likes` share those pairs. Siblings of #220 helpers. On
+  top of #221 → #220. Does not invent leftover unused searchPostsV2 /
+  getQuotes / getActorLikes fields. Hosted-only chat / video / Tap /
+  phone / contacts / push stay listed not faked
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
