@@ -352,6 +352,82 @@ let test_replay_planner _ =
                   ] );
             ])))
 
+let getenv_of pairs name =
+  try Some (List.assoc name pairs) with Not_found -> None
+
+let test_archive_token_env _ =
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "JETSTREAM_API_KEY" Jetstream.archive_api_key_env;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "JETSTREAM_ARCHIVE_TOKEN" Jetstream.archive_token_env;
+  let empty = getenv_of [] in
+  OUnit2.assert_equal None (Jetstream.archive_token_from_env ~getenv:empty ());
+  OUnit2.assert_equal None (Jetstream.resolve_archive_token ~getenv:empty ());
+  OUnit2.assert_equal None
+    (Jetstream.resolve_archive_token ~token:"" ~getenv:empty ());
+  OUnit2.assert_equal None (Jetstream.archive_authorization ~getenv:empty ());
+  let no_auth = Jetstream.snapshot_header_pairs ~getenv:empty () in
+  OUnit2.assert_bool "unauthenticated archive has no Authorization"
+    (not (List.exists (fun (k, _) -> k = "Authorization") no_auth));
+  OUnit2.assert_bool "Content-Type stays"
+    (List.mem ("Content-Type", "application/json") no_auth);
+  OUnit2.assert_raises
+    (Jetstream.Archive_token_required Jetstream.archive_token_required_message)
+    (fun () -> ignore (Jetstream.require_archive_token ~getenv:empty ()));
+  let fixture = "fixture-operator-key-not-a-real-credential" in
+  OUnit2.assert_equal (Some fixture)
+    (Jetstream.resolve_archive_token ~token:fixture ~getenv:empty ());
+  (match Jetstream.archive_authorization ~token:fixture ~getenv:empty () with
+  | Some ("Authorization", v) ->
+      OUnit2.assert_equal ~printer:(fun x -> x) ("Bearer " ^ fixture) v
+  | _ -> OUnit2.assert_failure "expected Bearer from explicit token");
+  let pairs =
+    Jetstream.snapshot_header_pairs ~token:fixture
+      ~range:(Jetstream.range_header ~first:1024 ())
+      ~getenv:empty ()
+  in
+  OUnit2.assert_bool "Bearer from injected token"
+    (List.mem ("Authorization", "Bearer " ^ fixture) pairs);
+  OUnit2.assert_bool "Range preserved" (List.mem ("Range", "bytes=1024-") pairs);
+  let from_official = getenv_of [ (Jetstream.archive_api_key_env, fixture) ] in
+  OUnit2.assert_equal (Some fixture)
+    (Jetstream.archive_token_from_env ~getenv:from_official ());
+  (match Jetstream.archive_authorization ~getenv:from_official () with
+  | Some ("Authorization", v) ->
+      OUnit2.assert_equal ~printer:(fun x -> x) ("Bearer " ^ fixture) v
+  | _ -> OUnit2.assert_failure "expected Bearer from JETSTREAM_API_KEY");
+  let alias_only =
+    getenv_of [ (Jetstream.archive_token_env, "alias-fixture-not-real") ]
+  in
+  OUnit2.assert_equal (Some "alias-fixture-not-real")
+    (Jetstream.archive_token_from_env ~getenv:alias_only ());
+  let both =
+    getenv_of
+      [
+        (Jetstream.archive_api_key_env, "official-wins-not-real");
+        (Jetstream.archive_token_env, "alias-ignored-not-real");
+      ]
+  in
+  OUnit2.assert_equal (Some "official-wins-not-real")
+    (Jetstream.archive_token_from_env ~getenv:both ());
+  OUnit2.assert_equal (Some "explicit-wins-not-real")
+    (Jetstream.resolve_archive_token ~token:"explicit-wins-not-real"
+       ~getenv:from_official ());
+  let blank_official =
+    getenv_of
+      [
+        (Jetstream.archive_api_key_env, "  ");
+        (Jetstream.archive_token_env, fixture);
+      ]
+  in
+  OUnit2.assert_equal (Some fixture)
+    (Jetstream.archive_token_from_env ~getenv:blank_official ());
+  OUnit2.assert_equal fixture
+    (Jetstream.require_archive_token ~getenv:from_official ());
+  OUnit2.assert_bool "no invented token in the empty getenv path" true
+
 let test_snapshot_gated_live _ =
   let old =
     Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
@@ -363,6 +439,9 @@ let test_snapshot_gated_live _ =
       Sys.set_signal Sys.sigalrm old)
     (fun () ->
       try
+        (* Uses JETSTREAM_API_KEY / JETSTREAM_ARCHIVE_TOKEN when the
+           operator set one; otherwise unauthenticated. Never invents
+           a key. CI leaves the env unset. *)
         let _ = Jetstream.try_plan_snapshot () in
         OUnit2.assert_bool "ungated archive returned a plan" true
       with
@@ -710,6 +789,7 @@ let suite =
          "test_reconnect_cursor" >:: test_reconnect_cursor;
          "test_plan_snapshot" >:: test_plan_snapshot;
          "test_replay_planner" >:: test_replay_planner;
+         "test_archive_token_env" >:: test_archive_token_env;
          "test_snapshot_gated_live" >:: test_snapshot_gated_live;
          "test_subscribe_live" >:: test_subscribe_live;
          "test_subscribe_one_subprotocol_live"

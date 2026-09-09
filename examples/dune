@@ -65,3 +65,15 @@
  (alias runtest)
  (action
   (run %{exe:repo_sync_indexer.exe})))
+
+(executable
+ (name jetstream_archive)
+ (flags
+  (:standard -w +33 -warn-error +33))
+ (libraries atproto yojson)
+ (modules jetstream_archive))
+
+(rule
+ (alias runtest)
+ (action
+  (run %{exe:jetstream_archive.exe})))
