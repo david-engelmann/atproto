@@ -1647,8 +1647,12 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   authorize URL, then parse the redirect and exchange the code.
   `examples/client-metadata.json` + `examples/oauth_https_metadata.ml`
   are offline scaffolding, not a hosted login UI. Local TestNetwork
-  loopback metadata stays valid. Hosted-only chat / video / Tap /
-  phone / contacts / push stay listed not faked. No lexicon pin bump
+  loopback metadata stays valid. CI `Install libzstd` drops every
+  GitHub-runner apt source that points at `dl.google.com` (Chrome
+  `.list` and DEB822 `.sources`) so a stale Packages hash cannot
+  fail required jobs. Hosted-only
+  chat / video / Tap / phone / contacts / push stay listed not faked.
+  No lexicon pin bump
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
