@@ -547,6 +547,16 @@ module Unspecced = struct
       (Client.opt_pair "viewer" viewer @ Client.opt_int "limit" limit)
     |> parse_trends_skeleton
 
+  (** Query-string pairs for [app.bsky.unspecced.getSuggestionsSkeleton].
+      Currently sent fields only: optional [viewer] / [limit] / [cursor] /
+      [relativeToDid]. *)
+  let get_suggestions_skeleton_body ?viewer ?limit ?cursor ?relative_to_did () :
+      (string * string) list =
+    Client.opt_pair "viewer" viewer
+    @ Client.opt_int "limit" limit
+    @ Client.opt_pair "cursor" cursor
+    @ Client.opt_pair "relativeToDid" relative_to_did
+
   (** Suggested-actor skeleton via
       [app.bsky.unspecced.getSuggestionsSkeleton]. Optional [viewer] /
       [limit] / [cursor] / [relative_to_did] map to the lexicon query.
@@ -554,10 +564,7 @@ module Unspecced = struct
   let get_suggestions_skeleton ?session ?host ?viewer ?limit ?cursor
       ?relative_to_did () : suggestions_skeleton =
     Client.get_json ?session ?host "app.bsky.unspecced.getSuggestionsSkeleton"
-      (Client.opt_pair "viewer" viewer
-      @ Client.opt_int "limit" limit
-      @ Client.opt_pair "cursor" cursor
-      @ Client.opt_pair "relativeToDid" relative_to_did)
+      (get_suggestions_skeleton_body ?viewer ?limit ?cursor ?relative_to_did ())
     |> parse_suggestions_skeleton
 
   (** Suggested feeds via [app.bsky.unspecced.getSuggestedFeeds]. Optional
@@ -579,12 +586,28 @@ module Unspecced = struct
       (Client.opt_pair "viewer" viewer @ Client.opt_int "limit" limit)
     |> fun json -> parse_uri_list json "feeds"
 
+  (** Query-string pairs for [app.bsky.unspecced.getSuggestedUsers] and the
+      onboarding / explore / seeMore siblings. Currently sent fields only:
+      optional [category] / [limit]. *)
+  let get_suggested_users_body ?category ?limit () : (string * string) list =
+    Client.opt_pair "category" category @ Client.opt_int "limit" limit
+
+  (** Query-string pairs for
+      [app.bsky.unspecced.getSuggestedUsersSkeleton] and the onboarding /
+      explore / seeMore skeleton siblings. Currently sent fields only:
+      optional [viewer] / [category] / [limit]. *)
+  let get_suggested_users_skeleton_body ?viewer ?category ?limit () :
+      (string * string) list =
+    Client.opt_pair "viewer" viewer
+    @ Client.opt_pair "category" category
+    @ Client.opt_int "limit" limit
+
   (** Suggested users via [app.bsky.unspecced.getSuggestedUsers]. Optional
       [category] / [limit] map to the lexicon query. Works without a
       session against public AppView. *)
   let get_suggested_users ?session ?host ?category ?limit () : suggested_users =
     Client.get_json ?session ?host "app.bsky.unspecced.getSuggestedUsers"
-      (Client.opt_pair "category" category @ Client.opt_int "limit" limit)
+      (get_suggested_users_body ?category ?limit ())
     |> parse_suggested_users
 
   (** Suggested-user skeleton via
@@ -595,9 +618,7 @@ module Unspecced = struct
       did_skeleton =
     Client.get_json ?session ?host
       "app.bsky.unspecced.getSuggestedUsersSkeleton"
-      (Client.opt_pair "viewer" viewer
-      @ Client.opt_pair "category" category
-      @ Client.opt_int "limit" limit)
+      (get_suggested_users_skeleton_body ?viewer ?category ?limit ())
     |> parse_did_skeleton
 
   (** Suggested starter packs via
@@ -653,7 +674,7 @@ module Unspecced = struct
       suggested_users =
     Client.get_json ?session ?host
       "app.bsky.unspecced.getSuggestedOnboardingUsers"
-      (Client.opt_pair "category" category @ Client.opt_int "limit" limit)
+      (get_suggested_users_body ?category ?limit ())
     |> parse_suggested_users
 
   (** Onboarding suggested-user skeleton via
@@ -664,9 +685,7 @@ module Unspecced = struct
       ?limit () : did_skeleton =
     Client.get_json ?session ?host
       "app.bsky.unspecced.getOnboardingSuggestedUsersSkeleton"
-      (Client.opt_pair "viewer" viewer
-      @ Client.opt_pair "category" category
-      @ Client.opt_int "limit" limit)
+      (get_suggested_users_skeleton_body ?viewer ?category ?limit ())
     |> parse_did_skeleton
 
   (** Discover suggested users via
@@ -699,7 +718,7 @@ module Unspecced = struct
       suggested_users =
     Client.get_json ?session ?host
       "app.bsky.unspecced.getSuggestedUsersForExplore"
-      (Client.opt_pair "category" category @ Client.opt_int "limit" limit)
+      (get_suggested_users_body ?category ?limit ())
     |> parse_suggested_users
 
   (** Explore suggested-user skeleton via
@@ -710,9 +729,7 @@ module Unspecced = struct
       ?limit () : did_skeleton =
     Client.get_json ?session ?host
       "app.bsky.unspecced.getSuggestedUsersForExploreSkeleton"
-      (Client.opt_pair "viewer" viewer
-      @ Client.opt_pair "category" category
-      @ Client.opt_int "limit" limit)
+      (get_suggested_users_skeleton_body ?viewer ?category ?limit ())
     |> parse_did_skeleton
 
   (** See-more suggested users via
@@ -723,7 +740,7 @@ module Unspecced = struct
       suggested_users =
     Client.get_json ?session ?host
       "app.bsky.unspecced.getSuggestedUsersForSeeMore"
-      (Client.opt_pair "category" category @ Client.opt_int "limit" limit)
+      (get_suggested_users_body ?category ?limit ())
     |> parse_suggested_users
 
   (** See-more suggested-user skeleton via
@@ -734,10 +751,18 @@ module Unspecced = struct
       ?limit () : did_skeleton =
     Client.get_json ?session ?host
       "app.bsky.unspecced.getSuggestedUsersForSeeMoreSkeleton"
-      (Client.opt_pair "viewer" viewer
-      @ Client.opt_pair "category" category
-      @ Client.opt_int "limit" limit)
+      (get_suggested_users_skeleton_body ?viewer ?category ?limit ())
     |> parse_did_skeleton
+
+  (** Query-string pairs for [app.bsky.unspecced.getPostThreadV2]. Currently
+      sent fields only: required [anchor], optional [above] / [below] /
+      [branchingFactor] / [sort]. *)
+  let get_post_thread_v2_body ~anchor ?above ?below ?branching_factor ?sort () :
+      (string * string) list =
+    (("anchor", anchor) :: Client.opt_bool "above" above)
+    @ Client.opt_int "below" below
+    @ Client.opt_int "branchingFactor" branching_factor
+    @ Client.opt_pair "sort" sort
 
   (** Post thread (v2) via [app.bsky.unspecced.getPostThreadV2]. Optional
       [above] / [below] / [branching_factor] / [sort] map to the lexicon
@@ -745,11 +770,8 @@ module Unspecced = struct
   let get_post_thread_v2 ?session ?host ~anchor ?above ?below ?branching_factor
       ?sort () : thread_v2 =
     Client.get_json ?session ?host "app.bsky.unspecced.getPostThreadV2"
-      ([ ("anchor", anchor) ]
-      @ Client.opt_bool "above" above
-      @ Client.opt_int "below" below
-      @ Client.opt_int "branchingFactor" branching_factor
-      @ Client.opt_pair "sort" sort)
+      (get_post_thread_v2_body ~anchor ?above ?below ?branching_factor ?sort
+         ())
     |> parse_thread_v2
 
   (** Additional thread replies (v2) via
