@@ -177,6 +177,47 @@ module Oauth_scope = struct
       "chat.bsky.authFullChatClient";
     ]
 
+  (** Transitional DM grant ([transition:chat.bsky]). Privileged app
+      passwords and the official social app still use this. *)
+  let transition_chat = "transition:chat.bsky"
+
+  (** Bundled permission-set NSID ([chat.bsky.authFullChatClient]). The
+      pin expands to [listConvos] / [sendMessage] plus
+      [chat.bsky.actor.declaration] — not a full leftover chat surface. *)
+  let full_chat_client_nsid = "chat.bsky.authFullChatClient"
+
+  (** Granular [include:] token for [full_chat_client_nsid]. *)
+  let include_full_chat_client = "include:chat.bsky.authFullChatClient"
+
+  (** Scope string for a public chat-capable client. [atproto] is
+      mandatory; [transition:generic] is the usual PDS write grant;
+      [transition:chat.bsky] is the transitional DM grant. Granular
+      clients may declare [atproto include:chat.bsky.authFullChatClient]
+      instead of the transition token. [Oauth.default_scope] does
+      {e not} include chat. *)
+  let default_chat_scope = "atproto transition:generic transition:chat.bsky"
+
+  (** Granular alternative to [default_chat_scope] using the bundled
+      permission-set. *)
+  let full_chat_client_scope = "atproto include:chat.bsky.authFullChatClient"
+
+  (** True when [scope] looks like a chat/DM grant ([chat.bsky],
+      [bsky_chat], or [authFullChatClient]). Used to gate live DM
+      tests and to decide whether a token can call hosted chat. *)
+  let has_chat (scope : string) : bool =
+    let s = String.lowercase_ascii scope in
+    let contains needle =
+      let n = String.length s and m = String.length needle in
+      let rec aux i =
+        if i + m > n then false
+        else if String.sub s i m = needle then true
+        else aux (i + 1)
+      in
+      aux 0
+    in
+    contains "chat.bsky" || contains "bsky_chat"
+    || contains "authfullchatclient"
+
   (** True when [nsid] is a bundled official permission-set. *)
   let is_official_include (nsid : string) : bool =
     List.mem nsid official_include_nsids

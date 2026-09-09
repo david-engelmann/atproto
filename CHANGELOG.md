@@ -1,7 +1,13 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through [#230](https://github.com/david-engelmann/atproto/pull/230):
+shipped through [#231](https://github.com/david-engelmann/atproto/pull/231):
+hosted chat.bsky production path (`Oauth.default_chat_scope` /
+`Oauth_scope.has_chat` / `Chat.service_aud` / `list_convos_body` /
+`list_convos_service` / `get_messages_service` /
+`send_message_service`; `examples/chat_production.ml`; no OSS chat
+backend faked)
+on top of [#230](https://github.com/david-engelmann/atproto/pull/230):
 public HTTPS OAuth client-metadata + production
 browser-login path (`https_client_id` / `public_https_metadata` /
 `validate_https_metadata` / `metadata_document` /
@@ -1653,6 +1659,25 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   fail required jobs. Hosted-only
   chat / video / Tap / phone / contacts / push stay listed not faked.
   No lexicon pin bump
+- [#231](https://github.com/david-engelmann/atproto/pull/231):
+  Hosted chat.bsky production path. `Oauth.default_chat_scope` /
+  `Oauth_scope.default_chat_scope` / `full_chat_client_scope` /
+  `has_chat` document the DM grant (`transition:chat.bsky` or
+  `include:chat.bsky.authFullChatClient`; `Oauth.default_scope` is
+  not enough). `Chat.service_aud` / `default_host` /
+  `ATP_CHAT_HOST` plus query-pair helpers (`list_convos_body` /
+  `get_convo_body` / `get_convo_for_members_body` /
+  `get_messages_body`) shared with service-auth
+  `list_convos_service` / `get_convo_service` /
+  `get_messages_service` / `send_message_service` on `api.bsky.chat`
+  because DPoP cannot be proxied. Password sessions still send
+  `atproto-proxy` (`effective_proxy`: explicit proxy, else session
+  `#bsky_chat`, else `ATP_CHAT_DID`, else
+  `did:web:api.bsky.chat#bsky_chat`).
+  `examples/chat_production.ml` is offline wiring, not a hosted
+  chat product. Live DM tests stay skippable unless `ATP_AUTH` has
+  a chat/DM scope or `ATP_CHAT=1`. Official TestNetwork still has
+  no OSS chat backend. No lexicon pin bump
 - `examples/offline.ml` typechecks against the public API under
   `dune build` / `dune runtest`
 
@@ -1663,7 +1688,9 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   the document and drives authorize → code → token; it does not
   host them or a login UI)
 - Hosted Tap service or video transcoder
-- Official OSS chat backend (TestNetwork does not start one)
+- Official OSS chat backend (TestNetwork does not start one).
+  The production hosted path is documented and library-ready;
+  this package still does not fake a local chat service
 - Newly published official lexicons after bluesky-social/atproto
   `f0d4877a` — the coverage gate fails until the pin
   snapshot and bindings (or an explicit skip) are updated

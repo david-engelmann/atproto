@@ -9,6 +9,9 @@ Leftovers are hosted-only (no PDS, OSS chat backend, video transcoder,
 or Tap in this package). {!Atproto.Oauth} builds and validates a public
 HTTPS client-metadata document and the authorize → code → token
 browser path; the application still hosts that document.
+{!Atproto.Chat} is a client for hosted [chat.bsky.*]
+([atproto-proxy] or service-auth on [api.bsky.chat]; DPoP cannot be
+proxied). Official TestNetwork does not start chat.
 
 {1 Install}
 
