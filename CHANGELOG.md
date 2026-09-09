@@ -1,7 +1,8 @@
 # Changelog
 
 Notes for the packaged **0.1.0** library. This file records what actually
-shipped through the OCaml 5 / packaging modernization hop toward 1.0.0
+shipped through [#229](https://github.com/david-engelmann/atproto/pull/229):
+OCaml 5 / packaging modernization hop toward 1.0.0
 (dune lang 3.11, OCaml `>= 4.14.1` and `< 5.4`, Jane Street
 `core` / `async` / `ppx_jane` / `zstandard` `>= v0.16.0` and
 `< v0.18~`, CI `build` on 4.14.1 + 5.3.0; package version stays
@@ -1610,7 +1611,8 @@ CI and `make test-pds` start published `@atproto/dev-env@0.6.4`
   PR merges; GitHub pin still works for development. Hosted-only
   chat / video / Tap / phone / contacts / push stay listed not faked.
   No lexicon pin bump
-- OCaml 5 / packaging modernization hop toward 1.0.0. Lift the
+- [#229](https://github.com/david-engelmann/atproto/pull/229):
+  OCaml 5 / packaging modernization hop toward 1.0.0. Lift the
   hard `ocaml < 5.0` ceiling to `>= 4.14.1` and `< 5.4`. Pin Jane
   Street `core` / `async` / `ppx_jane` / `zstandard` to
   `>= v0.16.0` and `< v0.18~` so 4.14 resolves v0.16 and OCaml
