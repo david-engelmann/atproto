@@ -293,8 +293,8 @@ let test_register_push_opt_in _ =
         Notification.register_push test_session ~service_did ~token ~platform
           ~app_id ();
         OUnit2.assert_bool "registerPush accepted" true
-      with
-      | exn -> skip_if true ("registerPush skipped: " ^ Printexc.to_string exn))
+      with exn ->
+        skip_if true ("registerPush skipped: " ^ Printexc.to_string exn))
   | _ -> skip_if true "ATP_PUSH_TOKEN / ATP_PUSH_DID / ATP_PUSH_APP_ID not set"
 
 let test_get_unread_count _ =

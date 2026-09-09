@@ -50,8 +50,7 @@ let () =
   let gateway =
     { Xrpc.did = "did:web:push.example.org"; service = "bsky_notif" }
   in
-  assert (
-    Notification.effective_push_proxy ~proxy:gateway () = Some gateway);
+  assert (Notification.effective_push_proxy ~proxy:gateway () = Some gateway);
   assert (
     Notification.push_proxy_headers ~proxy:gateway ()
     = [ Xrpc.proxy_header gateway ]);
@@ -61,9 +60,7 @@ let () =
   assert (List.assoc "cursor" matches = "c1");
   assert (Contact.get_matches_body () = []);
   let start = Contact.start_phone_verification_body ~phone:"+12125550123" in
-  let verify =
-    Contact.verify_phone_body ~phone:"+12125550123" ~code:"123456"
-  in
+  let verify = Contact.verify_phone_body ~phone:"+12125550123" ~code:"123456" in
   let import =
     Contact.import_contacts_body ~token:"jwt" ~contacts:[ "+12125550124" ]
   in
