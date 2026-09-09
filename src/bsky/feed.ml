@@ -1004,8 +1004,8 @@ module Feed = struct
       ?(exclude_urls = []) ?(exclude_embedded_at_uris = [])
       ?(exclude_hashtags = []) ?since ?until ?all_time ?(languages = [])
       ?(exclude_languages = []) ?has_media ?has_video ?reply_parent_uri
-      ?thread_root_uri ?exclude_replies ?replies_only ?following
-      ?query_language ?limit ?cursor () : (string * string) list =
+      ?thread_root_uri ?exclude_replies ?replies_only ?following ?query_language
+      ?limit ?cursor () : (string * string) list =
     Client.Client.opt_pair "query" query
     @ Client.Client.opt_pair "sort" sort
     @ Client.Client.repeat_param "authors" authors
@@ -1149,10 +1149,10 @@ module Feed = struct
       (search_posts_v2_body ?query ?sort ~authors ~mentions ~domains ~urls
          ~embedded_at_uris ~hashtags ~exclude_authors ~exclude_mentions
          ~exclude_domains ~exclude_urls ~exclude_embedded_at_uris
-         ~exclude_hashtags ?since ?until ?all_time ~languages
-         ~exclude_languages ?has_media ?has_video ?reply_parent_uri
-         ?thread_root_uri ?exclude_replies ?replies_only ?following
-         ?query_language ?limit ?cursor ())
+         ~exclude_hashtags ?since ?until ?all_time ~languages ~exclude_languages
+         ?has_media ?has_video ?reply_parent_uri ?thread_root_uri
+         ?exclude_replies ?replies_only ?following ?query_language ?limit
+         ?cursor ())
     |> parse_search_posts_v2
 
   (** Quotes of [uri] via [app.bsky.feed.getQuotes]. Works without a

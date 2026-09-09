@@ -141,14 +141,14 @@ let test_feed_query_bodies _ =
       ("cursor", "v2");
     ]
     (Feed.search_posts_v2_body ~query:"atproto" ~sort:"latest"
-       ~authors:[ "alice.test"; "bob.test" ] ~mentions:[ "carol.test" ]
-       ~domains:[ "bsky.app" ] ~urls:[ "https://atproto.com" ]
+       ~authors:[ "alice.test"; "bob.test" ]
+       ~mentions:[ "carol.test" ] ~domains:[ "bsky.app" ]
+       ~urls:[ "https://atproto.com" ]
        ~embedded_at_uris:[ "at://did:plc:alice/app.bsky.feed.post/3abc" ]
        ~hashtags:[ "ocaml" ] ~exclude_authors:[ "spam.test" ]
        ~exclude_mentions:[ "noise.test" ] ~exclude_domains:[ "example.com" ]
        ~exclude_urls:[ "https://example.com" ]
-       ~exclude_embedded_at_uris:
-         [ "at://did:plc:bob/app.bsky.feed.post/3def" ]
+       ~exclude_embedded_at_uris:[ "at://did:plc:bob/app.bsky.feed.post/3def" ]
        ~exclude_hashtags:[ "nsfw" ] ~since:"2024-01-01T00:00:00.000Z"
        ~until:"2024-02-01T00:00:00.000Z" ~all_time:false ~languages:[ "en" ]
        ~exclude_languages:[ "fr" ] ~has_media:true ~has_video:false
