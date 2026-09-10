@@ -5,10 +5,10 @@ This repository is an OCaml **client and protocol library** for the [AT Protocol
 ## Install and call
 
 - Package: `atproto`. Dune: `(libraries atproto)`.
-- Packaged **1.0.2**. Until **atproto.1.0.2** is on opam-repository, `opam pin add atproto git+https://github.com/david-engelmann/atproto.git`. Then `opam install atproto`.
+- Packaged **1.0.2**. Until **atproto.1.0.2** is published, `opam pin add atproto git+https://github.com/david-engelmann/atproto.git`. After it is published: `opam install atproto`.
 - OCaml `>= 4.14.1` and `< 5.4`. System **libzstd** is required (Jetstream dict-zstd).
-- Public live tests skip unless `ATP_PUBLIC=1`. Default `opam install -t` / `@runtest` is offline. Credential hops stay on `ATP_AUTH`; local TestNetwork stays on `ATP_LOCAL_PDS`.
-- Public, unauthenticated starting point:
+- Public live *tests* skip unless `ATP_PUBLIC=1`. Default `opam install -t` / `@runtest` is offline. Credential hops stay on `ATP_AUTH`; local TestNetwork stays on `ATP_LOCAL_PDS`. Application code does not read `ATP_PUBLIC`.
+- Public AppView starting point (needs network; no `ATP_AUTH`):
 
 ```ocaml
 let did = (Identity.resolve_handle "jay.bsky.team").did
@@ -39,6 +39,7 @@ Official lexicons are pinned at `f0d4877a`. Do not bump that pin in a docs chang
 | What each module is for | README library map + [odoc](https://david-engelmann.github.io/atproto/) |
 | What shipped when | [CHANGELOG.md](CHANGELOG.md) |
 | How to contribute / local TestNetwork | [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md) |
+| Security reports | [.github/SECURITY.md](.github/SECURITY.md) |
 | Env names | `sample.env` |
 
 Prefer those documents over CI logs, helper-name dumps, or reconstructing the API from pull-request titles.

@@ -5,23 +5,25 @@
 Resolve identities, read and write repositories, follow the firehose, and call AppView, Ozone, and hosted Bluesky products (chat, video, Jetstream) from one library. Protocol pieces — XRPC, CID/CAR/MST, lexicons, OAuth/DPoP — are implemented here, not left as raw HTTP.
 
 **1.0.2** is the packaged surface. Pin this repository until
-**atproto.1.0.2** lands on opam-repository; then `opam install atproto`.
+**atproto.1.0.2** is published; then `opam install atproto`.
 See [CHANGELOG.md](CHANGELOG.md).
 
 This package is a **client**. It does not host a PDS, chat service, video transcoder, Tap, SMS gateway, or push backend. See [What this package does not host](#what-this-package-does-not-host).
 
 ## Quick start
 
-Neither call needs `ATP_AUTH`:
+These two calls hit the public AppView over the network. They do
+not need `ATP_AUTH`. `ATP_PUBLIC` only gates live *tests*; it is
+not required to run this snippet.
 
 ```shell
 opam pin add atproto git+https://github.com/david-engelmann/atproto.git
-# after atproto.1.0.2 is on opam-repository:
+# after atproto.1.0.2 is published:
 # opam install atproto
 ```
 
 ```ocaml
-(* public AppView, no ATP_AUTH *)
+(* public AppView — needs network, no ATP_AUTH *)
 let did = (Identity.resolve_handle "jay.bsky.team").did
 let posts = Feed.search_posts ~q:"atproto" ~limit:5 ()
 ```
@@ -33,9 +35,9 @@ let posts = Feed.search_posts ~q:"atproto" ~limit:5 ()
 Requires OCaml **>= 4.14.1 and < 5.4** (CI: **4.14.1** and **5.3.0**). Jane Street `core` / `async` / `ppx_jane` / `zstandard` are **>= v0.16.0 and < v0.18~** (v0.16 on 4.14, v0.17 on 5.1–5.3). Public Jane Street v0.17 does not support OCaml 5.4+; 5.0 is untested. Jetstream dict-zstd needs system **libzstd** (Debian/Ubuntu `libzstd-dev`, macOS Homebrew `zstd`) before `opam pin` / `opam install . --deps-only`. The Jane Street `zstandard` package is Linux-only (x86_64 / arm64).
 
 ```shell
-opam install atproto
-# development pin (use this until atproto.1.0.2 is on opam-repository)
 opam pin add atproto git+https://github.com/david-engelmann/atproto.git
+# after atproto.1.0.2 is published:
+# opam install atproto
 ```
 
 From a local clone:
@@ -61,6 +63,8 @@ In a dependent `dune` stanza:
 | --- | --- |
 | API reference | https://david-engelmann.github.io/atproto/ (`dune build @doc` / `make doc`) |
 | Release notes | [CHANGELOG.md](CHANGELOG.md) |
+| License | [LICENSE](LICENSE) (MIT) |
+| Support / issues | [GitHub issues](https://github.com/david-engelmann/atproto/issues) · [SECURITY](.github/SECURITY.md) |
 | Contributing | [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md) |
 | For agents | [AGENTS.md](AGENTS.md) |
 
@@ -101,13 +105,13 @@ Create a `.env` (see `sample.env`) when you need a session or a non-default host
 | `ATP_AUTH` | `EmailAddress:AppPassword` — use an [App Password](https://bsky.app/settings/app-passwords) |
 | `ATP_HOST` | PDS / entryway host **without** a scheme (`bsky.social`; `localhost:2583` locally) |
 | `ATP_SCHEME` | `https` (default) or `http` for a local stack without TLS |
-| `ATP_PUBLIC` | Set `1` / `true` / `yes` / `on` to run unauthenticated public-internet live hops. Leave unset for offline `with-test`. |
+| `ATP_PUBLIC` | Test-only. Set `1` / `true` / `yes` / `on` so unauthenticated public-internet *tests* run. Leave unset for offline `opam install -t` / `@runtest`. Application code (including the quick start) does not read this variable. |
 
 Optional hosts (all without a scheme): `ATP_APPVIEW_HOST`, `ATP_OZONE_HOST` / `ATP_OZONE_DID`, `ATP_CHAT_HOST` / `ATP_CHAT_DID`, `ATP_VIDEO_HOST`. Local-network extras: `ATP_AUTH_BOB`, `ATP_AUTH_OZONE`, `BASE_ENDPOINT` (default `xrpc`).
 
-Session creation, repo writes, graph mutes, bookmarks, chat, ozone, and most feed helpers need `ATP_AUTH`. Chat also needs a DM-capable session (`transition:chat.bsky`, `include:chat.bsky.authFullChatClient`, or `ATP_CHAT=1`). Public identity, DID PLC, firehose subscribe, AppView reads (`public.api.bsky.app`), and most `com.atproto.sync.*` reads do **not** need auth, but those live hops skip unless `ATP_PUBLIC` is truthy.
+Session creation, repo writes, graph mutes, bookmarks, chat, ozone, and most feed helpers need `ATP_AUTH`. Chat also needs a DM-capable session (`transition:chat.bsky`, `include:chat.bsky.authFullChatClient`, or `ATP_CHAT=1`). Public identity, DID PLC, firehose subscribe, AppView reads (`public.api.bsky.app`), and most `com.atproto.sync.*` reads do **not** need auth and do **not** need `ATP_PUBLIC` — that variable only gates live *tests*.
 
-Live opt-ins (unset in CI): `ATP_PUBLIC` (unauthenticated public-internet hops), `ATP_CHAT`, `ATP_PHONE` / `ATP_PHONE_NUMBER`, `ATP_PUSH` / `ATP_PUSH_DID` / `ATP_PUSH_TOKEN`, `ATP_SPACE` / `ATP_SPACE_HOST` (no default space host), `JETSTREAM_API_KEY`.
+Live *test* opt-ins (unset in CI): `ATP_PUBLIC` (unauthenticated public-internet test hops), `ATP_CHAT`, `ATP_PHONE` / `ATP_PHONE_NUMBER`, `ATP_PUSH` / `ATP_PUSH_DID` / `ATP_PUSH_TOKEN`, `ATP_SPACE` / `ATP_SPACE_HOST` (no default space host), `JETSTREAM_API_KEY`.
 
 ## Hosted Bluesky products
 
@@ -225,9 +229,10 @@ none invent a hosted service.
 
 | File | Demo |
 | --- | --- |
-| [`examples/quickstart.ml`](examples/quickstart.ml) | Public AppView: resolve a handle and search posts (no `ATP_AUTH`) |
+| [`examples/quickstart.ml`](examples/quickstart.ml) | Public AppView: resolve a handle and search posts (needs network; no `ATP_AUTH`) |
 | [`examples/offline.ml`](examples/offline.ml) | Typechecks the public API with no network |
 | [`examples/oauth_https_metadata.ml`](examples/oauth_https_metadata.ml) | HTTPS `client-metadata.json` + browser login (you still host the document) |
+| [`examples/client-metadata.json`](examples/client-metadata.json) | Sample public HTTPS OAuth `client-metadata.json` (you still host this URL) |
 | [`examples/chat_production.ml`](examples/chat_production.ml) | Hosted `chat.bsky.*` on `api.bsky.chat` (no OSS chat backend) |
 | [`examples/video_production.ml`](examples/video_production.ml) | Hosted `app.bsky.video.*` on `video.bsky.app` (no transcoder) |
 | [`examples/repo_sync_indexer.ml`](examples/repo_sync_indexer.ml) | Indexer / backfill via `Repo_sync` (not a Tap host) |
@@ -235,7 +240,7 @@ none invent a hosted service.
 | [`examples/contacts_production.ml`](examples/contacts_production.ml) | Hosted phone / contacts / push clients (no SMS or APNs/FCM) |
 
 ```ocaml
-(* public AppView, no auth *)
+(* public AppView — needs network, no ATP_AUTH *)
 let did = (Identity.resolve_handle "jay.bsky.team").did
 let commit = Sync.get_latest_commit did
 let posts = Feed.search_posts ~q:"atproto" ~limit:5 ()
