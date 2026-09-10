@@ -4,7 +4,9 @@
 
 Resolve identities, read and write repositories, follow the firehose, and call AppView, Ozone, and hosted Bluesky products (chat, video, Jetstream) from one library. Protocol pieces — XRPC, CID/CAR/MST, lexicons, OAuth/DPoP — are implemented here, not left as raw HTTP.
 
-**1.0.2** is the packaged surface (`ATP_PUBLIC` gate; see [CHANGELOG.md](CHANGELOG.md)). Tagged **[1.0.1](https://github.com/david-engelmann/atproto/releases/tag/1.0.1)** is at `53ffbc2`. The public opam package is in [ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703) (to be superseded after this cut). Until a 1.0.2 opam publish, pin this repository.
+**1.0.2** is the packaged surface. Pin this repository until
+**atproto.1.0.2** lands on opam-repository; then `opam install atproto`.
+See [CHANGELOG.md](CHANGELOG.md).
 
 This package is a **client**. It does not host a PDS, chat service, video transcoder, Tap, SMS gateway, or push backend. See [What this package does not host](#what-this-package-does-not-host).
 
@@ -14,7 +16,7 @@ Neither call needs `ATP_AUTH`:
 
 ```shell
 opam pin add atproto git+https://github.com/david-engelmann/atproto.git
-# after ocaml/opam-repository#30703 merges:
+# after atproto.1.0.2 is on opam-repository:
 # opam install atproto
 ```
 
@@ -32,7 +34,7 @@ Requires OCaml **>= 4.14.1 and < 5.4** (CI: **4.14.1** and **5.3.0**). Jane Stre
 
 ```shell
 opam install atproto
-# development pin (use this until the opam-repository PR merges)
+# development pin (use this until atproto.1.0.2 is on opam-repository)
 opam pin add atproto git+https://github.com/david-engelmann/atproto.git
 ```
 
@@ -218,6 +220,20 @@ OAuth against this TestNetwork (loopback metadata, PAR, DPoP, service-auth) is c
 
 ## Examples
 
+Copy-paste sketches under `examples/`. `dune build` typechecks them;
+none invent a hosted service.
+
+| File | Demo |
+| --- | --- |
+| [`examples/quickstart.ml`](examples/quickstart.ml) | Public AppView: resolve a handle and search posts (no `ATP_AUTH`) |
+| [`examples/offline.ml`](examples/offline.ml) | Typechecks the public API with no network |
+| [`examples/oauth_https_metadata.ml`](examples/oauth_https_metadata.ml) | HTTPS `client-metadata.json` + browser login (you still host the document) |
+| [`examples/chat_production.ml`](examples/chat_production.ml) | Hosted `chat.bsky.*` on `api.bsky.chat` (no OSS chat backend) |
+| [`examples/video_production.ml`](examples/video_production.ml) | Hosted `app.bsky.video.*` on `video.bsky.app` (no transcoder) |
+| [`examples/repo_sync_indexer.ml`](examples/repo_sync_indexer.ml) | Indexer / backfill via `Repo_sync` (not a Tap host) |
+| [`examples/jetstream_archive.ml`](examples/jetstream_archive.ml) | Jetstream archive HTTP with an operator-supplied key |
+| [`examples/contacts_production.ml`](examples/contacts_production.ml) | Hosted phone / contacts / push clients (no SMS or APNs/FCM) |
+
 ```ocaml
 (* public AppView, no auth *)
 let did = (Identity.resolve_handle "jay.bsky.team").did
@@ -263,5 +279,3 @@ let space =
   At_uri.Space.of_string "at://did:example:space/space/app.bsky.group/test"
 let () = assert (not (At_uri.Space.is_record space))
 ```
-
-More copy-paste sketches: `examples/quickstart.ml`, `examples/oauth_https_metadata.ml`, `examples/chat_production.ml`, `examples/video_production.ml`, `examples/repo_sync_indexer.ml`, `examples/jetstream_archive.ml`, `examples/contacts_production.ml`.
