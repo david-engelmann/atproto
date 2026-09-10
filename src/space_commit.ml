@@ -41,7 +41,7 @@ module Space_commit : sig
     ver : int;
     hash : string;
     ikm : string;
-    sig : string;
+    sig_ : string;
     mac : string;
     rev : string;
   }
@@ -49,8 +49,7 @@ module Space_commit : sig
   type sig_status =
     [ `Valid | `Invalid | `Unsupported_curve of string | `Missing ]
 
-  type signer =
-    [ `P256 of Mirage_crypto_ec.P256.Dsa.priv | `K256 of K256.priv ]
+  type signer = [ `P256 of Mirage_crypto_ec.P256.Dsa.priv | `K256 of K256.priv ]
 
   exception Invalid of string
 
@@ -68,11 +67,12 @@ module Space_commit : sig
   val random_ikm : unit -> string
   (** 32 fresh random bytes. *)
 
-  val of_lt_hash : ?ikm:string -> ctx:ctx -> sign:signer -> Lt_hash.t -> t
+  val of_lt_hash :
+    ?ikm:string -> ctx:ctx -> sign:signer -> Lt_hash.t -> unit -> t
   (** Sign a commit whose [hash] is [Lt_hash.hash]. Generates [ikm]
       when omitted. *)
 
-  val create : ?ikm:string -> ctx:ctx -> sign:signer -> hash:string -> t
+  val create : ?ikm:string -> ctx:ctx -> sign:signer -> hash:string -> unit -> t
   (** Sign a commit over an already-computed 32-byte [hash]. *)
 
   val matches : Lt_hash.t -> t -> bool
@@ -104,7 +104,7 @@ end = struct
     ver : int;
     hash : string;
     ikm : string;
-    sig : string;
+    sig_ : string;
     mac : string;
     rev : string;
   }
@@ -112,8 +112,7 @@ end = struct
   type sig_status =
     [ `Valid | `Invalid | `Unsupported_curve of string | `Missing ]
 
-  type signer =
-    [ `P256 of Mirage_crypto_ec.P256.Dsa.priv | `K256 of K256.priv ]
+  type signer = [ `P256 of Mirage_crypto_ec.P256.Dsa.priv | `K256 of K256.priv ]
 
   exception Invalid of string
 
@@ -202,7 +201,7 @@ end = struct
         (Printf.sprintf "ikm must be %d bytes, got %d" digest_len
            (String.length ikm))
 
-  let create ?ikm ~(ctx : ctx) ~sign ~hash : t =
+  let create ?ikm ~(ctx : ctx) ~sign ~hash () : t =
     ensure_ctx ctx;
     ensure_hash hash;
     let ikm = match ikm with Some i -> i | None -> random_ikm () in
@@ -212,16 +211,15 @@ end = struct
       ver = version;
       hash;
       ikm;
-      sig = sign_ctx ~sign ctx_bytes;
+      sig_ = sign_ctx ~sign ctx_bytes;
       mac = mac ~ikm ~ctx_bytes ~hash;
       rev = ctx.rev;
     }
 
-  let of_lt_hash ?ikm ~ctx ~sign (h : Lt_hash.t) : t =
-    create ?ikm ~ctx ~sign ~hash:(Lt_hash.hash h)
+  let of_lt_hash ?ikm ~ctx ~sign (h : Lt_hash.t) () : t =
+    create ?ikm ~ctx ~sign ~hash:(Lt_hash.hash h) ()
 
   let matches (h : Lt_hash.t) (c : t) : bool = Lt_hash.hash h = c.hash
-
   let ctx_bytes_of ~(ctx : ctx) (c : t) = context ~ctx ~ikm:c.ikm
 
   let verify_mac ~(ctx : ctx) (c : t) : bool =
@@ -231,10 +229,10 @@ end = struct
     && mac ~ikm:c.ikm ~ctx_bytes:(ctx_bytes_of ~ctx c) ~hash:c.hash = c.mac
 
   let verify_sig ~keys ~(ctx : ctx) (c : t) : sig_status =
-    if String.length c.sig <> 64 then `Invalid
+    if String.length c.sig_ <> 64 then `Invalid
     else
-      let r = String.sub c.sig 0 32 in
-      let s = String.sub c.sig 32 32 in
+      let r = String.sub c.sig_ 0 32 in
+      let s = String.sub c.sig_ 32 32 in
       let digest = Hash.sha256 (ctx_bytes_of ~ctx c) in
       let parsed =
         List.filter_map
@@ -268,8 +266,7 @@ end = struct
             | Did_key.K256 -> (
                 match Did_key.k256_pub k with
                 | Some pub ->
-                    if
-                      K256.is_low_s s && K256.verify ~key:pub (r, s) digest
+                    if K256.is_low_s s && K256.verify ~key:pub (r, s) digest
                     then `Valid
                     else try_keys rest
                 | None -> try_keys rest)
@@ -279,8 +276,7 @@ end = struct
 
   let verify ~keys ~(ctx : ctx) (c : t) : bool =
     c.ver = version && c.rev = ctx.rev && verify_mac ~ctx c
-    &&
-    match verify_sig ~keys ~ctx c with `Valid -> true | _ -> false
+    && match verify_sig ~keys ~ctx c with `Valid -> true | _ -> false
 
   let encode (c : t) : string =
     Dag_cbor.encode
@@ -289,7 +285,7 @@ end = struct
            ("ver", Dag_cbor.Int c.ver);
            ("hash", Dag_cbor.Bytes c.hash);
            ("ikm", Dag_cbor.Bytes c.ikm);
-           ("sig", Dag_cbor.Bytes c.sig);
+           ("sig", Dag_cbor.Bytes c.sig_);
            ("mac", Dag_cbor.Bytes c.mac);
            ("rev", Dag_cbor.Text c.rev);
          ])
@@ -306,7 +302,7 @@ end = struct
       if String.length hash <> digest_len then fail "hash must be 32 bytes";
       if String.length ikm <> digest_len then fail "ikm must be 32 bytes";
       if String.length mac <> digest_len then fail "mac must be 32 bytes";
-      { ver; hash; ikm; sig = sig_; mac; rev }
+      { ver; hash; ikm; sig_; mac; rev }
     with
     | Invalid _ as e -> raise e
     | Dag_cbor.Decode_error msg -> fail msg

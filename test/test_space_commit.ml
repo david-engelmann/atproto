@@ -58,51 +58,54 @@ let hex = Hash.hex_encode
 let test_context_official_vector _ =
   let ctx_bytes = Space_commit.context ~ctx:official_ctx ~ikm:official_ikm in
   OUnit2.assert_equal ~printer:(fun x -> x) official_ctx_hex (hex ctx_bytes);
-  OUnit2.assert_equal ~printer:(fun x -> x) Space_commit.domain_tag
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    Space_commit.domain_tag
     (String.sub ctx_bytes 0 16);
   let space_len =
     (Char.code ctx_bytes.[16] lsl 8) lor Char.code ctx_bytes.[17]
   in
   OUnit2.assert_equal ~printer:string_of_int
-    (String.length official_ctx.space) space_len
+    (String.length official_ctx.space)
+    space_len
 
 let test_context_length_prefix_unambiguous _ =
   let ikm = official_ikm in
   let a =
-    Space_commit.context
-      ~ctx:{ space = "ab"; author = "c"; rev = "d" }
-      ~ikm
+    Space_commit.context ~ctx:{ space = "ab"; author = "c"; rev = "d" } ~ikm
   in
   let b =
-    Space_commit.context
-      ~ctx:{ space = "a"; author = "bc"; rev = "d" }
-      ~ikm
+    Space_commit.context ~ctx:{ space = "a"; author = "bc"; rev = "d" } ~ikm
   in
   OUnit2.assert_bool "field boundaries" (a <> b)
 
 let test_hkdf_and_mac_vectors _ =
   let ctx_bytes = Space_commit.context ~ctx:official_ctx ~ikm:official_ikm in
-  OUnit2.assert_equal ~printer:(fun x -> x) official_hkdf_hex
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    official_hkdf_hex
     (hex (Space_commit.hkdf_expand ~ikm:official_ikm ~info:ctx_bytes));
   let empty_hash = Hash.hex_decode empty_hash_hex in
-  OUnit2.assert_equal ~printer:(fun x -> x) official_mac_empty_hex
-    (hex
-       (Space_commit.mac ~ikm:official_ikm ~ctx_bytes ~hash:empty_hash))
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    official_mac_empty_hex
+    (hex (Space_commit.mac ~ikm:official_ikm ~ctx_bytes ~hash:empty_hash))
 
 let test_of_lt_hash_wires_digest _ =
   let priv, pub = p256_pair () in
   let h = Lt_hash.empty () in
   let commit =
     Space_commit.of_lt_hash ~ikm:official_ikm ~ctx:official_ctx
-      ~sign:(`P256 priv) h
+      ~sign:(`P256 priv) h ()
   in
   OUnit2.assert_equal ~printer:string_of_int Space_commit.version commit.ver;
   OUnit2.assert_equal ~printer:(fun x -> x) official_ctx.rev commit.rev;
   OUnit2.assert_equal ~printer:(fun x -> x) empty_hash_hex (hex commit.hash);
-  OUnit2.assert_equal ~printer:(fun x -> x) official_mac_empty_hex
-    (hex commit.mac);
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    official_mac_empty_hex (hex commit.mac);
   OUnit2.assert_equal ~printer:string_of_int 32 (String.length commit.ikm);
-  OUnit2.assert_equal ~printer:string_of_int 64 (String.length commit.sig);
+  OUnit2.assert_equal ~printer:string_of_int 64 (String.length commit.sig_);
   OUnit2.assert_bool "matches empty" (Space_commit.matches h commit);
   OUnit2.assert_bool "verify p256"
     (Space_commit.verify ~keys:[ p256_did_key pub ] ~ctx:official_ctx commit)
@@ -112,22 +115,17 @@ let test_sign_verify_k256 _ =
   let h = Lt_hash.add (Lt_hash.empty ()) "one" in
   let commit =
     Space_commit.of_lt_hash ~ikm:official_ikm ~ctx:official_ctx
-      ~sign:(`K256 priv) h
+      ~sign:(`K256 priv) h ()
   in
-  OUnit2.assert_bool "matches"
-    (Space_commit.matches h commit);
+  OUnit2.assert_bool "matches" (Space_commit.matches h commit);
   OUnit2.assert_bool "verify k256"
     (Space_commit.verify ~keys:[ k256_did_key pub ] ~ctx:official_ctx commit)
 
 let test_fresh_ikm_per_commit _ =
   let priv, _ = p256_pair () in
   let h = Lt_hash.empty () in
-  let a =
-    Space_commit.of_lt_hash ~ctx:official_ctx ~sign:(`P256 priv) h
-  in
-  let b =
-    Space_commit.of_lt_hash ~ctx:official_ctx ~sign:(`P256 priv) h
-  in
+  let a = Space_commit.of_lt_hash ~ctx:official_ctx ~sign:(`P256 priv) h () in
+  let b = Space_commit.of_lt_hash ~ctx:official_ctx ~sign:(`P256 priv) h () in
   OUnit2.assert_bool "distinct ikm" (a.ikm <> b.ikm);
   OUnit2.assert_bool "distinct mac" (a.mac <> b.mac);
   OUnit2.assert_bool "same hash" (a.hash = b.hash)
@@ -137,22 +135,26 @@ let test_wrong_key _ =
   let _, kpub = k256_pair () in
   let commit =
     Space_commit.of_lt_hash ~ikm:official_ikm ~ctx:official_ctx
-      ~sign:(`P256 priv) (Lt_hash.empty ())
+      ~sign:(`P256 priv) (Lt_hash.empty ()) ()
   in
   OUnit2.assert_bool "wrong key"
     (not
-       (Space_commit.verify ~keys:[ k256_did_key kpub ] ~ctx:official_ctx
-          commit))
+       (Space_commit.verify
+          ~keys:[ k256_did_key kpub ]
+          ~ctx:official_ctx commit))
 
 let test_ctx_mismatch _ =
   let priv, pub = p256_pair () in
   let key = p256_did_key pub in
   let commit =
     Space_commit.of_lt_hash ~ikm:official_ikm ~ctx:official_ctx
-      ~sign:(`P256 priv) (Lt_hash.empty ())
+      ~sign:(`P256 priv) (Lt_hash.empty ()) ()
   in
   let other_space =
-    { official_ctx with space = "at://did:example:space/space/app.bsky.group/other" }
+    {
+      official_ctx with
+      space = "at://did:example:space/space/app.bsky.group/other";
+    }
   in
   let other_author = { official_ctx with author = "did:example:bob" } in
   let other_rev = { official_ctx with rev = "3kbcq3p7ad999" } in
@@ -167,27 +169,33 @@ let test_tampered_hash _ =
   let priv, pub = p256_pair () in
   let commit =
     Space_commit.of_lt_hash ~ikm:official_ikm ~ctx:official_ctx
-      ~sign:(`P256 priv) (Lt_hash.empty ())
+      ~sign:(`P256 priv) (Lt_hash.empty ()) ()
   in
-  let tampered = { commit with hash = Lt_hash.hash (Lt_hash.add (Lt_hash.empty ()) "x") } in
+  let tampered =
+    { commit with hash = Lt_hash.hash (Lt_hash.add (Lt_hash.empty ()) "x") }
+  in
   (* Signature still covers only ctx; MAC is what fails. *)
-  (match Space_commit.verify_sig ~keys:[ p256_did_key pub ] ~ctx:official_ctx
-           tampered
+  (match
+     Space_commit.verify_sig
+       ~keys:[ p256_did_key pub ]
+       ~ctx:official_ctx tampered
    with
   | `Valid -> ()
   | _ -> OUnit2.assert_failure "sig should still verify");
-  OUnit2.assert_bool "mac fails" (not (Space_commit.verify_mac ~ctx:official_ctx tampered));
+  OUnit2.assert_bool "mac fails"
+    (not (Space_commit.verify_mac ~ctx:official_ctx tampered));
   OUnit2.assert_bool "verify fails"
     (not
-       (Space_commit.verify ~keys:[ p256_did_key pub ] ~ctx:official_ctx
-          tampered))
+       (Space_commit.verify
+          ~keys:[ p256_did_key pub ]
+          ~ctx:official_ctx tampered))
 
 let test_rev_and_version _ =
   let priv, pub = p256_pair () in
   let key = p256_did_key pub in
   let commit =
     Space_commit.of_lt_hash ~ikm:official_ikm ~ctx:official_ctx
-      ~sign:(`P256 priv) (Lt_hash.empty ())
+      ~sign:(`P256 priv) (Lt_hash.empty ()) ()
   in
   OUnit2.assert_bool "rev disagree"
     (not
@@ -203,16 +211,17 @@ let test_matches_after_add _ =
   let h = Lt_hash.empty () in
   let commit =
     Space_commit.of_lt_hash ~ikm:official_ikm ~ctx:official_ctx
-      ~sign:(`P256 priv) h
+      ~sign:(`P256 priv) h ()
   in
   let advanced = Lt_hash.add h "app.bsky.feed.post/1/bafy" in
-  OUnit2.assert_bool "advanced differs" (not (Space_commit.matches advanced commit))
+  OUnit2.assert_bool "advanced differs"
+    (not (Space_commit.matches advanced commit))
 
 let test_encode_decode _ =
   let priv, pub = p256_pair () in
   let commit =
     Space_commit.of_lt_hash ~ikm:official_ikm ~ctx:official_ctx
-      ~sign:(`P256 priv) (Lt_hash.empty ())
+      ~sign:(`P256 priv) (Lt_hash.empty ()) ()
   in
   let again = Space_commit.decode (Space_commit.encode commit) in
   OUnit2.assert_equal ~printer:string_of_int commit.ver again.ver;
@@ -220,7 +229,7 @@ let test_encode_decode _ =
   OUnit2.assert_equal ~printer:(fun x -> x) (hex commit.hash) (hex again.hash);
   OUnit2.assert_equal ~printer:(fun x -> x) (hex commit.ikm) (hex again.ikm);
   OUnit2.assert_equal ~printer:(fun x -> x) (hex commit.mac) (hex again.mac);
-  OUnit2.assert_equal ~printer:(fun x -> x) (hex commit.sig) (hex again.sig);
+  OUnit2.assert_equal ~printer:(fun x -> x) (hex commit.sig_) (hex again.sig_);
   OUnit2.assert_bool "verify after decode"
     (Space_commit.verify ~keys:[ p256_did_key pub ] ~ctx:official_ctx again)
 
@@ -230,16 +239,19 @@ let test_create_rejects_record_uri _ =
     {
       official_ctx with
       space =
-        official_ctx.space ^ "/did:example:alice/app.bsky.feed.post/3jzfcijpj2z2a";
+        official_ctx.space
+        ^ "/did:example:alice/app.bsky.feed.post/3jzfcijpj2z2a";
     }
   in
   OUnit2.assert_raises
     (Space_commit.Invalid
        "commit space must be a space URI (through skey), not a record URI")
     (fun () ->
-      ignore
-        (Space_commit.of_lt_hash ~ikm:official_ikm ~ctx ~sign:(`P256 priv)
-           (Lt_hash.empty ())))
+      let _ =
+        Space_commit.of_lt_hash ~ikm:official_ikm ~ctx ~sign:(`P256 priv)
+          (Lt_hash.empty ()) ()
+      in
+      ())
 
 let test_random_ikm_length _ =
   OUnit2.assert_equal ~printer:string_of_int 32

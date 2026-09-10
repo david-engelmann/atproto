@@ -105,12 +105,16 @@ let test_space_record_uri_roundtrip _ =
   | Space.Record r ->
       OUnit2.assert_equal ~printer:(fun x -> x) "did:example:space" r.space_did;
       OUnit2.assert_equal ~printer:(fun x -> x) "did:example:alice" r.author_did;
-      OUnit2.assert_equal ~printer:(fun x -> x) "app.bsky.feed.post"
-        r.collection;
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        "app.bsky.feed.post" r.collection;
       OUnit2.assert_equal ~printer:(fun x -> x) "3jzfcijpj2z2a" r.rkey;
-      OUnit2.assert_equal ~printer:(fun x -> x) official_record
-        (Space.to_string u);
-      OUnit2.assert_equal ~printer:(fun x -> x) official_space
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        official_record (Space.to_string u);
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        official_space
         (Space.to_string (Space.Space (Space.space_of u)))
 
 let test_space_builders _ =
@@ -139,21 +143,20 @@ let test_space_marker_distinguishes _ =
 let test_classify _ =
   (match classify official_space with
   | Space u ->
-      OUnit2.assert_equal ~printer:(fun x -> x) official_space
-        (Space.to_string u)
+      OUnit2.assert_equal
+        ~printer:(fun x -> x)
+        official_space (Space.to_string u)
   | Public _ -> OUnit2.assert_failure "expected space");
   match
     classify
       "at://did:plc:xov3uvxfd4to6ev3ak5g5uxk/app.bsky.feed.post/3jyf6gx25eb27"
   with
-  | Public u ->
-      OUnit2.assert_equal (Some "app.bsky.feed.post") u.collection
+  | Public u -> OUnit2.assert_equal (Some "app.bsky.feed.post") u.collection
   | Space _ -> OUnit2.assert_failure "expected public"
 
 let test_public_parser_rejects_space_record _ =
-  OUnit2.assert_raises
-    (Failure "Uri.of_string: more than two path segments") (fun () ->
-      ignore (Uri.of_string official_record))
+  OUnit2.assert_raises (Failure "Uri.of_string: more than two path segments")
+    (fun () -> ignore (Uri.of_string official_record))
 
 let test_space_rejects_public _ =
   OUnit2.assert_raises
@@ -168,26 +171,22 @@ let test_space_rejects_bad_count _ =
     (Space.Invalid
        "space URI must be at://{did}/space/{type}/{skey} or \
         at://{did}/space/{type}/{skey}/{author}/{collection}/{rkey}") (fun () ->
-      ignore
-        (Space.of_string "at://did:example:space/space/app.bsky.group"))
+      ignore (Space.of_string "at://did:example:space/space/app.bsky.group"))
 
 let test_space_rejects_query_fragment_slash _ =
-  OUnit2.assert_raises
-    (Space.Invalid "query is not allowed on space URIs") (fun () ->
-      ignore (Space.of_string (official_space ^ "?foo=1")));
-  OUnit2.assert_raises
-    (Space.Invalid "fragment is not allowed on space URIs") (fun () ->
-      ignore (Space.of_string (official_space ^ "#frag")));
-  OUnit2.assert_raises
-    (Space.Invalid "trailing slash is not allowed") (fun () ->
-      ignore (Space.of_string (official_space ^ "/")))
+  OUnit2.assert_raises (Space.Invalid "query is not allowed on space URIs")
+    (fun () -> ignore (Space.of_string (official_space ^ "?foo=1")));
+  OUnit2.assert_raises (Space.Invalid "fragment is not allowed on space URIs")
+    (fun () -> ignore (Space.of_string (official_space ^ "#frag")));
+  OUnit2.assert_raises (Space.Invalid "trailing slash is not allowed")
+    (fun () -> ignore (Space.of_string (official_space ^ "/")))
 
 let test_space_rejects_invalid_components _ =
-  OUnit2.assert_raises
-    (Space.Invalid "invalid space authority DID not-a-did") (fun () ->
+  OUnit2.assert_raises (Space.Invalid "invalid space authority DID not-a-did")
+    (fun () ->
       ignore (Space.of_string "at://not-a-did/space/app.bsky.group/test"));
-  OUnit2.assert_raises
-    (Space.Invalid "invalid space type NSID not-an-nsid") (fun () ->
+  OUnit2.assert_raises (Space.Invalid "invalid space type NSID not-an-nsid")
+    (fun () ->
       ignore (Space.of_string "at://did:example:space/space/not-an-nsid/test"))
 
 let suite =

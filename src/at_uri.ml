@@ -269,13 +269,13 @@ end = struct
   let first_path_segment rest =
     match String.index_opt rest '/' with
     | None -> None
-    | Some i ->
+    | Some i -> (
         let path = String.sub rest (i + 1) (String.length rest - i - 1) in
         if path = "" then Some ""
         else
           match String.index_opt path '/' with
           | None -> Some path
-          | Some j -> Some (String.sub path 0 j)
+          | Some j -> Some (String.sub path 0 j))
 
   (** True when the first path segment is the literal [space] marker. *)
   let is_space_uri (raw : string) : bool =
@@ -316,10 +316,9 @@ end = struct
     let parts = String.split_on_char '/' rest in
     if List.exists (fun p -> p = "") parts then fail "empty path segment";
     match parts with
-    | space_did :: "space" :: space_type :: skey :: [] ->
+    | [ space_did; "space"; space_type; skey ] ->
         space ~space_did ~space_type ~skey
-    | space_did :: "space" :: space_type :: skey :: author_did :: collection
-      :: rkey :: [] ->
+    | [ space_did; "space"; space_type; skey; author_did; collection; rkey ] ->
         record ~space_did ~space_type ~skey ~author_did ~collection ~rkey
     | _ :: "space" :: _ ->
         fail
@@ -328,8 +327,7 @@ end = struct
     | _ -> fail "not a space URI (first path segment must be literal space)"
 
   let to_string = function
-    | Space s ->
-        "at://" ^ s.space_did ^ "/space/" ^ s.space_type ^ "/" ^ s.skey
+    | Space s -> "at://" ^ s.space_did ^ "/space/" ^ s.space_type ^ "/" ^ s.skey
     | Record r ->
         "at://" ^ r.space_did ^ "/space/" ^ r.space_type ^ "/" ^ r.skey ^ "/"
         ^ r.author_did ^ "/" ^ r.collection ^ "/" ^ r.rkey
