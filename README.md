@@ -80,6 +80,7 @@ Optional:
 - `ATP_CHAT_HOST` : hosted chat XRPC host without a scheme (`api.bsky.chat` by default)
 - `ATP_CHAT` : set to `1` / `true` / `yes` / `on` to run live DM tests even when the session JWT scope does not look like a chat grant
 - `ATP_VIDEO_HOST` : hosted video XRPC host without a scheme (`video.bsky.app` by default)
+- `ATP_SPACE` / `ATP_SPACE_HOST` : opt-in live draft `com.atproto.space.*` hops. There is no default host and no space product in this repo. Leave unset unless you have a real space host.
 
 Session creation, repo writes, graph mutes, bookmarks, chat, ozone, and feed helpers need `ATP_AUTH`. Chat additionally needs a privileged / DM-capable session (`transition:chat.bsky`, `include:chat.bsky.authFullChatClient`, or `ATP_CHAT=1`). Live video-limit calls skip unless `ATP_AUTH` is a real credential (no invented video product). Public identity, DID PLC, firehose subscribe, AppView reads (`public.api.bsky.app`), and most `com.atproto.sync.*` reads do **not**.
 
@@ -202,6 +203,7 @@ The **production path** is the hosted Bluesky video service (host `video.bsky.ap
 | Notifications | `Notification` | All `listNotifications` known reasons; `listNotifications` query-pair helper (`list_notifications_body`; `list_notifications` / `list_notifications_page` share those pairs; currently sent fields only: optional `reasons` / `priority` / `cursor` / `seenAt` / `limit`); leftover `list_activity_subscriptions_body` (`limit` / `cursor`); `getUnreadCount` via `Client.get_json`; `updateSeen` Yojson `update_seen_body` via `Client.post_json` (empty output stays `""`); `putPreferences` v1 `put_preferences_body` (`priority`) and `putActivitySubscription` `put_activity_subscription_body` (`subject` / `activitySubscription`) via `Client.post_json`; prefs-v2; `register_push_body` / `unregister_push_body` (`serviceDid` / `token` / `platform` knownValues `ios` / `android` / `web` / `appId`; optional `ageRestricted`); optional `atproto-proxy` (`effective_push_proxy` / `ATP_PUSH_DID` / `Xrpc.notif_proxy`); `ATP_PUSH` skip gate. Client only — no APNs/FCM |
 | User reports | `Moderation` | `com.atproto.moderation.createReport` (strongRef / repoRef, optional `modTool`, reason-type constants; Yojson `create_report_body_from_strong_ref` / `create_report_body_from_repo_ref`; string `create_report_data_from_*` unchanged) |
 | Crypto / codecs | `K256`, `Base32`, `Base58`, `Base64url`, `Hash`, `Varint`, `Lt_hash`, `Space_commit`, `Space_credential` | secp256k1, multibase, CID/CAR varints; experimental proposal-0016 LtHash, deniable signed commits, and space-credential JWT / DPoP helpers (not a spaces product API) |
+| Spaces XRPC (experimental) | `Space_xrpc` | draft `com.atproto.space.*` query/JSON builders + `Client.get`/`post` wrappers (credential exchange, permissioned repo read/write, sync queries, notify). Reuses `Space_credential` DPoP. Live hops skip unless `ATP_SPACE=1` and `ATP_SPACE_HOST`. Named `Space_xrpc` so it does not collide with `At_uri.Space`. Not a spaces product; no host is faked |
 | HTTP helpers | `App`, `Client`, `Cohttp_client`, `Http_client`, `Http_method`, `Request`, `Response`, `User` | Endpoint URLs, shared XRPC GET/POST (Cohttp) + AppView `post_json_appview` service-auth (password `at+jwt`, or OAuth DPoP `Oauth.get_service_auth` + `get_json ~bearer`) + Ozone host/DID env (`ozone_host_from_env` / `ozone_did_from_env`), **HTTP/2 TLS** GET/POST/PUT/DELETE/PATCH via `Http_client` (IPv6 + `Client.get_json_h2` / `Client.post_json_h2` for public HTTPS). Requires HTTPS + ALPN `h2` |
 | Sites | `Site` | Official `site.standard` records: document, publication, theme.basic/color, graph recommend + subscription plus typed record encodes (`document_to_json` / `publication_to_json` / `recommend_to_json` / `subscription_to_json`; siblings of `theme_to_json` / `contributor_to_json` / `parse_*`; lexicon fields only) |
 | Germ Network | `Germnetwork` | `com.germnetwork.declaration` record (`$bytes` keys, `messageMe` policy) |
@@ -309,14 +311,20 @@ These are product-level, not missing protocol cores.
 - No hosted **SMS / phone-verification** gateway. The production hosted client path is documented and library-ready (`Contact.get_matches_body` / `get_matches_appview` / `*_service`, `start_phone_verification` / `verify_phone` / `import_contacts`; `Temp.request_phone_verification`; `Server.describe_server` `phoneVerificationRequired`; `examples/contacts_production.ml`). Live SMS hops stay skippable unless `ATP_PHONE=1` and `ATP_PHONE_NUMBER` is a real number. Official TestNetwork does not start SMS. This repo does not fake `requestPhoneVerification`.
 - No official **OSS push** gateway (official Bluesky push is closed to the official app; third-party clients host their own). The production hosted client path is documented and library-ready (`Notification.register_push_body` / `unregister_push_body` / `platform_ios` / `effective_push_proxy` / `Xrpc.notif_proxy`; `examples/contacts_production.ml`). Live register hops stay skippable unless `ATP_PUSH=1` plus a caller `serviceDid` / device token. This repo does not fake APNs/FCM.
 - Permissioned data / spaces: experimental `Lt_hash`, `At_uri.Space`,
-  `Space_commit`, and `Space_credential` landed (proposal
+  `Space_commit`, `Space_credential`, and `Space_xrpc` helpers landed
+  (proposal
   [0016](https://github.com/bluesky-social/proposals/blob/main/0016-permissioned-data/README.md)
   — LtHash digest, space / permissioned-record URI parse/serialize, deniable
   signed commits with `ctx` / HKDF-Expand MAC / ES256+ES256K `sig`,
-  delegation / space-credential / client-attestation JWTs, and DPoP
-  binding via `Oauth`). The proposal is not final; this is not a stable
-  spaces product API. `com.atproto.space.*` XRPC and sync stay deferred
-  until 0016 stabilizes. This repo does not fake a space host.
+  delegation / space-credential / client-attestation JWTs, DPoP via
+  `Oauth`, and draft `com.atproto.space.*` request/response builders plus
+  `Client.get_json` / `post_json` / `get_text` wrappers). The proposal is
+  not final; this is not a stable spaces product API. Deferred:
+  `com.atproto.simplespace.*` management, `space:` OAuth scope grammar,
+  `registerNotify` `repo` (proposal prose; not in #5187), and applying
+  `listRepoOps` / two-root CAR locally. Live hops skip unless
+  `ATP_SPACE=1` and `ATP_SPACE_HOST` names a real host. This repo does
+  not fake a space host.
 
 ## Sample usage
 
@@ -363,7 +371,14 @@ let () =
     Space_credential.space_host_aud "did:example:space"
     = "did:example:space#atproto_space_host");
   assert (
-    Space_credential.delegation_typ = "atproto-space-delegation+jwt")
+    Space_credential.delegation_typ = "atproto-space-delegation+jwt");
+  assert (
+    Space_xrpc.get_record_body
+      ~space:"at://did:example:space/space/app.bsky.group/test"
+      ~repo:"did:example:alice" ~collection:"app.bsky.feed.post"
+      ~rkey:"3jzfcijpj2z2a"
+    |> List.assoc "space"
+    = "at://did:example:space/space/app.bsky.group/test")
 
 (* TID used as record keys and commit revs *)
 let () = assert (Tid.is_valid "3jzfcijpj2z2a")

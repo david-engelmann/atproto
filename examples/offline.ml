@@ -1407,8 +1407,8 @@ let () =
   assert (lex.id = "com.example.ping");
   assert (Http_method.to_string Http_method.Get = "GET");
   assert (Hash.sha256_hex "abc" <> "");
-  (* experimental proposal-0016 LtHash / space URI / signed commit —
-     not a spaces product API *)
+  (* experimental proposal-0016 LtHash / space URI / signed commit /
+     credential / Space XRPC bodies — not a spaces product API *)
   assert (Lt_hash.is_empty (Lt_hash.empty ()));
   assert (
     Hash.hex_encode (Lt_hash.hash (Lt_hash.empty ()))
@@ -1453,6 +1453,18 @@ let () =
     Space_credential.get_space_credential_htu
       ~origin:"https://space.example.com"
     = "https://space.example.com/xrpc/com.atproto.space.getSpaceCredential");
+  assert (
+    Atproto.Space_xrpc.Space_xrpc.get_record_body
+      ~space:"at://did:example:space/space/app.bsky.group/test"
+      ~repo:"did:example:alice" ~collection:"app.bsky.feed.post"
+      ~rkey:"3jzfcijpj2z2a"
+    = [
+        ("space", "at://did:example:space/space/app.bsky.group/test");
+        ("repo", "did:example:alice");
+        ("collection", "app.bsky.feed.post");
+        ("rkey", "3jzfcijpj2z2a");
+      ]);
+  assert (not Atproto.Space_xrpc.Space_xrpc.live_enabled);
   let n, _ = Varint.decode (Varint.encode 128) in
   assert (n = 128);
   assert (Syntax.is_valid_nsid "app.bsky.video.uploadVideo");

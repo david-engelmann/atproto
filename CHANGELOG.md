@@ -39,18 +39,32 @@ traced; they are not a substitute for `git log`.
   reuse service-auth ES256/ES256K. DPoP helpers reuse `Oauth` (RFC 9449
   `dpop+jwt`, RFC 7638 `jkt`, `ath` = base64url(sha256(credential)); no
   DPoP nonce). Offline fixtures from bluesky-social/atproto#5187.
-  **Not a stable spaces product API** (`com.atproto.space.*` XRPC and
-  sync stay deferred). No space host is started or stubbed. Package
-  version stays **1.0.0**
+  **Not a stable spaces product API**. No space host is started or
+  stubbed. Package version stays **1.0.0**
+- Experimental `Space_xrpc` client (proposal 0016 § XRPC API /
+  bluesky-social/atproto#5187 draft lexicons): typed query / JSON
+  bodies and `Client.get_json` / `post_json` / `get_text` wrappers for
+  `getDelegationToken`, `getSpaceCredential` (reuses
+  `Space_credential` exchange DPoP), permissioned repo read/write
+  (`getRecord` / `listRecords` / `createRecord` / `putRecord` /
+  `deleteRecord` / `applyWrites` / `listSpaces`), sync queries
+  (`getLatestCommit` / `getRepo` / `listRepoOps` / `listRepos` /
+  `getBlob` / `listBlobs`), and notify (`registerNotify` /
+  `unregisterNotify` / `notifyWrite` / `notifySpaceDeleted`). Resource
+  reads accept optional space-credential DPoP. Live hops skip unless
+  `ATP_SPACE=1` and `ATP_SPACE_HOST`. Deferred:
+  `com.atproto.simplespace.*`, `space:` OAuth scopes, proposal
+  `registerNotify` `repo` (not in the #5187 lexicon), and local oplog /
+  two-root CAR apply. No official lexicon pin bump
 
 ### Notes
 
 - No lexicon pin bump. Official lexicons stay bluesky-social/atproto
   [`f0d4877a`](https://github.com/bluesky-social/atproto/commit/f0d4877a03dc8ede0d3e9a36d5b72ada63b5d2e0).
 - Hosted-only products stay listed, not faked (see the 1.0.0 Notes
-  below). The 0016 spaces surface (`com.atproto.space.*` XRPC / sync)
-  is still deferred; experimental URI + commit + credential JWT / DPoP
-  helpers landed.
+  below). Experimental 0016 helpers now include URI + commit +
+  credential JWT / DPoP + draft `Space_xrpc` wrappers.
+  `simplespace` management and a space host stay deferred.
 
 ## [1.0.0] - 2026-09-09
 
