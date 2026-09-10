@@ -52,10 +52,24 @@ traced; they are not a substitute for `git log`.
   `getBlob` / `listBlobs`), and notify (`registerNotify` /
   `unregisterNotify` / `notifyWrite` / `notifySpaceDeleted`). Resource
   reads accept optional space-credential DPoP. Live hops skip unless
-  `ATP_SPACE=1` and `ATP_SPACE_HOST`. Deferred:
+  `ATP_SPACE=1` and `ATP_SPACE_HOST`. Local oplog / two-root CAR apply
+  lives in `Space_sync`. No official lexicon pin bump
+- Experimental `Space_sync` (proposal 0016 incremental sync + two-root
+  CAR apply): `apply_op` / `apply_ops` / `apply_listed` replay
+  `listRepoOps` `{collection, rkey, cid, prev}` onto a running
+  `Lt_hash` (`cid` null = delete, `prev` null = create) and classify
+  `Caught_up` / `Diverged` / `Partial` against the optional trailing
+  signed commit. `encode` / `apply` consume the two-root CARv1 from
+  `getRepo` (signed commit, then DRISL `"{collection}/{rkey}"` → CID
+  in canonical DAG-CBOR key order, then record blocks in that order).
+  Apply verifies the commit MAC/signature, folds the index into
+  LtHash, and checks each record CID. Offline fixtures from
+  bluesky-social/atproto#5187 `packages/space/tests/sync.test.ts`.
+  Named `Space_sync` so it does not clash with `At_uri.Space`. **Not
+  a stable spaces product API**. No space host is started or stubbed.
+  Package version stays **1.0.0**. Deferred:
   `com.atproto.simplespace.*`, `space:` OAuth scopes, proposal
-  `registerNotify` `repo` (not in the #5187 lexicon), and local oplog /
-  two-root CAR apply. No official lexicon pin bump
+  `registerNotify` `repo` (not in the #5187 lexicon)
 
 ### Notes
 
@@ -63,8 +77,9 @@ traced; they are not a substitute for `git log`.
   [`f0d4877a`](https://github.com/bluesky-social/atproto/commit/f0d4877a03dc8ede0d3e9a36d5b72ada63b5d2e0).
 - Hosted-only products stay listed, not faked (see the 1.0.0 Notes
   below). Experimental 0016 helpers now include URI + commit +
-  credential JWT / DPoP + draft `Space_xrpc` wrappers.
-  `simplespace` management and a space host stay deferred.
+  credential JWT / DPoP + draft `Space_xrpc` wrappers + local
+  `Space_sync` oplog / two-root CAR apply. `simplespace` management
+  and a space host stay deferred.
 
 ## [1.0.0] - 2026-09-09
 
