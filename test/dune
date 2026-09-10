@@ -2,7 +2,11 @@
 
 (data_only_dirs consumer-smoke)
 
+; Packaged unit tests: @runtest / `dune build -p atproto @runtest` /
+; opam with-test. Official NSID coverage is @lexicon-coverage (CI-only).
+
 (tests
+ (package atproto)
  (flags
   (:standard -w +33 -warn-error +33))
  (names
@@ -169,14 +173,23 @@
   test_video
   test_xrpc))
 
-(tests
- (package atproto)
+; Repo-drift gate: scans src/ + lexicons/official-nsids.json + skips.
+; Not a package-install test. Keep this alias strict. Do not attach it
+; to @runtest — opam with-test must not run it.
+
+(executable
+ (name test_lexicon_coverage)
  (flags
   (:standard -w +33 -warn-error +33))
- (names test_lexicon_coverage)
  (modules test_lexicon_coverage)
+ (libraries unix yojson ounit2 atproto))
+
+(rule
+ (alias lexicon-coverage)
  (deps
   ../lexicons/official-nsids.json
   ../lexicons/coverage-skips.json
-  (source_tree ../src))
- (libraries unix yojson ounit2 atproto))
+  (source_tree ../src)
+  test_lexicon_coverage.exe)
+ (action
+  (run ./test_lexicon_coverage.exe)))
