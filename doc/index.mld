@@ -17,18 +17,18 @@ Public-internet live tests skip unless [ATP_PUBLIC=1]. Default
 
 {1 Start here}
 
-Those two OCaml lines need the {b public network} (no [ATP_AUTH]).
-[ATP_PUBLIC] only gates {e tests}, not this example.
+{v
+opam pin add atproto git+https://github.com/david-engelmann/atproto.git
+(* after atproto.1.0.2 is on opam-repository: opam install atproto *)
+v}
 
 {[
 let did = (Identity.resolve_handle "jay.bsky.team").did
 let posts = Feed.search_posts ~q:"atproto" ~limit:5 ()
 ]}
 
-{v
-opam pin add atproto git+https://github.com/david-engelmann/atproto.git
-(* after atproto.1.0.2 is on opam-repository: opam install atproto *)
-v}
+Those two OCaml lines need the {b public network} (no [ATP_AUTH]).
+[ATP_PUBLIC] only gates {e tests}, not this example.
 
 Then [(libraries atproto)] in dune. Requires OCaml [>= 4.14.1] and
 [< 5.4] (CI: 4.14.1 and 5.3.0). Jetstream dict-zstd needs system

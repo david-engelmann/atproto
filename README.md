@@ -12,8 +12,6 @@ This package is a **client**. It does not host a PDS, chat service, video transc
 
 ## Quick start
 
-Those two OCaml lines need the **public network** (no `ATP_AUTH`). `ATP_PUBLIC` only gates *tests*, not this example.
-
 ```shell
 opam pin add atproto git+https://github.com/david-engelmann/atproto.git
 # after atproto.1.0.2 is on opam-repository:
@@ -25,6 +23,8 @@ opam pin add atproto git+https://github.com/david-engelmann/atproto.git
 let did = (Identity.resolve_handle "jay.bsky.team").did
 let posts = Feed.search_posts ~q:"atproto" ~limit:5 ()
 ```
+
+Those two OCaml lines need the **public network** (no `ATP_AUTH`). `ATP_PUBLIC` only gates *tests*, not this example.
 
 `examples/quickstart.ml` is that flow as a copy-paste executable (`dune exec -- examples/quickstart.exe`).
 
