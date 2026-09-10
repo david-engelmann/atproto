@@ -4,7 +4,8 @@
 
 ; Packaged unit tests: @runtest / `dune build -p atproto @runtest` /
 ; opam with-test. Official NSID coverage is @lexicon-coverage (CI-only).
-(tests
+
+(tests)
  (package atproto)
  (flags
   (:standard -w +33 -warn-error +33))
@@ -175,7 +176,8 @@
 ; Repo-drift gate: scans src/ + lexicons/official-nsids.json + skips.
 ; Not a package-install test. Keep this alias strict. Do not attach it
 ; to @runtest — opam with-test must not run it.
-(executable
+
+(executable)
  (name test_lexicon_coverage)
  (flags
   (:standard -w +33 -warn-error +33))
