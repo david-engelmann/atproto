@@ -12,6 +12,10 @@ This package is a **client**. It does not host a PDS, chat service, video transc
 
 ## Quick start
 
+These two calls hit the public AppView over the network. They do
+not need `ATP_AUTH`. `ATP_PUBLIC` only gates live *tests*; it is
+not required to run this snippet.
+
 ```shell
 opam pin add atproto git+https://github.com/david-engelmann/atproto.git
 # after atproto.1.0.2 is on opam-repository:
@@ -19,12 +23,10 @@ opam pin add atproto git+https://github.com/david-engelmann/atproto.git
 ```
 
 ```ocaml
-(* public AppView, no ATP_AUTH *)
+(* public AppView — needs network, no ATP_AUTH *)
 let did = (Identity.resolve_handle "jay.bsky.team").did
 let posts = Feed.search_posts ~q:"atproto" ~limit:5 ()
 ```
-
-Those two OCaml lines need the **public network** (no `ATP_AUTH`). `ATP_PUBLIC` only gates *tests*, not this example.
 
 `examples/quickstart.ml` is that flow as a copy-paste executable (`dune exec -- examples/quickstart.exe`).
 
