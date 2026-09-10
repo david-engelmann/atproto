@@ -1,9 +1,11 @@
 # Contributing
 
-Pull requests are welcome. This package is published on
-[opam-repository](https://github.com/ocaml/opam-repository)
-(`opam install atproto`; pending merge of the opam-repository PR).
-Pin the GitHub repository for development.
+Pull requests are welcome. **1.0.1** is tagged; the public opam
+package is [ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703)
+(`opam install atproto` after that merges). Pin the GitHub
+repository for development. Product docs for third-party users
+are in [README.md](../README.md) and
+https://david-engelmann.github.io/atproto/.
 
 ## Toolchain
 
@@ -53,11 +55,21 @@ and `lint-*`. Forks, drafts, and failing checks are never merged.
 `lexicon-pin` drift does not block merge-when-green; pin bumps are
 separate PRs.
 Stacked PRs that are only behind `main` get an update-branch after a
-merge. This does not publish to opam-repository or create a release
-tag. "Allow auto-merge" in repo settings is optional — the workflow
+merge. "Allow auto-merge" in repo settings is optional — the workflow
 merges on green itself. Branch protection that requires a human review
 will block the Actions token; merge those PRs manually or do not
 require a review for this automation.
+
+## Local TestNetwork
+
+`make test-pds` starts official `@atproto/dev-env@0.6.4` (PLC, PDS,
+AppView, Ozone). Chat, video, Tap, SMS, and push are not in that
+stack — do not stub them. OAuth against the local AS (loopback
+metadata, PAR, DPoP, CSRF cookies, `getServiceAuth` for AppView /
+Ozone) lives in `test/test_local_oauth.ml`; do not invent a CSRF
+token. Authenticated AppView / Ozone reject a DPoP access token and
+a `createSession` `at+jwt` — mint service-auth instead. DPoP cannot
+be proxied.
 
 CI installs Ubuntu `libzstd-dev` before every OCaml job; install
 that or Homebrew `zstd` before the commands below.

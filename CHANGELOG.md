@@ -3,102 +3,80 @@
 All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Package version is **1.0.1** (`dune-project` / `atproto.opam`). This
-revision does **not** create a git tag or GitHub Release.
+Current package version is **1.0.1**, tagged at
+[`53ffbc2`](https://github.com/david-engelmann/atproto/releases/tag/1.0.1).
+The public opam package is
+[ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703).
 
-This file is a human-readable release history for opam reviewers and
-third-party users. PR numbers are kept so the history can still be
-traced; they are not a substitute for `git log`.
+This file is the human-readable release history. PR numbers are
+included sparingly so a change can be traced; they are not a
+substitute for `git log`.
 
 ## [Unreleased]
 
 ### Added
 
-- Experimental `Lt_hash` (proposal
-  [0016](https://github.com/bluesky-social/proposals/blob/main/0016-permissioned-data/README.md)
-  commit digest): 1024 little-endian uint16 lanes, unkeyed BLAKE3 XOF
-  expansion of `{collection}/{rkey}/{record_cid}`, lane-wise add/remove
-  mod 2^16, commit `hash` = `sha256(state)`. Official empty + `one`/`two`
-  snapshot vectors from bluesky-social/atproto#5187
-- Experimental space URI parse/serialize (`At_uri.Space`) and deniable
-  permissioned commits (`Space_commit`):
-  `at://{spaceDid}/space/{spaceType}/{skey}` and the 6-segment record
-  form; `ctx` = `atproto-space-v1` + TLS uint16be-prefixed
-  space/author/rev/ikm; `mac` =
-  `HMAC-SHA256(HKDF-Expand(ikm, ctx, 32), hash)` (expand-only);
-  `sig` = ES256 / ES256K over `sha256(ctx)` (low-S). `of_lt_hash`
-  wires `Lt_hash.hash`. Official `encodeCommitCtx` inputs from
-  bluesky-social/atproto#5187
-- Experimental space-credential materials (`Space_credential`):
-  delegation JWT (`typ` =
-  `atproto-space-delegation+jwt`, `iss`/`sub`/`aud`/`iat`/`exp`/`jti`,
-  `kid` `#atproto`), space credential (`typ` =
-  `atproto-space-credential+jwt`, no `aud`, `cnf.jkt` DPoP binding),
-  optional client-attestation JWT shape (`typ` =
-  `atproto-client-attestation+jwt`, `iss`=`sub`=`client_id`). Sign/verify
-  reuse service-auth ES256/ES256K. DPoP helpers reuse `Oauth` (RFC 9449
-  `dpop+jwt`, RFC 7638 `jkt`, `ath` = base64url(sha256(credential)); no
-  DPoP nonce). Offline fixtures from bluesky-social/atproto#5187.
-  **Not a stable spaces product API**. No space host is started or
-  stubbed. Still Unreleased relative to tags (not part of the 1.0.1
-  packaging cut)
-- Experimental `Space_xrpc` client (proposal 0016 § XRPC API /
-  bluesky-social/atproto#5187 draft lexicons): typed query / JSON
-  bodies and `Client.get_json` / `post_json` / `get_text` wrappers for
-  `getDelegationToken`, `getSpaceCredential` (reuses
-  `Space_credential` exchange DPoP), permissioned repo read/write
-  (`getRecord` / `listRecords` / `createRecord` / `putRecord` /
-  `deleteRecord` / `applyWrites` / `listSpaces`), sync queries
-  (`getLatestCommit` / `getRepo` / `listRepoOps` / `listRepos` /
-  `getBlob` / `listBlobs`), and notify (`registerNotify` /
-  `unregisterNotify` / `notifyWrite` / `notifySpaceDeleted`). Resource
-  reads accept optional space-credential DPoP. Live hops skip unless
-  `ATP_SPACE=1` and `ATP_SPACE_HOST`. Local oplog / two-root CAR apply
-  lives in `Space_sync`. No official lexicon pin bump
-- Experimental `Space_sync` (proposal 0016 incremental sync + two-root
-  CAR apply): `apply_op` / `apply_ops` / `apply_listed` replay
-  `listRepoOps` `{collection, rkey, cid, prev}` onto a running
-  `Lt_hash` (`cid` null = delete, `prev` null = create) and classify
-  `Caught_up` / `Diverged` / `Partial` against the optional trailing
-  signed commit. `encode` / `apply` consume the two-root CARv1 from
-  `getRepo` (signed commit, then DRISL `"{collection}/{rkey}"` → CID
-  in canonical DAG-CBOR key order, then record blocks in that order).
-  Apply verifies the commit MAC/signature, folds the index into
-  LtHash, and checks each record CID. Offline fixtures from
-  bluesky-social/atproto#5187 `packages/space/tests/sync.test.ts`.
-  Named `Space_sync` so it does not clash with `At_uri.Space`. **Not
-  a stable spaces product API**. No space host is started or stubbed.
-  Still Unreleased relative to tags (not part of the 1.0.1 packaging
-  cut). Deferred: `com.atproto.simplespace.*`, `space:` OAuth scopes,
-  proposal `registerNotify` `repo` (not in the #5187 lexicon)
+Experimental permissioned-data / spaces helpers from proposal
+[0016](https://github.com/bluesky-social/proposals/blob/main/0016-permissioned-data/README.md).
+These modules landed on `main` before the 1.0.1 tag, so they are
+present in that tree, but they are **not a spaces product API**.
+The proposal is not final. This repo does not start or stub a
+space host. Live hops skip unless `ATP_SPACE=1` and
+`ATP_SPACE_HOST` names a real host.
+
+- `Lt_hash` — 0016 commit digest (1024-lane LtHash; official empty /
+  one / two snapshot vectors from bluesky-social/atproto#5187)
+- `At_uri.Space` — parse/serialize
+  `at://{spaceDid}/space/{type}/{skey}` and the six-segment record
+  form
+- `Space_commit` — deniable signed commits (`ctx`, HKDF-Expand MAC,
+  ES256 / ES256K `sig`); `of_lt_hash` wires `Lt_hash.hash`
+- `Space_credential` — delegation / space-credential /
+  client-attestation JWTs plus DPoP helpers (reuses `Oauth`; no
+  DPoP nonce)
+- `Space_xrpc` — draft `com.atproto.space.*` query/JSON builders
+  and `Client` wrappers (credential exchange, permissioned repo
+  read/write, sync queries, notify)
+- `Space_sync` — offline `listRepoOps` apply and two-root CAR
+  encode/apply (signed commit, then DRISL index, then records)
+
+Deferred: `com.atproto.simplespace.*`, `space:` OAuth scopes, and
+proposal `registerNotify` `repo` (not in the #5187 lexicon).
+
+### Changed
+
+- Public docs rewritten for third-party readers (README product
+  pitch and module map, 1.0.1 notes now that the tag exists, warmer
+  odoc landing). Addresses the readability concern on
+  ocaml/opam-repository#30695
 
 ### Notes
 
 - No lexicon pin bump. Official lexicons stay bluesky-social/atproto
   [`f0d4877a`](https://github.com/bluesky-social/atproto/commit/f0d4877a03dc8ede0d3e9a36d5b72ada63b5d2e0).
 - Hosted-only products stay listed, not faked (see the 1.0.0 Notes
-  below). Experimental 0016 helpers now include URI + commit +
-  credential JWT / DPoP + draft `Space_xrpc` wrappers + local
-  `Space_sync` oplog / two-root CAR apply. `simplespace` management
-  and a space host stay deferred.
+  below).
 
 ## [1.0.1] - 2026-09-10
 
-Packaging / opam-health cut so
-[ocaml/opam-repository#30698](https://github.com/ocaml/opam-repository/pull/30698)
-can be fixed or superseded. `atproto.1.0.0` built on 4.14 / 5.2;
-opam-ci failed on the lexicon coverage drift gate, unbounded
-`digestif` / `mirage-crypto-ec` lower bounds, and a redundant
-`version:` field in the submitted opam file. 5.4+ SKIPs stay
-expected.
+Released as tag
+[`1.0.1`](https://github.com/david-engelmann/atproto/releases/tag/1.0.1)
+(`53ffbc2` / [#243](https://github.com/david-engelmann/atproto/pull/243)).
+Public opam publish:
+[ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703)
+(open; supersedes #30698).
 
-This revision sets `dune-project` / `atproto.opam` to **1.0.1**. It
-does **not** create a git tag or GitHub Release and does **not**
-touch ocaml/opam-repository. Tagging and updating #30698 remain
-maintainer follow-ups.
+Packaging fix so opam-ci can install and test the package. The
+1.0.0 submission built on 4.14 / 5.2 but failed on the lexicon
+coverage gate under `with-test`, unbounded `digestif` /
+`mirage-crypto-ec` lower bounds, and a redundant `version:` field
+in the submitted opam file. OCaml 5.4+ remains out of range
+(Jane Street v0.17).
 
 No lexicon pin bump (official pin stays `f0d4877a`). Jane Street /
-OCaml bounds are unchanged.
+OCaml bounds are unchanged. Experimental 0016 helpers are
+documented under [Unreleased](#unreleased) — present on this tree,
+not a product API.
 
 ### Changed
 
@@ -130,12 +108,14 @@ OCaml bounds are unchanged.
 
 ## [1.0.0] - 2026-09-09
 
-First stable packaged surface. What is new since the tagged **0.1.0**
+First stable packaged surface, tagged at
+[`1.0.0`](https://github.com/david-engelmann/atproto/releases/tag/1.0.0)
+(`8a1b866` / [#237](https://github.com/david-engelmann/atproto/pull/237)).
+What is new since tagged **0.1.0**
 (`8f44fb9` / [#228](https://github.com/david-engelmann/atproto/pull/228)).
-
-This revision sets `dune-project` / `atproto.opam` to **1.0.0**. It
-does **not** create a git tag or GitHub Release. Tagging and the
-opam-repository 1.0.0 PR remain maintainer follow-ups. The 0.1.0
+The first 1.0.0 opam-repository submission was
+[#30698](https://github.com/ocaml/opam-repository/pull/30698)
+(superseded by [1.0.1](#101---2026-09-10) / #30703). The 0.1.0
 opam-repository PR
 [#30695](https://github.com/ocaml/opam-repository/pull/30695) is
 separate.
@@ -295,8 +275,6 @@ Honesty constraints for this 1.0.0 surface:
   the official app; the production client path is documented and
   library-ready; this package still does not fake APNs/FCM)
 - Permissioned data / spaces / LtHash (no stable public spec yet)
-- A git tag, GitHub Release, or opam-repository 1.0.0 PR — those
-  are maintainer follow-ups after this packaging PR merges
 
 ## [0.1.0] - 2026-09-09
 
@@ -304,8 +282,9 @@ First public opam release candidate, tagged at
 [#228](https://github.com/david-engelmann/atproto/pull/228)
 (`8f44fb9`). The packaged GitHub surface is now [1.0.0](#100---2026-09-09).
 
-`opam install atproto` after the [opam-repository PR](https://github.com/ocaml/opam-repository/pull/30695)
-merges installs this 0.1.0 cut. A GitHub pin still works for
+The 0.1.0 opam-repository PR
+[#30695](https://github.com/ocaml/opam-repository/pull/30695) was
+superseded by 1.0.0 / 1.0.1. A GitHub pin still works for
 development:
 
 ```shell

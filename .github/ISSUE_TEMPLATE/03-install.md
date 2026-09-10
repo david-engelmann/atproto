@@ -17,8 +17,9 @@ labels: ""
 **Command and output**
 Paste the command and the error.
 
-The published install is `opam install atproto` (pending merge of the
-opam-repository PR). A GitHub pin is for development:
+**1.0.1** is released. `opam install atproto` after
+[ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703)
+merges. Until then, pin this repository:
 
 ```shell
 opam install atproto
