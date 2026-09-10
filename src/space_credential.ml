@@ -71,7 +71,6 @@ module Space_credential : sig
   val get_space_credential_nsid : string
 
   type kind = [ `Delegation | `Credential | `Client_attestation ]
-
   type header = { alg : string; typ : string; kid : string option }
 
   type payload = {
@@ -85,7 +84,6 @@ module Space_credential : sig
   }
 
   type t = { kind : kind; header : header; payload : payload; raw : string }
-
   type signer = [ `P256 of Mirage_crypto_ec.P256.Dsa.priv | `K256 of K256.priv ]
 
   type sig_status =
@@ -408,7 +406,7 @@ end = struct
       | _ -> None
     in
     (match kind with
-    | `Delegation ->
+    | `Delegation -> (
         ensure_user_did "delegation iss" iss;
         ensure_space_uri "delegation sub" sub;
         (match aud with
@@ -417,19 +415,18 @@ end = struct
         (match kid with
         | Some k when k = delegation_kid -> ()
         | Some k ->
-            fail
-              ("delegation kid must be " ^ delegation_kid ^ ", got " ^ k)
+            fail ("delegation kid must be " ^ delegation_kid ^ ", got " ^ k)
         | None -> fail "delegation token requires kid \"#atproto\"");
-        (match jti with
+        match jti with
         | Some j when j <> "" -> ()
         | _ -> fail "a delegation token requires a \"jti\" to be consumed by")
-    | `Credential ->
+    | `Credential -> (
         ensure_user_did "credential iss" iss;
         ensure_space_uri "credential sub" sub;
-        (match cnf_jkt with
+        match cnf_jkt with
         | Some j when j <> "" -> ()
         | _ -> fail "missing token \"cnf.jkt\"")
-    | `Client_attestation ->
+    | `Client_attestation -> (
         ensure_client_id "attestation iss" iss;
         ensure_client_id "attestation sub" sub;
         if iss <> sub then
@@ -438,7 +435,7 @@ end = struct
         (match aud with
         | None -> fail "missing token \"aud\""
         | Some a -> ensure_aud a);
-        (match jti with
+        match jti with
         | Some j when j <> "" -> ()
         | _ ->
             fail
@@ -556,8 +553,8 @@ end = struct
     ensure_space_uri "credential sub" sub;
     if dpop_jkt = "" then fail "a credential token requires a \"dpopJkt\"";
     let kid = Option.value kid ~default:credential_kid in
-    mint ~kind:`Credential ~sign ~iss ~sub ~cnf_jkt:dpop_jkt ~kid ?exp ?iat
-      ?jti ?now ()
+    mint ~kind:`Credential ~sign ~iss ~sub ~cnf_jkt:dpop_jkt ~kid ?exp ?iat ?jti
+      ?now ()
 
   let sign_attestation ~sign ~client_id ~aud ?kid ?exp ?iat ?jti ?now () :
       string =
@@ -585,11 +582,12 @@ end = struct
     `Assoc fields
 
   let get_space_credential_htu ~origin =
-    Oauth.htu_of_url (Oauth.url_on origin ("/xrpc/" ^ get_space_credential_nsid))
+    Oauth.htu_of_url
+      (Oauth.url_on origin ("/xrpc/" ^ get_space_credential_nsid))
 
   let exchange_dpop_proof ~priv ~pub ?jti ?iat ~htu () : string =
-    Oauth.dpop_proof ~priv ~pub ~htm:"POST" ~htu:(Oauth.htu_of_url htu) ?jti ?iat
-      ()
+    Oauth.dpop_proof ~priv ~pub ~htm:"POST" ~htu:(Oauth.htu_of_url htu) ?jti
+      ?iat ()
 
   let resource_dpop_proof ~priv ~pub ~htm ~htu ~credential ?jti ?iat () : string
       =
@@ -624,15 +622,13 @@ end = struct
     let x =
       match jwk |> member "x" with
       | `String s -> (
-          try Base64url.decode s
-          with _ -> fail "DPoP jwk x is not base64url")
+          try Base64url.decode s with _ -> fail "DPoP jwk x is not base64url")
       | _ -> fail "DPoP jwk missing x"
     in
     let y =
       match jwk |> member "y" with
       | `String s -> (
-          try Base64url.decode s
-          with _ -> fail "DPoP jwk y is not base64url")
+          try Base64url.decode s with _ -> fail "DPoP jwk y is not base64url")
       | _ -> fail "DPoP jwk missing y"
     in
     if String.length x <> 32 || String.length y <> 32 then

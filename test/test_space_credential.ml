@@ -62,39 +62,42 @@ let test_constants _ =
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "atproto-client-attestation+jwt" Space_credential.attestation_typ;
-  OUnit2.assert_equal ~printer:(fun x -> x) "#atproto"
-    Space_credential.delegation_kid;
-  OUnit2.assert_equal ~printer:(fun x -> x) "#atproto_space"
-    Space_credential.space_key_kid;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "#atproto" Space_credential.delegation_kid;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "#atproto_space" Space_credential.space_key_kid;
   OUnit2.assert_equal ~printer:Int64.to_string 60L
     Space_credential.delegation_lifetime;
   OUnit2.assert_equal ~printer:Int64.to_string 7200L
     Space_credential.credential_lifetime;
-  OUnit2.assert_equal ~printer:(fun x -> x) space_host
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    space_host
     (Space_credential.space_host_aud authority_did)
 
 let test_delegation_roundtrip_p256 _ =
   let priv, pub = p256_pair () in
   let jwt =
     Space_credential.sign_delegation ~sign:(`P256 priv) ~iss:user_did
-      ~sub:space_uri ~aud:space_host ~iat ~jti:"f47ac10b58cc4372a5670e02b2c3d479"
-      ~now ()
+      ~sub:space_uri ~aud:space_host ~iat
+      ~jti:"f47ac10b58cc4372a5670e02b2c3d479" ~now ()
   in
   let token =
     Space_credential.verify_delegation
       ~keys:[ p256_did_key pub ]
       ~aud:space_host ~sub:space_uri ~now jwt
   in
-  OUnit2.assert_equal ~printer:(fun x -> x) Space_credential.delegation_typ
-    token.header.typ;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    Space_credential.delegation_typ token.header.typ;
   OUnit2.assert_equal (Some "#atproto") token.header.kid;
   OUnit2.assert_equal ~printer:(fun x -> x) "ES256" token.header.alg;
   OUnit2.assert_equal ~printer:(fun x -> x) user_did token.payload.iss;
   OUnit2.assert_equal ~printer:(fun x -> x) space_uri token.payload.sub;
   OUnit2.assert_equal (Some space_host) token.payload.aud;
-  OUnit2.assert_equal
-    ~printer:Int64.to_string
-    60L
+  OUnit2.assert_equal ~printer:Int64.to_string 60L
     (Int64.sub token.payload.exp token.payload.iat);
   OUnit2.assert_equal (Some "f47ac10b58cc4372a5670e02b2c3d479")
     token.payload.jti;
@@ -141,8 +144,8 @@ let test_delegation_wrong_aud_and_sub _ =
            ~keys:[ p256_did_key pub ]
            ~aud:"did:example:other#atproto_space_host" ~now jwt));
   OUnit2.assert_raises
-    (Space_credential.Invalid
-       "token subject does not match the requested space") (fun () ->
+    (Space_credential.Invalid "token subject does not match the requested space")
+    (fun () ->
       ignore
         (Space_credential.verify_delegation
            ~keys:[ p256_did_key pub ]
@@ -156,8 +159,8 @@ let test_delegation_wrong_key _ =
     Space_credential.sign_delegation ~sign:(`P256 priv) ~iss:user_did
       ~sub:space_uri ~aud:space_host ~iat ~jti:"jti-2" ~now ()
   in
-  OUnit2.assert_raises
-    (Space_credential.Invalid "invalid token signature") (fun () ->
+  OUnit2.assert_raises (Space_credential.Invalid "invalid token signature")
+    (fun () ->
       ignore
         (Space_credential.verify_delegation
            ~keys:[ k256_did_key other_pub ]
@@ -174,9 +177,7 @@ let test_wrong_typ_rejected _ =
        "wrong token type: expected \"atproto-space-credential+jwt\", got \
         \"atproto-space-delegation+jwt\"") (fun () ->
       ignore
-        (Space_credential.verify_credential
-           ~keys:[ p256_did_key pub ]
-           ~now jwt))
+        (Space_credential.verify_credential ~keys:[ p256_did_key pub ] ~now jwt))
 
 let test_credential_roundtrip _ =
   let priv, pub = p256_pair () in
@@ -189,14 +190,13 @@ let test_credential_roundtrip _ =
       ~keys:[ p256_did_key pub ]
       ~sub:space_uri ~now jwt
   in
-  OUnit2.assert_equal ~printer:(fun x -> x) Space_credential.credential_typ
-    token.header.typ;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    Space_credential.credential_typ token.header.typ;
   OUnit2.assert_equal (Some "#atproto") token.header.kid;
   OUnit2.assert_equal ~printer:(fun x -> x) authority_did token.payload.iss;
   OUnit2.assert_equal None token.payload.aud;
-  OUnit2.assert_equal
-    ~printer:Int64.to_string
-    7200L
+  OUnit2.assert_equal ~printer:Int64.to_string 7200L
     (Int64.sub token.payload.exp token.payload.iat);
   OUnit2.assert_equal (Some official_dpop_jkt) token.payload.cnf_jkt
 
@@ -208,9 +208,7 @@ let test_credential_space_key_kid _ =
       ~kid:Space_credential.space_key_kid ~iat ~jti:"kid-jti" ~now ()
   in
   let token =
-    Space_credential.verify_credential
-      ~keys:[ p256_did_key pub ]
-      ~now jwt
+    Space_credential.verify_credential ~keys:[ p256_did_key pub ] ~now jwt
   in
   OUnit2.assert_equal (Some "#atproto_space") token.header.kid
 
@@ -229,12 +227,9 @@ let test_credential_missing_cnf _ =
     Space_credential.sign_delegation ~sign:(`P256 priv) ~iss:authority_did
       ~sub:space_uri ~aud:space_host ~iat ~jti:"unbound" ~now ()
   in
-  let forged =
-    retype_token unbound Space_credential.credential_typ
-  in
-  OUnit2.assert_raises
-    (Space_credential.Invalid "missing token \"cnf.jkt\"") (fun () ->
-      ignore (Space_credential.parse_credential forged))
+  let forged = retype_token unbound Space_credential.credential_typ in
+  OUnit2.assert_raises (Space_credential.Invalid "missing token \"cnf.jkt\"")
+    (fun () -> ignore (Space_credential.parse_credential forged))
 
 let test_credential_expiry_and_skew _ =
   let priv, pub = p256_pair () in
@@ -245,10 +240,8 @@ let test_credential_expiry_and_skew _ =
   in
   let keys = [ p256_did_key pub ] in
   ignore (Space_credential.verify_credential ~keys ~now:(now +. 3.0) jwt);
-  OUnit2.assert_raises
-    (Space_credential.Invalid "token expired") (fun () ->
-      ignore
-        (Space_credential.verify_credential ~keys ~now:(now +. 60.0) jwt))
+  OUnit2.assert_raises (Space_credential.Invalid "token expired") (fun () ->
+      ignore (Space_credential.verify_credential ~keys ~now:(now +. 60.0) jwt))
 
 let test_attestation_shape _ =
   let priv, pub = p256_pair () in
@@ -257,8 +250,9 @@ let test_attestation_shape _ =
       ~aud:space_host ~kid:"key-1" ~iat ~jti:"att-jti" ~now ()
   in
   let parsed = Space_credential.parse_attestation jwt in
-  OUnit2.assert_equal ~printer:(fun x -> x) Space_credential.attestation_typ
-    parsed.header.typ;
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    Space_credential.attestation_typ parsed.header.typ;
   OUnit2.assert_equal (Some "key-1") parsed.header.kid;
   OUnit2.assert_equal ~printer:(fun x -> x) client_id parsed.payload.iss;
   OUnit2.assert_equal ~printer:(fun x -> x) client_id parsed.payload.sub;
@@ -287,9 +281,7 @@ let test_attestation_iss_sub_must_match _ =
       (match payload with `Assoc xs -> xs | _ -> [])
   in
   let rewritten =
-    h ^ "."
-    ^ Base64url.encode (Yojson.Safe.to_string (`Assoc fields))
-    ^ "." ^ s
+    h ^ "." ^ Base64url.encode (Yojson.Safe.to_string (`Assoc fields)) ^ "." ^ s
   in
   OUnit2.assert_raises
     (Space_credential.Invalid
@@ -331,8 +323,8 @@ let test_malformed _ =
     Base64url.encode
       (Yojson.Safe.to_string (`Assoc [ ("iss", `String authority_did) ]))
   in
-  OUnit2.assert_raises
-    (Space_credential.Invalid "missing token \"sub\"") (fun () ->
+  OUnit2.assert_raises (Space_credential.Invalid "missing token \"sub\"")
+    (fun () ->
       ignore
         (Space_credential.parse_credential (header ^ "." ^ payload ^ ".c2ln")))
 
@@ -345,14 +337,19 @@ let test_offline_bodies _ =
       ~client_attestation:"att.jwt" ()
   in
   let open Yojson.Safe.Util in
-  OUnit2.assert_equal ~printer:(fun x -> x) space_uri
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    space_uri
     (body |> member "space" |> to_string);
-  OUnit2.assert_equal ~printer:(fun x -> x) "att.jwt"
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    "att.jwt"
     (body |> member "clientAttestation" |> to_string);
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "https://space.example.com/xrpc/com.atproto.space.getSpaceCredential"
-    (Space_credential.get_space_credential_htu ~origin:"https://space.example.com")
+    (Space_credential.get_space_credential_htu
+       ~origin:"https://space.example.com")
 
 let exchange_htu =
   "https://space.example.com/xrpc/com.atproto.space.getSpaceCredential"
@@ -371,13 +368,15 @@ let test_dpop_exchange_and_resource _ =
       ~jti:"ex-jti" ~iat ()
   in
   let checked =
-    Space_credential.verify_exchange_dpop ~htm:"POST" ~htu:exchange_htu
-      ~now exchange
+    Space_credential.verify_exchange_dpop ~htm:"POST" ~htu:exchange_htu ~now
+      exchange
   in
   OUnit2.assert_equal ~printer:(fun x -> x) jkt checked.jkt;
   OUnit2.assert_equal None checked.ath;
   OUnit2.assert_equal ~printer:(fun x -> x) "POST" checked.htm;
-  let headers = Space_credential.exchange_headers ~delegation:"del.jwt" ~dpop:exchange in
+  let headers =
+    Space_credential.exchange_headers ~delegation:"del.jwt" ~dpop:exchange
+  in
   OUnit2.assert_equal "Authorization" (fst (List.hd headers));
   OUnit2.assert_equal "DPoP" (fst (List.nth headers 1));
   let resource =
@@ -406,16 +405,16 @@ let test_dpop_strips_query _ =
   in
   let checked =
     Space_credential.verify_resource_dpop ~htm:"GET"
-      ~htu:(resource_htu ^ "?space=something&repo=else") ~credential:cred ~jkt
-      ~now proof
+      ~htu:(resource_htu ^ "?space=something&repo=else")
+      ~credential:cred ~jkt ~now proof
   in
   OUnit2.assert_equal ~printer:(fun x -> x) resource_htu checked.htu
 
 let test_dpop_exchange_refuses_ath _ =
   let priv, pub = p256_pair () in
   let proof =
-    Space_credential.resource_dpop_proof ~priv ~pub ~htm:"POST" ~htu:exchange_htu
-      ~credential:"not-a-grant" ~jti:"ath-jti" ~iat ()
+    Space_credential.resource_dpop_proof ~priv ~pub ~htm:"POST"
+      ~htu:exchange_htu ~credential:"not-a-grant" ~jti:"ath-jti" ~iat ()
   in
   OUnit2.assert_raises
     (Space_credential.Invalid
@@ -453,8 +452,8 @@ let test_dpop_mismatch_and_expiry _ =
         (Space_credential.verify_resource_dpop ~htm:"GET" ~htu:resource_htu
            ~credential:cred ~jkt ~now other_host));
   let other_method =
-    Space_credential.resource_dpop_proof ~priv ~pub ~htm:"POST" ~htu:resource_htu
-      ~credential:cred ~jti:"om" ~iat ()
+    Space_credential.resource_dpop_proof ~priv ~pub ~htm:"POST"
+      ~htu:resource_htu ~credential:cred ~jti:"om" ~iat ()
   in
   OUnit2.assert_raises
     (Space_credential.Invalid "DPoP proof \"htm\" does not match the request")
@@ -476,8 +475,8 @@ let test_dpop_mismatch_and_expiry _ =
     Space_credential.resource_dpop_proof ~priv ~pub ~htm:"GET" ~htu:resource_htu
       ~credential:cred ~jti:"stale" ~iat ()
   in
-  OUnit2.assert_raises
-    (Space_credential.Invalid "DPoP proof is expired") (fun () ->
+  OUnit2.assert_raises (Space_credential.Invalid "DPoP proof is expired")
+    (fun () ->
       ignore
         (Space_credential.verify_resource_dpop ~htm:"GET" ~htu:resource_htu
            ~credential:cred ~jkt ~now:(now +. 120.0) stale));
