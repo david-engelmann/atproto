@@ -27,9 +27,7 @@ let json_string json field =
   | _ -> failwith ("missing string " ^ field)
 
 let json_bool_opt json field =
-  match Yojson.Safe.Util.member field json with
-  | `Bool b -> Some b
-  | _ -> None
+  match Yojson.Safe.Util.member field json with `Bool b -> Some b | _ -> None
 
 let test_nsids _ =
   OUnit2.assert_equal
@@ -112,8 +110,8 @@ let test_query_bodies _ =
 
 let test_write_bodies _ =
   let created =
-    Space.create_record_body ~space:space_uri ~repo:repo_did ~collection
-      ~rkey ~validate:true record_json
+    Space.create_record_body ~space:space_uri ~repo:repo_did ~collection ~rkey
+      ~validate:true record_json
   in
   OUnit2.assert_equal space_uri (json_string created "space");
   OUnit2.assert_equal repo_did (json_string created "repo");
@@ -146,12 +144,12 @@ let test_write_bodies _ =
   OUnit2.assert_equal (Some false) (json_bool_opt batch "validate");
   match Yojson.Safe.Util.member "writes" batch with
   | `List [ c; u; d ] ->
-      OUnit2.assert_equal
-        "com.atproto.space.applyWrites#create" (json_string c "$type");
-      OUnit2.assert_equal
-        "com.atproto.space.applyWrites#update" (json_string u "$type");
-      OUnit2.assert_equal
-        "com.atproto.space.applyWrites#delete" (json_string d "$type")
+      OUnit2.assert_equal "com.atproto.space.applyWrites#create"
+        (json_string c "$type");
+      OUnit2.assert_equal "com.atproto.space.applyWrites#update"
+        (json_string u "$type");
+      OUnit2.assert_equal "com.atproto.space.applyWrites#delete"
+        (json_string d "$type")
   | _ -> OUnit2.assert_failure "applyWrites writes must be a 3-op list"
 
 let test_notify_bodies _ =
@@ -160,8 +158,7 @@ let test_notify_bodies _ =
       ~service:"did:web:syncer.example.com#atproto_space_syncer"
   in
   OUnit2.assert_equal space_uri (json_string reg "space");
-  OUnit2.assert_equal
-    "did:web:syncer.example.com#atproto_space_syncer"
+  OUnit2.assert_equal "did:web:syncer.example.com#atproto_space_syncer"
     (json_string reg "service");
   let unreg =
     Space.unregister_notify_body ~space:space_uri
@@ -207,8 +204,8 @@ let test_parse_record_and_list _ =
     `Assoc
       [
         ( "uri",
-          `String
-            (space_uri ^ "/" ^ repo_did ^ "/" ^ collection ^ "/" ^ rkey) );
+          `String (space_uri ^ "/" ^ repo_did ^ "/" ^ collection ^ "/" ^ rkey)
+        );
         ("cid", `String cid);
         ("value", record_json);
       ]
@@ -219,19 +216,19 @@ let test_parse_record_and_list _ =
   let listed =
     Space.parse_listed_records
       (`Assoc
-         [
-           ("cursor", `String "next");
-           ( "records",
-             `List
-               [
-                 `Assoc
-                   [
-                     ("collection", `String collection);
-                     ("rkey", `String rkey);
-                     ("cid", `String cid);
-                   ];
-               ] );
-         ])
+        [
+          ("cursor", `String "next");
+          ( "records",
+            `List
+              [
+                `Assoc
+                  [
+                    ("collection", `String collection);
+                    ("rkey", `String rkey);
+                    ("cid", `String cid);
+                  ];
+              ] );
+        ])
   in
   OUnit2.assert_equal (Some "next") listed.cursor;
   OUnit2.assert_equal 1 (List.length listed.records);
@@ -262,30 +259,30 @@ let test_parse_ops_and_commit _ =
   let ops =
     Space.parse_listed_ops
       (`Assoc
-         [
-           ( "ops",
-             `List
-               [
-                 `Assoc
-                   [
-                     ("rev", `String rkey);
-                     ("collection", `String collection);
-                     ("rkey", `String rkey);
-                     ("cid", `String cid);
-                     ("prev", `Null);
-                     ("value", record_json);
-                   ];
-                 `Assoc
-                   [
-                     ("rev", `String rkey);
-                     ("collection", `String collection);
-                     ("rkey", `String "gone");
-                     ("cid", `Null);
-                     ("prev", `String cid);
-                   ];
-               ] );
-           ("commit", commit_json);
-         ])
+        [
+          ( "ops",
+            `List
+              [
+                `Assoc
+                  [
+                    ("rev", `String rkey);
+                    ("collection", `String collection);
+                    ("rkey", `String rkey);
+                    ("cid", `String cid);
+                    ("prev", `Null);
+                    ("value", record_json);
+                  ];
+                `Assoc
+                  [
+                    ("rev", `String rkey);
+                    ("collection", `String collection);
+                    ("rkey", `String "gone");
+                    ("cid", `Null);
+                    ("prev", `String cid);
+                  ];
+              ] );
+          ("commit", commit_json);
+        ])
   in
   OUnit2.assert_equal 2 (List.length ops.ops);
   OUnit2.assert_equal (Some cid) (List.hd ops.ops).cid;
@@ -294,18 +291,18 @@ let test_parse_ops_and_commit _ =
   let repos =
     Space.parse_listed_repos
       (`Assoc
-         [
-           ( "repos",
-             `List
-               [
-                 `Assoc
-                   [
-                     ("did", `String repo_did);
-                     ("rev", `String rkey);
-                     ("hash", hash_json);
-                   ];
-               ] );
-         ])
+        [
+          ( "repos",
+            `List
+              [
+                `Assoc
+                  [
+                    ("did", `String repo_did);
+                    ("rev", `String rkey);
+                    ("hash", hash_json);
+                  ];
+              ] );
+        ])
   in
   OUnit2.assert_equal digest32 (List.hd repos.repos).hash;
   let spaces =
@@ -316,11 +313,11 @@ let test_parse_ops_and_commit _ =
   let write =
     Space.parse_write_result
       (`Assoc
-         [
-           ("uri", `String "at://x");
-           ("cid", `String cid);
-           ("validationStatus", `String "valid");
-         ])
+        [
+          ("uri", `String "at://x");
+          ("cid", `String cid);
+          ("validationStatus", `String "valid");
+        ])
   in
   OUnit2.assert_equal (Some "valid") write.validation_status
 
@@ -332,8 +329,7 @@ let test_credential_bodies_shared _ =
     body
 
 let test_live_skips_without_host _ =
-  skip_if
-    (not Space.live_enabled)
+  skip_if (not Space.live_enabled)
     "ATP_SPACE / ATP_SPACE_HOST not set; no space host (not faked)";
   (* Reaching here means the operator pointed at a real host. A missing
      draft NSID still fails rather than inventing a product. *)

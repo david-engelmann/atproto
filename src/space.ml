@@ -105,13 +105,8 @@ module Space = struct
     value : Yojson.Safe.t option;
   }
 
-  type listed_records = {
-    cursor : string option;
-    records : listed_record list;
-  }
-
+  type listed_records = { cursor : string option; records : listed_record list }
   type listed_blobs = { cursor : string option; cids : string list }
-
   type repo_view = { did : string; rev : string; hash : string }
   type listed_repos = { cursor : string option; repos : repo_view list }
   type space_view = { uri : string }
@@ -154,7 +149,8 @@ module Space = struct
     | `String s -> Some s
     | _ -> None
 
-  let string_member json field = Option.value ~default:"" (string_opt json field)
+  let string_member json field =
+    Option.value ~default:"" (string_opt json field)
 
   let int_member json field =
     match Yojson.Safe.Util.member field json with
@@ -196,8 +192,7 @@ module Space = struct
 
   (** RFC 9449 [htu] for [nsid] on [host] (scheme from [ATP_SCHEME]). *)
   let xrpc_htu ~host nsid =
-    Oauth.htu_of_url
-      (Oauth.url_on (Auth.origin_of_host host) ("/xrpc/" ^ nsid))
+    Oauth.htu_of_url (Oauth.url_on (Auth.origin_of_host host) ("/xrpc/" ^ nsid))
 
   let resource_extra ~host ~nsid ~htm (d : dpop) =
     let htu = xrpc_htu ~host nsid in
@@ -261,8 +256,8 @@ module Space = struct
       ?exclude_values () : (string * string) list =
     ensure_space_uri "listRecords space" space;
     ensure_did "listRecords repo" repo;
-    (("space", space) :: ("repo", repo)
-     :: Client.Client.opt_pair "collection" collection)
+    ("space", space) :: ("repo", repo)
+    :: Client.Client.opt_pair "collection" collection
     @ Client.Client.opt_int "limit" limit
     @ Client.Client.opt_pair "cursor" cursor
     @ Client.Client.opt_bool "reverse" reverse
@@ -293,8 +288,7 @@ module Space = struct
   let get_repo_body ~space ~repo ?exclude_values () : (string * string) list =
     ensure_space_uri "getRepo space" space;
     ensure_did "getRepo repo" repo;
-    ("space", space)
-    :: ("repo", repo)
+    ("space", space) :: ("repo", repo)
     :: Client.Client.opt_bool "excludeValues" exclude_values
 
   (** Query pairs for [com.atproto.space.listRepoOps]. *)
@@ -548,8 +542,7 @@ module Space = struct
       cursor = string_opt json "cursor";
       spaces =
         (match Yojson.Safe.Util.member "spaces" json with
-        | `List xs ->
-            List.map (fun x -> { uri = string_member x "uri" }) xs
+        | `List xs -> List.map (fun x -> { uri = string_member x "uri" }) xs
         | _ -> []);
     }
 
@@ -617,8 +610,8 @@ module Space = struct
     |> fun json -> parse_token_field json "credential"
 
   (** [com.atproto.space.getRecord]. OAuth session or [dpop]. *)
-  let get_record ?session ?host ?bearer ?dpop ~space ~repo ~collection ~rkey () :
-      record =
+  let get_record ?session ?host ?bearer ?dpop ~space ~repo ~collection ~rkey ()
+      : record =
     get_json ?session ?host ?bearer ?dpop get_record_nsid
       (get_record_body ~space ~repo ~collection ~rkey)
     |> parse_record
