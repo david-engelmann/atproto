@@ -4,12 +4,11 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Current package version is **1.0.2** (`dune-project` / `atproto.opam`).
-This revision does **not** create a git tag or GitHub Release.
 Tagged **1.0.1** is at
 [`53ffbc2`](https://github.com/david-engelmann/atproto/releases/tag/1.0.1).
-The public opam package is
-[ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703)
-(to be superseded after this cut).
+The next opam submit is **atproto.1.0.2** (new PR after tag;
+supersedes
+[ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703)).
 
 This file is the human-readable release history. PR numbers are
 included sparingly so a change can be traced; they are not a
@@ -46,13 +45,6 @@ space host. Live hops skip unless `ATP_SPACE=1` and
 Deferred: `com.atproto.simplespace.*`, `space:` OAuth scopes, and
 proposal `registerNotify` `repo` (not in the #5187 lexicon).
 
-### Changed
-
-- Public docs rewritten for third-party readers (README product
-  pitch and module map, 1.0.1 notes now that the tag exists, warmer
-  odoc landing). Addresses the readability concern on
-  ocaml/opam-repository#30695
-
 ### Notes
 
 - No lexicon pin bump. Official lexicons stay bluesky-social/atproto
@@ -62,25 +54,16 @@ proposal `registerNotify` `repo` (not in the #5187 lexicon).
 
 ## [1.0.2] - 2026-09-10
 
-Packaging / opam-health cut so
-[ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703)
-can be superseded. `atproto.1.0.1` built, linted, and passed
-lower-bounds; almost every opam-ci `tests` job failed on
-public-network live hops (`identity:test_resolve_actor_live`,
-`did_plc:test_resolve_live` / `test_live_chain_structure`,
-`sync:test_list_blobs_public` / `test_get_record_proof_public`,
-`temp:test_check_handle_live`, `suite:test_search_starter_packs_*_live`,
-`unspecced:test_popular_live`, and the same class of AppView /
-firehose / Jetstream / did:web / HTTP/2 smokes). Those tests hit
-plc.directory / AppView / a public PDS and only `skip_if` on a
-caught exception. Partial success + assert, or a non-skip path,
-still failed the suite. Opam `with-test` must not depend on those
-hosts.
+Opam-health follow-up to tagged
+[1.0.1](#101---2026-09-10). The 1.0.1 package built, linted, and
+passed lower-bounds; opam-ci `tests` failed because unauthenticated
+live hops (PLC directory, AppView, public PDS, firehose / Jetstream)
+ran by default and only skipped on a caught exception.
 
-This revision sets `dune-project` / `atproto.opam` to **1.0.2**. It
-does **not** create a git tag or GitHub Release and does **not**
-touch ocaml/opam-repository. Tagging and superseding #30703 remain
-maintainer follow-ups.
+**1.0.2** makes `opam install -t` / `dune build -p atproto @runtest`
+offline-safe. The opam submit is **atproto.1.0.2** (new
+ocaml/opam-repository PR after tag). It supersedes #30703. This
+repository does not edit ocaml/opam-repository.
 
 No lexicon pin bump (official pin stays `f0d4877a`). Jane Street /
 OCaml bounds are unchanged. No fake hosts.
@@ -101,15 +84,15 @@ OCaml bounds are unchanged. No fake hosts.
 - `dune build -p atproto @runtest` / opam `with-test` is offline-safe
   when `ATP_PUBLIC` is unset
 - GitHub Actions default TestSuite `build` does **not** set
-  `ATP_PUBLIC` (deterministic; no public hops). The previous default
-  suite ran those hops and skipped only on request failure. Re-run
-  them with `ATP_PUBLIC=1` locally (`make test-public`) or the
-  optional **PublicLive** workflow (`workflow_dispatch` only; not a
-  merge-when-green required check)
+  `ATP_PUBLIC`. Re-run public hops with `make test-public` or the
+  optional **PublicLive** workflow (`workflow_dispatch` only)
+- Public docs rewritten for third-party readers
+  ([#244](https://github.com/david-engelmann/atproto/pull/244)):
+  README product pitch and module map, warmer odoc landing,
+  `AGENTS.md`
 
 ### Notes
 
-- This does not touch ocaml/opam-repository
 - Experimental 0016 helpers stay under [Unreleased](#unreleased)
 
 ## [1.0.1] - 2026-09-10
