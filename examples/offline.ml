@@ -32,6 +32,7 @@ open Atproto.Lt_hash
 open Atproto.At_uri
 open Atproto.Space_commit
 open Atproto.Space_credential
+open Atproto.Space_sync
 open Atproto.Varint
 open Atproto.Syntax
 open Atproto.Temp
@@ -1408,7 +1409,8 @@ let () =
   assert (Http_method.to_string Http_method.Get = "GET");
   assert (Hash.sha256_hex "abc" <> "");
   (* experimental proposal-0016 LtHash / space URI / signed commit /
-     credential / Space XRPC bodies — not a spaces product API *)
+     credential / Space XRPC bodies / local oplog apply — not a
+     spaces product API *)
   assert (Lt_hash.is_empty (Lt_hash.empty ()));
   assert (
     Hash.hex_encode (Lt_hash.hash (Lt_hash.empty ()))
@@ -1465,6 +1467,19 @@ let () =
         ("rkey", "3jzfcijpj2z2a");
       ]);
   assert (not Atproto.Space_xrpc.Space_xrpc.live_enabled);
+  let empty_ops =
+    Space_sync.apply_ops (Lt_hash.empty ())
+      [
+        Space_sync.op ~collection:"app.bsky.feed.post" ~rkey:"3kbcq3p7ad401"
+          ~cid:"bafyreia" ();
+        Space_sync.op ~collection:"app.bsky.feed.post" ~rkey:"3kbcq3p7ad401"
+          ~prev:"bafyreia" ();
+      ]
+  in
+  assert (Lt_hash.is_empty empty_ops);
+  assert (
+    Space_sync.path ~collection:"app.bsky.feed.post" ~rkey:"3kbcq3p7ad401"
+    = "app.bsky.feed.post/3kbcq3p7ad401");
   let n, _ = Varint.decode (Varint.encode 128) in
   assert (n = 128);
   assert (Syntax.is_valid_nsid "app.bsky.video.uploadVideo");

@@ -6,7 +6,8 @@
     § Commit digest}. The proposal is not final; this module may change
     and is {e not} a stable spaces API. Space URI parse/serialize lives
     in {!At_uri.module-Space}; signed commits live in {!Space_commit}.
-    Credentials, XRPC, and sync stay deferred.
+    Credentials and XRPC live in {!Space_credential} / {!Space_xrpc};
+    local oplog / two-root CAR apply lives in {!Space_sync}.
 
     State is a 2048-byte buffer of 1024 little-endian [uint16] lanes.
     Each record element is the UTF-8 bytes of

@@ -37,8 +37,8 @@ open Space_credential
 
     Deferred: [com.atproto.simplespace.*] management;
     [registerNotify] [repo] (proposal prose; not in the \#5187
-    lexicon); [space:] OAuth scope grammar; applying [listRepoOps] /
-    two-root CAR locally (the XRPC wrappers land). *)
+    lexicon); [space:] OAuth scope grammar. Local oplog / two-root
+    CAR apply lives in [Space_sync]. *)
 module Space_xrpc = struct
   let nsid_prefix = "com.atproto.space."
   let get_delegation_token_nsid = Space_credential.get_delegation_token_nsid
