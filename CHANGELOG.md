@@ -19,19 +19,27 @@ traced; they are not a substitute for `git log`.
   commit digest): 1024 little-endian uint16 lanes, unkeyed BLAKE3 XOF
   expansion of `{collection}/{rkey}/{record_cid}`, lane-wise add/remove
   mod 2^16, commit `hash` = `sha256(state)`. Official empty + `one`/`two`
-  snapshot vectors from bluesky-social/atproto#5187. **Not a stable
-  spaces API** (URI, signed commits with MAC/sig, credentials, XRPC,
-  and sync stay deferred until 0016 stabilizes). No space host is
-  started or stubbed. Package version stays **1.0.0**
+  snapshot vectors from bluesky-social/atproto#5187
+- Experimental space URI parse/serialize (`At_uri.Space`) and deniable
+  permissioned commits (`Space_commit`):
+  `at://{spaceDid}/space/{spaceType}/{skey}` and the 6-segment record
+  form; `ctx` = `atproto-space-v1` + TLS uint16be-prefixed
+  space/author/rev/ikm; `mac` =
+  `HMAC-SHA256(HKDF-Expand(ikm, ctx, 32), hash)` (expand-only);
+  `sig` = ES256 / ES256K over `sha256(ctx)` (low-S). `of_lt_hash`
+  wires `Lt_hash.hash`. Official `encodeCommitCtx` inputs from
+  bluesky-social/atproto#5187. **Not a stable spaces product API**
+  (credentials, `com.atproto.space.*` XRPC, and sync stay deferred
+  until 0016 stabilizes). No space host is started or stubbed.
+  Package version stays **1.0.0**
 
 ### Notes
 
 - No lexicon pin bump. Official lexicons stay bluesky-social/atproto
   [`f0d4877a`](https://github.com/bluesky-social/atproto/commit/f0d4877a03dc8ede0d3e9a36d5b72ada63b5d2e0).
 - Hosted-only products stay listed, not faked (see the 1.0.0 Notes
-  below). The 0016 spaces surface (URI / credentials / XRPC / sync)
-  is still deferred; only the experimental commit-digest primitive
-  landed.
+  below). The 0016 spaces surface (credentials / XRPC / sync) is
+  still deferred; experimental URI + commit encode/verify landed.
 
 ## [1.0.0] - 2026-09-09
 

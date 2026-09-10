@@ -29,6 +29,8 @@ open Atproto.Server
 open Atproto.Http_method
 open Atproto.Hash
 open Atproto.Lt_hash
+open Atproto.At_uri
+open Atproto.Space_commit
 open Atproto.Varint
 open Atproto.Syntax
 open Atproto.Temp
@@ -1404,7 +1406,8 @@ let () =
   assert (lex.id = "com.example.ping");
   assert (Http_method.to_string Http_method.Get = "GET");
   assert (Hash.sha256_hex "abc" <> "");
-  (* experimental proposal-0016 LtHash — not a spaces API *)
+  (* experimental proposal-0016 LtHash / space URI / signed commit —
+     not a spaces product API *)
   assert (Lt_hash.is_empty (Lt_hash.empty ()));
   assert (
     Hash.hex_encode (Lt_hash.hash (Lt_hash.empty ()))
@@ -1417,6 +1420,25 @@ let () =
     Lt_hash.element ~collection:"app.bsky.feed.post" ~rkey:"3jzfcijpj2z2a"
       ~record_cid:"bafyreia"
     = "app.bsky.feed.post/3jzfcijpj2z2a/bafyreia");
+  let space_uri =
+    Space.of_string "at://did:example:space/space/app.bsky.group/test"
+  in
+  assert (not (Space.is_record space_uri));
+  assert (
+    Space.to_string space_uri
+    = "at://did:example:space/space/app.bsky.group/test");
+  let ctx_bytes =
+    Space_commit.context
+      ~ctx:
+        {
+          space = "at://did:example:space/space/app.bsky.group/test";
+          author = "did:example:alice";
+          rev = "3kbcq3p7ad400";
+        }
+      ~ikm:(String.make 32 (Char.chr 7))
+  in
+  assert (String.sub ctx_bytes 0 16 = "atproto-space-v1");
+  assert (String.length ctx_bytes = 134);
   let n, _ = Varint.decode (Varint.encode 128) in
   assert (n = 128);
   assert (Syntax.is_valid_nsid "app.bsky.video.uploadVideo");

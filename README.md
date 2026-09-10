@@ -186,7 +186,7 @@ The **production path** is the hosted Bluesky video service (host `video.bsky.ap
 | MST | `Mst` | Layer/prefix rules, node parse, CID verify, lookup, insert/delete/walk, firehose-diff inversion **and** forward apply, `diff_ops` (prev tree → next tree), p256/k256 commit sign+verify, pre-order blocks, collection-range proofs |
 | Repo sync (TAP-like) | `Repo_sync` | Library-ready indexer / backfill (not a hosted Tap): open/verify repo CAR, walk records as IPLD JSON (`walk` / `walk_json` / `record_json`), `getRecord` inclusion proof (`export_record_proof` / `verify_record_proof` / partial CAR), record-table apply of firehose ops, `#sync` desync, MST-level `apply_commit_tree`, Sync 1.1 pre-order export + collection-subset CAR, offline `write_signed_repo` (JSON → DAG-CBOR → MST → signed commit → CAR). `examples/repo_sync_indexer.ml` |
 | TID | `Tid` | Record-key / commit-rev identifiers (base32-sortable, official syntax) |
-| AT URI | `At_uri` | `at://` parse / serialize |
+| AT URI | `At_uri` | public `at://` parse / serialize; experimental proposal-0016 space / permissioned-record URIs (`At_uri.Space`, first path segment literal `space`) |
 | Lexicon | `Lexicon` | Parse lexicon-1 JSON (parameters + procedure input/output schemas + `permission-set`), `to_ocaml` codegen (unions emit polymorphic variants), JSON validate, `resolveLexicon` client, small bundled official lexicon documents including `app.bsky.graph.referencelistoptout` and official OAuth permission-sets |
 | Temp | `Temp` | `com.atproto.temp.checkHandleAvailability` (available / suggestions union), `checkSignupQueue`, `dereferenceScope`, plus privileged `addReservedHandle` / `requestPhoneVerification` / `revokeAccountCredentials` clients (no invented operator session). Deprecated `fetchLabels` remains `Label.query_labels` |
 | Firehose | `Firehose`, `Websocket` | RFC 6455 client (`wss://` and local `ws://`) + `subscribeRepos` frame decode (`#commit`/`#sync`/`#identity`/`#account`/`#info`) |
@@ -201,7 +201,7 @@ The **production path** is the hosted Bluesky video service (host `video.bsky.ap
 | Embeds / facets | `Embed`, `Facet` | Images, external (`readingTime`, `associatedProfiles`, source theme RGB, `associatedRefs`), record, recordWithMedia, video (`presentation` `default`/`gif`), **gallery**, record `#view` union; `getEmbedExternalView`; mention / link / tag parse **and serialize** |
 | Notifications | `Notification` | All `listNotifications` known reasons; `listNotifications` query-pair helper (`list_notifications_body`; `list_notifications` / `list_notifications_page` share those pairs; currently sent fields only: optional `reasons` / `priority` / `cursor` / `seenAt` / `limit`); leftover `list_activity_subscriptions_body` (`limit` / `cursor`); `getUnreadCount` via `Client.get_json`; `updateSeen` Yojson `update_seen_body` via `Client.post_json` (empty output stays `""`); `putPreferences` v1 `put_preferences_body` (`priority`) and `putActivitySubscription` `put_activity_subscription_body` (`subject` / `activitySubscription`) via `Client.post_json`; prefs-v2; `register_push_body` / `unregister_push_body` (`serviceDid` / `token` / `platform` knownValues `ios` / `android` / `web` / `appId`; optional `ageRestricted`); optional `atproto-proxy` (`effective_push_proxy` / `ATP_PUSH_DID` / `Xrpc.notif_proxy`); `ATP_PUSH` skip gate. Client only — no APNs/FCM |
 | User reports | `Moderation` | `com.atproto.moderation.createReport` (strongRef / repoRef, optional `modTool`, reason-type constants; Yojson `create_report_body_from_strong_ref` / `create_report_body_from_repo_ref`; string `create_report_data_from_*` unchanged) |
-| Crypto / codecs | `K256`, `Base32`, `Base58`, `Base64url`, `Hash`, `Varint`, `Lt_hash` | secp256k1, multibase, CID/CAR varints; experimental proposal-0016 LtHash (not a spaces API) |
+| Crypto / codecs | `K256`, `Base32`, `Base58`, `Base64url`, `Hash`, `Varint`, `Lt_hash`, `Space_commit` | secp256k1, multibase, CID/CAR varints; experimental proposal-0016 LtHash + deniable signed commits (not a spaces product API) |
 | HTTP helpers | `App`, `Client`, `Cohttp_client`, `Http_client`, `Http_method`, `Request`, `Response`, `User` | Endpoint URLs, shared XRPC GET/POST (Cohttp) + AppView `post_json_appview` service-auth (password `at+jwt`, or OAuth DPoP `Oauth.get_service_auth` + `get_json ~bearer`) + Ozone host/DID env (`ozone_host_from_env` / `ozone_did_from_env`), **HTTP/2 TLS** GET/POST/PUT/DELETE/PATCH via `Http_client` (IPv6 + `Client.get_json_h2` / `Client.post_json_h2` for public HTTPS). Requires HTTPS + ALPN `h2` |
 | Sites | `Site` | Official `site.standard` records: document, publication, theme.basic/color, graph recommend + subscription plus typed record encodes (`document_to_json` / `publication_to_json` / `recommend_to_json` / `subscription_to_json`; siblings of `theme_to_json` / `contributor_to_json` / `parse_*`; lexicon fields only) |
 | Germ Network | `Germnetwork` | `com.germnetwork.declaration` record (`$bytes` keys, `messageMe` policy) |
@@ -308,13 +308,14 @@ These are product-level, not missing protocol cores.
 - Jetstream archive HTTP **download** on Bluesky-hosted instances still requires the **operator to supply** an API key (`JETSTREAM_API_KEY` / `JETSTREAM_ARCHIVE_TOKEN`, or `~token`). The library reads that env and sends `Authorization: Bearer`. It does not invent a key. Live `subscribeEvents` stays unauthenticated. Self-hosted archives may omit the key.
 - No hosted **SMS / phone-verification** gateway. The production hosted client path is documented and library-ready (`Contact.get_matches_body` / `get_matches_appview` / `*_service`, `start_phone_verification` / `verify_phone` / `import_contacts`; `Temp.request_phone_verification`; `Server.describe_server` `phoneVerificationRequired`; `examples/contacts_production.ml`). Live SMS hops stay skippable unless `ATP_PHONE=1` and `ATP_PHONE_NUMBER` is a real number. Official TestNetwork does not start SMS. This repo does not fake `requestPhoneVerification`.
 - No official **OSS push** gateway (official Bluesky push is closed to the official app; third-party clients host their own). The production hosted client path is documented and library-ready (`Notification.register_push_body` / `unregister_push_body` / `platform_ios` / `effective_push_proxy` / `Xrpc.notif_proxy`; `examples/contacts_production.ml`). Live register hops stay skippable unless `ATP_PUSH=1` plus a caller `serviceDid` / device token. This repo does not fake APNs/FCM.
-- Permissioned data / spaces: experimental `Lt_hash` landed (proposal
+- Permissioned data / spaces: experimental `Lt_hash`, `At_uri.Space`, and
+  `Space_commit` landed (proposal
   [0016](https://github.com/bluesky-social/proposals/blob/main/0016-permissioned-data/README.md)
-  commit digest — 1024 little-endian uint16 lanes, unkeyed BLAKE3 XOF,
-  lane-wise add/remove mod 2^16, commit `hash` = `sha256(state)`). The
-  proposal is not final; this is not a stable spaces API. Space URI,
-  signed commits (MAC/sig), credentials, XRPC, and sync stay deferred
-  until 0016 stabilizes. This repo does not fake a space host.
+  — LtHash digest, space / permissioned-record URI parse/serialize, deniable
+  signed commits with `ctx` / HKDF-Expand MAC / ES256+ES256K `sig`). The
+  proposal is not final; this is not a stable spaces product API.
+  Credentials, `com.atproto.space.*` XRPC, and sync stay deferred until
+  0016 stabilizes. This repo does not fake a space host.
 
 ## Sample usage
 
@@ -346,12 +347,17 @@ let _ =
 (* MST layer for a repo key — official vector *)
 let () = assert (Mst.layer_for_key "blue" = 1)
 
-(* experimental proposal-0016 LtHash — not a spaces API *)
+(* experimental proposal-0016 LtHash / space URI — not a spaces product *)
 let () =
   assert (Lt_hash.is_empty (Lt_hash.empty ()));
   assert (
     Hash.hex_encode (Lt_hash.hash (Lt_hash.empty ()))
-    = "e5a00aa9991ac8a5ee3109844d84a55583bd20572ad3ffcd42792f3c36b183ad")
+    = "e5a00aa9991ac8a5ee3109844d84a55583bd20572ad3ffcd42792f3c36b183ad");
+  let space =
+    At_uri.Space.of_string
+      "at://did:example:space/space/app.bsky.group/test"
+  in
+  assert (not (At_uri.Space.is_record space))
 
 (* TID used as record keys and commit revs *)
 let () = assert (Tid.is_valid "3jzfcijpj2z2a")
