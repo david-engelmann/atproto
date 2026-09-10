@@ -39,6 +39,7 @@
   test_label
   test_labeler
   test_lexicon
+  test_lt_hash
   test_local_appview
   test_local_oauth
   test_local_ozone
@@ -128,6 +129,7 @@
   test_label
   test_labeler
   test_lexicon
+  test_lt_hash
   test_local_appview
   test_local_oauth
   test_local_ozone

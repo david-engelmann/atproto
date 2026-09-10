@@ -12,12 +12,26 @@ traced; they are not a substitute for `git log`.
 
 ## [Unreleased]
 
+### Added
+
+- Experimental `Lt_hash` (proposal
+  [0016](https://github.com/bluesky-social/proposals/blob/main/0016-permissioned-data/README.md)
+  commit digest): 1024 little-endian uint16 lanes, unkeyed BLAKE3 XOF
+  expansion of `{collection}/{rkey}/{record_cid}`, lane-wise add/remove
+  mod 2^16, commit `hash` = `sha256(state)`. Official empty + `one`/`two`
+  snapshot vectors from bluesky-social/atproto#5187. **Not a stable
+  spaces API** (URI, signed commits with MAC/sig, credentials, XRPC,
+  and sync stay deferred until 0016 stabilizes). No space host is
+  started or stubbed. Package version stays **1.0.0**
+
 ### Notes
 
 - No lexicon pin bump. Official lexicons stay bluesky-social/atproto
   [`f0d4877a`](https://github.com/bluesky-social/atproto/commit/f0d4877a03dc8ede0d3e9a36d5b72ada63b5d2e0).
 - Hosted-only products stay listed, not faked (see the 1.0.0 Notes
-  below).
+  below). The 0016 spaces surface (URI / credentials / XRPC / sync)
+  is still deferred; only the experimental commit-digest primitive
+  landed.
 
 ## [1.0.0] - 2026-09-09
 
