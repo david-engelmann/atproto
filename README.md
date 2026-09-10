@@ -12,7 +12,9 @@ This package is a **client**. It does not host a PDS, chat service, video transc
 
 ## Quick start
 
-Neither call needs `ATP_AUTH`:
+These two calls hit the public AppView over the network. They do
+not need `ATP_AUTH`. `ATP_PUBLIC` only gates live *tests*; it is
+not required to run this snippet.
 
 ```shell
 opam pin add atproto git+https://github.com/david-engelmann/atproto.git
@@ -21,7 +23,7 @@ opam pin add atproto git+https://github.com/david-engelmann/atproto.git
 ```
 
 ```ocaml
-(* public AppView, no ATP_AUTH *)
+(* public AppView — needs network, no ATP_AUTH *)
 let did = (Identity.resolve_handle "jay.bsky.team").did
 let posts = Feed.search_posts ~q:"atproto" ~limit:5 ()
 ```
@@ -33,9 +35,9 @@ let posts = Feed.search_posts ~q:"atproto" ~limit:5 ()
 Requires OCaml **>= 4.14.1 and < 5.4** (CI: **4.14.1** and **5.3.0**). Jane Street `core` / `async` / `ppx_jane` / `zstandard` are **>= v0.16.0 and < v0.18~** (v0.16 on 4.14, v0.17 on 5.1–5.3). Public Jane Street v0.17 does not support OCaml 5.4+; 5.0 is untested. Jetstream dict-zstd needs system **libzstd** (Debian/Ubuntu `libzstd-dev`, macOS Homebrew `zstd`) before `opam pin` / `opam install . --deps-only`. The Jane Street `zstandard` package is Linux-only (x86_64 / arm64).
 
 ```shell
-opam install atproto
-# development pin (use this until atproto.1.0.2 is on opam-repository)
 opam pin add atproto git+https://github.com/david-engelmann/atproto.git
+# after atproto.1.0.2 is on opam-repository:
+# opam install atproto
 ```
 
 From a local clone:
@@ -61,6 +63,9 @@ In a dependent `dune` stanza:
 | --- | --- |
 | API reference | https://david-engelmann.github.io/atproto/ (`dune build @doc` / `make doc`) |
 | Release notes | [CHANGELOG.md](CHANGELOG.md) |
+| License | [LICENSE](LICENSE) |
+| Issues | https://github.com/david-engelmann/atproto/issues |
+| Security | [.github/SECURITY.md](.github/SECURITY.md) |
 | Contributing | [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md) |
 | For agents | [AGENTS.md](AGENTS.md) |
 
@@ -228,6 +233,7 @@ none invent a hosted service.
 | [`examples/quickstart.ml`](examples/quickstart.ml) | Public AppView: resolve a handle and search posts (no `ATP_AUTH`) |
 | [`examples/offline.ml`](examples/offline.ml) | Typechecks the public API with no network |
 | [`examples/oauth_https_metadata.ml`](examples/oauth_https_metadata.ml) | HTTPS `client-metadata.json` + browser login (you still host the document) |
+| [`examples/client-metadata.json`](examples/client-metadata.json) | Sample public HTTPS OAuth client-metadata document (you still host it) |
 | [`examples/chat_production.ml`](examples/chat_production.ml) | Hosted `chat.bsky.*` on `api.bsky.chat` (no OSS chat backend) |
 | [`examples/video_production.ml`](examples/video_production.ml) | Hosted `app.bsky.video.*` on `video.bsky.app` (no transcoder) |
 | [`examples/repo_sync_indexer.ml`](examples/repo_sync_indexer.ml) | Indexer / backfill via `Repo_sync` (not a Tap host) |
