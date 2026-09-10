@@ -41,27 +41,26 @@ let records () =
   [
     Space_sync.record_of_json ~collection:"app.bsky.feed.post"
       ~rkey:"3kbcq3p7ad401"
-      (`Assoc [ ("text", `String "hello") ]);
+      ~value:(`Assoc [ ("text", `String "hello") ]);
     Space_sync.record_of_json ~collection:"app.bsky.feed.post"
       ~rkey:"3kbcq3p7ad402"
-      (`Assoc [ ("text", `String "world") ]);
+      ~value:(`Assoc [ ("text", `String "world") ]);
     Space_sync.record_of_json ~collection:"app.bsky.feed.like"
       ~rkey:"3kbcq3p7ad403"
-      (`Assoc [ ("subject", `String "at://x") ]);
+      ~value:(`Assoc [ ("subject", `String "at://x") ]);
+  ]
+
+let entry_of_record (r : Space_sync.record_block) : Space_sync.index_entry =
+  {
+    Space_sync.collection = r.Space_sync.collection;
+    rkey = r.Space_sync.rkey;
+    cid = r.Space_sync.cid;
   }
 
 let sign_records recs =
   let priv, pub = p256_pair () in
   let state =
-    Space_sync.fold_index (Lt_hash.empty ())
-      (List.map
-         (fun r ->
-           {
-             Space_sync.collection = r.Space_sync.collection;
-             rkey = r.Space_sync.rkey;
-             cid = r.Space_sync.cid;
-           })
-         recs)
+    Space_sync.fold_index (Lt_hash.empty ()) (List.map entry_of_record recs)
   in
   let commit =
     Space_commit.of_lt_hash ~ctx:official_ctx ~sign:(`P256 priv) state ()
@@ -118,22 +117,16 @@ let test_apply_ops_create_update_delete _ =
   let b = List.nth recs 1 in
   let creates =
     List.map
-      (fun r ->
+      (fun (r : Space_sync.record_block) ->
         Space_sync.op ~collection:r.Space_sync.collection
-          ~rkey:r.Space_sync.rkey ~cid:(Cid.to_string r.Space_sync.cid) ())
+          ~rkey:r.Space_sync.rkey
+          ~cid:(Cid.to_string r.Space_sync.cid)
+          ())
       recs
   in
   let from_ops = Space_sync.apply_ops (Lt_hash.empty ()) creates in
   let from_index =
-    Space_sync.fold_index (Lt_hash.empty ())
-      (List.map
-         (fun r ->
-           {
-             Space_sync.collection = r.Space_sync.collection;
-             rkey = r.Space_sync.rkey;
-             cid = r.Space_sync.cid;
-           })
-         recs)
+    Space_sync.fold_index (Lt_hash.empty ()) (List.map entry_of_record recs)
   in
   OUnit2.assert_bool "ops match index fold" (Lt_hash.equal from_ops from_index);
   let local =
@@ -148,10 +141,14 @@ let test_apply_ops_create_update_delete _ =
          ])
       [
         Space_sync.op ~collection:a.Space_sync.collection
-          ~rkey:a.Space_sync.rkey ~cid:(Cid.to_string b.Space_sync.cid)
-          ~prev:(Cid.to_string a.Space_sync.cid) ();
+          ~rkey:a.Space_sync.rkey
+          ~cid:(Cid.to_string b.Space_sync.cid)
+          ~prev:(Cid.to_string a.Space_sync.cid)
+          ();
         Space_sync.op ~collection:a.Space_sync.collection
-          ~rkey:a.Space_sync.rkey ~prev:(Cid.to_string b.Space_sync.cid) ();
+          ~rkey:a.Space_sync.rkey
+          ~prev:(Cid.to_string b.Space_sync.cid)
+          ();
       ]
   in
   OUnit2.assert_bool "delete empties" (Lt_hash.is_empty local);
@@ -165,16 +162,18 @@ let test_catch_up_and_diverge _ =
   let commit, _ = sign_records recs in
   let ops =
     List.map
-      (fun r ->
+      (fun (r : Space_sync.record_block) ->
         Space_sync.op ~collection:r.Space_sync.collection
-          ~rkey:r.Space_sync.rkey ~cid:(Cid.to_string r.Space_sync.cid) ())
+          ~rkey:r.Space_sync.rkey
+          ~cid:(Cid.to_string r.Space_sync.cid)
+          ())
       recs
   in
   let listed_full : Space_xrpc.listed_ops =
     {
       ops =
         List.map
-          (fun o ->
+          (fun (o : Space_sync.op) ->
             {
               Space_xrpc.rev = official_rev;
               collection = o.Space_sync.collection;
@@ -228,13 +227,12 @@ let test_two_root_roundtrip _ =
   OUnit2.assert_equal ~printer:string_of_int (List.length recs)
     (List.length recovered.Space_sync.records);
   OUnit2.assert_bool "set hash matches"
-    (Space_commit.matches recovered.Space_sync.state
-       recovered.Space_sync.commit);
+    (Space_commit.matches recovered.Space_sync.state recovered.Space_sync.commit);
   OUnit2.assert_equal commit.Space_commit.hash
     recovered.Space_sync.commit.Space_commit.hash;
   let like =
     List.find
-      (fun r -> r.Space_sync.rkey = "3kbcq3p7ad403")
+      (fun (r : Space_sync.record_block) -> r.Space_sync.rkey = "3kbcq3p7ad403")
       recovered.Space_sync.records
   in
   OUnit2.assert_equal
@@ -244,7 +242,7 @@ let test_two_root_roundtrip _ =
        (Yojson.Safe.Util.member "subject" like.Space_sync.value));
   let hello =
     List.find
-      (fun r -> r.Space_sync.rkey = "3kbcq3p7ad401")
+      (fun (r : Space_sync.record_block) -> r.Space_sync.rkey = "3kbcq3p7ad401")
       recovered.Space_sync.records
   in
   OUnit2.assert_equal
@@ -255,12 +253,12 @@ let test_two_root_roundtrip _ =
   (* record blocks follow index order *)
   let index_cids =
     List.map
-      (fun e -> Cid.to_string e.Space_sync.cid)
+      (fun (e : Space_sync.index_entry) -> Cid.to_string e.Space_sync.cid)
       recovered.Space_sync.index
   in
   let record_cids =
     List.map
-      (fun r -> Cid.to_string r.Space_sync.cid)
+      (fun (r : Space_sync.record_block) -> Cid.to_string r.Space_sync.cid)
       recovered.Space_sync.records
   in
   OUnit2.assert_equal index_cids record_cids
@@ -291,8 +289,7 @@ let test_index_only_requires_flag _ =
   let recs = records () in
   let commit, key = sign_records recs in
   let car = Space_sync.encode ~commit ~records:recs ~exclude_values:true () in
-  raises_invalid "missing"
-    (fun () ->
+  raises_invalid "missing" (fun () ->
       Space_sync.apply ~keys:[ key ] ~space:official_space
         ~author:official_author car)
 
@@ -343,12 +340,9 @@ let test_rejects_tampered_record_bytes _ =
     match parsed.Car.blocks with
     | commit :: index :: first :: rest ->
         let bogus =
-          Dag_cbor.encode
-            (Dag_cbor.Map [ ("text", Dag_cbor.Text "tampered") ])
+          Dag_cbor.encode (Dag_cbor.Map [ ("text", Dag_cbor.Text "tampered") ])
         in
-        commit :: index
-        :: { first with Car.data = bogus }
-        :: rest
+        commit :: index :: { first with Car.data = bogus } :: rest
     | _ -> failwith "expected commit, index, records"
   in
   let tampered = Car.encode { parsed with Car.blocks } in
@@ -376,8 +370,7 @@ let test_rejects_wrong_root_count _ =
   let data = Space_commit.encode commit in
   let cid = Cid.create ~codec:Cid.Dag_cbor data in
   let car =
-    Car.encode
-      { Car.roots = [ cid ]; blocks = [ { Car.cid; data } ] }
+    Car.encode { Car.roots = [ cid ]; blocks = [ { Car.cid; data } ] }
   in
   raises_invalid "expected 2 car roots" (fun () ->
       Space_sync.apply ~keys:[ key ] ~space:official_space
@@ -420,15 +413,9 @@ let test_rejects_invalid_index_cid _ =
 let test_index_roundtrip _ =
   let recs = records () in
   let entries =
-    List.map
-      (fun r ->
-        {
-          Space_sync.collection = r.Space_sync.collection;
-          rkey = r.Space_sync.rkey;
-          cid = r.Space_sync.cid;
-        })
-      recs
-    |> List.sort (fun a b ->
+    List.map entry_of_record recs
+    |> List.sort
+         (fun (a : Space_sync.index_entry) (b : Space_sync.index_entry) ->
            Space_sync.compare_index_key
              (Space_sync.path ~collection:a.Space_sync.collection
                 ~rkey:a.Space_sync.rkey)
@@ -438,11 +425,10 @@ let test_index_roundtrip _ =
   let again = Space_sync.decode_index (Space_sync.encode_index entries) in
   OUnit2.assert_equal (List.length entries) (List.length again);
   List.iter2
-    (fun a b ->
+    (fun (a : Space_sync.index_entry) (b : Space_sync.index_entry) ->
       OUnit2.assert_equal a.Space_sync.collection b.Space_sync.collection;
       OUnit2.assert_equal a.Space_sync.rkey b.Space_sync.rkey;
-      OUnit2.assert_bool "cid"
-        (Cid.equal a.Space_sync.cid b.Space_sync.cid))
+      OUnit2.assert_bool "cid" (Cid.equal a.Space_sync.cid b.Space_sync.cid))
     entries again
 
 let suite =
@@ -459,8 +445,7 @@ let suite =
          "test_rejects_wrong_key" >:: test_rejects_wrong_key;
          "test_rejects_wrong_space" >:: test_rejects_wrong_space;
          "test_rejects_wrong_author" >:: test_rejects_wrong_author;
-         "test_rejects_index_hash_mismatch"
-         >:: test_rejects_index_hash_mismatch;
+         "test_rejects_index_hash_mismatch" >:: test_rejects_index_hash_mismatch;
          "test_rejects_tampered_record_bytes"
          >:: test_rejects_tampered_record_bytes;
          "test_rejects_missing_record" >:: test_rejects_missing_record;

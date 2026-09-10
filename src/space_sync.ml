@@ -66,7 +66,7 @@ module Space_sync : sig
     | Partial of Lt_hash.t
     | Caught_up of Lt_hash.t * Space_commit.t
     | Diverged of Lt_hash.t * Space_commit.t
-  (** Incremental result. [Caught_up] when the response carried a
+        (** Incremental result. [Caught_up] when the response carried a
       signed commit whose [hash] matches the running set hash.
       [Diverged] means fall back to CAR recovery. *)
 
@@ -113,7 +113,7 @@ module Space_sync : sig
   (** Parse a DRISL repo index. Raises [Invalid] on a bad map. *)
 
   val record_of_json :
-    collection:string -> rkey:string -> Yojson.Safe.t -> record_block
+    collection:string -> rkey:string -> value:Yojson.Safe.t -> record_block
   (** DAG-CBOR-encode [value] and CID it (dag-cbor / sha2-256). *)
 
   val encode :
@@ -170,7 +170,6 @@ end = struct
     | Diverged of Lt_hash.t * Space_commit.t
 
   let fail msg = raise (Invalid msg)
-
   let path ~collection ~rkey = collection ^ "/" ^ rkey
 
   let parse_path (p : string) : string * string =
@@ -187,8 +186,9 @@ end = struct
 
   let sort_entries (entries : index_entry list) =
     List.sort
-      (fun a b ->
-        compare_index_key (path ~collection:a.collection ~rkey:a.rkey)
+      (fun (a : index_entry) (b : index_entry) ->
+        compare_index_key
+          (path ~collection:a.collection ~rkey:a.rkey)
           (path ~collection:b.collection ~rkey:b.rkey))
       entries
 
@@ -213,8 +213,7 @@ end = struct
     let h =
       match o.prev with
       | Some cid ->
-          Lt_hash.remove h
-            (element ~collection:o.collection ~rkey:o.rkey ~cid)
+          Lt_hash.remove h (element ~collection:o.collection ~rkey:o.rkey ~cid)
       | None -> h
     in
     match o.cid with
@@ -235,7 +234,7 @@ end = struct
 
   let fold_index (h : Lt_hash.t) (entries : index_entry list) : Lt_hash.t =
     List.fold_left
-      (fun acc e ->
+      (fun acc (e : index_entry) ->
         Lt_hash.add acc
           (element ~collection:e.collection ~rkey:e.rkey
              ~cid:(Cid.to_string e.cid)))
@@ -244,7 +243,7 @@ end = struct
   let encode_index (entries : index_entry list) : string =
     let fields =
       List.map
-        (fun e ->
+        (fun (e : index_entry) ->
           (path ~collection:e.collection ~rkey:e.rkey, Dag_cbor.Cid e.cid))
         (sort_entries entries)
     in
@@ -268,7 +267,7 @@ end = struct
     | Dag_cbor.Decode_error msg -> fail ("invalid repo index: " ^ msg)
     | _ -> fail "invalid repo index"
 
-  let record_of_json ~collection ~rkey (value : Yojson.Safe.t) : record_block =
+  let record_of_json ~collection ~rkey ~value : record_block =
     ensure_path_parts ~collection ~rkey;
     let data = Dag_cbor.encode (Dag_cbor.of_yojson value) in
     let cid = Cid.create ~codec:Cid.Dag_cbor data in
@@ -276,8 +275,7 @@ end = struct
 
   let verify_block (b : Car.block) =
     let expected = Cid.create ~codec:b.Car.cid.Cid.codec b.Car.data in
-    if not (Cid.equal expected b.Car.cid) then
-      fail "not a valid cid for bytes"
+    if not (Cid.equal expected b.Car.cid) then fail "not a valid cid for bytes"
 
   let encode ~commit ~records ?(exclude_values = false) () : string =
     let by_path = Hashtbl.create 16 in
@@ -358,7 +356,8 @@ end = struct
     let state = fold_index (Lt_hash.empty ()) index in
     if not (Space_commit.matches state commit) then
       fail "index does not match the commit hash";
-    let rec take entries blocks acc =
+    let rec take (entries : index_entry list) (blocks : Car.block list)
+        (acc : record_block list) : record_block list =
       match (entries, blocks) with
       | [], [] -> List.rev acc
       | [], _ :: _ -> fail "car has more blocks than index entries"
@@ -369,7 +368,7 @@ end = struct
             fail
               (Printf.sprintf "car is missing %d record(s) named in the index"
                  missing)
-      | e :: er, b :: br ->
+      | (e : index_entry) :: er, b :: br ->
           verify_block b;
           if not (Cid.equal b.Car.cid e.cid) then
             fail
