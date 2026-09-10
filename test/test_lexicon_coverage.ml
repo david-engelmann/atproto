@@ -6,7 +6,10 @@ open OUnit2
    new NSID has a client helper, record builder, bundled permission-set, or an
    explicit skip with a one-line reason. Hosted-only *servers* are not a reason
    to skip a public client NSID (no OSS chat backend, no video transcoder,
-   no Tap host, no SMS gateway, no APNs/FCM push backend). *)
+   no Tap host, no SMS gateway, no APNs/FCM push backend).
+
+   Wired as dune alias @lexicon-coverage (CI / `make lexicon-coverage`).
+   Not part of @runtest or opam with-test. *)
 
 let expected_pin = "f0d4877a03dc8ede0d3e9a36d5b72ada63b5d2e0"
 

@@ -60,12 +60,18 @@ jobs:
         env:
           ATP_AUTH: ${{ secrets.ATP_AUTH }}
           ATP_HOST: ${{ secrets.ATP_HOST }}
+      # Repo-drift gate, not @runtest / opam with-test. Unit tests stay on
+      # `dune runtest -p atproto`; coverage is CI-only (`@lexicon-coverage`).
+      - name: Lexicon coverage
+        run: opam exec -- dune build @lexicon-coverage 2>&1 | tee dune_lexicon_coverage.log
       - name: Upload Log
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: dune_runtest-${{ matrix.ocaml-compiler }}
-          path: dune_runtest.log
+          path: |
+            dune_runtest.log
+            dune_lexicon_coverage.log
           if-no-files-found: warn
 
       # Install from generated atproto.opam (not _build/default/src), then

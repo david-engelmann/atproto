@@ -1,6 +1,6 @@
 (lang dune 3.11)
 (name atproto)
-(version 1.0.0)
+(version 1.0.1)
 (generate_opam_files true)
 
 (license MIT)
@@ -48,9 +48,12 @@
   ssl
   lwt_ssl
   jose
-  digestif
-  mirage-crypto-ec
-  mirage-crypto-rng
+  (digestif
+   (>= 1.1.2))
+  (mirage-crypto-ec
+   (>= 1.2.0))
+  (mirage-crypto-rng
+   (>= 1.2.0))
   zarith
   (zstandard
    (and

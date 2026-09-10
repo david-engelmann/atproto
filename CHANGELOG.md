@@ -3,7 +3,7 @@
 All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Package version is **1.0.0** (`dune-project` / `atproto.opam`). This
+Package version is **1.0.1** (`dune-project` / `atproto.opam`). This
 revision does **not** create a git tag or GitHub Release.
 
 This file is a human-readable release history for opam reviewers and
@@ -40,7 +40,8 @@ traced; they are not a substitute for `git log`.
   `dpop+jwt`, RFC 7638 `jkt`, `ath` = base64url(sha256(credential)); no
   DPoP nonce). Offline fixtures from bluesky-social/atproto#5187.
   **Not a stable spaces product API**. No space host is started or
-  stubbed. Package version stays **1.0.0**
+  stubbed. Still Unreleased relative to tags (not part of the 1.0.1
+  packaging cut)
 - Experimental `Space_xrpc` client (proposal 0016 § XRPC API /
   bluesky-social/atproto#5187 draft lexicons): typed query / JSON
   bodies and `Client.get_json` / `post_json` / `get_text` wrappers for
@@ -67,9 +68,9 @@ traced; they are not a substitute for `git log`.
   bluesky-social/atproto#5187 `packages/space/tests/sync.test.ts`.
   Named `Space_sync` so it does not clash with `At_uri.Space`. **Not
   a stable spaces product API**. No space host is started or stubbed.
-  Package version stays **1.0.0**. Deferred:
-  `com.atproto.simplespace.*`, `space:` OAuth scopes, proposal
-  `registerNotify` `repo` (not in the #5187 lexicon)
+  Still Unreleased relative to tags (not part of the 1.0.1 packaging
+  cut). Deferred: `com.atproto.simplespace.*`, `space:` OAuth scopes,
+  proposal `registerNotify` `repo` (not in the #5187 lexicon)
 
 ### Notes
 
@@ -80,6 +81,52 @@ traced; they are not a substitute for `git log`.
   credential JWT / DPoP + draft `Space_xrpc` wrappers + local
   `Space_sync` oplog / two-root CAR apply. `simplespace` management
   and a space host stay deferred.
+
+## [1.0.1] - 2026-09-10
+
+Packaging / opam-health cut so
+[ocaml/opam-repository#30698](https://github.com/ocaml/opam-repository/pull/30698)
+can be fixed or superseded. `atproto.1.0.0` built on 4.14 / 5.2;
+opam-ci failed on the lexicon coverage drift gate, unbounded
+`digestif` / `mirage-crypto-ec` lower bounds, and a redundant
+`version:` field in the submitted opam file. 5.4+ SKIPs stay
+expected.
+
+This revision sets `dune-project` / `atproto.opam` to **1.0.1**. It
+does **not** create a git tag or GitHub Release and does **not**
+touch ocaml/opam-repository. Tagging and updating #30698 remain
+maintainer follow-ups.
+
+No lexicon pin bump (official pin stays `f0d4877a`). Jane Street /
+OCaml bounds are unchanged.
+
+### Changed
+
+- Package version `1.0.0` → `1.0.1` (`dune-project` /
+  `atproto.opam`)
+- `digestif` lower bound `>= 1.1.2` (`Digestif.SHA256` /
+  `digest_string` / `hmac_string` / `to_raw_string`; unbounded
+  digestif can solve to 0.5-era and fail with `Unbound module
+  Digestif`)
+- `mirage-crypto-ec` and `mirage-crypto-rng` lower bounds `>= 1.2.0`.
+  `P256.Dsa.pub_of_octets` is the 1.x octets API (1.0.0+; 0.11 used
+  `of_cstruct`). This repo also calls
+  `Mirage_crypto_rng_unix.use_default` (added in 1.2.0). The 1.x
+  mirage-crypto packages pin each other, so 1.2.0 is the coherent
+  floor
+- Official NSID coverage (`test_lexicon_coverage`) moves off
+  `@runtest` to `@lexicon-coverage`. `dune build -p atproto
+  @runtest` / opam `with-test` run unit tests only. TestSuite still
+  runs the gate (`dune build @lexicon-coverage`)
+
+### Notes
+
+- opam-repository submissions should **omit** the redundant
+  `version:` field (`opam lint`). Keep `(version ...)` in
+  `dune-project`; the in-repo generated `atproto.opam` may still
+  carry `version:`
+- No `x-ci-accept-failures`. The coverage gate is not deleted
+- Experimental 0016 helpers stay under [Unreleased](#unreleased)
 
 ## [1.0.0] - 2026-09-09
 

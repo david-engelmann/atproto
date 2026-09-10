@@ -19,9 +19,14 @@ Pin the GitHub repository for development.
   Ubuntu/Debian `libzstd-dev`, macOS Homebrew `zstd` (headers ship
   with the formula). Required, not optional.
 - Package-style build (what `opam install` / a dependent sees):
-  `dune build -p atproto` and `dune runtest -p atproto`.
+  `dune build -p atproto` and `dune runtest -p atproto` (unit tests).
+  Official NSID coverage is `dune build @lexicon-coverage` (CI-only;
+  not `@runtest` / opam `with-test`).
 
 Do not hand-edit `atproto.opam`; it is generated from `dune-project`.
+`dune-project` keeps `(version ...)`. The generated in-repo opam file
+includes `version:`. When submitting to ocaml/opam-repository, omit
+that redundant `version:` field (`opam lint`).
 odoc HTML is a CI artifact (`odoc-html`) on pull requests. On push to
 `main`, TestSuite deploys `_build/default/_doc/_html` with GitHub
 Actions Pages. GitHub Pages is enabled (Settings → Pages → Source:
@@ -63,6 +68,7 @@ opam install . --deps-only --with-test
 opam install ocamlformat.0.25.1
 dune build -p atproto
 dune runtest -p atproto
+dune build @lexicon-coverage
 opam lint atproto.opam
 ```
 
@@ -74,8 +80,10 @@ Official lexicons are pinned at bluesky-social/atproto
 [`f0d4877a03`](https://github.com/bluesky-social/atproto/commit/f0d4877a03dc8ede0d3e9a36d5b72ada63b5d2e0).
 `scripts/gen-official-nsids.py` rebuilds
 `lexicons/official-nsids.json` against a SHA. TestSuite
-`test_lexicon_coverage` fails if a public client NSID is missing a helper,
-record builder, bundled permission-set, or an explicit one-line skip.
+`@lexicon-coverage` (`test_lexicon_coverage`) fails if a public client
+NSID is missing a helper, record builder, bundled permission-set, or
+an explicit one-line skip. opam `with-test` / `@runtest` run unit
+tests only; the coverage gate is CI-only.
 
 Five deprecated/internal NSIDs are skipped in
 `lexicons/coverage-skips.json`: `com.atproto.temp.fetchLabels`,
