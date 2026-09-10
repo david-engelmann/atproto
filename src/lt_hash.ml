@@ -15,51 +15,50 @@
     repo is all zeroes. Addition and subtraction commute, so the digest
     depends only on the current set. *)
 module Lt_hash : sig
-  (** Number of little-endian unsigned 16-bit lanes. *)
   val lanes : int
+  (** Number of little-endian unsigned 16-bit lanes. *)
 
-  (** State size in bytes ([lanes] * 2). *)
   val state_bytes : int
+  (** State size in bytes ([lanes] * 2). *)
 
   type t
 
   exception Invalid of string
 
-  (** Empty repo: 2048 zero bytes. *)
   val empty : unit -> t
+  (** Empty repo: 2048 zero bytes. *)
 
+  val of_state : string -> t
   (** Copy of a persisted 2048-byte state. Raises [Invalid] if [s] is
       the wrong length. *)
-  val of_state : string -> t
 
-  (** Independent copy of [t]. *)
   val copy : t -> t
+  (** Independent copy of [t]. *)
 
-  (** Current 2048-byte buffer (copy). *)
   val state : t -> string
+  (** Current 2048-byte buffer (copy). *)
 
   val equal : t -> t -> bool
   val is_empty : t -> bool
 
+  val element : collection:string -> rkey:string -> record_cid:string -> string
   (** UTF-8 record identifier [{collection}/{rkey}/{record_cid}] from
       proposal 0016. Components are currently ASCII. *)
-  val element :
-    collection:string -> rkey:string -> record_cid:string -> string
 
+  val blake3_xof : string -> int -> string
   (** Unkeyed BLAKE3 XOF (proposal 0016 step 1). Record expansion uses
       [out_len = state_bytes]. *)
-  val blake3_xof : string -> int -> string
 
+  val add : t -> string -> t
   (** New state with [element] added lane-wise modulo [2^16]. [h] is
       unchanged. *)
-  val add : t -> string -> t
 
+  val remove : t -> string -> t
   (** New state with [element] subtracted lane-wise modulo [2^16]. [h]
       is unchanged. *)
-  val remove : t -> string -> t
 
-  (** Commit digest: [sha256] of the 2048-byte state (32 raw bytes). *)
   val hash : t -> string
+  (** Commit digest: [sha256] of the 2048-byte state (32 raw bytes). *)
 end = struct
   (** Number of little-endian unsigned 16-bit lanes. *)
   let lanes = 1024
@@ -192,8 +191,7 @@ end = struct
     let first8 words = Array.sub words 0 8
 
     let chaining_value (out : output) =
-      first8
-        (compress out.cv out.block out.counter out.block_len out.flags)
+      first8 (compress out.cv out.block out.counter out.block_len out.flags)
 
     let root_output_bytes (out : output) out_len =
       let buf = Bytes.create out_len in
@@ -211,11 +209,11 @@ end = struct
               if remaining >= 4 then (
                 set_u32_le buf pos words.(w);
                 write (w + 1) (pos + 4))
-              else (
+              else
                 let tmp = Bytes.create 4 in
                 set_u32_le tmp 0 words.(w);
                 Bytes.blit tmp 0 buf pos remaining;
-                pos + remaining)
+                pos + remaining
           in
           loop (i + 1) (write 0 pos)
       in
@@ -230,8 +228,7 @@ end = struct
           let block = words_of_block chunk off block_len in
           let start = if blocks_compressed = 0 then chunk_start else 0 in
           let cv =
-            first8
-              (compress cv block chunk_counter block_len (flags lor start))
+            first8 (compress cv block chunk_counter block_len (flags lor start))
           in
           go cv (blocks_compressed + 1) (off + block_len)
         else
@@ -252,7 +249,7 @@ end = struct
         cv = Array.copy iv;
         block = Array.append left_cv right_cv;
         counter = 0L;
-        block_len = block_len;
+        block_len;
         flags = parent;
       }
 
@@ -298,12 +295,10 @@ end = struct
       go [] 0L 0
   end
 
-  let get_u16_le s off =
-    Char.code s.[off] lor (Char.code s.[off + 1] lsl 8)
+  let get_u16_le s off = Char.code s.[off] lor (Char.code s.[off + 1] lsl 8)
 
   let get_u16_le_bytes b off =
-    Char.code (Bytes.get b off)
-    lor (Char.code (Bytes.get b (off + 1)) lsl 8)
+    Char.code (Bytes.get b off) lor (Char.code (Bytes.get b (off + 1)) lsl 8)
 
   let set_u16_le buf off n =
     Bytes.set buf off (Char.chr (n land 0xff));

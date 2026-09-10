@@ -27,7 +27,10 @@ let test_empty _ =
     (String.length (Lt_hash.state h));
   OUnit2.assert_equal ~printer:string_of_int Lt_hash.lanes 1024;
   OUnit2.assert_bool "empty state" (Lt_hash.is_empty h);
-  OUnit2.assert_equal ~printer:(fun x -> x) empty_hash_hex (hex (Lt_hash.hash h));
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    empty_hash_hex
+    (hex (Lt_hash.hash h));
   OUnit2.assert_equal ~printer:string_of_int 32 (String.length (Lt_hash.hash h))
 
 let test_add_then_remove _ =
@@ -35,13 +38,18 @@ let test_add_then_remove _ =
   OUnit2.assert_bool "non-empty after add" (not (Lt_hash.is_empty h));
   let h = Lt_hash.remove h "a" in
   OUnit2.assert_bool "empty after remove" (Lt_hash.is_empty h);
-  OUnit2.assert_equal ~printer:(fun x -> x) empty_hash_hex (hex (Lt_hash.hash h))
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    empty_hash_hex
+    (hex (Lt_hash.hash h))
 
 let test_order_independent _ =
   let a = Lt_hash.add (Lt_hash.add (Lt_hash.empty ()) "a") "b" in
   let b = Lt_hash.add (Lt_hash.add (Lt_hash.empty ()) "b") "a" in
   OUnit2.assert_bool "equal states" (Lt_hash.equal a b);
-  OUnit2.assert_equal ~printer:(fun x -> x) (hex (Lt_hash.hash a))
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    (hex (Lt_hash.hash a))
     (hex (Lt_hash.hash b))
 
 let test_distinguishes _ =
@@ -67,7 +75,8 @@ let test_add_does_not_mutate _ =
 
 let test_of_state_roundtrip _ =
   let a = Lt_hash.add (Lt_hash.add (Lt_hash.empty ()) "a") "b" in
-  OUnit2.assert_bool "resume" (Lt_hash.equal (Lt_hash.of_state (Lt_hash.state a)) a)
+  OUnit2.assert_bool "resume"
+    (Lt_hash.equal (Lt_hash.of_state (Lt_hash.state a)) a)
 
 let test_of_state_wrong_length _ =
   OUnit2.assert_raises
@@ -98,7 +107,9 @@ let test_copy _ =
 
 let test_snapshot_vector _ =
   let h = Lt_hash.add (Lt_hash.add (Lt_hash.empty ()) "one") "two" in
-  OUnit2.assert_equal ~printer:(fun x -> x) one_two_hash_hex
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
+    one_two_hash_hex
     (hex (Lt_hash.hash h))
 
 let test_blake3_abc _ =
@@ -115,7 +126,8 @@ let test_blake3_tree _ =
   OUnit2.assert_equal ~printer:(fun x -> x) blake3_1025_zeros_hex (hex d)
 
 let test_element _ =
-  OUnit2.assert_equal ~printer:(fun x -> x)
+  OUnit2.assert_equal
+    ~printer:(fun x -> x)
     "app.bsky.feed.post/3jzfcijpj2z2a/bafyreia"
     (Lt_hash.element ~collection:"app.bsky.feed.post" ~rkey:"3jzfcijpj2z2a"
        ~record_cid:"bafyreia");
