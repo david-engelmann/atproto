@@ -31,6 +31,7 @@ open Atproto.Hash
 open Atproto.Lt_hash
 open Atproto.At_uri
 open Atproto.Space_commit
+open Atproto.Space_credential
 open Atproto.Varint
 open Atproto.Syntax
 open Atproto.Temp
@@ -1439,6 +1440,19 @@ let () =
   in
   assert (String.sub ctx_bytes 0 16 = "atproto-space-v1");
   assert (String.length ctx_bytes = 134);
+  assert (
+    Space_credential.space_host_aud "did:example:space"
+    = "did:example:space#atproto_space_host");
+  assert (Space_credential.delegation_typ = "atproto-space-delegation+jwt");
+  assert (Space_credential.credential_typ = "atproto-space-credential+jwt");
+  assert (
+    Space_credential.get_delegation_token_body
+      ~space:"at://did:example:space/space/app.bsky.group/test"
+    = [ ("space", "at://did:example:space/space/app.bsky.group/test") ]);
+  assert (
+    Space_credential.get_space_credential_htu
+      ~origin:"https://space.example.com"
+    = "https://space.example.com/xrpc/com.atproto.space.getSpaceCredential");
   let n, _ = Varint.decode (Varint.encode 128) in
   assert (n = 128);
   assert (Syntax.is_valid_nsid "app.bsky.video.uploadVideo");

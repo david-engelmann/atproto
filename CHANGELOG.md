@@ -28,18 +28,29 @@ traced; they are not a substitute for `git log`.
   `HMAC-SHA256(HKDF-Expand(ikm, ctx, 32), hash)` (expand-only);
   `sig` = ES256 / ES256K over `sha256(ctx)` (low-S). `of_lt_hash`
   wires `Lt_hash.hash`. Official `encodeCommitCtx` inputs from
-  bluesky-social/atproto#5187. **Not a stable spaces product API**
-  (credentials, `com.atproto.space.*` XRPC, and sync stay deferred
-  until 0016 stabilizes). No space host is started or stubbed.
-  Package version stays **1.0.0**
+  bluesky-social/atproto#5187
+- Experimental space-credential materials (`Space_credential`):
+  delegation JWT (`typ` =
+  `atproto-space-delegation+jwt`, `iss`/`sub`/`aud`/`iat`/`exp`/`jti`,
+  `kid` `#atproto`), space credential (`typ` =
+  `atproto-space-credential+jwt`, no `aud`, `cnf.jkt` DPoP binding),
+  optional client-attestation JWT shape (`typ` =
+  `atproto-client-attestation+jwt`, `iss`=`sub`=`client_id`). Sign/verify
+  reuse service-auth ES256/ES256K. DPoP helpers reuse `Oauth` (RFC 9449
+  `dpop+jwt`, RFC 7638 `jkt`, `ath` = base64url(sha256(credential)); no
+  DPoP nonce). Offline fixtures from bluesky-social/atproto#5187.
+  **Not a stable spaces product API** (`com.atproto.space.*` XRPC and
+  sync stay deferred). No space host is started or stubbed. Package
+  version stays **1.0.0**
 
 ### Notes
 
 - No lexicon pin bump. Official lexicons stay bluesky-social/atproto
   [`f0d4877a`](https://github.com/bluesky-social/atproto/commit/f0d4877a03dc8ede0d3e9a36d5b72ada63b5d2e0).
 - Hosted-only products stay listed, not faked (see the 1.0.0 Notes
-  below). The 0016 spaces surface (credentials / XRPC / sync) is
-  still deferred; experimental URI + commit encode/verify landed.
+  below). The 0016 spaces surface (`com.atproto.space.*` XRPC / sync)
+  is still deferred; experimental URI + commit + credential JWT / DPoP
+  helpers landed.
 
 ## [1.0.0] - 2026-09-09
 
