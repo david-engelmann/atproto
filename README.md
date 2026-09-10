@@ -68,7 +68,7 @@ Pushes to `main` deploy odoc with GitHub Actions Pages. Pull requests also uploa
 
 Each row is a starting point. Function-level detail lives in [odoc](https://david-engelmann.github.io/atproto/); release-by-release depth is in the [CHANGELOG](CHANGELOG.md).
 
-| Area | Modules | What it is for |
+| Area | Modules | Purpose |
 | --- | --- | --- |
 | Session | `Auth`, `Session`, `Server` | App-password sessions, app passwords, invites, email, `getServiceAuth` |
 | Identity | `Identity`, `Did_plc`, `Did_web`, `Did_key` | Handle / DID resolve, PLC directory, `did:web` / `did:key` |
