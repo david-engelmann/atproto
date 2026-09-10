@@ -1443,10 +1443,8 @@ let () =
   assert (
     Space_credential.space_host_aud "did:example:space"
     = "did:example:space#atproto_space_host");
-  assert (
-    Space_credential.delegation_typ = "atproto-space-delegation+jwt");
-  assert (
-    Space_credential.credential_typ = "atproto-space-credential+jwt");
+  assert (Space_credential.delegation_typ = "atproto-space-delegation+jwt");
+  assert (Space_credential.credential_typ = "atproto-space-credential+jwt");
   assert (
     Space_credential.get_delegation_token_body
       ~space:"at://did:example:space/space/app.bsky.group/test"
