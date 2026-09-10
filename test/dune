@@ -58,8 +58,8 @@
   test_server
   test_session
   test_site
-  test_space
   test_space_commit
+  test_space_xrpc
   test_space_credential
   test_sync
   test_syntax
@@ -151,8 +151,8 @@
   test_server
   test_session
   test_site
-  test_space
   test_space_commit
+  test_space_xrpc
   test_space_credential
   test_sync
   test_syntax

@@ -41,7 +41,7 @@ traced; they are not a substitute for `git log`.
   DPoP nonce). Offline fixtures from bluesky-social/atproto#5187.
   **Not a stable spaces product API**. No space host is started or
   stubbed. Package version stays **1.0.0**
-- Experimental `Space` XRPC client (proposal 0016 § XRPC API /
+- Experimental `Space_xrpc` client (proposal 0016 § XRPC API /
   bluesky-social/atproto#5187 draft lexicons): typed query / JSON
   bodies and `Client.get_json` / `post_json` / `get_text` wrappers for
   `getDelegationToken`, `getSpaceCredential` (reuses
@@ -63,7 +63,7 @@ traced; they are not a substitute for `git log`.
   [`f0d4877a`](https://github.com/bluesky-social/atproto/commit/f0d4877a03dc8ede0d3e9a36d5b72ada63b5d2e0).
 - Hosted-only products stay listed, not faked (see the 1.0.0 Notes
   below). Experimental 0016 helpers now include URI + commit +
-  credential JWT / DPoP + draft `com.atproto.space.*` XRPC wrappers.
+  credential JWT / DPoP + draft `Space_xrpc` wrappers.
   `simplespace` management and a space host stay deferred.
 
 ## [1.0.0] - 2026-09-09

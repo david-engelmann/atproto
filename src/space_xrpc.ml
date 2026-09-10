@@ -39,7 +39,7 @@ open Space_credential
     [registerNotify] [repo] (proposal prose; not in the \#5187
     lexicon); [space:] OAuth scope grammar; applying [listRepoOps] /
     two-root CAR locally (the XRPC wrappers land). *)
-module Space = struct
+module Space_xrpc = struct
   let nsid_prefix = "com.atproto.space."
   let get_delegation_token_nsid = Space_credential.get_delegation_token_nsid
   let get_space_credential_nsid = Space_credential.get_space_credential_nsid

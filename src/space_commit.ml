@@ -26,8 +26,8 @@ let ensure_rng = lazy (Mirage_crypto_rng_unix.use_default ())
     same construction as public repo commits.
 
     The proposal is not final; this module may change and is {e not} a
-    stable spaces product API. XRPC wrappers live in [Space]. This
-    repo does not start or stub a space host. *)
+    stable spaces product API. XRPC wrappers live in [Space_xrpc].
+    This repo does not start or stub a space host. *)
 module Space_commit : sig
   val version : int
   (** Commit format version (currently [1]). *)

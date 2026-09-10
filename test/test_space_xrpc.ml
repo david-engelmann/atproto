@@ -1,5 +1,5 @@
 open OUnit2
-open Atproto.Space
+open Atproto.Space_xrpc
 open Atproto.Space_commit
 open Atproto.Space_credential
 open Atproto.Base64url
@@ -32,38 +32,40 @@ let json_bool_opt json field =
 let test_nsids _ =
   OUnit2.assert_equal
     ~printer:(fun x -> x)
-    "com.atproto.space." Space.nsid_prefix;
+    "com.atproto.space." Space_xrpc.nsid_prefix;
   OUnit2.assert_equal
     ~printer:(fun x -> x)
-    "com.atproto.space.getDelegationToken" Space.get_delegation_token_nsid;
+    "com.atproto.space.getDelegationToken" Space_xrpc.get_delegation_token_nsid;
   OUnit2.assert_equal
     ~printer:(fun x -> x)
-    Space_credential.get_space_credential_nsid Space.get_space_credential_nsid;
+    Space_credential.get_space_credential_nsid
+    Space_xrpc.get_space_credential_nsid;
   OUnit2.assert_equal
     ~printer:(fun x -> x)
-    "com.atproto.space.getRecord" Space.get_record_nsid;
+    "com.atproto.space.getRecord" Space_xrpc.get_record_nsid;
   OUnit2.assert_equal
     ~printer:(fun x -> x)
-    "com.atproto.space.listRepoOps" Space.list_repo_ops_nsid;
+    "com.atproto.space.listRepoOps" Space_xrpc.list_repo_ops_nsid;
   OUnit2.assert_equal
     ~printer:(fun x -> x)
-    "com.atproto.space.applyWrites" Space.apply_writes_nsid;
+    "com.atproto.space.applyWrites" Space_xrpc.apply_writes_nsid;
   OUnit2.assert_equal
     ~printer:(fun x -> x)
-    "com.atproto.space.notifyWrite" Space.notify_write_nsid;
+    "com.atproto.space.notifyWrite" Space_xrpc.notify_write_nsid;
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "com.atproto.space.getRecord"
-    (Space.create_space_endpoint "getRecord")
+    (Space_xrpc.create_space_endpoint "getRecord")
 
 let test_no_default_host _ =
-  OUnit2.assert_bool "no invented space host" (Space.space_host_from_env = None);
-  OUnit2.assert_bool "live hops off by default" (not Space.live_enabled)
+  OUnit2.assert_bool "no invented space host"
+    (Space_xrpc.space_host_from_env = None);
+  OUnit2.assert_bool "live hops off by default" (not Space_xrpc.live_enabled)
 
 let test_query_bodies _ =
   OUnit2.assert_equal
     [ ("space", space_uri) ]
-    (Space.get_delegation_token_body ~space:space_uri);
+    (Space_xrpc.get_delegation_token_body ~space:space_uri);
   OUnit2.assert_equal
     [
       ("space", space_uri);
@@ -71,47 +73,51 @@ let test_query_bodies _ =
       ("collection", collection);
       ("rkey", rkey);
     ]
-    (Space.get_record_body ~space:space_uri ~repo:repo_did ~collection ~rkey);
+    (Space_xrpc.get_record_body ~space:space_uri ~repo:repo_did ~collection
+       ~rkey);
   OUnit2.assert_equal
     [ ("space", space_uri); ("repo", repo_did) ]
-    (Space.get_latest_commit_body ~space:space_uri ~repo:repo_did);
+    (Space_xrpc.get_latest_commit_body ~space:space_uri ~repo:repo_did);
   let listed =
-    Space.list_records_body ~space:space_uri ~repo:repo_did ~collection
+    Space_xrpc.list_records_body ~space:space_uri ~repo:repo_did ~collection
       ~limit:10 ~cursor:"c1" ~reverse:true ~exclude_values:true ()
   in
   OUnit2.assert_equal (Some "true") (List.assoc_opt "excludeValues" listed);
   OUnit2.assert_equal (Some "10") (List.assoc_opt "limit" listed);
   OUnit2.assert_equal (Some collection) (List.assoc_opt "collection" listed);
   let ops =
-    Space.list_repo_ops_body ~space:space_uri ~repo:repo_did
+    Space_xrpc.list_repo_ops_body ~space:space_uri ~repo:repo_did
       ~since:"3jzfcijpj2z2a" ~exclude_values:true ()
   in
   OUnit2.assert_equal (Some "3jzfcijpj2z2a") (List.assoc_opt "since" ops);
   let blobs =
-    Space.list_blobs_body ~space:space_uri ~repo:repo_did ~since:"3jzfcijpj2z2a"
-      ~limit:20 ()
+    Space_xrpc.list_blobs_body ~space:space_uri ~repo:repo_did
+      ~since:"3jzfcijpj2z2a" ~limit:20 ()
   in
   OUnit2.assert_equal (Some "20") (List.assoc_opt "limit" blobs);
   OUnit2.assert_equal
     [ ("space", space_uri); ("repo", repo_did); ("cid", cid) ]
-    (Space.get_blob_body ~space:space_uri ~repo:repo_did ~cid);
+    (Space_xrpc.get_blob_body ~space:space_uri ~repo:repo_did ~cid);
   let repo_pairs =
-    Space.get_repo_body ~space:space_uri ~repo:repo_did ~exclude_values:true ()
+    Space_xrpc.get_repo_body ~space:space_uri ~repo:repo_did
+      ~exclude_values:true ()
   in
   OUnit2.assert_equal (Some "true") (List.assoc_opt "excludeValues" repo_pairs);
-  let repos = Space.list_repos_body ~space:space_uri ~limit:5 ~cursor:"n" () in
+  let repos =
+    Space_xrpc.list_repos_body ~space:space_uri ~limit:5 ~cursor:"n" ()
+  in
   OUnit2.assert_equal (Some "5") (List.assoc_opt "limit" repos);
   let spaces =
-    Space.list_spaces_body ~space_type:"app.bsky.group" ~did:"did:example:space"
-      ~limit:2 ()
+    Space_xrpc.list_spaces_body ~space_type:"app.bsky.group"
+      ~did:"did:example:space" ~limit:2 ()
   in
   OUnit2.assert_equal (Some "app.bsky.group") (List.assoc_opt "type" spaces);
   OUnit2.assert_equal (Some "did:example:space") (List.assoc_opt "did" spaces)
 
 let test_write_bodies _ =
   let created =
-    Space.create_record_body ~space:space_uri ~repo:repo_did ~collection ~rkey
-      ~validate:true record_json
+    Space_xrpc.create_record_body ~space:space_uri ~repo:repo_did ~collection
+      ~rkey ~validate:true record_json
   in
   OUnit2.assert_equal space_uri (json_string created "space");
   OUnit2.assert_equal repo_did (json_string created "repo");
@@ -121,24 +127,25 @@ let test_write_bodies _ =
   OUnit2.assert_equal "hi"
     (json_string (Yojson.Safe.Util.member "record" created) "text");
   let put =
-    Space.put_record_body ~space:space_uri ~repo:repo_did ~collection ~rkey
+    Space_xrpc.put_record_body ~space:space_uri ~repo:repo_did ~collection ~rkey
       record_json
   in
   OUnit2.assert_equal rkey (json_string put "rkey");
   OUnit2.assert_equal None (json_bool_opt put "validate");
   let deleted =
-    Space.delete_record_body ~space:space_uri ~repo:repo_did ~collection ~rkey
+    Space_xrpc.delete_record_body ~space:space_uri ~repo:repo_did ~collection
+      ~rkey
   in
   OUnit2.assert_equal rkey (json_string deleted "rkey");
   let writes =
     [
-      Space.Create { collection; rkey = Some rkey; value = record_json };
-      Space.Update { collection; rkey; value = record_json };
-      Space.Delete { collection; rkey };
+      Space_xrpc.Create { collection; rkey = Some rkey; value = record_json };
+      Space_xrpc.Update { collection; rkey; value = record_json };
+      Space_xrpc.Delete { collection; rkey };
     ]
   in
   let batch =
-    Space.apply_writes_body ~space:space_uri ~repo:repo_did ~writes
+    Space_xrpc.apply_writes_body ~space:space_uri ~repo:repo_did ~writes
       ~validate:false ()
   in
   OUnit2.assert_equal (Some false) (json_bool_opt batch "validate");
@@ -154,19 +161,19 @@ let test_write_bodies _ =
 
 let test_notify_bodies _ =
   let reg =
-    Space.register_notify_body ~space:space_uri
+    Space_xrpc.register_notify_body ~space:space_uri
       ~service:"did:web:syncer.example.com#atproto_space_syncer"
   in
   OUnit2.assert_equal space_uri (json_string reg "space");
   OUnit2.assert_equal "did:web:syncer.example.com#atproto_space_syncer"
     (json_string reg "service");
   let unreg =
-    Space.unregister_notify_body ~space:space_uri
+    Space_xrpc.unregister_notify_body ~space:space_uri
       ~service:"did:web:syncer.example.com#atproto_space_syncer"
   in
   OUnit2.assert_equal space_uri (json_string unreg "space");
   let nw =
-    Space.notify_write_body ~space:space_uri ~repo:repo_did ~rev:rkey
+    Space_xrpc.notify_write_body ~space:space_uri ~repo:repo_did ~rev:rkey
       ~hash:digest32
   in
   OUnit2.assert_equal rkey (json_string nw "rev");
@@ -174,7 +181,7 @@ let test_notify_bodies _ =
   | `Assoc [ ("$bytes", `String b64) ] ->
       OUnit2.assert_equal digest32 (Base64url.decode b64)
   | _ -> OUnit2.assert_failure "notifyWrite hash must be $bytes");
-  let deleted = Space.notify_space_deleted_body ~space:space_uri in
+  let deleted = Space_xrpc.notify_space_deleted_body ~space:space_uri in
   OUnit2.assert_equal space_uri (json_string deleted "space")
 
 let test_rejects_record_uri _ =
@@ -182,22 +189,24 @@ let test_rejects_record_uri _ =
     space_uri ^ "/did:example:alice/app.bsky.feed.post/3jzfcijpj2z2a"
   in
   OUnit2.assert_raises
-    (Space.Invalid
+    (Space_xrpc.Invalid
        "getRecord space must be a space URI (through skey), not a record URI")
     (fun () ->
       ignore
-        (Space.get_record_body ~space:record ~repo:repo_did ~collection ~rkey))
+        (Space_xrpc.get_record_body ~space:record ~repo:repo_did ~collection
+           ~rkey))
 
 let test_htu _ =
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     "https://pds.example.com/xrpc/com.atproto.space.getRepo"
-    (Space.xrpc_htu ~host:"pds.example.com" Space.get_repo_nsid);
+    (Space_xrpc.xrpc_htu ~host:"pds.example.com" Space_xrpc.get_repo_nsid);
   OUnit2.assert_equal
     ~printer:(fun x -> x)
     (Space_credential.get_space_credential_htu
        ~origin:"https://space.example.com")
-    (Space.xrpc_htu ~host:"space.example.com" Space.get_space_credential_nsid)
+    (Space_xrpc.xrpc_htu ~host:"space.example.com"
+       Space_xrpc.get_space_credential_nsid)
 
 let test_parse_record_and_list _ =
   let rec_json =
@@ -210,11 +219,11 @@ let test_parse_record_and_list _ =
         ("value", record_json);
       ]
   in
-  let got = Space.parse_record rec_json in
+  let got = Space_xrpc.parse_record rec_json in
   OUnit2.assert_equal cid got.cid;
   OUnit2.assert_equal "hi" (json_string got.value "text");
   let listed =
-    Space.parse_listed_records
+    Space_xrpc.parse_listed_records
       (`Assoc
         [
           ("cursor", `String "next");
@@ -249,15 +258,15 @@ let test_parse_ops_and_commit _ =
         ("rev", `String rkey);
       ]
   in
-  let commit = Space.parse_signed_commit commit_json in
+  let commit = Space_xrpc.parse_signed_commit commit_json in
   OUnit2.assert_equal 1 commit.Space_commit.ver;
   OUnit2.assert_equal digest32 commit.Space_commit.hash;
   OUnit2.assert_equal rkey commit.Space_commit.rev;
-  let round = Space.signed_commit_to_json commit in
-  let again = Space.parse_signed_commit round in
+  let round = Space_xrpc.signed_commit_to_json commit in
+  let again = Space_xrpc.parse_signed_commit round in
   OUnit2.assert_equal commit.Space_commit.mac again.Space_commit.mac;
   let ops =
-    Space.parse_listed_ops
+    Space_xrpc.parse_listed_ops
       (`Assoc
         [
           ( "ops",
@@ -289,7 +298,7 @@ let test_parse_ops_and_commit _ =
   OUnit2.assert_equal None (List.nth ops.ops 1).cid;
   OUnit2.assert_bool "commit present" (Option.is_some ops.commit);
   let repos =
-    Space.parse_listed_repos
+    Space_xrpc.parse_listed_repos
       (`Assoc
         [
           ( "repos",
@@ -306,12 +315,12 @@ let test_parse_ops_and_commit _ =
   in
   OUnit2.assert_equal digest32 (List.hd repos.repos).hash;
   let spaces =
-    Space.parse_listed_spaces
+    Space_xrpc.parse_listed_spaces
       (`Assoc [ ("spaces", `List [ `Assoc [ ("uri", `String space_uri) ] ]) ])
   in
   OUnit2.assert_equal space_uri (List.hd spaces.spaces).uri;
   let write =
-    Space.parse_write_result
+    Space_xrpc.parse_write_result
       (`Assoc
         [
           ("uri", `String "at://x");
@@ -322,18 +331,19 @@ let test_parse_ops_and_commit _ =
   OUnit2.assert_equal (Some "valid") write.validation_status
 
 let test_credential_bodies_shared _ =
-  let body = Space.get_space_credential_body ~space:space_uri () in
+  let body = Space_xrpc.get_space_credential_body ~space:space_uri () in
   OUnit2.assert_equal space_uri (json_string body "space");
   OUnit2.assert_equal
     (Space_credential.get_space_credential_body ~space:space_uri ())
     body
 
 let test_live_skips_without_host _ =
-  skip_if (not Space.live_enabled)
+  skip_if
+    (not Space_xrpc.live_enabled)
     "ATP_SPACE / ATP_SPACE_HOST not set; no space host (not faked)";
   (* Reaching here means the operator pointed at a real host. A missing
      draft NSID still fails rather than inventing a product. *)
-  match Space.space_host_from_env with
+  match Space_xrpc.space_host_from_env with
   | None -> OUnit2.assert_failure "live_enabled requires ATP_SPACE_HOST"
   | Some host ->
       OUnit2.assert_bool "space host is non-empty" (String.trim host <> "")

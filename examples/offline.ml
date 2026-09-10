@@ -1454,7 +1454,7 @@ let () =
       ~origin:"https://space.example.com"
     = "https://space.example.com/xrpc/com.atproto.space.getSpaceCredential");
   assert (
-    Atproto.Space.Space.get_record_body
+    Atproto.Space_xrpc.Space_xrpc.get_record_body
       ~space:"at://did:example:space/space/app.bsky.group/test"
       ~repo:"did:example:alice" ~collection:"app.bsky.feed.post"
       ~rkey:"3jzfcijpj2z2a"
@@ -1464,7 +1464,7 @@ let () =
         ("collection", "app.bsky.feed.post");
         ("rkey", "3jzfcijpj2z2a");
       ]);
-  assert (not Atproto.Space.Space.live_enabled);
+  assert (not Atproto.Space_xrpc.Space_xrpc.live_enabled);
   let n, _ = Varint.decode (Varint.encode 128) in
   assert (n = 128);
   assert (Syntax.is_valid_nsid "app.bsky.video.uploadVideo");

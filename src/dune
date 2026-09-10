@@ -83,8 +83,8 @@
   Server
   Session
   Site
-  Space
   Space_commit
+  Space_xrpc
   Space_credential
   Sync
   Syntax

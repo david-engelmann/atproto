@@ -75,7 +75,7 @@ MST / CID / CAR
 
 Experimental permissioned-data digest / commits / credentials / XRPC (proposal 0016; not a spaces product)
 
-{!modules: Atproto.Lt_hash Atproto.Space_commit Atproto.Space_credential Atproto.Space}
+{!modules: Atproto.Lt_hash Atproto.Space_commit Atproto.Space_credential Atproto.Space_xrpc}
 
 TID / AT URI / syntax
 
