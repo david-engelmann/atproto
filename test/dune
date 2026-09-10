@@ -59,6 +59,7 @@
   test_session
   test_site
   test_space_commit
+  test_space_credential
   test_sync
   test_syntax
   test_temp
@@ -150,6 +151,7 @@
   test_session
   test_site
   test_space_commit
+  test_space_credential
   test_sync
   test_syntax
   test_temp
