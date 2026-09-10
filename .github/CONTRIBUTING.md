@@ -1,11 +1,10 @@
 # Contributing
 
-Pull requests are welcome. **1.0.1** is tagged; package version on
-this tree is **1.0.2**. The public opam package is
-[ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703)
-(`opam install atproto` after that merges; a 1.0.2 publish
-supersedes it). Pin the GitHub repository for development. Product
-docs for third-party users are in [README.md](../README.md) and
+Pull requests are welcome. Package version on this tree is **1.0.2**.
+The next opam submit is **atproto.1.0.2** (new PR after tag; it
+supersedes ocaml/opam-repository#30703). Pin the GitHub repository
+for development. Product docs for third-party users are in
+[README.md](../README.md) and
 https://david-engelmann.github.io/atproto/.
 
 ## Toolchain

@@ -17,9 +17,9 @@ labels: ""
 **Command and output**
 Paste the command and the error.
 
-**1.0.1** is released. `opam install atproto` after
-[ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703)
-merges. Until then, pin this repository:
+**1.0.2** is the packaged surface. `opam install atproto` after
+**atproto.1.0.2** lands on opam-repository. Until then, pin this
+repository:
 
 ```shell
 opam install atproto
