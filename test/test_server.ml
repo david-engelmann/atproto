@@ -306,6 +306,7 @@ let test_server_query_bodies _ =
        ~lxm:"com.atproto.repo.uploadBlob" ~exp:1_700_000_000L ())
 
 let test_describe_server_public _ =
+  Public_live.skip_unless_public ();
   try
     with_public_timeout (fun () ->
         let desc = Server.describe_server_parsed ~host:"bsky.social" () in

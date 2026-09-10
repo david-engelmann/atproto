@@ -429,6 +429,7 @@ let test_archive_token_env _ =
   OUnit2.assert_bool "no invented token in the empty getenv path" true
 
 let test_snapshot_gated_live _ =
+  Public_live.skip_unless_public ();
   let old =
     Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
   in
@@ -495,6 +496,7 @@ let with_alarm seconds f =
     f
 
 let test_subscribe_live _ =
+  Public_live.skip_unless_public ();
   with_alarm 20 (fun () ->
       try
         let ev = Jetstream.subscribe_one ~filter:live_post_filter () in
@@ -502,6 +504,7 @@ let test_subscribe_live _ =
       with exn -> skip_or_fail_live "jetstream" exn)
 
 let test_subscribe_one_subprotocol_live _ =
+  Public_live.skip_unless_public ();
   with_alarm 20 (fun () ->
       let headers = Jetstream.subscribe_extra_headers () in
       OUnit2.assert_equal [ ("Sec-WebSocket-Protocol", "xrpc.v1.json") ] headers;
@@ -628,6 +631,7 @@ let test_jss_walk_dict_zstd _ =
   OUnit2.assert_equal ~printer:Int64.to_string 7L (List.hd walked).seq
 
 let test_get_zstd_dictionary_live _ =
+  Public_live.skip_unless_public ();
   let old =
     Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
   in
@@ -648,6 +652,7 @@ let test_get_zstd_dictionary_live _ =
         skip_if true ("getZstdDictionary skipped: " ^ Printexc.to_string exn))
 
 let test_subscribe_one_compress_live _ =
+  Public_live.skip_unless_public ();
   let old =
     Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
   in

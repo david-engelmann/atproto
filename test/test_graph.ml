@@ -448,6 +448,7 @@ let test_parse_relationships _ =
     | None -> false)
 
 let test_relationships_live _ =
+  Public_live.skip_unless_public ();
   try
     with_public_timeout (fun () ->
         let rels =
@@ -459,6 +460,7 @@ let test_relationships_live _ =
     skip_if true ("getRelationships skipped: " ^ Printexc.to_string exn)
 
 let test_search_starter_packs_live _ =
+  Public_live.skip_unless_public ();
   try
     with_public_timeout (fun () ->
         let packs = Graph.search_starter_packs ~q:"bluesky" ~limit:3 () in
@@ -723,6 +725,7 @@ let test_parse_suggested_follows_rec_id_str _ =
   OUnit2.assert_equal None no_rec.rec_id
 
 let test_search_starter_packs_v2_live _ =
+  Public_live.skip_unless_public ();
   try
     with_public_timeout (fun () ->
         let packs = Graph.search_starter_packs_v2 ~q:"bluesky" ~limit:3 () in

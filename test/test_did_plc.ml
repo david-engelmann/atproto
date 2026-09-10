@@ -436,6 +436,7 @@ let test_unsigned_omits_sig _ =
   OUnit2.assert_bool "sig must change the signed CBOR" (unsigned <> signed_cbor)
 
 let test_resolve_live _ =
+  Public_live.skip_unless_public ();
   try
     let doc = Did_plc.resolve "did:plc:z72i7hdynmk6r22z27h6tvur" in
     OUnit2.assert_equal
@@ -447,6 +448,7 @@ let test_resolve_live _ =
     skip_if true ("plc.directory request skipped: " ^ Printexc.to_string exn)
 
 let test_live_chain_structure _ =
+  Public_live.skip_unless_public ();
   let did = "did:plc:z72i7hdynmk6r22z27h6tvur" in
   let ops =
     try Did_plc.resolve_log did

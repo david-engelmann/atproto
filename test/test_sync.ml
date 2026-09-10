@@ -34,6 +34,7 @@ let public_pds_host ident =
   | None -> "bsky.social"
 
 let test_get_latest_commit_public _ =
+  Public_live.skip_unless_public ();
   try
     with_public_timeout (fun () ->
         let ident = public_actor () in
@@ -47,6 +48,7 @@ let test_get_latest_commit_public _ =
     skip_if true ("getLatestCommit skipped: " ^ Printexc.to_string exn)
 
 let test_list_blobs_public _ =
+  Public_live.skip_unless_public ();
   try
     with_public_timeout (fun () ->
         let ident = public_actor () in
@@ -202,6 +204,7 @@ let test_get_blocks_url _ =
      contains 0)
 
 let test_get_record_proof_public _ =
+  Public_live.skip_unless_public ();
   try
     with_public_timeout (fun () ->
         let ident = public_actor () in
@@ -217,6 +220,7 @@ let test_get_record_proof_public _ =
     skip_if true ("getRecord proof skipped: " ^ Printexc.to_string exn)
 
 let test_get_repo_status_public _ =
+  Public_live.skip_unless_public ();
   try
     with_public_timeout (fun () ->
         let ident = public_actor () in

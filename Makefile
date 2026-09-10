@@ -21,6 +21,11 @@ clean:
 test:
 	dune runtest
 
+# Unauthenticated public-internet hops (plc.directory / AppView / PDS).
+# Default `make test` / opam with-test leave ATP_PUBLIC unset.
+test-public:
+	ATP_PUBLIC=1 dune runtest
+
 # Repo-drift gate (not @runtest / opam with-test). CI runs this alias.
 lexicon-coverage:
 	dune build @lexicon-coverage
@@ -65,4 +70,4 @@ test-pds-run test-atproto-run:
 	dune exec -- test/test_local_ozone.exe; \
 	dune exec -- test/test_local_oauth.exe
 
-.PHONY: default install uninstall reinstall lint clean test lexicon-coverage doc pds-up pds-down pds-account pds-logs atproto-up atproto-down atproto-account atproto-logs test-pds test-atproto test-pds-run test-atproto-run
+.PHONY: default install uninstall reinstall lint clean test test-public lexicon-coverage doc pds-up pds-down pds-account pds-logs atproto-up atproto-down atproto-account atproto-logs test-pds test-atproto test-pds-run test-atproto-run

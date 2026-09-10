@@ -108,6 +108,7 @@ let test_response_helpers _ =
   OUnit2.assert_bool "204 is success" made.success
 
 let test_getaddrinfo _ =
+  Public_live.skip_unless_public ();
   let open Lwt.Infix in
   try
     Lwt_main.run
@@ -117,6 +118,7 @@ let test_getaddrinfo _ =
   with exn -> skip_if true ("getaddrinfo skipped: " ^ Printexc.to_string exn)
 
 let test_live_h2_xrpc _ =
+  Public_live.skip_unless_public ();
   try
     let resp =
       Lwt_main.run
@@ -136,6 +138,7 @@ let test_live_h2_xrpc _ =
   with exn -> skip_if true ("HTTP/2 XRPC skipped: " ^ Printexc.to_string exn)
 
 let test_live_h2_post_status _ =
+  Public_live.skip_unless_public ();
   try
     let resp =
       Lwt_main.run

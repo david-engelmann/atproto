@@ -133,6 +133,7 @@ let test_policies_to_json _ =
    |> to_string)
 
 let test_get_services_live _ =
+  Public_live.skip_unless_public ();
   try
     with_public_timeout (fun () ->
         let svcs =

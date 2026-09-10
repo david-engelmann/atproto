@@ -55,6 +55,10 @@ jobs:
         env:
           ATP_AUTH: ${{ secrets.ATP_AUTH }}
           ATP_HOST: ${{ secrets.ATP_HOST }}
+      # ATP_PUBLIC is intentionally unset: public-internet hops
+      # (plc.directory / AppView / public PDS) stay opt-in so this
+      # job matches opam with-test. Re-run them via PublicLive
+      # (workflow_dispatch) or `make test-public`.
       - name: Dune Test
         run: opam exec -- dune runtest -p atproto 2>&1 | tee dune_runtest.log
         env:

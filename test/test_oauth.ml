@@ -658,6 +658,7 @@ let test_metadata_optional_uris _ =
   OUnit2.assert_equal (Some "https://client.example/policy") parsed.policy_uri
 
 let test_live_as_metadata _ =
+  Public_live.skip_unless_public ();
   let old =
     Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
   in

@@ -460,6 +460,7 @@ let test_parse_wss_url _ =
        })
 
 let test_subscribe_live _ =
+  Public_live.skip_unless_public ();
   let old =
     Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
   in
@@ -479,6 +480,7 @@ let test_subscribe_live _ =
         skip_if true ("subscribeRepos skipped: " ^ Printexc.to_string exn))
 
 let test_subscribe_invert_live _ =
+  Public_live.skip_unless_public ();
   let old =
     Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
   in

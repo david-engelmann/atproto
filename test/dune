@@ -5,6 +5,13 @@
 ; Packaged unit tests: @runtest / `dune build -p atproto @runtest` /
 ; opam with-test. Official NSID coverage is @lexicon-coverage (CI-only).
 
+; Private helper (not installed). [Public_live.skip_unless_public]
+; gates plc.directory / AppView / public PDS hops behind ATP_PUBLIC.
+(library
+ (name public_live)
+ (modules public_live)
+ (libraries ounit2 atproto))
+
 (tests
  (package atproto)
  (flags
@@ -102,7 +109,8 @@
   ounit2
   threads
   unix
-  atproto)
+  atproto
+  public_live)
  (modules
   test_app
   test_actor

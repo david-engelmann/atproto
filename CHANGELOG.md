@@ -3,10 +3,13 @@
 All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Current package version is **1.0.1**, tagged at
+Current package version is **1.0.2** (`dune-project` / `atproto.opam`).
+This revision does **not** create a git tag or GitHub Release.
+Tagged **1.0.1** is at
 [`53ffbc2`](https://github.com/david-engelmann/atproto/releases/tag/1.0.1).
 The public opam package is
-[ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703).
+[ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703)
+(to be superseded after this cut).
 
 This file is the human-readable release history. PR numbers are
 included sparingly so a change can be traced; they are not a
@@ -56,6 +59,58 @@ proposal `registerNotify` `repo` (not in the #5187 lexicon).
   [`f0d4877a`](https://github.com/bluesky-social/atproto/commit/f0d4877a03dc8ede0d3e9a36d5b72ada63b5d2e0).
 - Hosted-only products stay listed, not faked (see the 1.0.0 Notes
   below).
+
+## [1.0.2] - 2026-09-10
+
+Packaging / opam-health cut so
+[ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703)
+can be superseded. `atproto.1.0.1` built, linted, and passed
+lower-bounds; almost every opam-ci `tests` job failed on
+public-network live hops (`identity:test_resolve_actor_live`,
+`did_plc:test_resolve_live` / `test_live_chain_structure`,
+`sync:test_list_blobs_public` / `test_get_record_proof_public`,
+`temp:test_check_handle_live`, `suite:test_search_starter_packs_*_live`,
+`unspecced:test_popular_live`, and the same class of AppView /
+firehose / Jetstream / did:web / HTTP/2 smokes). Those tests hit
+plc.directory / AppView / a public PDS and only `skip_if` on a
+caught exception. Partial success + assert, or a non-skip path,
+still failed the suite. Opam `with-test` must not depend on those
+hosts.
+
+This revision sets `dune-project` / `atproto.opam` to **1.0.2**. It
+does **not** create a git tag or GitHub Release and does **not**
+touch ocaml/opam-repository. Tagging and superseding #30703 remain
+maintainer follow-ups.
+
+No lexicon pin bump (official pin stays `f0d4877a`). Jane Street /
+OCaml bounds are unchanged. No fake hosts.
+
+### Added
+
+- `ATP_PUBLIC` opt-in for unauthenticated public-internet live hops
+  (`Auth.public_live_enabled`, shared `Public_live.skip_unless_public`).
+  Truthy values: `1` / `true` / `yes` / `on`. Default unset skips
+  those tests at the start. Local TestNetwork stays on
+  `ATP_LOCAL_PDS`. Credential hops stay on `ATP_AUTH`. Hosted-only
+  products stay on `ATP_SPACE` / `ATP_PHONE` / `ATP_PUSH` / `ATP_CHAT`
+
+### Changed
+
+- Package version `1.0.1` → `1.0.2` (`dune-project` /
+  `atproto.opam`)
+- `dune build -p atproto @runtest` / opam `with-test` is offline-safe
+  when `ATP_PUBLIC` is unset
+- GitHub Actions default TestSuite `build` does **not** set
+  `ATP_PUBLIC` (deterministic; no public hops). The previous default
+  suite ran those hops and skipped only on request failure. Re-run
+  them with `ATP_PUBLIC=1` locally (`make test-public`) or the
+  optional **PublicLive** workflow (`workflow_dispatch` only; not a
+  merge-when-green required check)
+
+### Notes
+
+- This does not touch ocaml/opam-repository
+- Experimental 0016 helpers stay under [Unreleased](#unreleased)
 
 ## [1.0.1] - 2026-09-10
 

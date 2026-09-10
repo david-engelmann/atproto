@@ -151,6 +151,7 @@ let test_subscribe_url _ =
     (Label.subscribe_url ~host:"localhost:2583" ~scheme:"wss" ())
 
 let test_subscribe_one_live _ =
+  Public_live.skip_unless_public ();
   let old =
     Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> failwith "timeout"))
   in

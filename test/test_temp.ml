@@ -105,6 +105,7 @@ let test_parse_signup_and_scope _ =
     (revoke |> member "account" |> to_string)
 
 let test_check_handle_live _ =
+  Public_live.skip_unless_public ();
   try
     with_public_timeout (fun () ->
         let check = Temp.check_handle_availability ~handle:"jay.bsky.team" () in
@@ -114,6 +115,7 @@ let test_check_handle_live _ =
     skip_if true ("checkHandleAvailability skipped: " ^ Printexc.to_string exn)
 
 let test_check_signup_queue_live _ =
+  Public_live.skip_unless_public ();
   try
     with_public_timeout (fun () ->
         let queue = Temp.check_signup_queue ~host:"bsky.social" () in
@@ -122,6 +124,7 @@ let test_check_signup_queue_live _ =
     skip_if true ("checkSignupQueue skipped: " ^ Printexc.to_string exn)
 
 let test_dereference_scope_live _ =
+  Public_live.skip_unless_public ();
   try
     with_public_timeout (fun () ->
         let deref =

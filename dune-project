@@ -1,6 +1,6 @@
 (lang dune 3.11)
 (name atproto)
-(version 1.0.1)
+(version 1.0.2)
 (generate_opam_files true)
 
 (license MIT)
