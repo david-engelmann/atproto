@@ -73,6 +73,10 @@ MST / CID / CAR
 
 {!modules: Atproto.Mst Atproto.Cid Atproto.Car Atproto.Dag_cbor Atproto.Repo_sync}
 
+Experimental permissioned-data digest (proposal 0016; not a spaces API)
+
+{!modules: Atproto.Lt_hash}
+
 TID / AT URI / syntax
 
 {!modules: Atproto.Tid Atproto.At_uri Atproto.Syntax}

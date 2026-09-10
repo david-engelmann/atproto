@@ -28,6 +28,7 @@ open Atproto.Repo
 open Atproto.Server
 open Atproto.Http_method
 open Atproto.Hash
+open Atproto.Lt_hash
 open Atproto.Varint
 open Atproto.Syntax
 open Atproto.Temp
@@ -1403,6 +1404,19 @@ let () =
   assert (lex.id = "com.example.ping");
   assert (Http_method.to_string Http_method.Get = "GET");
   assert (Hash.sha256_hex "abc" <> "");
+  (* experimental proposal-0016 LtHash — not a spaces API *)
+  assert (Lt_hash.is_empty (Lt_hash.empty ()));
+  assert (
+    Hash.hex_encode (Lt_hash.hash (Lt_hash.empty ()))
+    = "e5a00aa9991ac8a5ee3109844d84a55583bd20572ad3ffcd42792f3c36b183ad");
+  let one_two = Lt_hash.add (Lt_hash.add (Lt_hash.empty ()) "one") "two" in
+  assert (
+    Hash.hex_encode (Lt_hash.hash one_two)
+    = "ae05cb6d224379d9710c290c8529945c5b0e0fde9ead30b9699057ce701c63e7");
+  assert (
+    Lt_hash.element ~collection:"app.bsky.feed.post" ~rkey:"3jzfcijpj2z2a"
+      ~record_cid:"bafyreia"
+    = "app.bsky.feed.post/3jzfcijpj2z2a/bafyreia");
   let n, _ = Varint.decode (Varint.encode 128) in
   assert (n = 128);
   assert (Syntax.is_valid_nsid "app.bsky.video.uploadVideo");
