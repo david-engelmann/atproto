@@ -6,9 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Current package version is **1.0.2** (`dune-project` / `atproto.opam`).
 Tagged **1.0.1** is at
 [`53ffbc2`](https://github.com/david-engelmann/atproto/releases/tag/1.0.1).
-The next opam submit is **atproto.1.0.2** (new PR after tag;
-supersedes
-[ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703)).
+The next published package is **atproto.1.0.2**; it supersedes
+[ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703).
 
 This file is the human-readable release history. PR numbers are
 included sparingly so a change can be traced; they are not a
@@ -20,9 +19,8 @@ substitute for `git log`.
 
 Experimental permissioned-data / spaces helpers from proposal
 [0016](https://github.com/bluesky-social/proposals/blob/main/0016-permissioned-data/README.md).
-These modules landed on `main` before the 1.0.1 tag, so they are
-present in that tree, but they are **not a spaces product API**.
-The proposal is not final. This repo does not start or stub a
+Present on the 1.0.1 / 1.0.2 trees, but **not a spaces product API**.
+The proposal is not final. This library does not start or stub a
 space host. Live hops skip unless `ATP_SPACE=1` and
 `ATP_SPACE_HOST` names a real host.
 
@@ -61,9 +59,9 @@ live hops (PLC directory, AppView, public PDS, firehose / Jetstream)
 ran by default and only skipped on a caught exception.
 
 **1.0.2** makes `opam install -t` / `dune build -p atproto @runtest`
-offline-safe. The opam submit is **atproto.1.0.2** (new
-ocaml/opam-repository PR after tag). It supersedes #30703. This
-repository does not edit ocaml/opam-repository.
+offline-safe. The published package will be **atproto.1.0.2**; it
+supersedes
+[ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703).
 
 No lexicon pin bump (official pin stays `f0d4877a`). Jane Street /
 OCaml bounds are unchanged. No fake hosts.
@@ -90,6 +88,10 @@ OCaml bounds are unchanged. No fake hosts.
   ([#244](https://github.com/david-engelmann/atproto/pull/244)):
   README product pitch and module map, warmer odoc landing,
   `AGENTS.md`
+- Pin-first install, quick-start public-network note (`ATP_PUBLIC`
+  gates tests only), examples index includes
+  `examples/client-metadata.json`, LICENSE / Issues / SECURITY
+  links, and a product-pitch opam description
 
 ### Notes
 

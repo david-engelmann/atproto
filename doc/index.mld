@@ -6,9 +6,9 @@ read and write repositories, follow the firehose, and call AppView,
 Ozone, and hosted Bluesky products (chat, video, Jetstream).
 
 {b 1.0.2} is the packaged surface. Until {b atproto.1.0.2} lands on
-opam-repository, pin the GitHub repository; then [opam install
-atproto]. The narrative guide — install, quick start, hosted-product
-paths, and honest gaps — is the
+opam-repository, pin the GitHub repository; after it is published,
+[opam install atproto]. The narrative guide — install, quick start,
+hosted-product paths, and honest gaps — is the
 {{:https://github.com/david-engelmann/atproto#atproto}GitHub README}.
 Release notes are in
 {{:https://github.com/david-engelmann/atproto/blob/main/CHANGELOG.md}CHANGELOG.md}.
@@ -17,7 +17,8 @@ Public-internet live tests skip unless [ATP_PUBLIC=1]. Default
 
 {1 Start here}
 
-Neither call needs credentials:
+Those two OCaml lines need the {b public network} (no [ATP_AUTH]).
+[ATP_PUBLIC] only gates {e tests}, not this example.
 
 {[
 let did = (Identity.resolve_handle "jay.bsky.team").did
