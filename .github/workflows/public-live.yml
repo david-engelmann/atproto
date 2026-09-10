@@ -1,0 +1,58 @@
+# Optional public-internet live hops. Not part of default TestSuite
+# or merge-when-green. Default `build` leaves ATP_PUBLIC unset so
+# dune runtest / opam with-test stay offline-safe.
+#
+# Run from Actions → PublicLive → Run workflow, or locally:
+#   ATP_PUBLIC=1 dune runtest
+#   make test-public
+
+name: PublicLive
+
+on:
+  workflow_dispatch:
+
+jobs:
+  public-live:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-22.04
+        ocaml-compiler:
+          - 4.14.1
+
+    runs-on: ${{ matrix.os }}
+    env:
+      ATP_PUBLIC: "1"
+      ATP_AUTH: ${{ secrets.ATP_AUTH }}
+      ATP_HOST: ${{ secrets.ATP_HOST }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Install libzstd
+        run: .github/scripts/ci-install-libzstd.sh
+
+      - name: Use OCaml ${{ matrix.ocaml-compiler }}
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: ${{ matrix.ocaml-compiler }}
+          opam-disable-sandboxing: true
+
+      - name: Install package dependencies
+        run: opam install . --deps-only --with-test
+
+      - name: Dune Build
+        run: opam exec -- dune build -p atproto
+
+      - name: Public-internet live hops
+        run: opam exec -- dune runtest -p atproto 2>&1 | tee dune_public_live.log
+
+      - name: Upload Log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dune_public_live-${{ matrix.ocaml-compiler }}
+          path: dune_public_live.log
+          if-no-files-found: warn

@@ -23,6 +23,7 @@ let test_host_of_service_endpoint _ =
     (Identity.host_of_service_endpoint "https://pds.example.com/xrpc")
 
 let test_resolve_handle_live _ =
+  Public_live.skip_unless_public ();
   try
     with_public_timeout (fun () ->
         let resolved = Identity.resolve_handle "jay.bsky.team" in
@@ -43,6 +44,7 @@ let test_resolve_did_web_url_only _ =
     (Atproto.Did_web.Did_web.is_web_did "did:web:example.com")
 
 let test_resolve_actor_live _ =
+  Public_live.skip_unless_public ();
   try
     with_public_timeout (fun () ->
         let ident = Identity.resolve "jay.bsky.team" in

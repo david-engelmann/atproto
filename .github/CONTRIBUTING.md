@@ -1,10 +1,11 @@
 # Contributing
 
-Pull requests are welcome. **1.0.1** is tagged; the public opam
-package is [ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703)
-(`opam install atproto` after that merges). Pin the GitHub
-repository for development. Product docs for third-party users
-are in [README.md](../README.md) and
+Pull requests are welcome. **1.0.1** is tagged; package version on
+this tree is **1.0.2**. The public opam package is
+[ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703)
+(`opam install atproto` after that merges; a 1.0.2 publish
+supersedes it). Pin the GitHub repository for development. Product
+docs for third-party users are in [README.md](../README.md) and
 https://david-engelmann.github.io/atproto/.
 
 ## Toolchain
@@ -21,9 +22,10 @@ https://david-engelmann.github.io/atproto/.
   Ubuntu/Debian `libzstd-dev`, macOS Homebrew `zstd` (headers ship
   with the formula). Required, not optional.
 - Package-style build (what `opam install` / a dependent sees):
-  `dune build -p atproto` and `dune runtest -p atproto` (unit tests).
-  Official NSID coverage is `dune build @lexicon-coverage` (CI-only;
-  not `@runtest` / opam `with-test`).
+  `dune build -p atproto` and `dune runtest -p atproto` (unit tests;
+  offline unless `ATP_PUBLIC=1`). Official NSID coverage is `dune
+  build @lexicon-coverage` (CI-only; not `@runtest` / opam
+  `with-test`).
 
 Do not hand-edit `atproto.opam`; it is generated from `dune-project`.
 `dune-project` keeps `(version ...)`. The generated in-repo opam file
@@ -40,6 +42,10 @@ https://david-engelmann.github.io/atproto/. `dune-project`
 ## Checks
 
 CI jobs: `build`, `lint-doc`, `lint-fmt`, `lint-opam`, `local-pds`.
+Public-internet hops are the optional **PublicLive** workflow
+(`workflow_dispatch`, `ATP_PUBLIC=1`); they are not a required
+TestSuite / merge-when-green check.
+
 On push to `main`, `deploy-pages` publishes odoc HTML to
 https://david-engelmann.github.io/atproto/.
 

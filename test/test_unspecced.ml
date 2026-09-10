@@ -420,6 +420,7 @@ let test_parse_discover_explore_see_more _ =
   OUnit2.assert_equal (Some "new") skel.rec_id_str
 
 let test_popular_live _ =
+  Public_live.skip_unless_public ();
   try
     with_public_timeout (fun () ->
         let gens = Unspecced.get_popular_feed_generators ~limit:3 () in
@@ -430,6 +431,7 @@ let test_popular_live _ =
     skip_if true ("getPopularFeedGenerators skipped: " ^ Printexc.to_string exn)
 
 let test_get_post_thread_v2_live _ =
+  Public_live.skip_unless_public ();
   try
     with_public_timeout (fun () ->
         let page = Unspecced.search_posts_skeleton ~q:"atproto" ~limit:1 () in
@@ -445,6 +447,7 @@ let test_get_post_thread_v2_live _ =
     skip_if true ("getPostThreadV2 skipped: " ^ Printexc.to_string exn)
 
 let test_search_posts_skeleton_live _ =
+  Public_live.skip_unless_public ();
   try
     with_public_timeout (fun () ->
         let page = Unspecced.search_posts_skeleton ~q:"atproto" ~limit:3 () in

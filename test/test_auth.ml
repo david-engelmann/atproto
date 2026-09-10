@@ -151,6 +151,17 @@ let test_origin_of_host _ =
     Auth.scheme_from_env
     (String.sub origin 0 (String.index origin ':'))
 
+let test_public_live_enabled_matches_env _ =
+  let truthy v =
+    List.mem
+      (String.lowercase_ascii (String.trim v))
+      [ "1"; "true"; "yes"; "on" ]
+  in
+  match Sys.getenv_opt "ATP_PUBLIC" with
+  | Some v when truthy v ->
+      OUnit2.assert_bool "ATP_PUBLIC set" Auth.public_live_enabled
+  | _ -> OUnit2.assert_bool "ATP_PUBLIC unset" (not Auth.public_live_enabled)
+
 let test_make_auth_token_request_valid_info _ =
   skip_if
     (not Auth.has_live_credentials)
@@ -202,6 +213,8 @@ let suite =
          "test_create_session_url" >:: test_create_session_url;
          "test_refresh_session_url" >:: test_refresh_session_url;
          "test_origin_of_host" >:: test_origin_of_host;
+         "test_public_live_enabled_matches_env"
+         >:: test_public_live_enabled_matches_env;
          "test_make_auth_token_request_valid_info"
          >:: test_make_auth_token_request_valid_info;
          "test_parse_auth" >:: test_parse_auth;

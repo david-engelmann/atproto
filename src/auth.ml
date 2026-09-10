@@ -1,7 +1,8 @@
 open Cohttp_client
 open Jose.Jwt
 
-(** Session JWT helpers and [ATP_AUTH] / [ATP_HOST] environment lookup. *)
+(** Session JWT helpers and [ATP_AUTH] / [ATP_HOST] / [ATP_PUBLIC]
+    environment lookup. *)
 module Auth = struct
   type auth = {
     exp : int;
@@ -101,6 +102,19 @@ module Auth = struct
     | Some auth ->
         String.contains auth ':'
         && not (List.exists (string_contains auth) dummy_auth_markers)
+
+  let env_truthy name =
+    match Sys.getenv_opt name with
+    | Some v ->
+        let v = String.lowercase_ascii (String.trim v) in
+        List.mem v [ "1"; "true"; "yes"; "on" ]
+    | None -> false
+
+  (** True when public-internet live hops may run ([ATP_PUBLIC] is
+      truthy: [1] / [true] / [yes] / [on]). Default off so
+      [opam install -t] / offline [with-test] never depend on
+      plc.directory, AppView, or a public PDS. *)
+  let public_live_enabled : bool = env_truthy "ATP_PUBLIC"
 
   (** [username, password] from [ATP_AUTH] ([user:password]). *)
   let username_and_password_from_env : string * string =

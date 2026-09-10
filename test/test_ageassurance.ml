@@ -116,6 +116,7 @@ let test_parse_event _ =
   OUnit2.assert_equal (Some "atproto-test/1.1") ev.complete_ua
 
 let test_get_config_live _ =
+  Public_live.skip_unless_public ();
   try
     with_public_timeout (fun () ->
         let cfg = Ageassurance.get_config () in

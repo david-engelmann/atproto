@@ -801,6 +801,7 @@ let test_send_interactions_body _ =
   OUnit2.assert_equal 1 (body |> member "interactions" |> to_list |> List.length)
 
 let test_get_feed_generator_live _ =
+  Public_live.skip_unless_public ();
   try
     with_public_timeout (fun () ->
         let info = Feed.get_feed_generator ~feed:discover_feed () in
@@ -810,6 +811,7 @@ let test_get_feed_generator_live _ =
     skip_if true ("getFeedGenerator skipped: " ^ Printexc.to_string exn)
 
 let test_search_posts_live _ =
+  Public_live.skip_unless_public ();
   try
     with_public_timeout (fun () ->
         let page = Feed.search_posts ~q:"atproto" ~limit:3 () in
@@ -822,6 +824,7 @@ let test_search_posts_live _ =
   with exn -> skip_if true ("searchPosts skipped: " ^ Printexc.to_string exn)
 
 let test_search_posts_v2_live _ =
+  Public_live.skip_unless_public ();
   try
     with_public_timeout (fun () ->
         let page =
@@ -849,6 +852,7 @@ let test_author_feed_filter_known_values _ =
     "posts_with_video" Feed.filter_posts_with_video
 
 let test_get_author_feed_page_live _ =
+  Public_live.skip_unless_public ();
   try
     with_public_timeout (fun () ->
         let page =

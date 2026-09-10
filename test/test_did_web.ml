@@ -49,6 +49,7 @@ let test_parse_document _ =
     (Atproto.Did_plc.Did_plc.pds_endpoint doc)
 
 let test_resolve_live _ =
+  Public_live.skip_unless_public ();
   try
     let doc = Did_web.resolve "did:web:w3c-ccg.github.io" in
     OUnit2.assert_bool "did:web document id"

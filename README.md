@@ -4,7 +4,7 @@
 
 Resolve identities, read and write repositories, follow the firehose, and call AppView, Ozone, and hosted Bluesky products (chat, video, Jetstream) from one library. Protocol pieces — XRPC, CID/CAR/MST, lexicons, OAuth/DPoP — are implemented here, not left as raw HTTP.
 
-**[1.0.1](https://github.com/david-engelmann/atproto/releases/tag/1.0.1)** is released (`53ffbc2`). The public opam package is in [ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703). Until that merges, pin this repository; after it merges, `opam install atproto`.
+**1.0.2** is the packaged surface (`ATP_PUBLIC` gate; see [CHANGELOG.md](CHANGELOG.md)). Tagged **[1.0.1](https://github.com/david-engelmann/atproto/releases/tag/1.0.1)** is at `53ffbc2`. The public opam package is in [ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703) (to be superseded after this cut). Until a 1.0.2 opam publish, pin this repository.
 
 This package is a **client**. It does not host a PDS, chat service, video transcoder, Tap, SMS gateway, or push backend. See [What this package does not host](#what-this-package-does-not-host).
 
@@ -99,12 +99,13 @@ Create a `.env` (see `sample.env`) when you need a session or a non-default host
 | `ATP_AUTH` | `EmailAddress:AppPassword` — use an [App Password](https://bsky.app/settings/app-passwords) |
 | `ATP_HOST` | PDS / entryway host **without** a scheme (`bsky.social`; `localhost:2583` locally) |
 | `ATP_SCHEME` | `https` (default) or `http` for a local stack without TLS |
+| `ATP_PUBLIC` | Set `1` / `true` / `yes` / `on` to run unauthenticated public-internet live hops. Leave unset for offline `with-test`. |
 
 Optional hosts (all without a scheme): `ATP_APPVIEW_HOST`, `ATP_OZONE_HOST` / `ATP_OZONE_DID`, `ATP_CHAT_HOST` / `ATP_CHAT_DID`, `ATP_VIDEO_HOST`. Local-network extras: `ATP_AUTH_BOB`, `ATP_AUTH_OZONE`, `BASE_ENDPOINT` (default `xrpc`).
 
-Session creation, repo writes, graph mutes, bookmarks, chat, ozone, and most feed helpers need `ATP_AUTH`. Chat also needs a DM-capable session (`transition:chat.bsky`, `include:chat.bsky.authFullChatClient`, or `ATP_CHAT=1`). Public identity, DID PLC, firehose subscribe, AppView reads (`public.api.bsky.app`), and most `com.atproto.sync.*` reads do **not**.
+Session creation, repo writes, graph mutes, bookmarks, chat, ozone, and most feed helpers need `ATP_AUTH`. Chat also needs a DM-capable session (`transition:chat.bsky`, `include:chat.bsky.authFullChatClient`, or `ATP_CHAT=1`). Public identity, DID PLC, firehose subscribe, AppView reads (`public.api.bsky.app`), and most `com.atproto.sync.*` reads do **not** need auth, but those live hops skip unless `ATP_PUBLIC` is truthy.
 
-Live opt-ins (unset in CI): `ATP_CHAT`, `ATP_PHONE` / `ATP_PHONE_NUMBER`, `ATP_PUSH` / `ATP_PUSH_DID` / `ATP_PUSH_TOKEN`, `ATP_SPACE` / `ATP_SPACE_HOST` (no default space host), `JETSTREAM_API_KEY`.
+Live opt-ins (unset in CI): `ATP_PUBLIC` (unauthenticated public-internet hops), `ATP_CHAT`, `ATP_PHONE` / `ATP_PHONE_NUMBER`, `ATP_PUSH` / `ATP_PUSH_DID` / `ATP_PUSH_TOKEN`, `ATP_SPACE` / `ATP_SPACE_HOST` (no default space host), `JETSTREAM_API_KEY`.
 
 ## Hosted Bluesky products
 
@@ -193,7 +194,7 @@ dune build
 dune runtest
 ```
 
-`dune build` typechecks `examples/offline.ml` against the public API (no network). `dune runtest` also runs the offline production sketches. A release-style build is `dune build -p atproto` and `dune runtest -p atproto`. Live Bluesky tests that need credentials skip unless `ATP_AUTH` is a real `email:app-password` pair (placeholders in `sample.env` do not count). Public-network tests (handle resolve, PLC, `getLatestCommit`, `subscribeRepos`, AppView reads) run without auth.
+`dune build` typechecks `examples/offline.ml` against the public API (no network). `dune runtest` also runs the offline production sketches. A release-style build is `dune build -p atproto` and `dune runtest -p atproto`. Live Bluesky tests that need credentials skip unless `ATP_AUTH` is a real `email:app-password` pair (placeholders in `sample.env` do not count). Unauthenticated public-network tests (handle resolve, PLC, `getLatestCommit`, `subscribeRepos`, AppView reads) skip unless `ATP_PUBLIC` is truthy. Default GitHub TestSuite leaves `ATP_PUBLIC` unset so opam `with-test` stays offline-safe. Re-run public hops with `make test-public` or the optional **PublicLive** workflow (`workflow_dispatch` only).
 
 ### Local AT Protocol network
 

@@ -13,6 +13,7 @@ let test_add_query_params _ =
   OUnit2.assert_equal ~printer:(fun x -> x) "cids=aaa&cids=bbb" qs
 
 let test_cohttp_client_get_optional _ =
+  Public_live.skip_unless_public ();
   try
     let body = Lwt_main.run (Cohttp_client.get_host "example.com" 80) in
     OUnit2.assert_bool "example.com body is empty" (body <> "")
