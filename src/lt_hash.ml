@@ -5,7 +5,7 @@
     {{:https://github.com/bluesky-social/proposals/blob/main/0016-permissioned-data/README.md}0016
     § Commit digest}. The proposal is not final; this module may change
     and is {e not} a stable spaces API. Space URI parse/serialize lives
-    in {!At_uri.Space}; signed commits live in {!Space_commit}.
+    in {!At_uri.module-Space}; signed commits live in {!Space_commit}.
     Credentials, XRPC, and sync stay deferred.
 
     State is a 2048-byte buffer of 1024 little-endian [uint16] lanes.

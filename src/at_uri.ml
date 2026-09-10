@@ -4,9 +4,9 @@
     {{:https://github.com/bluesky-social/proposals/blob/main/0016-permissioned-data/README.md}0016}.
 
     Public URIs stay in {!Uri} (at most two path segments). Space URIs
-    are in {!Space}: the first path segment is the literal [space]
-    marker, not an NSID. The proposal is not final; {!Space} is not a
-    stable spaces product API. *)
+    are in {!module-Space}: the first path segment is the literal [space]
+    marker, not an NSID. The proposal is not final; {!module-Space} is not
+    a stable spaces product API. *)
 
 module Uri = struct
   type t = {
@@ -342,7 +342,7 @@ end
 
 type classified = Public of Uri.t | Space of Space.t
 
-(** Route [raw] to {!Space} when the first path segment is [space],
+(** Route [raw] to {!module-Space} when the first path segment is [space],
     otherwise to the public {!Uri} parser. *)
 let classify (raw : string) : classified =
   if Space.is_space_uri raw then Space (Space.of_string raw)
