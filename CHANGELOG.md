@@ -20,11 +20,11 @@ substitute for `git log`.
 
 Experimental permissioned-data / spaces helpers from proposal
 [0016](https://github.com/bluesky-social/proposals/blob/main/0016-permissioned-data/README.md).
-These modules landed on `main` before the 1.0.1 tag, so they are
-present in that tree, but they are **not a spaces product API**.
-The proposal is not final. This repo does not start or stub a
-space host. Live hops skip unless `ATP_SPACE=1` and
-`ATP_SPACE_HOST` names a real host.
+They are in the **1.0.2** tree as **experimental** — not a spaces
+product API. Unreleased here means the product is not stable, not
+that the modules are missing from the tag. The proposal is not
+final. This repo does not start or stub a space host. Live hops
+skip unless `ATP_SPACE=1` and `ATP_SPACE_HOST` names a real host.
 
 - `Lt_hash` — 0016 commit digest (1024-lane LtHash; official empty /
   one / two snapshot vectors from bluesky-social/atproto#5187)
@@ -54,46 +54,42 @@ proposal `registerNotify` `repo` (not in the #5187 lexicon).
 
 ## [1.0.2] - 2026-09-10
 
-Opam-health follow-up to tagged
-[1.0.1](#101---2026-09-10). The 1.0.1 package built, linted, and
-passed lower-bounds; opam-ci `tests` failed because unauthenticated
-live hops (PLC directory, AppView, public PDS, firehose / Jetstream)
-ran by default and only skipped on a caught exception.
-
-**1.0.2** makes `opam install -t` / `dune build -p atproto @runtest`
-offline-safe. The opam submit is **atproto.1.0.2** (new
-ocaml/opam-repository PR after tag). It supersedes #30703. This
-repository does not edit ocaml/opam-repository.
+Follow-up to tagged [1.0.1](#101---2026-09-10). Unauthenticated
+public-internet tests skip unless `ATP_PUBLIC` is set, so
+`opam install -t` / `dune build -p atproto @runtest` stay offline.
+The next opam-repository submit is **atproto.1.0.2** (new PR after
+tag; supersedes
+[ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703)).
 
 No lexicon pin bump (official pin stays `f0d4877a`). Jane Street /
 OCaml bounds are unchanged. No fake hosts.
 
 ### Added
 
-- `ATP_PUBLIC` opt-in for unauthenticated public-internet live hops
+- `ATP_PUBLIC` opt-in for unauthenticated public-internet live *tests*
   (`Auth.public_live_enabled`, shared `Public_live.skip_unless_public`).
-  Truthy values: `1` / `true` / `yes` / `on`. Default unset skips
-  those tests at the start. Local TestNetwork stays on
-  `ATP_LOCAL_PDS`. Credential hops stay on `ATP_AUTH`. Hosted-only
-  products stay on `ATP_SPACE` / `ATP_PHONE` / `ATP_PUSH` / `ATP_CHAT`
+  Truthy values: `1` / `true` / `yes` / `on`. Unset (the default)
+  skips those tests. Local TestNetwork stays on `ATP_LOCAL_PDS`.
+  Credential hops stay on `ATP_AUTH`. Hosted-only products stay on
+  `ATP_SPACE` / `ATP_PHONE` / `ATP_PUSH` / `ATP_CHAT`
 
 ### Changed
 
 - Package version `1.0.1` → `1.0.2` (`dune-project` /
   `atproto.opam`)
-- `dune build -p atproto @runtest` / opam `with-test` is offline-safe
+- `dune build -p atproto @runtest` / opam `with-test` is offline
   when `ATP_PUBLIC` is unset
-- GitHub Actions default TestSuite `build` does **not** set
-  `ATP_PUBLIC`. Re-run public hops with `make test-public` or the
-  optional **PublicLive** workflow (`workflow_dispatch` only)
+- Re-run public hops with `make test-public`
 - Public docs rewritten for third-party readers
   ([#244](https://github.com/david-engelmann/atproto/pull/244)):
   README product pitch and module map, warmer odoc landing,
-  `AGENTS.md`
+  `AGENTS.md`. Install docs lead with the GitHub pin until
+  **atproto.1.0.2** is published
 
 ### Notes
 
-- Experimental 0016 helpers stay under [Unreleased](#unreleased)
+- Experimental 0016 helpers are in this tree; they remain
+  [Unreleased](#unreleased) as a product (not a spaces API)
 
 ## [1.0.1] - 2026-09-10
 

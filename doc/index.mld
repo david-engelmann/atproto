@@ -5,19 +5,20 @@
 read and write repositories, follow the firehose, and call AppView,
 Ozone, and hosted Bluesky products (chat, video, Jetstream).
 
-{b 1.0.2} is the packaged surface. Until {b atproto.1.0.2} lands on
-opam-repository, pin the GitHub repository; then [opam install
-atproto]. The narrative guide — install, quick start, hosted-product
-paths, and honest gaps — is the
+{b 1.0.2} is the packaged surface. Until {b atproto.1.0.2} is
+published, pin the GitHub repository; then [opam install atproto].
+The narrative guide — install, quick start, hosted-product paths,
+and honest gaps — is the
 {{:https://github.com/david-engelmann/atproto#atproto}GitHub README}.
 Release notes are in
 {{:https://github.com/david-engelmann/atproto/blob/main/CHANGELOG.md}CHANGELOG.md}.
-Public-internet live tests skip unless [ATP_PUBLIC=1]. Default
+Public-internet live {e tests} skip unless [ATP_PUBLIC=1]. Default
 [opam install -t] / [@runtest] stay offline.
 
 {1 Start here}
 
-Neither call needs credentials:
+These two calls hit the public AppView over the network (no
+credentials). [ATP_PUBLIC] only gates live tests.
 
 {[
 let did = (Identity.resolve_handle "jay.bsky.team").did
@@ -26,7 +27,7 @@ let posts = Feed.search_posts ~q:"atproto" ~limit:5 ()
 
 {v
 opam pin add atproto git+https://github.com/david-engelmann/atproto.git
-(* after atproto.1.0.2 is on opam-repository: opam install atproto *)
+(* after atproto.1.0.2 is published: opam install atproto *)
 v}
 
 Then [(libraries atproto)] in dune. Requires OCaml [>= 4.14.1] and

@@ -17,14 +17,14 @@ labels: ""
 **Command and output**
 Paste the command and the error.
 
-**1.0.2** is the packaged surface. `opam install atproto` after
-**atproto.1.0.2** lands on opam-repository. Until then, pin this
-repository:
+**1.0.2** is the packaged surface. Until **atproto.1.0.2** is
+published, pin this repository. After it is published:
+`opam install atproto`.
 
 ```shell
-opam install atproto
-# development pin
 opam pin add atproto git+https://github.com/david-engelmann/atproto.git
+# after atproto.1.0.2 is published:
+# opam install atproto
 ```
 
 Jetstream dict-zstd needs Jane Street `zstandard` / system libzstd (Ubuntu/Debian `libzstd-dev`, macOS Homebrew `zstd`) before `opam install` / `opam pin`.

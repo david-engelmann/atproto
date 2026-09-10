@@ -2,8 +2,9 @@
 
 Pull requests are welcome. Package version on this tree is **1.0.2**.
 The next opam submit is **atproto.1.0.2** (new PR after tag; it
-supersedes ocaml/opam-repository#30703). Pin the GitHub repository
-for development. Product docs for third-party users are in
+supersedes ocaml/opam-repository#30703). Until that package is
+published, pin the GitHub repository. Product docs for third-party
+users are in
 [README.md](../README.md) and
 https://david-engelmann.github.io/atproto/.
 
