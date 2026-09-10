@@ -23,8 +23,8 @@ let ensure_rng = lazy (Mirage_crypto_rng_unix.use_default ())
     used.
 
     The proposal is not final; this module may change and is {e not} a
-    stable spaces API (no [com.atproto.space.*] XRPC client, sync, or
-    space host). *)
+    stable spaces product API. XRPC wrappers live in [Space]. This
+    repo does not start or stub a space host. *)
 module Space_credential : sig
   val delegation_typ : string
   (** JWT [typ] for a delegation token
