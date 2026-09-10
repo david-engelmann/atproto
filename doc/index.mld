@@ -5,13 +5,15 @@
 read and write repositories, follow the firehose, and call AppView,
 Ozone, and hosted Bluesky products (chat, video, Jetstream).
 
-{b 1.0.1} is released. Until
-{{:https://github.com/ocaml/opam-repository/pull/30703}ocaml/opam-repository\#30703}
-merges, pin the GitHub repository. The narrative guide — install,
-quick start, hosted-product paths, and honest gaps — is the
+{b 1.0.2} is the packaged surface. Until {b atproto.1.0.2} lands on
+opam-repository, pin the GitHub repository; then [opam install
+atproto]. The narrative guide — install, quick start, hosted-product
+paths, and honest gaps — is the
 {{:https://github.com/david-engelmann/atproto#atproto}GitHub README}.
 Release notes are in
 {{:https://github.com/david-engelmann/atproto/blob/main/CHANGELOG.md}CHANGELOG.md}.
+Public-internet live tests skip unless [ATP_PUBLIC=1]. Default
+[opam install -t] / [@runtest] stay offline.
 
 {1 Start here}
 
@@ -24,7 +26,7 @@ let posts = Feed.search_posts ~q:"atproto" ~limit:5 ()
 
 {v
 opam pin add atproto git+https://github.com/david-engelmann/atproto.git
-(* after the opam-repository PR merges: opam install atproto *)
+(* after atproto.1.0.2 is on opam-repository: opam install atproto *)
 v}
 
 Then [(libraries atproto)] in dune. Requires OCaml [>= 4.14.1] and

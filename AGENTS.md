@@ -5,8 +5,9 @@ This repository is an OCaml **client and protocol library** for the [AT Protocol
 ## Install and call
 
 - Package: `atproto`. Dune: `(libraries atproto)`.
-- Released **1.0.1** ([tag](https://github.com/david-engelmann/atproto/releases/tag/1.0.1)). Public opam: [ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703) (open). Until it merges, `opam pin add atproto git+https://github.com/david-engelmann/atproto.git`.
+- Packaged **1.0.2**. Until **atproto.1.0.2** is on opam-repository, `opam pin add atproto git+https://github.com/david-engelmann/atproto.git`. Then `opam install atproto`.
 - OCaml `>= 4.14.1` and `< 5.4`. System **libzstd** is required (Jetstream dict-zstd).
+- Public live tests skip unless `ATP_PUBLIC=1`. Default `opam install -t` / `@runtest` is offline. Credential hops stay on `ATP_AUTH`; local TestNetwork stays on `ATP_LOCAL_PDS`.
 - Public, unauthenticated starting point:
 
 ```ocaml
@@ -16,7 +17,9 @@ let posts = Feed.search_posts ~q:"atproto" ~limit:5 ()
 
 ## Honesty constraints
 
-Do not invent or stub hosted products. This package does **not** provide:
+Do not invent or stub hosted products. Do not claim public-network
+tests run in default `with-test` (they need `ATP_PUBLIC=1`). This
+package does **not** provide:
 
 - a PDS, OSS chat backend, video transcoder, Tap host, SMS gateway, or APNs/FCM
 - a Jetstream archive API key (operator supplies `JETSTREAM_API_KEY`)
