@@ -2,6 +2,10 @@
 
 **Typed OCaml toolkit for the [AT Protocol](https://atproto.com).**
 
+[![opam](https://img.shields.io/badge/opam-1.0.2-orange)](https://opam.ocaml.org/packages/atproto/)
+[![docs](https://img.shields.io/badge/docs-odoc-informational)](https://david-engelmann.github.io/atproto/)
+[![TestSuite](https://github.com/david-engelmann/atproto/actions/workflows/test_suite.yml/badge.svg)](https://github.com/david-engelmann/atproto/actions/workflows/test_suite.yml)
+
 Resolve identities, read and write repositories, follow the firehose, and call AppView, Ozone, and hosted Bluesky products (chat, video, Jetstream) from one library. Protocol pieces — XRPC, CID/CAR/MST, lexicons, OAuth/DPoP — are implemented here, not left as raw HTTP.
 
 **1.0.2** is the packaged surface. Install with `opam update` and
@@ -31,6 +35,7 @@ let posts = Feed.search_posts ~q:"atproto" ~limit:5 ()
 
 ## Install
 
+The published package is [atproto on opam](https://opam.ocaml.org/packages/atproto/).
 Requires OCaml **>= 4.14.1 and < 5.4** (CI: **4.14.1** and **5.3.0**). Jane Street `core` / `async` / `ppx_jane` / `zstandard` are **>= v0.16.0 and < v0.18~** (v0.16 on 4.14, v0.17 on 5.1–5.3). Public Jane Street v0.17 does not support OCaml 5.4+; 5.0 is untested. Jetstream dict-zstd needs system **libzstd** (Debian/Ubuntu `libzstd-dev`, macOS Homebrew `zstd`) before `opam install`. The Jane Street `zstandard` package is Linux-only (x86_64 / arm64).
 
 ```shell
@@ -61,6 +66,7 @@ In a dependent `dune` stanza:
 
 | Resource | Where |
 | --- | --- |
+| opam package | https://opam.ocaml.org/packages/atproto/ |
 | API reference | https://david-engelmann.github.io/atproto/ (`dune build @doc` / `make doc`) |
 | Release notes | [CHANGELOG.md](CHANGELOG.md) |
 | License | [LICENSE](LICENSE) |

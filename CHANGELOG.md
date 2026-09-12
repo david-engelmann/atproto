@@ -51,8 +51,10 @@ proposal `registerNotify` `repo` (not in the #5187 lexicon).
 - Hosted-only products stay listed, not faked (see the 1.0.0 Notes
   below).
 - Install docs lead with `opam install atproto` (**atproto.1.0.2** is
-  on ocaml/opam-repository). Pin / git / local clone remains the
-  development path.
+  on ocaml/opam-repository). README badges and the Documentation
+  table link the [opam package
+  page](https://opam.ocaml.org/packages/atproto/). Pin / git / local
+  clone remains the development path.
 
 ## [1.0.2] - 2026-09-10
 
