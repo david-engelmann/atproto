@@ -25,8 +25,11 @@ clone for an unreleased tip.
 
 {1 Quick start}
 
-These two calls hit the public AppView. They need the network, not
-[ATP_AUTH]. [ATP_PUBLIC] only gates {e tests}, not this snippet.
+These two calls need the public network, not [ATP_AUTH].
+[Identity.resolve_handle] talks to the entryway ([ATP_HOST],
+default [bsky.social]). [Feed.search_posts] talks to the public
+AppView ([public.api.bsky.app]). [ATP_PUBLIC] only gates {e tests},
+not this snippet.
 
 {[
 let did = (Identity.resolve_handle "jay.bsky.team").did
@@ -95,7 +98,8 @@ Protocol bits. [at://], TIDs, XRPC, lexicons, labels, HTTP.
 {!modules: Atproto.At_uri Atproto.Tid Atproto.Syntax Atproto.Xrpc Atproto.Error Atproto.Lexicon Atproto.Label Atproto.Http_client}
 
 Also {!Atproto.Draft}, {!Atproto.Ageassurance}, {!Atproto.Site},
-{!Atproto.Germnetwork}, {!Atproto.App}, and {!Atproto.Client}.
+{!Atproto.Germnetwork}, {!Atproto.App}, {!Atproto.Client},
+{!Atproto.Request}, and {!Atproto.Response}.
 
 Experimental proposal
 {{:https://github.com/bluesky-social/proposals/blob/main/0016-permissioned-data/README.md}0016}

@@ -61,6 +61,10 @@ proposal `registerNotify` `repo` (not in the #5187 lexicon).
   `index.mld` is a guided start page (install, first call, next
   modules). README badges and the Documentation table point at
   https://david-engelmann.github.io/atproto/atproto/.
+- Docs accuracy: quick start no longer says both calls hit AppView
+  (`resolve_handle` is entryway / `ATP_HOST`). `ATP_LOCAL_PDS` vs
+  `ATP_REQUIRE_LOCAL_PDS` documented. `ATP_PUSH_APP_ID` /
+  `ATP_PUSH_PLATFORM`, `ATP_APPVIEW_DID`, and `PLC_ORIGIN` listed.
 
 ## [1.0.2] - 2026-09-10
 

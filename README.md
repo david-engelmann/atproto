@@ -14,7 +14,7 @@ This is a **client**. It doesn't host a PDS, chat service, video transcoder, Tap
 
 ## Quick start
 
-These two calls hit the public AppView. They don't need `ATP_AUTH`. `ATP_PUBLIC` only gates live tests; you don't need it to run this snippet.
+These two calls need the public network. They don't need `ATP_AUTH`. `Identity.resolve_handle` talks to the entryway (`ATP_HOST`, default `bsky.social`). `Feed.search_posts` talks to the public AppView (`public.api.bsky.app`). `ATP_PUBLIC` only gates live tests; you don't need it to run this snippet.
 
 ```shell
 opam update
@@ -22,7 +22,7 @@ opam install atproto
 ```
 
 ```ocaml
-(* public AppView — needs network, no ATP_AUTH *)
+(* public network — entryway resolve + AppView search; no ATP_AUTH *)
 let did = (Identity.resolve_handle "jay.bsky.team").did
 let posts = Feed.search_posts ~q:"atproto" ~limit:5 ()
 ```
@@ -112,11 +112,11 @@ Create a `.env` (see `sample.env`) when you need a session or a non-default host
 | `ATP_SCHEME` | `https` (default) or `http` for a local stack without TLS |
 | `ATP_PUBLIC` | Set `1` / `true` / `yes` / `on` to run unauthenticated public-network tests. Leave unset so `with-test` stays offline. |
 
-Optional hosts (all without a scheme): `ATP_APPVIEW_HOST`, `ATP_OZONE_HOST` / `ATP_OZONE_DID`, `ATP_CHAT_HOST` / `ATP_CHAT_DID`, `ATP_VIDEO_HOST`. Local extras: `ATP_AUTH_BOB`, `ATP_AUTH_OZONE`, `BASE_ENDPOINT` (default `xrpc`).
+Optional hosts (all without a scheme): `ATP_APPVIEW_HOST` (default `public.api.bsky.app`), `ATP_APPVIEW_DID` (default `did:web:api.bsky.app`), `ATP_OZONE_HOST` (default `localhost:2587`) / `ATP_OZONE_DID`, `ATP_CHAT_HOST` / `ATP_CHAT_DID`, `ATP_VIDEO_HOST`. Local extras: `ATP_AUTH_BOB`, `ATP_AUTH_OZONE`, `PLC_ORIGIN`, `BASE_ENDPOINT` (default `xrpc`). `sample.env` has the full list.
 
-Session creation, repo writes, graph mutes, bookmarks, chat, ozone, and most feed helpers need `ATP_AUTH`. Chat also needs a DM-capable session (`transition:chat.bsky`, `include:chat.bsky.authFullChatClient`, or `ATP_CHAT=1`). Public identity, DID PLC, firehose subscribe, AppView reads (`public.api.bsky.app`), and most `com.atproto.sync.*` reads do **not** need auth. Those live tests skip unless `ATP_PUBLIC` is set.
+Session creation, repo writes, graph mutes, bookmarks, chat, ozone, and most feed helpers need `ATP_AUTH`. Chat calls need a DM-capable session: OAuth `transition:chat.bsky` or `include:chat.bsky.authFullChatClient`, or a privileged app-password. `ATP_CHAT=1` is a live-test opt-in (also implied when the session JWT already has a chat grant). Public identity (`ATP_HOST` / `bsky.social`), DID PLC, firehose subscribe, AppView reads (`public.api.bsky.app`), and most `com.atproto.sync.*` reads do **not** need auth. Those live tests skip unless `ATP_PUBLIC` is set.
 
-Other live flags (unset in CI): `ATP_PUBLIC`, `ATP_CHAT`, `ATP_PHONE` / `ATP_PHONE_NUMBER`, `ATP_PUSH` / `ATP_PUSH_DID` / `ATP_PUSH_TOKEN`, `ATP_SPACE` / `ATP_SPACE_HOST` (no default space host), `JETSTREAM_API_KEY`.
+Other live flags (unset in CI): `ATP_PUBLIC`, `ATP_CHAT`, `ATP_PHONE` / `ATP_PHONE_NUMBER`, `ATP_PUSH` / `ATP_PUSH_DID` / `ATP_PUSH_TOKEN` / `ATP_PUSH_APP_ID` / `ATP_PUSH_PLATFORM`, `ATP_SPACE` / `ATP_SPACE_HOST` (no default space host), `JETSTREAM_API_KEY` (alias `JETSTREAM_ARCHIVE_TOKEN`).
 
 ## Hosted Bluesky services
 
@@ -170,7 +170,9 @@ dune exec -- test/test_local_pds.exe
 ./scripts/local-atproto.sh down
 ```
 
-Point the client at the stack with `ATP_SCHEME=http`, `ATP_HOST=localhost:2583`, `ATP_APPVIEW_HOST=localhost:2584`, `ATP_OZONE_HOST=localhost:2587`, `ATP_AUTH=alice.test:hunter2`. Mock accounts come from official `generateMockSetup` (`alice.test` / `bob.test` / ozone admin `admin-mod.test`). If the network is up, a failed protocol call **fails the test**; the suite skips only when it is not aimed at a local host.
+Point the client at the stack with `ATP_SCHEME=http`, `ATP_HOST=localhost:2583`, `ATP_APPVIEW_HOST=localhost:2584`, `ATP_OZONE_HOST=localhost:2587`, `ATP_AUTH=alice.test:hunter2`. Mock accounts come from official `generateMockSetup` (`alice.test` / `bob.test` / ozone admin `admin-mod.test`).
+
+`ATP_LOCAL_PDS=1` or `ATP_HOST` on localhost selects those tests (`scripts/local-atproto.sh env` exports `ATP_LOCAL_PDS=1`). If the stack is down they skip, unless `ATP_REQUIRE_LOCAL_PDS=1` (CI and `scripts/local-atproto.sh env`), in which case a down stack or failed protocol call fails the test. If the network is up, a failed protocol call **fails the test**.
 
 OAuth against this TestNetwork (loopback metadata, PAR, DPoP, service-auth) is covered by `test/test_local_oauth.ml`. See [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md).
 
@@ -180,7 +182,7 @@ Examples under `examples/`. `dune build` typechecks them. None of them start a h
 
 | File | Demo |
 | --- | --- |
-| [`examples/quickstart.ml`](examples/quickstart.ml) | Public AppView: resolve a handle and search posts (no `ATP_AUTH`) |
+| [`examples/quickstart.ml`](examples/quickstart.ml) | Public network: resolve a handle (entryway) and search posts (AppView); no `ATP_AUTH` |
 | [`examples/offline.ml`](examples/offline.ml) | Typechecks the public API with no network |
 | [`examples/oauth_https_metadata.ml`](examples/oauth_https_metadata.ml) | HTTPS `client-metadata.json` + browser login (you still host the document) |
 | [`examples/client-metadata.json`](examples/client-metadata.json) | Sample public HTTPS OAuth client-metadata document (you still host it) |

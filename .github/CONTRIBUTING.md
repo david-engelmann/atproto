@@ -72,7 +72,9 @@ require a review for this automation.
 
 `make test-pds` starts official `@atproto/dev-env@0.6.4` (PLC, PDS,
 AppView, Ozone). Chat, video, Tap, SMS, and push are not in that
-stack — do not stub them. OAuth against the local AS (loopback
+stack — do not stub them. `ATP_LOCAL_PDS=1` or `ATP_HOST` on
+localhost selects those tests. They skip if the stack is down unless
+`ATP_REQUIRE_LOCAL_PDS=1` (CI and `scripts/local-atproto.sh env`). OAuth against the local AS (loopback
 metadata, PAR, DPoP, CSRF cookies, `getServiceAuth` for AppView /
 Ozone) lives in `test/test_local_oauth.ml`; do not invent a CSRF
 token. Authenticated AppView / Ozone reject a DPoP access token and
