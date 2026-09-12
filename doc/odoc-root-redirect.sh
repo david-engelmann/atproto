@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # After `dune build @doc`, replace the stock package-list index with an
 # immediate redirect to the atproto landing (doc/index.mld).
+#
+# dune marks generated HTML 0444. Do not truncate dest in place (`>` /
+# `cat >dest` fails with Permission denied). Write beside, then replace.
 set -euo pipefail
 
 root="${1:-_build/default/_doc/_html}"
@@ -12,7 +15,11 @@ if [[ ! -f "${target}" ]]; then
   exit 1
 fi
 
-cat >"${dest}" <<'HTML'
+tmp="${dest}.new.$$"
+cleanup() { rm -f "${tmp}"; }
+trap cleanup EXIT
+
+cat >"${tmp}" <<'HTML'
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -26,3 +33,19 @@ cat >"${dest}" <<'HTML'
 </body>
 </html>
 HTML
+
+if [[ -e "${dest}" ]]; then
+  chmod u+w "${dest}" 2>/dev/null || true
+  rm -f "${dest}"
+fi
+mv -f "${tmp}" "${dest}"
+trap - EXIT
+
+if ! grep -q 'url=atproto/index.html' "${dest}"; then
+  echo "root index.html is missing meta-refresh to atproto/index.html" >&2
+  exit 1
+fi
+if ! grep -q 'href="atproto/index.html"' "${dest}"; then
+  echo "root index.html is missing fallback link to atproto/index.html" >&2
+  exit 1
+fi

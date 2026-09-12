@@ -70,16 +70,42 @@ require a review for this automation.
 
 ## Local TestNetwork
 
-`make test-pds` starts official `@atproto/dev-env@0.6.4` (PLC, PDS,
-AppView, Ozone). Chat, video, Tap, SMS, and push are not in that
-stack — do not stub them. `ATP_LOCAL_PDS=1` or `ATP_HOST` on
-localhost selects those tests. They skip if the stack is down unless
-`ATP_REQUIRE_LOCAL_PDS=1` (CI and `scripts/local-atproto.sh env`). OAuth against the local AS (loopback
-metadata, PAR, DPoP, CSRF cookies, `getServiceAuth` for AppView /
-Ozone) lives in `test/test_local_oauth.ml`; do not invent a CSRF
-token. Authenticated AppView / Ozone reject a DPoP access token and
-a `createSession` `at+jwt` — mint service-auth instead. DPoP cannot
-be proxied.
+`make test-pds` starts official
+[`@atproto/dev-env@0.6.4`](https://www.npmjs.com/package/@atproto/dev-env):
+PLC (`:2582`), PDS (`:2583`), AppView (`:2584`), Ozone (`:2587`).
+Chat, video, Tap, SMS, and push are not in that stack — do not stub
+them.
+
+```shell
+make test-pds
+
+# or step by step
+./scripts/local-atproto.sh up
+./scripts/local-atproto.sh account
+eval "$(./scripts/local-atproto.sh env)"
+export ATP_REQUIRE_LOCAL_PDS=1
+dune exec -- test/test_local_pds.exe
+./scripts/local-atproto.sh down
+```
+
+Point the client at the stack with `ATP_SCHEME=http`,
+`ATP_HOST=localhost:2583`, `ATP_APPVIEW_HOST=localhost:2584`,
+`ATP_OZONE_HOST=localhost:2587`, `ATP_AUTH=alice.test:hunter2`.
+Mock accounts come from official `generateMockSetup` (`alice.test` /
+`bob.test` / ozone admin `admin-mod.test`).
+
+`ATP_LOCAL_PDS=1` or `ATP_HOST` on localhost selects those tests
+(`scripts/local-atproto.sh env` exports `ATP_LOCAL_PDS=1`). If the
+stack is down they skip, unless `ATP_REQUIRE_LOCAL_PDS=1` (CI and
+`scripts/local-atproto.sh env`), in which case a down stack or failed
+protocol call fails the test. If the network is up, a failed protocol
+call **fails the test**.
+
+OAuth against this TestNetwork (loopback metadata, PAR, DPoP,
+service-auth) lives in `test/test_local_oauth.ml`. Do not invent a
+CSRF token. Authenticated AppView / Ozone reject a DPoP access token
+and a `createSession` `at+jwt` — mint service-auth instead. DPoP
+cannot be proxied.
 
 CI installs Ubuntu `libzstd-dev` before every OCaml job; install
 that or Homebrew `zstd` before the commands below.

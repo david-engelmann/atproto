@@ -165,11 +165,13 @@ jobs:
         run: opam exec -- dune build @doc
 
       # Stock odoc root is a package list. This repo has one package;
-      # send people to doc/index.mld (atproto/index.html).
+      # send people to doc/index.mld (atproto/index.html). The script
+      # replaces dune's 0444 index via temp file + mv (not in-place >).
       - name: Redirect Pages root to package docs
         run: |
           ./doc/odoc-root-redirect.sh
           grep -q 'url=atproto/index.html' _build/default/_doc/_html/index.html
+          grep -q 'href="atproto/index.html"' _build/default/_doc/_html/index.html
           test -f _build/default/_doc/_html/atproto/index.html
 
       - name: Upload odoc HTML

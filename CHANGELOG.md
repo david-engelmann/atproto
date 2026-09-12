@@ -61,6 +61,14 @@ proposal `registerNotify` `repo` (not in the #5187 lexicon).
   `index.mld` is a guided start page (install, first call, next
   modules). README badges and the Documentation table point at
   https://david-engelmann.github.io/atproto/atproto/.
+  `doc/odoc-root-redirect.sh` writes a temp file and replaces
+  dune's read-only root `index.html` (in-place `>` failed CI
+  `lint-doc` after #251). Merge unblocks Pages deploy.
+- README tighten: one **Client only** section (hosted clients +
+  we do not run those servers); Quick start install once, Install
+  keeps bounds / pin / dune; TestNetwork detail in
+  [CONTRIBUTING](.github/CONTRIBUTING.md); examples table without
+  the long code dump.
 - Docs accuracy: quick start no longer says both calls hit AppView
   (`resolve_handle` is entryway / `ATP_HOST`). `ATP_LOCAL_PDS` vs
   `ATP_REQUIRE_LOCAL_PDS` documented. `ATP_PUSH_APP_ID` /
