@@ -5,9 +5,9 @@
 read and write repositories, follow the firehose, and call AppView,
 Ozone, and hosted Bluesky products (chat, video, Jetstream).
 
-{b 1.0.2} is the packaged surface. Until {b atproto.1.0.2} lands on
-opam-repository, pin the GitHub repository; after it is published,
-[opam install atproto]. The narrative guide — install, quick start,
+{b 1.0.2} is the packaged surface. Install with [opam update] and
+[opam install atproto]. Pin the GitHub repository or a local clone
+for an unreleased tip. The narrative guide — install, quick start,
 hosted-product paths, and honest gaps — is the
 {{:https://github.com/david-engelmann/atproto#atproto}GitHub README}.
 Release notes are in
@@ -18,8 +18,8 @@ Public-internet live tests skip unless [ATP_PUBLIC=1]. Default
 {1 Start here}
 
 {v
-opam pin add atproto git+https://github.com/david-engelmann/atproto.git
-(* after atproto.1.0.2 is on opam-repository: opam install atproto *)
+opam update
+opam install atproto
 v}
 
 {[

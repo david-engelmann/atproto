@@ -1,10 +1,9 @@
 # Contributing
 
 Pull requests are welcome. Package version on this tree is **1.0.2**.
-Until **atproto.1.0.2** is on opam-repository, pin the GitHub
-repository. That package supersedes
-[ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703).
-Product docs for third-party users are in
+Third-party users install with `opam update` and `opam install atproto`.
+Contributors may pin a local clone or the GitHub tip (see
+[README.md](../README.md)). Product docs are in
 [README.md](../README.md) and
 https://david-engelmann.github.io/atproto/.
 
