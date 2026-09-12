@@ -6,7 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Current package version is **1.0.2** (`dune-project` / `atproto.opam`).
 Tagged **1.0.1** is at
 [`53ffbc2`](https://github.com/david-engelmann/atproto/releases/tag/1.0.1).
-The next published package is **atproto.1.0.2**; it supersedes
+**atproto.1.0.2** is on ocaml/opam-repository (`opam install atproto`).
+It supersedes
 [ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703).
 
 This file is the human-readable release history. PR numbers are
@@ -49,6 +50,9 @@ proposal `registerNotify` `repo` (not in the #5187 lexicon).
   [`f0d4877a`](https://github.com/bluesky-social/atproto/commit/f0d4877a03dc8ede0d3e9a36d5b72ada63b5d2e0).
 - Hosted-only products stay listed, not faked (see the 1.0.0 Notes
   below).
+- Install docs lead with `opam install atproto` (**atproto.1.0.2** is
+  on ocaml/opam-repository). Pin / git / local clone remains the
+  development path.
 
 ## [1.0.2] - 2026-09-10
 
@@ -59,7 +63,7 @@ live hops (PLC directory, AppView, public PDS, firehose / Jetstream)
 ran by default and only skipped on a caught exception.
 
 **1.0.2** makes `opam install -t` / `dune build -p atproto @runtest`
-offline-safe. The published package will be **atproto.1.0.2**; it
+offline-safe. **atproto.1.0.2** is on ocaml/opam-repository; it
 supersedes
 [ocaml/opam-repository#30703](https://github.com/ocaml/opam-repository/pull/30703).
 

@@ -4,9 +4,9 @@
 
 Resolve identities, read and write repositories, follow the firehose, and call AppView, Ozone, and hosted Bluesky products (chat, video, Jetstream) from one library. Protocol pieces — XRPC, CID/CAR/MST, lexicons, OAuth/DPoP — are implemented here, not left as raw HTTP.
 
-**1.0.2** is the packaged surface. Pin this repository until
-**atproto.1.0.2** lands on opam-repository; then `opam install atproto`.
-See [CHANGELOG.md](CHANGELOG.md).
+**1.0.2** is the packaged surface. Install with `opam update` and
+`opam install atproto`. Pin this repository (or a local clone) for
+an unreleased tip. See [CHANGELOG.md](CHANGELOG.md).
 
 This package is a **client**. It does not host a PDS, chat service, video transcoder, Tap, SMS gateway, or push backend. See [What this package does not host](#what-this-package-does-not-host).
 
@@ -17,9 +17,8 @@ not need `ATP_AUTH`. `ATP_PUBLIC` only gates live *tests*; it is
 not required to run this snippet.
 
 ```shell
-opam pin add atproto git+https://github.com/david-engelmann/atproto.git
-# after atproto.1.0.2 is on opam-repository:
-# opam install atproto
+opam update
+opam install atproto
 ```
 
 ```ocaml
@@ -32,18 +31,19 @@ let posts = Feed.search_posts ~q:"atproto" ~limit:5 ()
 
 ## Install
 
-Requires OCaml **>= 4.14.1 and < 5.4** (CI: **4.14.1** and **5.3.0**). Jane Street `core` / `async` / `ppx_jane` / `zstandard` are **>= v0.16.0 and < v0.18~** (v0.16 on 4.14, v0.17 on 5.1–5.3). Public Jane Street v0.17 does not support OCaml 5.4+; 5.0 is untested. Jetstream dict-zstd needs system **libzstd** (Debian/Ubuntu `libzstd-dev`, macOS Homebrew `zstd`) before `opam pin` / `opam install . --deps-only`. The Jane Street `zstandard` package is Linux-only (x86_64 / arm64).
+Requires OCaml **>= 4.14.1 and < 5.4** (CI: **4.14.1** and **5.3.0**). Jane Street `core` / `async` / `ppx_jane` / `zstandard` are **>= v0.16.0 and < v0.18~** (v0.16 on 4.14, v0.17 on 5.1–5.3). Public Jane Street v0.17 does not support OCaml 5.4+; 5.0 is untested. Jetstream dict-zstd needs system **libzstd** (Debian/Ubuntu `libzstd-dev`, macOS Homebrew `zstd`) before `opam install`. The Jane Street `zstandard` package is Linux-only (x86_64 / arm64).
 
 ```shell
-opam pin add atproto git+https://github.com/david-engelmann/atproto.git
-# after atproto.1.0.2 is on opam-repository:
-# opam install atproto
+opam update
+opam install atproto
 ```
 
-From a local clone:
+From a local clone, or an unreleased tip:
 
 ```shell
 opam pin add atproto .
+# or from GitHub:
+# opam pin add atproto git+https://github.com/david-engelmann/atproto.git
 # or install build/test deps without pinning a release
 opam install . --deps-only --with-test
 dune build -p atproto
@@ -55,7 +55,7 @@ In a dependent `dune` stanza:
 (libraries atproto)
 ```
 
-`opam pin` / `opam install .` run `dune build -p atproto` and install the public `atproto` library. Release notes: [CHANGELOG.md](CHANGELOG.md). Official lexicons stay pinned at bluesky-social/atproto [`f0d4877a`](https://github.com/bluesky-social/atproto/commit/f0d4877a03dc8ede0d3e9a36d5b72ada63b5d2e0).
+`opam install atproto` / `opam pin` / `opam install .` run `dune build -p atproto` and install the public `atproto` library. Release notes: [CHANGELOG.md](CHANGELOG.md). Official lexicons stay pinned at bluesky-social/atproto [`f0d4877a`](https://github.com/bluesky-social/atproto/commit/f0d4877a03dc8ede0d3e9a36d5b72ada63b5d2e0).
 
 ## Documentation
 
