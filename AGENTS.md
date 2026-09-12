@@ -5,7 +5,7 @@ This repository is an OCaml **client and protocol library** for the [AT Protocol
 ## Install and call
 
 - Package: `atproto`. Dune: `(libraries atproto)`.
-- Packaged **1.0.2**. `opam update` then `opam install atproto`. Pin the GitHub repository or a local clone for an unreleased tip.
+- Install **1.0.2** with `opam update && opam install atproto`. Pin the GitHub repo or a local clone for an unreleased tip.
 - OCaml `>= 4.14.1` and `< 5.4`. System **libzstd** is required (Jetstream dict-zstd).
 - Public live tests skip unless `ATP_PUBLIC=1`. Default `opam install -t` / `@runtest` is offline. Credential hops stay on `ATP_AUTH`; local TestNetwork stays on `ATP_LOCAL_PDS`.
 - Public, unauthenticated starting point (needs the **public network**; `ATP_PUBLIC` only gates *tests*, not this example):
@@ -15,7 +15,7 @@ let did = (Identity.resolve_handle "jay.bsky.team").did
 let posts = Feed.search_posts ~q:"atproto" ~limit:5 ()
 ```
 
-## Honesty constraints
+## Client only
 
 Do not invent or stub hosted products. Do not claim public-network
 tests run in default `with-test` (they need `ATP_PUBLIC=1`). This

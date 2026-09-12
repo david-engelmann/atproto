@@ -55,6 +55,8 @@ proposal `registerNotify` `repo` (not in the #5187 lexicon).
   table link the [opam package
   page](https://opam.ocaml.org/packages/atproto/). Pin / git / local
   clone remains the development path.
+- README voice pass: drop “packaged surface” and similar filler.
+  Install line is `opam update && opam install atproto`.
 
 ## [1.0.2] - 2026-09-10
 
