@@ -1,7 +1,7 @@
 open Auth
 open Error
 
-(** [com.atproto.server.createSession] / [getSession] and the live session record. *)
+(** App-password login ([createSession] / [getSession]). *)
 module Session = struct
   type session = Auth.session = {
     username : string;

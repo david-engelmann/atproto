@@ -1,6 +1,6 @@
 # Agents
 
-This repository is an OCaml **client and protocol library** for the [AT Protocol](https://atproto.com). Read [README.md](README.md) first; module HTML is at https://david-engelmann.github.io/atproto/.
+This repository is an OCaml **client and protocol library** for the [AT Protocol](https://atproto.com). Read [README.md](README.md) first; module HTML is at https://david-engelmann.github.io/atproto/atproto/.
 
 ## Install and call
 
@@ -36,7 +36,7 @@ Official lexicons are pinned at `f0d4877a`. Do not bump that pin in a docs chang
 | Question | Source |
 | --- | --- |
 | What to install / first call | [README.md](README.md) |
-| What each module is for | README library map + [odoc](https://david-engelmann.github.io/atproto/) |
+| What each module is for | README library map + [odoc](https://david-engelmann.github.io/atproto/atproto/) |
 | What shipped when | [CHANGELOG.md](CHANGELOG.md) |
 | How to contribute / local TestNetwork | [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md) |
 | Env names | `sample.env` |

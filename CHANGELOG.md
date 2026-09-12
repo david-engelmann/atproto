@@ -57,6 +57,10 @@ proposal `registerNotify` `repo` (not in the #5187 lexicon).
   clone remains the development path.
 - README voice pass: drop “packaged surface” and similar filler.
   Install line is `opam update && opam install atproto`.
+- Docs UX: Pages root redirects to the package landing; odoc
+  `index.mld` is a guided start page (install, first call, next
+  modules). README badges and the Documentation table point at
+  https://david-engelmann.github.io/atproto/atproto/.
 
 ## [1.0.2] - 2026-09-10
 

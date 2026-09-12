@@ -1,6 +1,6 @@
 open Session
 
-(** com.atproto.identity — handle and DID resolution (no auth required). *)
+(** Handle / DID resolution ([com.atproto.identity]). No auth required. *)
 module Identity = struct
   type resolved_handle = { did : string }
 

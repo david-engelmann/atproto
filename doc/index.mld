@@ -1,117 +1,120 @@
-{0 AT Protocol for OCaml}
+{0 atproto}
 
 {!Atproto} is a typed OCaml client for the
-{{:https://atproto.com}AT Protocol}. Use it to resolve identities,
-read and write repositories, follow the firehose, and call AppView,
-Ozone, and hosted Bluesky products (chat, video, Jetstream).
+{{:https://atproto.com}AT Protocol}. Resolve identities, read and write
+repos, follow the firehose, and call AppView, Ozone, and hosted Bluesky
+services (chat, video, Jetstream). Client only: this package does not
+host a PDS, chat backend, video transcoder, Tap, SMS gateway, or
+APNs/FCM.
 
-Install {b 1.0.2} from opam with [opam update] and
-[opam install atproto]. Pin the GitHub repo or a local clone for an
-unreleased tip. Install, env vars, and the module map are in the
-{{:https://github.com/david-engelmann/atproto#atproto}GitHub README}.
-Release notes are in
-{{:https://github.com/david-engelmann/atproto/blob/main/CHANGELOG.md}CHANGELOG.md}.
-Public-network live tests skip unless [ATP_PUBLIC=1]. Default
-[opam install -t] / [@runtest] stay offline.
+Install, env, and examples:
+{{:https://github.com/david-engelmann/atproto#atproto}README}.
+Release notes:
+{{:https://github.com/david-engelmann/atproto/blob/main/CHANGELOG.md}CHANGELOG}.
 
-{1 Start here}
+{1 Install}
 
 {v
-opam update
-opam install atproto
+opam update && opam install atproto
 v}
+
+Then [(libraries atproto)] in dune. OCaml [>= 4.14.1] and [< 5.4]
+(CI: 4.14.1 and 5.3.0). Jetstream dict-zstd needs system libzstd
+([libzstd-dev] / Homebrew [zstd]). Pin the GitHub repo or a local
+clone for an unreleased tip.
+
+{1 Quick start}
+
+These two calls hit the public AppView. They need the network, not
+[ATP_AUTH]. [ATP_PUBLIC] only gates {e tests}, not this snippet.
 
 {[
 let did = (Identity.resolve_handle "jay.bsky.team").did
 let posts = Feed.search_posts ~q:"atproto" ~limit:5 ()
 ]}
 
-Those two OCaml lines need the {b public network} (no [ATP_AUTH]).
-[ATP_PUBLIC] only gates {e tests}, not this example.
+{1 Where to go next}
 
-Then [(libraries atproto)] in dune. Requires OCaml [>= 4.14.1] and
-[< 5.4] (CI: 4.14.1 and 5.3.0). Jetstream dict-zstd needs system
-libzstd ([libzstd-dev] / Homebrew [zstd]).
+{ul
+{- Resolve a handle or DID: {!Atproto.Identity}}
+{- App-password session: {!Atproto.Session} and {!Atproto.Auth}}
+{- Profiles and timelines: {!Atproto.Feed} and {!Atproto.Actor}}
+{- Write a post or follow: {!Atproto.Records} and {!Atproto.Repo}}
+{- Firehose / Jetstream: {!Atproto.Firehose} and {!Atproto.Jetstream}}
+{- Browser login: {!Atproto.Oauth}. You host [client-metadata.json].
+   DPoP cannot be proxied.}
+{- Hosted chat or video: {!Atproto.Chat} and {!Atproto.Video}}}
 
-{1 What this library is}
+{1 Modules}
 
-A client and protocol library: XRPC, lexicons (pinned at
-{{:https://github.com/bluesky-social/atproto/commit/f0d4877a03dc8ede0d3e9a36d5b72ada63b5d2e0}[f0d4877a03]}),
-CID / CAR / MST, OAuth / DPoP, and typed helpers for AppView, Ozone,
-chat, and video.
-
-It does {e not} host a PDS, chat backend, video transcoder, Tap, SMS
-gateway, or APNs/FCM:
-
-- {!Atproto.Oauth} builds a public HTTPS client-metadata document
-  and drives authorize → code → token. Your application still hosts
-  that URL and the redirect.
-- {!Atproto.Chat} talks to hosted [chat.bsky.*] on [api.bsky.chat]
-  ([atproto-proxy] or service-auth; DPoP cannot be proxied).
-- {!Atproto.Video} talks to hosted [app.bsky.video.*] on
-  [video.bsky.app] (service-auth [did:web:<pds>] + [uploadBlob]).
-- {!Atproto.Repo_sync} is an indexer / backfill toolkit, not a Tap
-  host.
-- {!Atproto.Jetstream} archive HTTP needs an operator-supplied
-  [JETSTREAM_API_KEY]. Live [subscribe] stays unauthenticated.
-- {!Atproto.Contact} and {!Atproto.Notification} [registerPush] are
-  clients for hosted SMS / a caller push gateway.
-
-Experimental proposal-0016 modules ({!Atproto.Lt_hash},
-{!Atproto.Space_commit}, {!Atproto.Space_credential},
-{!Atproto.Space_xrpc}, {!Atproto.Space_sync}) are {b not} a spaces
-product API. There is no space host in this package.
-
-{1 Public modules}
-
-Auth / Session
-
-{!modules: Atproto.Auth Atproto.Session}
-
-XRPC
-
-{!modules: Atproto.Xrpc Atproto.Error}
-
-Identity / PLC
+Identity. Handle and DID resolve, PLC, [did:web] / [did:key].
 
 {!modules: Atproto.Identity Atproto.Did_plc Atproto.Did_web Atproto.Did_key}
 
-MST / CID / CAR / indexer
+Session. App passwords, invites, email, [getServiceAuth].
 
-{!modules: Atproto.Mst Atproto.Cid Atproto.Car Atproto.Dag_cbor Atproto.Repo_sync}
+{!modules: Atproto.Auth Atproto.Session Atproto.Server}
 
-Experimental permissioned-data (proposal 0016; not a spaces product)
+AppView. Profiles, timelines, search, graphs, bookmarks, public
+labelers.
 
-{!modules: Atproto.Lt_hash Atproto.Space_commit Atproto.Space_credential Atproto.Space_xrpc Atproto.Space_sync}
+{!modules: Atproto.Actor Atproto.Feed Atproto.Graph Atproto.Bookmark Atproto.Labeler Atproto.Unspecced}
 
-TID / AT URI / syntax
+Records. create/put/delete/applyWrites and typed post / like / follow
+builders.
 
-{!modules: Atproto.Tid Atproto.At_uri Atproto.Syntax}
+{!modules: Atproto.Repo Atproto.Records Atproto.Embed Atproto.Facet}
 
-Firehose / Jetstream
+Firehose. [subscribeRepos] and Jetstream live tail / archive HTTP.
 
-{!modules: Atproto.Firehose Atproto.Jetstream}
+{!modules: Atproto.Firehose Atproto.Websocket Atproto.Jetstream}
 
-OAuth / DPoP
+OAuth. PKCE, DPoP, public HTTPS client-metadata, browser login. You
+still host the metadata document. Authed AppView / Ozone / chat use
+[Oauth.get_service_auth], not the DPoP access token.
 
 {!modules: Atproto.Oauth Atproto.Oauth_scope}
 
-AppView
+Hosted clients. Chat ([api.bsky.chat]; extra DM scopes), video
+([video.bsky.app]; no transcoder), contacts (no SMS gateway),
+[registerPush] (caller gateway).
 
-{!modules: Atproto.Actor Atproto.Feed Atproto.Graph Atproto.Bookmark Atproto.Notification Atproto.Labeler Atproto.Unspecced Atproto.Video Atproto.Draft Atproto.Contact Atproto.Ageassurance Atproto.Site Atproto.Embed Atproto.Facet}
+{!modules: Atproto.Chat Atproto.Video Atproto.Contact Atproto.Notification}
 
-Ozone
+Ozone and reports.
 
-{!modules: Atproto.Ozone}
+{!modules: Atproto.Ozone Atproto.Admin Atproto.Temp Atproto.Moderation}
 
-Admin / temp / moderation
+Sync and indexer. Repo CAR, MST, CID. {!Atproto.Repo_sync} is a
+backfill toolkit, not a Tap host.
 
-{!modules: Atproto.Admin Atproto.Temp Atproto.Moderation}
+{!modules: Atproto.Sync Atproto.Repo_sync Atproto.Mst Atproto.Cid Atproto.Car Atproto.Dag_cbor}
 
-Chat client
+Protocol bits. [at://], TIDs, XRPC, lexicons, labels, HTTP.
 
-{!modules: Atproto.Chat}
+{!modules: Atproto.At_uri Atproto.Tid Atproto.Syntax Atproto.Xrpc Atproto.Error Atproto.Lexicon Atproto.Label Atproto.Http_client}
 
-Also {!Atproto.Repo}, {!Atproto.Records}, {!Atproto.Server},
-{!Atproto.Sync}, {!Atproto.Label}, {!Atproto.Lexicon},
-{!Atproto.Http_client}, and {!Atproto.Germnetwork}.
+Also {!Atproto.Draft}, {!Atproto.Ageassurance}, {!Atproto.Site},
+{!Atproto.Germnetwork}, {!Atproto.App}, and {!Atproto.Client}.
+
+Experimental proposal
+{{:https://github.com/bluesky-social/proposals/blob/main/0016-permissioned-data/README.md}0016}
+([At_uri.Space] plus the modules below). Not a spaces
+product API. No space host in this package.
+
+{!modules: Atproto.Lt_hash Atproto.Space_commit Atproto.Space_credential Atproto.Space_xrpc Atproto.Space_sync}
+
+{1 Notes}
+
+Live public-network tests skip unless [ATP_PUBLIC=1]. Default
+[opam install -t] / [@runtest] stay offline.
+
+Official lexicons are pinned at
+{{:https://github.com/bluesky-social/atproto/commit/f0d4877a03dc8ede0d3e9a36d5b72ada63b5d2e0}[f0d4877a]}.
+
+{!Atproto.Chat} needs a DM grant ([transition:chat.bsky] or
+[include:chat.bsky.authFullChatClient], or a privileged app-password).
+{!Atproto.Jetstream} archive HTTP needs an operator
+[JETSTREAM_API_KEY]; live [subscribe] stays unauthenticated. Space
+helpers skip unless [ATP_SPACE=1] and [ATP_SPACE_HOST] names a real
+host.

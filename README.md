@@ -3,7 +3,7 @@
 Typed OCaml client for the [AT Protocol](https://atproto.com).
 
 [![opam](https://img.shields.io/badge/opam-1.0.2-orange)](https://opam.ocaml.org/packages/atproto/)
-[![docs](https://img.shields.io/badge/docs-odoc-informational)](https://david-engelmann.github.io/atproto/)
+[![docs](https://img.shields.io/badge/docs-odoc-informational)](https://david-engelmann.github.io/atproto/atproto/)
 [![TestSuite](https://github.com/david-engelmann/atproto/actions/workflows/test_suite.yml/badge.svg)](https://github.com/david-engelmann/atproto/actions/workflows/test_suite.yml)
 
 Resolve identities, read and write repositories, follow the firehose, and call AppView, Ozone, and hosted Bluesky services (chat, video, Jetstream). XRPC, CID/CAR/MST, lexicons, and OAuth/DPoP are in the library.
@@ -60,10 +60,12 @@ In a dependent `dune` stanza:
 
 ## Documentation
 
+Browse APIs on the [odoc package page](https://david-engelmann.github.io/atproto/atproto/). This README is install, env, and examples. The Pages root (`https://david-engelmann.github.io/atproto/`) redirects there.
+
 | Resource | Where |
 | --- | --- |
 | opam package | https://opam.ocaml.org/packages/atproto/ |
-| API reference | https://david-engelmann.github.io/atproto/ (`dune build @doc` / `make doc`) |
+| API reference | https://david-engelmann.github.io/atproto/atproto/ (`dune build @doc` / `make doc`) |
 | Release notes | [CHANGELOG.md](CHANGELOG.md) |
 | License | [LICENSE](LICENSE) |
 | Issues | https://github.com/david-engelmann/atproto/issues |
@@ -97,7 +99,7 @@ Pushes to `main` deploy odoc with GitHub Actions Pages. Pull requests also uploa
 | HTTP | `Client`, `Http_client`, `App` | Shared XRPC GET/POST; HTTP/2 TLS for public HTTPS |
 | Experimental | `Lt_hash`, `At_uri.Space`, `Space_commit`, `Space_credential`, `Space_xrpc`, `Space_sync` | Proposal [0016](https://github.com/bluesky-social/proposals/blob/main/0016-permissioned-data/README.md) only. **Not** a spaces product API |
 
-Functions are in [odoc](https://david-engelmann.github.io/atproto/). What shipped when is in the [CHANGELOG](CHANGELOG.md).
+Functions are in [odoc](https://david-engelmann.github.io/atproto/atproto/). What shipped when is in the [CHANGELOG](CHANGELOG.md).
 
 ## Environment
 
@@ -116,69 +118,16 @@ Session creation, repo writes, graph mutes, bookmarks, chat, ozone, and most fee
 
 Other live flags (unset in CI): `ATP_PUBLIC`, `ATP_CHAT`, `ATP_PHONE` / `ATP_PHONE_NUMBER`, `ATP_PUSH` / `ATP_PUSH_DID` / `ATP_PUSH_TOKEN`, `ATP_SPACE` / `ATP_SPACE_HOST` (no default space host), `JETSTREAM_API_KEY`.
 
-## Hosted Bluesky products
+## Hosted Bluesky services
 
-Clients for Bluesky-hosted services. This repo doesn't run those services. Offline examples are under `examples/`.
+Clients for Bluesky-hosted chat, video, contacts, push, and Jetstream. This repo does not run those services. Browse the modules on [odoc](https://david-engelmann.github.io/atproto/atproto/). Offline examples are under `examples/`.
 
-### OAuth (HTTPS client-metadata)
-
-AT Protocol identifies a public client by an HTTPS `client_id` that **is** the URL of a JSON metadata document. This library builds, validates, and serializes that document and drives the browser login path. It does **not** host the file or a login UI.
-
-1. Build the document (`Oauth.public_https_metadata`). `client_id` must be `https://host/path` with no port; web `redirect_uris` must be HTTPS on the same origin. Native clients may use `http://127.0.0.1` / `http://[::1]` or a reverse-domain custom scheme.
-2. Publish it at that URL as HTTP 200 `application/json` (`Oauth.metadata_document`). The body's `client_id` must match the fetch URL. See `examples/client-metadata.json` and `examples/oauth_https_metadata.ml`.
-3. `Oauth.start_browser_login` discovers the PDS authorization server, runs PAR, and returns the authorize URL (PKCE S256 + DPoP + `state`).
-4. On the redirect (`?code=&state=&iss=`), `Oauth.complete_browser_login` exchanges the code for a DPoP token. Authed AppView / Ozone / chat still use `Oauth.get_service_auth`, not the DPoP access token. **DPoP cannot be proxied.**
-
-Loopback `http://localhost?redirect_uri=…` and local TestNetwork are the development path. `Auth.createSession` is still a Cohttp password session.
-
-### Chat (`chat.bsky.*`)
-
-Client for the hosted Bluesky chat service (`did:web:api.bsky.chat#bsky_chat`, host `api.bsky.chat` / `ATP_CHAT_HOST`). Official TestNetwork does not start a DM service. This repo does not fake one.
-
-- **Scopes.** `Oauth.default_scope` (`atproto transition:generic`) is not enough. Declare `Oauth.default_chat_scope` (adds `transition:chat.bsky`) or `Oauth_scope.full_chat_client_scope` (`include:chat.bsky.authFullChatClient`). Privileged app-passwords carry a chat grant; regular ones do not. `Chat.scope_has_chat` detects a DM grant.
-- **Password session.** Privileged `createSession` + `Chat.list_convos` / `get_messages` / `send_message` through the PDS with `atproto-proxy` (`Chat.effective_proxy`).
-- **OAuth.** Mint `getServiceAuth` (`aud` = `Chat.service_aud`, `lxm` = the `chat.bsky.*` NSID) and call `Chat.list_convos_service` / `get_messages_service` / `send_message_service` on `api.bsky.chat`. Those helpers do not send `atproto-proxy`.
-
-See `examples/chat_production.ml`.
-
-### Video (`app.bsky.video.*`)
-
-Client for the hosted Bluesky video service (`video.bsky.app` / `ATP_VIDEO_HOST`). Official TestNetwork does not start a transcoder. This repo does not fake one.
-
-- **Service-auth.** Audience is `did:web:<pds-host>` from the session `#atproto_pds` (`Video.pds_audience`), not `did:web:video.bsky.app`. `lxm` is `com.atproto.repo.uploadBlob`. Password: `Video.mint_upload_token`. OAuth: `Oauth.get_service_auth` with the same aud / lxm.
-- **Upload.** Small clips: `Video.upload_video`. Larger files: multipart `start_upload` / `upload_part` / `finish_upload`. Poll with `Video.poll_job_status` / `ensure_blob`.
-- **Embed.** Put the job **blob ref** on the post (`Video.video_embed_json` / `embed_of_job` + `Records.post`). Do not write the HLS playlist into the create embed.
-
-See `examples/video_production.ml`.
-
-### Indexer (`Repo_sync`)
-
-A backfill / firehose-apply toolkit for building an indexer. It is **not** a hosted Tap. Official TestNetwork is a local PDS + AppView + Ozone stack, not a Tap host.
-
-- **Backfill.** `Repo_sync.fetch_repo` / `backfill` pull `com.atproto.sync.getRepo`. Offline: `open_car` / `resync_from_car`.
-- **Walk / proof.** `walk_json` decodes records as IPLD JSON. `export_record_proof` / `verify_record_proof` are getRecord inclusion proofs.
-- **Firehose.** `process_commit` applies `#commit` ops while `Synchronized`. A `#sync` with a different rev marks `Desynchronized` until `resync_from_car`.
-- **Export.** Sync 1.1 `export_car` / `export_subset`. Offline fixture: `write_signed_repo` (production signers use `Mst.sign_p256` / `sign_k256`).
-
-See `examples/repo_sync_indexer.ml`.
-
-### Jetstream
-
-Client for Jetstream live tail and Network Replay HTTP. Live `subscribe` / `subscribe_one` stay unauthenticated (v2 offers `Sec-WebSocket-Protocol: xrpc.v1.json`; dict-zstd is `~compress:true`).
-
-Bluesky-hosted archive HTTP (`planSnapshot` / `planBackfill` / `listSegments` / …) needs an operator API key from [bsky.network/account](https://bsky.network/account), not a PDS JWT. Pass `JETSTREAM_API_KEY` (or `JETSTREAM_ARCHIVE_TOKEN` / `~token`) as the raw key. This library does not invent one. `require_archive_token` raises if the key is missing, before any HTTP. Self-hosted Jetstream needs no key.
-
-See `examples/jetstream_archive.ml`.
-
-### Phone, contacts, and push
-
-Client for hosted Bluesky phone verification, contact import, and push registration. It does not send SMS and does not start an APNs/FCM gateway.
-
-- **Contacts.** Password sessions use `Contact.get_matches` / `import_contacts` through the PDS. OAuth mints AppView service-auth and calls `*_service` on `public.api.bsky.app`.
-- **SMS.** `Contact.start_phone_verification` → `verify_phone` → `import_contacts` is Bluesky-hosted SMS. Those tests skip unless `ATP_PHONE=1` and `ATP_PHONE_NUMBER` is an E.164 number you own. `Temp.request_phone_verification` is a different privileged signup-SMS client and is also not faked.
-- **Push.** `Notification.register_push` takes a caller `serviceDid`, device token, platform (`ios` / `android` / `web`), and `appId`. Official Bluesky push is closed to the official app.
-
-See `examples/contacts_production.ml`.
+- **OAuth.** You host `client-metadata.json` and the redirect. The library builds the document and drives authorize → code → token. Authed AppView / Ozone / chat use `Oauth.get_service_auth`, not the DPoP access token. **DPoP cannot be proxied.** See `examples/oauth_https_metadata.ml`.
+- **Chat.** `Oauth.default_scope` is not enough. Use `Oauth.default_chat_scope` (`transition:chat.bsky`) or `Oauth_scope.full_chat_client_scope`. Privileged app-passwords carry a chat grant; regular ones do not. Password path goes through the PDS with `atproto-proxy`; OAuth path calls `api.bsky.chat` with service-auth. See `examples/chat_production.ml`.
+- **Video.** Service-auth audience is `did:web:<pds-host>` (`Video.pds_audience`), not `did:web:video.bsky.app`. Embed the job **blob ref**, not the HLS playlist. See `examples/video_production.ml`.
+- **Indexer.** `Repo_sync` backfills and applies the firehose. It is not a Tap host. See `examples/repo_sync_indexer.ml`.
+- **Jetstream.** Live `subscribe` is unauthenticated. Archive HTTP needs an operator `JETSTREAM_API_KEY` from [bsky.network/account](https://bsky.network/account). `require_archive_token` raises if the key is missing, before any HTTP. See `examples/jetstream_archive.ml`.
+- **SMS / push.** Hosted Bluesky SMS (`ATP_PHONE=1` and an E.164 number you own). `Notification.register_push` takes a caller gateway. Official Bluesky push is closed to the official app. See `examples/contacts_production.ml`.
 
 ## What this package does not host
 
