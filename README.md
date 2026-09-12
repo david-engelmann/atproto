@@ -139,7 +139,7 @@ Client for the hosted Bluesky chat service (`did:web:api.bsky.chat#bsky_chat`, h
 - **Password session.** Privileged `createSession` + `Chat.list_convos` / `get_messages` / `send_message` through the PDS with `atproto-proxy` (`Chat.effective_proxy`).
 - **OAuth.** Mint `getServiceAuth` (`aud` = `Chat.service_aud`, `lxm` = the `chat.bsky.*` NSID) and call `Chat.list_convos_service` / `get_messages_service` / `send_message_service` on `api.bsky.chat`. Those helpers do not send `atproto-proxy`.
 
-`examples/chat_production.ml` typechecks the flow (no network).
+See `examples/chat_production.ml`.
 
 ### Video (`app.bsky.video.*`)
 
@@ -149,7 +149,7 @@ Client for the hosted Bluesky video service (`video.bsky.app` / `ATP_VIDEO_HOST`
 - **Upload.** Small clips: `Video.upload_video`. Larger files: multipart `start_upload` / `upload_part` / `finish_upload`. Poll with `Video.poll_job_status` / `ensure_blob`.
 - **Embed.** Put the job **blob ref** on the post (`Video.video_embed_json` / `embed_of_job` + `Records.post`). Do not write the HLS playlist into the create embed.
 
-`examples/video_production.ml` typechecks the flow (no network).
+See `examples/video_production.ml`.
 
 ### Indexer (`Repo_sync`)
 
@@ -160,7 +160,7 @@ A backfill / firehose-apply toolkit for building an indexer. It is **not** a hos
 - **Firehose.** `process_commit` applies `#commit` ops while `Synchronized`. A `#sync` with a different rev marks `Desynchronized` until `resync_from_car`.
 - **Export.** Sync 1.1 `export_car` / `export_subset`. Offline fixture: `write_signed_repo` (production signers use `Mst.sign_p256` / `sign_k256`).
 
-`examples/repo_sync_indexer.ml` typechecks the flow (no network).
+See `examples/repo_sync_indexer.ml`.
 
 ### Jetstream
 
@@ -168,7 +168,7 @@ Client for Jetstream live tail and Network Replay HTTP. Live `subscribe` / `subs
 
 Bluesky-hosted archive HTTP (`planSnapshot` / `planBackfill` / `listSegments` / …) needs an operator API key from [bsky.network/account](https://bsky.network/account), not a PDS JWT. Pass `JETSTREAM_API_KEY` (or `JETSTREAM_ARCHIVE_TOKEN` / `~token`) as the raw key. This library does not invent one. `require_archive_token` raises if the key is missing, before any HTTP. Self-hosted Jetstream needs no key.
 
-`examples/jetstream_archive.ml` typechecks the flow (no network).
+See `examples/jetstream_archive.ml`.
 
 ### Phone, contacts, and push
 
@@ -178,7 +178,7 @@ Client for hosted Bluesky phone verification, contact import, and push registrat
 - **SMS.** `Contact.start_phone_verification` → `verify_phone` → `import_contacts` is Bluesky-hosted SMS. Those tests skip unless `ATP_PHONE=1` and `ATP_PHONE_NUMBER` is an E.164 number you own. `Temp.request_phone_verification` is a different privileged signup-SMS client and is also not faked.
 - **Push.** `Notification.register_push` takes a caller `serviceDid`, device token, platform (`ios` / `android` / `web`), and `appId`. Official Bluesky push is closed to the official app.
 
-`examples/contacts_production.ml` typechecks the flow (no network).
+See `examples/contacts_production.ml`.
 
 ## What this package does not host
 
