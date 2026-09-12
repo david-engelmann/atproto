@@ -1,13 +1,13 @@
 # Agents
 
-This repository is an OCaml **client and protocol library** for the [AT Protocol](https://atproto.com). Read [README.md](README.md) first; module HTML is at https://david-engelmann.github.io/atproto/.
+This repository is an OCaml **client and protocol library** for the [AT Protocol](https://atproto.com). Read [README.md](README.md) first; module HTML is at https://david-engelmann.github.io/atproto/atproto/.
 
 ## Install and call
 
 - Package: `atproto`. Dune: `(libraries atproto)`.
-- Packaged **1.0.2**. `opam update` then `opam install atproto`. Pin the GitHub repository or a local clone for an unreleased tip.
+- Install **1.0.2** with `opam update && opam install atproto`. Pin the GitHub repo or a local clone for an unreleased tip.
 - OCaml `>= 4.14.1` and `< 5.4`. System **libzstd** is required (Jetstream dict-zstd).
-- Public live tests skip unless `ATP_PUBLIC=1`. Default `opam install -t` / `@runtest` is offline. Credential hops stay on `ATP_AUTH`; local TestNetwork stays on `ATP_LOCAL_PDS`.
+- Public live tests skip unless `ATP_PUBLIC=1`. Default `opam install -t` / `@runtest` is offline. Credential hops stay on `ATP_AUTH`. Local TestNetwork: `ATP_LOCAL_PDS=1` or `ATP_HOST` on localhost selects those tests; `ATP_REQUIRE_LOCAL_PDS=1` makes a down stack fail instead of skip.
 - Public, unauthenticated starting point (needs the **public network**; `ATP_PUBLIC` only gates *tests*, not this example):
 
 ```ocaml
@@ -15,7 +15,7 @@ let did = (Identity.resolve_handle "jay.bsky.team").did
 let posts = Feed.search_posts ~q:"atproto" ~limit:5 ()
 ```
 
-## Honesty constraints
+## Client only
 
 Do not invent or stub hosted products. Do not claim public-network
 tests run in default `with-test` (they need `ATP_PUBLIC=1`). This
@@ -36,7 +36,7 @@ Official lexicons are pinned at `f0d4877a`. Do not bump that pin in a docs chang
 | Question | Source |
 | --- | --- |
 | What to install / first call | [README.md](README.md) |
-| What each module is for | README library map + [odoc](https://david-engelmann.github.io/atproto/) |
+| What each module is for | README library map + [odoc](https://david-engelmann.github.io/atproto/atproto/) |
 | What shipped when | [CHANGELOG.md](CHANGELOG.md) |
 | How to contribute / local TestNetwork | [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md) |
 | Env names | `sample.env` |

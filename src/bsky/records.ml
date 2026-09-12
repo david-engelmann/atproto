@@ -2,7 +2,7 @@ open Embed
 open Facet
 open Notification
 
-(** Typed builders and parsers for common Bluesky repo records. *)
+(** Build and parse common Bluesky records (post, like, follow, …). *)
 module Records = struct
   let nsid_post = "app.bsky.feed.post"
   let nsid_like = "app.bsky.feed.like"

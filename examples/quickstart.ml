@@ -1,5 +1,6 @@
-(* Copy-paste public AppView example. Needs network. No ATP_AUTH.
-   ATP_PUBLIC only gates live tests; this executable does not read it. *)
+(* Copy-paste public-network example. Needs network. No ATP_AUTH.
+   resolveHandle → entryway (ATP_HOST / bsky.social).
+   searchPosts → public AppView. ATP_PUBLIC only gates live tests. *)
 
 open Atproto.Identity
 open Atproto.Feed

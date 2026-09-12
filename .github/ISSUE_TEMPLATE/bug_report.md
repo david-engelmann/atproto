@@ -21,4 +21,4 @@ What you expected instead.
 - `ATP_HOST` / `ATP_SCHEME` (if the call is live; leave blank for a pure library bug):
 
 **Additional context**
-Logs, response JSON, or a link to the odoc page (https://david-engelmann.github.io/atproto/).
+Logs, response JSON, or a link to the odoc page (https://david-engelmann.github.io/atproto/atproto/).

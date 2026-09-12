@@ -13,4 +13,4 @@ What are you trying to do?
 - Install method (`opam install atproto` / `opam pin` / local clone):
 - `ATP_HOST` / `ATP_SCHEME` (if this is a live call):
 
-Docs: https://david-engelmann.github.io/atproto/
+Docs: https://david-engelmann.github.io/atproto/atproto/

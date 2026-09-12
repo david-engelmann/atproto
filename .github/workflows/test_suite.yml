@@ -164,6 +164,14 @@ jobs:
       - name: Build odoc HTML
         run: opam exec -- dune build @doc
 
+      # Stock odoc root is a package list. This repo has one package;
+      # send people to doc/index.mld (atproto/index.html).
+      - name: Redirect Pages root to package docs
+        run: |
+          ./doc/odoc-root-redirect.sh
+          grep -q 'url=atproto/index.html' _build/default/_doc/_html/index.html
+          test -f _build/default/_doc/_html/atproto/index.html
+
       - name: Upload odoc HTML
         if: always()
         uses: actions/upload-artifact@v7

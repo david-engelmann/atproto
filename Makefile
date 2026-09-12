@@ -32,6 +32,7 @@ lexicon-coverage:
 
 doc:
 	dune build @doc
+	./doc/odoc-root-redirect.sh
 
 pds-up atproto-up:
 	./scripts/local-atproto.sh up

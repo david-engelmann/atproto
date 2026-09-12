@@ -1,11 +1,11 @@
 # Contributing
 
 Pull requests are welcome. Package version on this tree is **1.0.2**.
-Third-party users install with `opam update` and `opam install atproto`.
+Install with `opam update` and `opam install atproto`.
 Contributors may pin a local clone or the GitHub tip (see
 [README.md](../README.md)). Product docs are in
 [README.md](../README.md) and
-https://david-engelmann.github.io/atproto/.
+https://david-engelmann.github.io/atproto/atproto/.
 
 ## Toolchain
 
@@ -34,9 +34,11 @@ odoc HTML is a CI artifact (`odoc-html`) on pull requests. On push to
 `main`, TestSuite deploys `_build/default/_doc/_html` with GitHub
 Actions Pages. GitHub Pages is enabled (Settings → Pages → Source:
 GitHub Actions). The live site is
-https://david-engelmann.github.io/atproto/. `dune-project`
-`documentation` points at that URL. Build odoc locally with
-`make doc`.
+https://david-engelmann.github.io/atproto/; that root redirects to
+https://david-engelmann.github.io/atproto/atproto/ (`doc/index.mld`).
+`dune-project` `documentation` points at the site root. Build odoc
+locally with `make doc` (`dune build @doc`, then
+`doc/odoc-root-redirect.sh`).
 
 ## Checks
 
@@ -46,7 +48,8 @@ Public-internet hops are the optional **PublicLive** workflow
 TestSuite / merge-when-green check.
 
 On push to `main`, `deploy-pages` publishes odoc HTML to
-https://david-engelmann.github.io/atproto/.
+https://david-engelmann.github.io/atproto/ (root redirects to
+`/atproto/`).
 
 Open, non-draft pull requests that target `main` from this repository
 (or Dependabot) may be **squash-merged automatically** by
@@ -69,7 +72,9 @@ require a review for this automation.
 
 `make test-pds` starts official `@atproto/dev-env@0.6.4` (PLC, PDS,
 AppView, Ozone). Chat, video, Tap, SMS, and push are not in that
-stack — do not stub them. OAuth against the local AS (loopback
+stack — do not stub them. `ATP_LOCAL_PDS=1` or `ATP_HOST` on
+localhost selects those tests. They skip if the stack is down unless
+`ATP_REQUIRE_LOCAL_PDS=1` (CI and `scripts/local-atproto.sh env`). OAuth against the local AS (loopback
 metadata, PAR, DPoP, CSRF cookies, `getServiceAuth` for AppView /
 Ozone) lives in `test/test_local_oauth.ml`; do not invent a CSRF
 token. Authenticated AppView / Ozone reject a DPoP access token and

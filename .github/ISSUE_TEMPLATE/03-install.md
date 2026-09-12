@@ -17,7 +17,7 @@ labels: ""
 **Command and output**
 Paste the command and the error.
 
-**1.0.2** is the packaged surface. Install with:
+**1.0.2** is on opam. Install with:
 
 ```shell
 opam update
